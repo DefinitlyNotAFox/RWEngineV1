@@ -46,6 +46,21 @@ const summaryHits = document.getElementById("summaryHits");
 const summaryAvgRespect = document.getElementById("summaryAvgRespect");
 const summaryNetScore = document.getElementById("summaryNetScore");
 
+const importForm = document.getElementById("importForm");
+const rankIdInput = document.getElementById("rankIdInput");
+const importStatus = document.getElementById("importStatus");
+
+const importProgressPanel = document.getElementById("importProgressPanel");
+const importProgressStage = document.getElementById("importProgressStage");
+const importProgressCount = document.getElementById("importProgressCount");
+const importProgressBarFill = document.getElementById("importProgressBarFill");
+const importProgressCurrentWar = document.getElementById("importProgressCurrentWar");
+const importProgressCurrentStatus = document.getElementById("importProgressCurrentStatus");
+const importProgressList = document.getElementById("importProgressList");
+
+const importAddedCount = document.getElementById("importAddedCount");
+const importAddedList = document.getElementById("importAddedList");
+
 init();
 
 function init() {
@@ -55,6 +70,7 @@ function init() {
   setupGraphCollapse();
   setupBackendTest();
   setupDashboard();
+  setupImport();
   restoreSession();
 }
 
@@ -302,6 +318,7 @@ function showApp(user) {
   }
 
   loadDashboardData();
+  loadImportedWars();
 }
 
 function showLoginError(message) {
@@ -429,8 +446,6 @@ async function loadDashboardData() {
       sortDirection: state.sortDirection
     });
 
-    console.log("Dashboard result:", result);
-
     renderDashboard(result.rows || [], result.summary || {});
   } catch (error) {
     dashboardTableBody.innerHTML = `
@@ -510,6 +525,252 @@ function renderDashboardSummary(summary) {
   if (summaryNetScore) {
     summaryNetScore.textContent = formatNumber(summary.totalNetScore || 0, 2);
   }
+}
+
+/* =========================
+   IMPORT
+========================= */
+
+function setupImport() {
+  if (!importForm) return;
+
+  importForm.addEventListener("submit", async event => {
+    event.preventDefault();
+
+    const rankIds = parseRankIds(rankIdInput.value);
+
+    if (!rankIds.length) {
+      showImportStatus("error", "Enter at least one ranked war report ID.");
+      return;
+    }
+
+    if (importProgressPanel) {
+      importProgressPanel.classList.remove("hidden");
+    }
+
+    if (importProgressList) {
+      importProgressList.innerHTML = "";
+    }
+
+    updateImportProgress(0, rankIds.length, "Starting import.", "-", "-");
+
+    let successCount = 0;
+    let failedCount = 0;
+
+    const submitButton = importForm.querySelector("button[type='submit']");
+    const originalButtonText = submitButton.textContent;
+
+    submitButton.disabled = true;
+    submitButton.textContent = "Importing...";
+
+    for (let index = 0; index < rankIds.length; index += 1) {
+      const rankId = rankIds[index];
+
+      updateImportProgress(
+        index,
+        rankIds.length,
+        "Importing ranked war reports.",
+        rankId,
+        "Importing..."
+      );
+
+      addImportProgressRow(rankId, "active", "Importing", "Fetching report from Torn.");
+
+      try {
+        const result = await api("importRankedWarReport", {
+          rankId
+        });
+
+        successCount += 1;
+
+        updateImportProgressRow(
+          rankId,
+          "success",
+          "Imported",
+          result.message || "Import successful."
+        );
+      } catch (error) {
+        failedCount += 1;
+
+        updateImportProgressRow(
+          rankId,
+          "failed",
+          "Failed",
+          error.message
+        );
+      }
+
+      updateImportProgress(
+        index + 1,
+        rankIds.length,
+        "Importing ranked war reports.",
+        rankId,
+        "Done"
+      );
+    }
+
+    submitButton.disabled = false;
+    submitButton.textContent = originalButtonText;
+
+    showImportStatus(
+      failedCount ? "error" : "success",
+      `Import finished. Successful: ${successCount}. Failed: ${failedCount}.`
+    );
+
+    rankIdInput.value = "";
+
+    await loadImportedWars();
+    await loadDashboardData();
+  });
+}
+
+function parseRankIds(value) {
+  return String(value || "")
+    .split(/[\s,;]+/)
+    .map(id => id.trim())
+    .filter(Boolean);
+}
+
+function updateImportProgress(done, total, stage, currentWar, currentStatus) {
+  const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  if (importProgressStage) {
+    importProgressStage.textContent = stage;
+  }
+
+  if (importProgressCount) {
+    importProgressCount.textContent = `${done} / ${total}`;
+  }
+
+  if (importProgressBarFill) {
+    importProgressBarFill.style.width = `${percent}%`;
+  }
+
+  if (importProgressCurrentWar) {
+    importProgressCurrentWar.textContent = currentWar || "-";
+  }
+
+  if (importProgressCurrentStatus) {
+    importProgressCurrentStatus.textContent = currentStatus || "-";
+  }
+}
+
+function addImportProgressRow(rankId, stateName, status, message) {
+  if (!importProgressList) return;
+
+  const row = document.createElement("div");
+
+  row.className = `import-progress-row is-${stateName}`;
+  row.dataset.rankId = rankId;
+
+  row.innerHTML = `
+    <span class="import-progress-war">${escapeHtml(rankId)}</span>
+    <span class="import-progress-state">${escapeHtml(status)}</span>
+    <span class="import-progress-message">${escapeHtml(message)}</span>
+    <span></span>
+  `;
+
+  importProgressList.appendChild(row);
+}
+
+function updateImportProgressRow(rankId, stateName, status, message) {
+  if (!importProgressList) return;
+
+  const row = importProgressList.querySelector(`[data-rank-id="${cssEscape(rankId)}"]`);
+
+  if (!row) {
+    addImportProgressRow(rankId, stateName, status, message);
+    return;
+  }
+
+  row.className = `import-progress-row is-${stateName}`;
+
+  row.innerHTML = `
+    <span class="import-progress-war">${escapeHtml(rankId)}</span>
+    <span class="import-progress-state">${escapeHtml(status)}</span>
+    <span class="import-progress-message">${escapeHtml(message)}</span>
+    <span></span>
+  `;
+}
+
+async function loadImportedWars() {
+  if (!importAddedList || !importAddedCount) return;
+
+  try {
+    const result = await api("getImportedWars");
+    renderImportedWars(result.wars || []);
+  } catch (error) {
+    importAddedCount.textContent = "0";
+    importAddedList.innerHTML = `
+      <div class="empty-state">${escapeHtml(error.message)}</div>
+    `;
+  }
+}
+
+function renderImportedWars(wars) {
+  if (!importAddedList || !importAddedCount) return;
+
+  importAddedCount.textContent = String(wars.length);
+
+  if (!wars.length) {
+    importAddedList.innerHTML = `
+      <div class="empty-state">No imported reports found.</div>
+    `;
+    return;
+  }
+
+  importAddedList.innerHTML = wars
+    .map(war => {
+      const opponent = war.opponent_faction_name || "Unknown opponent";
+      const reportId = war.report_id || war.war_id;
+
+      return `
+        <div class="import-added-item">
+          <div class="import-added-item-header">
+            <span class="import-added-war">${escapeHtml(reportId)}</span>
+            <span class="import-added-badge imported">Imported</span>
+          </div>
+
+          <div class="import-added-opponent">
+            ${escapeHtml(opponent)}
+          </div>
+
+          <div class="import-added-id">
+            War ID: ${escapeHtml(war.war_id)}
+          </div>
+
+          <div class="import-added-message">
+            Imported at ${formatUnixTimestamp(war.imported_at)}
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function showImportStatus(type, message) {
+  if (!importStatus) return;
+
+  importStatus.textContent = message;
+  importStatus.className = `form-message ${type}`;
+}
+
+function formatUnixTimestamp(timestamp) {
+  const number = Number(timestamp || 0);
+
+  if (!number) {
+    return "-";
+  }
+
+  return new Date(number * 1000).toLocaleString();
+}
+
+function cssEscape(value) {
+  if (window.CSS && typeof window.CSS.escape === "function") {
+    return window.CSS.escape(String(value));
+  }
+
+  return String(value).replaceAll('"', '\\"');
 }
 
 /* =========================
