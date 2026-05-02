@@ -7,11 +7,20 @@ const appPage = document.getElementById("appPage");
 
 const authLoginModeButton = document.getElementById("authLoginModeButton");
 const authRegisterModeButton = document.getElementById("authRegisterModeButton");
+
 const loginForm = document.getElementById("loginForm");
 const registerForm = document.getElementById("registerForm");
 const loginError = document.getElementById("loginError");
 
+const loginPlayerIdInput = document.getElementById("loginPlayerIdInput");
+const loginPasswordInput = document.getElementById("loginPasswordInput");
+
+const registerApiKeyInput = document.getElementById("registerApiKeyInput");
+const registerPasswordInput = document.getElementById("registerPasswordInput");
+const registerPasswordConfirmInput = document.getElementById("registerPasswordConfirmInput");
+
 const logoutButton = document.getElementById("logoutButton");
+const testApiButton = document.getElementById("testApiButton");
 
 const navButtons = document.querySelectorAll(".nav-btn");
 const tabPanels = document.querySelectorAll(".tab-panel");
@@ -20,17 +29,52 @@ const graphPanel = document.getElementById("graphPanel");
 const graphBody = document.getElementById("graphBody");
 const graphCollapseButton = document.getElementById("graphCollapseButton");
 
-const testApiButton = document.getElementById("testApiButton");
-
 init();
 
 function init() {
   setupAuthSwitch();
-  setupFakeAuth();
+  setupAuthForms();
   setupTabs();
   setupGraphCollapse();
   setupBackendTest();
 }
+
+/* =========================
+   API
+========================= */
+
+async function api(action, payload = {}) {
+  const response = await fetch("/api", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      action,
+      ...payload
+    })
+  });
+
+  const text = await response.text();
+
+  let result;
+
+  try {
+    result = JSON.parse(text);
+  } catch {
+    throw new Error("Server returned invalid JSON: " + text);
+  }
+
+  if (!response.ok || !result.success) {
+    throw new Error(result.message || "Request failed.");
+  }
+
+  return result;
+}
+
+/* =========================
+   AUTH UI
+========================= */
 
 function setupAuthSwitch() {
   authLoginModeButton.addEventListener("click", () => {
@@ -54,7 +98,7 @@ function setupAuthSwitch() {
   });
 }
 
-function setupFakeAuth() {
+function setupAuthForms() {
   loginForm.addEventListener("submit", event => {
     event.preventDefault();
 
@@ -66,16 +110,16 @@ function setupFakeAuth() {
 
     hideLoginMessage();
 
-    const apiKey = document.getElementById("registerApiKeyInput").value.trim();
-    const password = document.getElementById("registerPasswordInput").value;
-    const confirmPassword = document.getElementById("registerPasswordConfirmInput").value;
+    const apiKey = registerApiKeyInput.value.trim();
+    const password = registerPasswordInput.value;
+    const confirmPassword = registerPasswordConfirmInput.value;
 
     if (!apiKey) {
       showLoginError("Missing Torn API key.");
       return;
     }
 
-    if (password.length < 8) {
+    if (!password || password.length < 8) {
       showLoginError("Password must be at least 8 characters.");
       return;
     }
@@ -85,25 +129,18 @@ function setupFakeAuth() {
       return;
     }
 
+    const submitButton = registerForm.querySelector("button[type='submit']");
+    const originalButtonText = submitButton.textContent;
+
+    submitButton.disabled = true;
+    submitButton.textContent = "Creating account...";
+
     try {
-      const response = await fetch("/api", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          action: "register",
-          apiKey,
-          password,
-          confirmPassword
-        })
+      const result = await api("register", {
+        apiKey,
+        password,
+        confirmPassword
       });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || "Registration failed.");
-      }
 
       showApp(result.user);
 
@@ -115,37 +152,19 @@ function setupFakeAuth() {
       );
     } catch (error) {
       showLoginError(error.message);
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = originalButtonText;
     }
   });
 
   logoutButton.addEventListener("click", () => {
     appPage.classList.add("hidden");
     loginPage.classList.remove("hidden");
-  });
-}
 
-  registerForm.addEventListener("submit", event => {
-    event.preventDefault();
-
-    const password = document.getElementById("registerPasswordInput").value;
-    const confirmPassword = document.getElementById("registerPasswordConfirmInput").value;
-
-    if (password !== confirmPassword) {
-      showLoginError("Passwords do not match.");
-      return;
-    }
-
-    showApp({
-      playerName: "Registered User",
-      playerId: "123456",
-      factionName: "Test Faction",
-      isAdmin: false
-    });
-  });
-
-  logoutButton.addEventListener("click", () => {
-    appPage.classList.add("hidden");
-    loginPage.classList.remove("hidden");
+    loginPasswordInput.value = "";
+    registerPasswordInput.value = "";
+    registerPasswordConfirmInput.value = "";
   });
 }
 
@@ -160,7 +179,10 @@ function showApp(user) {
     `${user.playerName} [${user.playerId}]`;
 
   document.getElementById("settingsFaction").value =
-    user.factionName;
+    user.factionName || "No faction";
+
+  document.getElementById("dashboardFactionName").textContent =
+    user.factionName ? `${user.factionName} Dashboard` : "Faction Dashboard";
 
   const adminBadge = document.getElementById("adminBadge");
 
@@ -169,9 +191,21 @@ function showApp(user) {
   } else {
     adminBadge.classList.add("hidden");
   }
-
-  setApiStatus("pending", "?", "Not checked", "API key verification is not implemented yet.");
 }
+
+function showLoginError(message) {
+  loginError.textContent = message;
+  loginError.className = "form-message error";
+}
+
+function hideLoginMessage() {
+  loginError.textContent = "";
+  loginError.className = "form-message error hidden";
+}
+
+/* =========================
+   TABS
+========================= */
 
 function setupTabs() {
   navButtons.forEach(button => {
@@ -200,6 +234,10 @@ function setActiveTab(tabName) {
   }
 }
 
+/* =========================
+   GRAPH
+========================= */
+
 function setupGraphCollapse() {
   graphCollapseButton.addEventListener("click", () => {
     const isCollapsed = graphPanel.classList.toggle("collapsed");
@@ -211,53 +249,23 @@ function setupGraphCollapse() {
   });
 }
 
-function showLoginError(message) {
-  loginError.textContent = message;
-  loginError.className = "form-message error";
-}
-
-function hideLoginMessage() {
-  loginError.textContent = "";
-  loginError.className = "form-message error hidden";
-}
-
-function setApiStatus(status, icon, title, text) {
-  const box = document.getElementById("apiKeyStatusBox");
-  const iconEl = document.getElementById("apiKeyStatusIcon");
-  const titleEl = document.getElementById("apiKeyStatusTitle");
-  const textEl = document.getElementById("apiKeyStatusText");
-
-  box.className = `api-status-box ${status}`;
-  iconEl.textContent = icon;
-  titleEl.textContent = title;
-  textEl.textContent = text;
-}
+/* =========================
+   BACKEND TEST
+========================= */
 
 function setupBackendTest() {
+  if (!testApiButton) return;
+
   testApiButton.addEventListener("click", async () => {
     try {
       setApiStatus(
         "pending",
         "?",
         "Checking...",
-        "Testing backend connection."
+        "Testing backend and database connection."
       );
-      
-      const response = await fetch("/api", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          action: "dbTest"
-        })
-      });
 
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || "Backend test failed.");
-      }
+      const result = await api("dbTest");
 
       setApiStatus(
         "valid",
@@ -274,4 +282,16 @@ function setupBackendTest() {
       );
     }
   });
+}
+
+function setApiStatus(status, icon, title, text) {
+  const box = document.getElementById("apiKeyStatusBox");
+  const iconEl = document.getElementById("apiKeyStatusIcon");
+  const titleEl = document.getElementById("apiKeyStatusTitle");
+  const textEl = document.getElementById("apiKeyStatusText");
+
+  box.className = `api-status-box ${status}`;
+  iconEl.textContent = icon;
+  titleEl.textContent = title;
+  textEl.textContent = text;
 }
