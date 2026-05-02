@@ -184,9 +184,15 @@ function setupBackendTest() {
         "Checking...",
         "Testing backend connection."
       );
-
+      
       const response = await fetch("/api", {
-        method: "POST"
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          action: "dbTest"
+        })
       });
 
       const result = await response.json();
