@@ -571,23 +571,42 @@ function setupImport() {
         rankIds.length,
         "Importing ranked war reports.",
         rankId,
-        "Importing..."
+        "Importing report..."
       );
 
-      addImportProgressRow(rankId, "active", "Importing", "Fetching report from Torn.");
+      addImportProgressRow(
+        rankId,
+        "active",
+        "Importing",
+        "Fetching ranked war report."
+      );
 
       try {
-        const result = await api("importRankedWarReport", {
+        const importResult = await api("importRankedWarReport", {
           rankId
         });
+
+        updateImportProgressRow(
+          rankId,
+          "active",
+          "Attack summary",
+          "Ranked war report imported. Fetching attack logs."
+        );
+
+        const attackSummary = await applyAttackSummaryUntilDone(
+          importResult.war.warId,
+          rankId,
+          index,
+          rankIds.length
+        );
 
         successCount += 1;
 
         updateImportProgressRow(
           rankId,
           "success",
-          "Imported",
-          result.message || "Import successful."
+          "Complete",
+          `${importResult.message} Attack summary: checked ${attackSummary.checked}, outside hits ${attackSummary.outsideHits}, assists ${attackSummary.assists}, score down ${formatNumber(attackSummary.scoreDown, 2)}.`
         );
       } catch (error) {
         failedCount += 1;
@@ -622,6 +641,47 @@ function setupImport() {
     await loadImportedWars();
     await loadDashboardData();
   });
+}
+
+async function applyAttackSummaryUntilDone(warId, rankId, reportIndex, totalReports) {
+  let cursor = null;
+  let reset = true;
+  let latestSummary = null;
+
+  for (let round = 0; round < 80; round += 1) {
+    const result = await api("applyAttackSummary", {
+      warId,
+      cursor,
+      reset
+    });
+
+    reset = false;
+
+    updateImportProgress(
+      reportIndex,
+      totalReports,
+      `Applying attack summary. Checked ${result.checkedTotal || 0} attacks.`,
+      rankId,
+      result.done ? "Applying summary..." : "Fetching more attacks..."
+    );
+
+    if (result.done) {
+      latestSummary = result.summary;
+      break;
+    }
+
+    cursor = result.nextCursor;
+
+    if (!cursor) {
+      throw new Error("Attack summary did not return a continuation cursor.");
+    }
+  }
+
+  if (!latestSummary) {
+    throw new Error("Attack summary did not finish within the safety limit.");
+  }
+
+  return latestSummary;
 }
 
 function parseRankIds(value) {
