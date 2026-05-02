@@ -23,6 +23,18 @@ export async function onRequestPost(context) {
       return await handleRegister(env, body);
     }
 
+    if (action === "login") {
+      return await handleLogin(env, body);
+    }
+
+    if (action === "me") {
+      return await handleMe(env, request);
+    }
+
+    if (action === "logout") {
+      return await handleLogout(env, request);
+    }
+
     return json(
       {
         success: false,
@@ -172,7 +184,12 @@ async function handleRegister(env, body) {
         updated_at = excluded.updated_at
       `
     )
-      .bind(faction.factionId, faction.factionName || "Unknown faction", now, now)
+      .bind(
+        faction.factionId,
+        faction.factionName || "Unknown faction",
+        now,
+        now
+      )
       .run();
   }
 
@@ -181,7 +198,7 @@ async function handleRegister(env, body) {
 
   const encryptedApiKey = await encryptText(env.APP_SECRET, apiKey);
 
-  const insertResult = await env.DB.prepare(
+  await env.DB.prepare(
     `
     INSERT INTO users (
       player_id,
@@ -216,28 +233,239 @@ async function handleRegister(env, body) {
     )
     .run();
 
-  const userId = insertResult.meta.last_row_id;
+  const createdUser = await env.DB.prepare(
+    `
+    SELECT
+      user_id,
+      player_id,
+      player_name,
+      faction_id,
+      faction_name,
+      is_admin,
+      is_disabled
+    FROM users
+    WHERE player_id = ?
+    `
+  )
+    .bind(playerId)
+    .first();
 
-  const session = await createSession(env, userId);
-
-  const user = {
-    userId,
-    playerId,
-    playerName,
-    factionId: faction.factionId,
-    factionName: faction.factionName,
-    isAdmin: false
-  };
+  const session = await createSession(env, createdUser.user_id);
 
   return json(
     {
       success: true,
       message: "Account created.",
-      user
+      user: rowToPublicUser(createdUser)
     },
     200,
     {
       "Set-Cookie": buildSessionCookie(session.token)
+    }
+  );
+}
+
+async function handleLogin(env, body) {
+  requireDb(env);
+
+  const playerId = Number(body.playerId);
+  const password = String(body.password || "");
+
+  if (!playerId) {
+    return json(
+      {
+        success: false,
+        message: "Missing Torn player ID."
+      },
+      400
+    );
+  }
+
+  if (!password) {
+    return json(
+      {
+        success: false,
+        message: "Missing password."
+      },
+      400
+    );
+  }
+
+  const userRow = await env.DB.prepare(
+    `
+    SELECT
+      user_id,
+      player_id,
+      player_name,
+      faction_id,
+      faction_name,
+      password_salt,
+      password_hash,
+      is_admin,
+      is_disabled
+    FROM users
+    WHERE player_id = ?
+    `
+  )
+    .bind(playerId)
+    .first();
+
+  if (!userRow) {
+    return json(
+      {
+        success: false,
+        message: "Invalid player ID or password."
+      },
+      401
+    );
+  }
+
+  if (Number(userRow.is_disabled) === 1) {
+    return json(
+      {
+        success: false,
+        message: "This account is disabled."
+      },
+      403
+    );
+  }
+
+  const attemptedHash = await hashPassword(password, userRow.password_salt);
+
+  if (attemptedHash !== userRow.password_hash) {
+    return json(
+      {
+        success: false,
+        message: "Invalid player ID or password."
+      },
+      401
+    );
+  }
+
+  const now = nowUnix();
+
+  await env.DB.prepare(
+    `
+    UPDATE users
+    SET last_login_at = ?, updated_at = ?
+    WHERE user_id = ?
+    `
+  )
+    .bind(now, now, userRow.user_id)
+    .run();
+
+  const session = await createSession(env, userRow.user_id);
+
+  return json(
+    {
+      success: true,
+      message: "Logged in.",
+      user: rowToPublicUser(userRow)
+    },
+    200,
+    {
+      "Set-Cookie": buildSessionCookie(session.token)
+    }
+  );
+}
+
+async function handleMe(env, request) {
+  requireDb(env);
+
+  const sessionToken = getCookie(request, "rwengine_session");
+
+  if (!sessionToken) {
+    return json(
+      {
+        success: false,
+        message: "Not logged in."
+      },
+      401
+    );
+  }
+
+  const tokenHash = await sha256Hex(sessionToken);
+  const now = nowUnix();
+
+  const row = await env.DB.prepare(
+    `
+    SELECT
+      users.user_id,
+      users.player_id,
+      users.player_name,
+      users.faction_id,
+      users.faction_name,
+      users.is_admin,
+      users.is_disabled,
+      sessions.expires_at
+    FROM sessions
+    JOIN users ON users.user_id = sessions.user_id
+    WHERE sessions.token_hash = ?
+      AND sessions.expires_at > ?
+    `
+  )
+    .bind(tokenHash, now)
+    .first();
+
+  if (!row) {
+    return json(
+      {
+        success: false,
+        message: "Session expired or invalid."
+      },
+      401,
+      {
+        "Set-Cookie": clearSessionCookie()
+      }
+    );
+  }
+
+  if (Number(row.is_disabled) === 1) {
+    return json(
+      {
+        success: false,
+        message: "This account is disabled."
+      },
+      403,
+      {
+        "Set-Cookie": clearSessionCookie()
+      }
+    );
+  }
+
+  return json({
+    success: true,
+    message: "Session restored.",
+    user: rowToPublicUser(row)
+  });
+}
+
+async function handleLogout(env, request) {
+  requireDb(env);
+
+  const sessionToken = getCookie(request, "rwengine_session");
+
+  if (sessionToken) {
+    const tokenHash = await sha256Hex(sessionToken);
+
+    await env.DB.prepare(
+      `
+      DELETE FROM sessions
+      WHERE token_hash = ?
+      `
+    )
+      .bind(tokenHash)
+      .run();
+  }
+
+  return json(
+    {
+      success: true,
+      message: "Logged out."
+    },
+    200,
+    {
+      "Set-Cookie": clearSessionCookie()
     }
   );
 }
@@ -255,7 +483,7 @@ async function verifyTornApiKey(apiKey) {
 
   const response = await fetch(url, {
     headers: {
-      "Accept": "application/json"
+      Accept: "application/json"
     }
   });
 
@@ -272,7 +500,11 @@ async function verifyTornApiKey(apiKey) {
   }
 
   if (data.error) {
-    const message = data.error.error || data.error.message || "Unknown Torn API error.";
+    const message =
+      data.error.error ||
+      data.error.message ||
+      "Unknown Torn API error.";
+
     throw new Error(`Torn API error: ${message}`);
   }
 
@@ -333,6 +565,17 @@ async function createSession(env, userId) {
   };
 }
 
+function rowToPublicUser(row) {
+  return {
+    userId: row.user_id,
+    playerId: row.player_id,
+    playerName: row.player_name,
+    factionId: row.faction_id,
+    factionName: row.faction_name,
+    isAdmin: Number(row.is_admin) === 1
+  };
+}
+
 function buildSessionCookie(token) {
   return [
     `rwengine_session=${token}`,
@@ -342,6 +585,41 @@ function buildSessionCookie(token) {
     "SameSite=Lax",
     `Max-Age=${SESSION_SECONDS}`
   ].join("; ");
+}
+
+function clearSessionCookie() {
+  return [
+    "rwengine_session=",
+    "Path=/",
+    "HttpOnly",
+    "Secure",
+    "SameSite=Lax",
+    "Max-Age=0"
+  ].join("; ");
+}
+
+function getCookie(request, name) {
+  const cookieHeader = request.headers.get("Cookie") || "";
+
+  const cookies = cookieHeader
+    .split(";")
+    .map(cookie => cookie.trim())
+    .filter(Boolean);
+
+  for (const cookie of cookies) {
+    const separatorIndex = cookie.indexOf("=");
+
+    if (separatorIndex === -1) continue;
+
+    const cookieName = cookie.slice(0, separatorIndex);
+    const cookieValue = cookie.slice(separatorIndex + 1);
+
+    if (cookieName === name) {
+      return decodeURIComponent(cookieValue);
+    }
+  }
+
+  return null;
 }
 
 /* =========================
@@ -461,6 +739,7 @@ function nowUnix() {
 
 function randomBase64Url(byteLength) {
   const bytes = crypto.getRandomValues(new Uint8Array(byteLength));
+
   return bytesToBase64(bytes)
     .replaceAll("+", "-")
     .replaceAll("/", "_")
