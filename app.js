@@ -58,13 +58,71 @@ function setupFakeAuth() {
   loginForm.addEventListener("submit", event => {
     event.preventDefault();
 
-    showApp({
-      playerName: "Test User",
-      playerId: "123456",
-      factionName: "Test Faction",
-      isAdmin: true
-    });
+    showLoginError("Real login is not implemented yet. Register a new account first.");
   });
+
+  registerForm.addEventListener("submit", async event => {
+    event.preventDefault();
+
+    hideLoginMessage();
+
+    const apiKey = document.getElementById("registerApiKeyInput").value.trim();
+    const password = document.getElementById("registerPasswordInput").value;
+    const confirmPassword = document.getElementById("registerPasswordConfirmInput").value;
+
+    if (!apiKey) {
+      showLoginError("Missing Torn API key.");
+      return;
+    }
+
+    if (password.length < 8) {
+      showLoginError("Password must be at least 8 characters.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      showLoginError("Passwords do not match.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          action: "register",
+          apiKey,
+          password,
+          confirmPassword
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Registration failed.");
+      }
+
+      showApp(result.user);
+
+      setApiStatus(
+        "valid",
+        "✓",
+        "API key stored",
+        "Your Torn API key was verified and stored encrypted."
+      );
+    } catch (error) {
+      showLoginError(error.message);
+    }
+  });
+
+  logoutButton.addEventListener("click", () => {
+    appPage.classList.add("hidden");
+    loginPage.classList.remove("hidden");
+  });
+}
 
   registerForm.addEventListener("submit", event => {
     event.preventDefault();
