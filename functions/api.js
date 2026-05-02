@@ -1,6 +1,9 @@
 const SESSION_DAYS = 14;
 const SESSION_SECONDS = SESSION_DAYS * 24 * 60 * 60;
 
+const ATTACK_PAGES_PER_RUN = 8;
+const ATTACK_PAGE_SOFT_LIMIT = 100;
+
 export async function onRequest(context) {
   try {
     const { request, env } = context;
@@ -55,6 +58,10 @@ export async function onRequest(context) {
 
     if (action === "getImportedWars") {
       return await handleGetImportedWars(env, request);
+    }
+
+    if (action === "applyAttackSummary") {
+      return await handleApplyAttackSummary(env, request, body);
     }
 
     return json(
@@ -939,6 +946,215 @@ async function getCurrentUserPrivate(env, request) {
 }
 
 /* =========================
+   ATTACK SUMMARY ACTION
+========================= */
+
+async function handleApplyAttackSummary(env, request, body) {
+  requireDb(env);
+  requireSecret(env);
+
+  const currentUser = await getCurrentUserPrivate(env, request);
+
+  if (Number(currentUser.is_admin) !== 1) {
+    return json(
+      {
+        success: false,
+        message: "Only admins can apply attack summaries."
+      },
+      403
+    );
+  }
+
+  const warId = String(body.warId || "").trim();
+
+  if (!warId) {
+    return json(
+      {
+        success: false,
+        message: "Missing war ID."
+      },
+      400
+    );
+  }
+
+  const war = await env.DB.prepare(
+    `
+    SELECT
+      war_id,
+      faction_id,
+      faction_name,
+      opponent_faction_id,
+      opponent_faction_name,
+      start_timestamp,
+      end_timestamp
+    FROM wars
+    WHERE war_id = ?
+      AND faction_id = ?
+    `
+  )
+    .bind(warId, currentUser.faction_id)
+    .first();
+
+  if (!war) {
+    return json(
+      {
+        success: false,
+        message: "War not found for your faction."
+      },
+      404
+    );
+  }
+
+  if (!war.start_timestamp || !war.end_timestamp) {
+    return json(
+      {
+        success: false,
+        message: "War is missing start/end timestamps. Attack summary cannot be fetched."
+      },
+      400
+    );
+  }
+
+  if (!currentUser.api_key_encrypted || !currentUser.api_key_iv) {
+    return json(
+      {
+        success: false,
+        message: "No stored API key found for this account."
+      },
+      400
+    );
+  }
+
+  const apiKey = await decryptText(
+    env.APP_SECRET,
+    currentUser.api_key_encrypted,
+    currentUser.api_key_iv
+  );
+
+  const startTimestamp = Number(war.start_timestamp);
+  const endTimestamp = Number(war.end_timestamp);
+
+  let cursor = Number(body.cursor || 0);
+
+  if (!cursor || cursor < startTimestamp) {
+    cursor = startTimestamp;
+  }
+
+  const reset = body.reset === true;
+
+  if (reset) {
+    await env.DB.prepare(
+      `
+      DELETE FROM attacks
+      WHERE war_id = ?
+        AND faction_id = ?
+      `
+    )
+      .bind(war.war_id, war.faction_id)
+      .run();
+
+    await env.DB.prepare(
+      `
+      UPDATE war_log
+      SET outside_hits = 0,
+          assists = 0,
+          score_down = 0
+      WHERE war_id = ?
+        AND faction_id = ?
+      `
+    )
+      .bind(war.war_id, war.faction_id)
+      .run();
+  }
+
+  let pagesChecked = 0;
+  let attacksCheckedThisRun = 0;
+  let nextCursor = cursor;
+  let done = false;
+
+  while (
+    pagesChecked < ATTACK_PAGES_PER_RUN &&
+    nextCursor <= endTimestamp &&
+    !done
+  ) {
+    const page = await fetchFactionAttacksPage(
+      apiKey,
+      nextCursor,
+      endTimestamp
+    );
+
+    pagesChecked += 1;
+    attacksCheckedThisRun += page.attacks.length;
+
+    if (page.attacks.length) {
+      await storeAttackRows(env, war, page.attacks);
+    }
+
+    if (!page.attacks.length) {
+      done = true;
+      break;
+    }
+
+    const maxTimestampEnded = page.attacks.reduce((max, attack) => {
+      const ended = Number(attack.timestampEnded || attack.timestampStarted || 0);
+      return Math.max(max, ended);
+    }, nextCursor);
+
+    if (page.attacks.length < ATTACK_PAGE_SOFT_LIMIT) {
+      done = true;
+      break;
+    }
+
+    if (maxTimestampEnded <= nextCursor) {
+      nextCursor += 1;
+    } else {
+      nextCursor = maxTimestampEnded + 1;
+    }
+  }
+
+  if (nextCursor > endTimestamp) {
+    done = true;
+  }
+
+  const countRow = await env.DB.prepare(
+    `
+    SELECT COUNT(*) AS attack_count
+    FROM attacks
+    WHERE war_id = ?
+      AND faction_id = ?
+    `
+  )
+    .bind(war.war_id, war.faction_id)
+    .first();
+
+  const checkedTotal = Number(countRow.attack_count || 0);
+
+  if (!done) {
+    return json({
+      success: true,
+      message: "Attack summary partially fetched.",
+      done: false,
+      warId: war.war_id,
+      nextCursor,
+      checkedThisRun: attacksCheckedThisRun,
+      checkedTotal
+    });
+  }
+
+  const summary = await summarizeAndApplyAttackRows(env, war);
+
+  return json({
+    success: true,
+    message: "Attack summary applied.",
+    done: true,
+    warId: war.war_id,
+    checkedThisRun: attacksCheckedThisRun,
+    checkedTotal,
+    summary
+  });
+}
+
+/* =========================
    TORN
 ========================= */
 
@@ -1015,6 +1231,38 @@ async function fetchRankedWarReport(rankId, apiKey) {
   );
 }
 
+async function fetchFactionAttacksPage(apiKey, fromTimestamp, toTimestamp) {
+  const url =
+    "https://api.torn.com/faction/?selections=attacks" +
+    "&from=" +
+    encodeURIComponent(fromTimestamp) +
+    "&to=" +
+    encodeURIComponent(toTimestamp) +
+    "&key=" +
+    encodeURIComponent(apiKey) +
+    "&timestamp=" +
+    Date.now();
+
+  const result = await fetchTornJson(url);
+
+  if (!result.success) {
+    throw new Error(result.message || "Failed to fetch faction attacks.");
+  }
+
+  const rawAttacks =
+    result.data.attacks ||
+    result.data.faction_attacks ||
+    {};
+
+  const attacks = normalizeAttackEntries(rawAttacks)
+    .map(([attackId, attack]) => normalizeAttack(attackId, attack))
+    .filter(attack => attack.attackId);
+
+  return {
+    attacks
+  };
+}
+
 async function fetchTornJson(url) {
   try {
     const response = await fetch(url, {
@@ -1064,6 +1312,10 @@ async function fetchTornJson(url) {
     };
   }
 }
+
+/* =========================
+   NORMALIZERS
+========================= */
 
 function normalizeFaction(profile) {
   const factionData = profile.faction || {};
@@ -1282,32 +1534,414 @@ function normalizeMemberEntries(members) {
   return [];
 }
 
-function pickString(object, keys) {
-  for (const key of keys) {
-    if (object && object[key] !== undefined && object[key] !== null) {
-      const value = String(object[key]).trim();
+function normalizeAttackEntries(attacks) {
+  if (Array.isArray(attacks)) {
+    return attacks.map(attack => {
+      const attackId =
+        attack.id ||
+        attack.attack_id ||
+        attack.attackId ||
+        null;
 
-      if (value) {
-        return value;
-      }
-    }
+      return [String(attackId || ""), attack];
+    });
+  }
+
+  if (attacks && typeof attacks === "object") {
+    return Object.entries(attacks);
+  }
+
+  return [];
+}
+
+function normalizeAttack(attackId, attack) {
+  const attackerId =
+    pickNumber(attack, ["attacker_id", "attackerId"]) ||
+    pickNumber(attack.attacker || {}, ["id", "user_id", "player_id"]);
+
+  const defenderId =
+    pickNumber(attack, ["defender_id", "defenderId"]) ||
+    pickNumber(attack.defender || {}, ["id", "user_id", "player_id"]);
+
+  const attackerName =
+    pickString(attack, ["attacker_name", "attackerName"]) ||
+    pickString(attack.attacker || {}, ["name"]) ||
+    `Player ${attackerId}`;
+
+  const defenderName =
+    pickString(attack, ["defender_name", "defenderName"]) ||
+    pickString(attack.defender || {}, ["name"]) ||
+    `Player ${defenderId}`;
+
+  const attackerFactionId =
+    parseFactionId(
+      attack.attacker_faction_id ??
+      attack.attackerFactionId ??
+      attack.attacker_faction ??
+      attack.attackerFaction ??
+      attack.attacker?.faction
+    );
+
+  const defenderFactionId =
+    parseFactionId(
+      attack.defender_faction_id ??
+      attack.defenderFactionId ??
+      attack.defender_faction ??
+      attack.defenderFaction ??
+      attack.defender?.faction
+    );
+
+  const result =
+    pickString(attack, ["result", "attack_result", "attackResult"]) ||
+    "";
+
+  const respectGain =
+    pickNumber(attack, [
+      "respect_gain",
+      "respectGain",
+      "respect",
+      "respect_gained"
+    ]);
+
+  const respectLoss =
+    pickNumber(attack, [
+      "respect_loss",
+      "respectLoss",
+      "respect_lost"
+    ]);
+
+  const chain =
+    pickNumber(attack, ["chain", "chain_id", "chainId"]);
+
+  const isRankedWar =
+    Number(
+      attack.is_ranked_war ??
+      attack.isRankedWar ??
+      attack.ranked_war ??
+      attack.rankedWar ??
+      0
+    ) === 1;
+
+  const timestampStarted =
+    pickNumber(attack, [
+      "timestamp_started",
+      "timestampStarted",
+      "started",
+      "start"
+    ]);
+
+  const timestampEnded =
+    pickNumber(attack, [
+      "timestamp_ended",
+      "timestampEnded",
+      "ended",
+      "end"
+    ]);
+
+  return {
+    attackId: String(attackId || attack.id || attack.attack_id || ""),
+    attackerId,
+    attackerName,
+    defenderId,
+    defenderName,
+    attackerFactionId,
+    defenderFactionId,
+    result,
+    respectGain,
+    respectLoss,
+    chain,
+    isRankedWar,
+    timestampStarted,
+    timestampEnded,
+    rawJson: JSON.stringify(attack)
+  };
+}
+
+function parseFactionId(value) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (typeof value === "number" || typeof value === "string") {
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? number : null;
+  }
+
+  if (typeof value === "object") {
+    const number =
+      Number(value.id) ||
+      Number(value.faction_id) ||
+      Number(value.factionId);
+
+    return Number.isFinite(number) && number > 0 ? number : null;
   }
 
   return null;
 }
 
-function pickNumber(object, keys) {
-  for (const key of keys) {
-    if (object && object[key] !== undefined && object[key] !== null) {
-      const number = Number(object[key]);
+/* =========================
+   ATTACK STORAGE / SUMMARY
+========================= */
 
-      if (Number.isFinite(number)) {
-        return number;
-      }
+async function storeAttackRows(env, war, attacks) {
+  const now = nowUnix();
+
+  for (const attack of attacks) {
+    await env.DB.prepare(
+      `
+      INSERT INTO attacks (
+        attack_id,
+        war_id,
+        faction_id,
+        attacker_id,
+        attacker_name,
+        defender_id,
+        defender_name,
+        attacker_faction_id,
+        defender_faction_id,
+        result,
+        respect_gain,
+        respect_loss,
+        chain,
+        is_ranked_war,
+        timestamp_started,
+        timestamp_ended,
+        raw_json,
+        created_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(attack_id) DO UPDATE SET
+        war_id = excluded.war_id,
+        faction_id = excluded.faction_id,
+        attacker_id = excluded.attacker_id,
+        attacker_name = excluded.attacker_name,
+        defender_id = excluded.defender_id,
+        defender_name = excluded.defender_name,
+        attacker_faction_id = excluded.attacker_faction_id,
+        defender_faction_id = excluded.defender_faction_id,
+        result = excluded.result,
+        respect_gain = excluded.respect_gain,
+        respect_loss = excluded.respect_loss,
+        chain = excluded.chain,
+        is_ranked_war = excluded.is_ranked_war,
+        timestamp_started = excluded.timestamp_started,
+        timestamp_ended = excluded.timestamp_ended,
+        raw_json = excluded.raw_json
+      `
+    )
+      .bind(
+        attack.attackId,
+        war.war_id,
+        war.faction_id,
+        attack.attackerId,
+        attack.attackerName,
+        attack.defenderId,
+        attack.defenderName,
+        attack.attackerFactionId,
+        attack.defenderFactionId,
+        attack.result,
+        attack.respectGain,
+        attack.respectLoss,
+        attack.chain,
+        attack.isRankedWar ? 1 : 0,
+        attack.timestampStarted,
+        attack.timestampEnded,
+        attack.rawJson,
+        now
+      )
+      .run();
+  }
+}
+
+async function summarizeAndApplyAttackRows(env, war) {
+  const result = await env.DB.prepare(
+    `
+    SELECT
+      attack_id,
+      attacker_id,
+      attacker_name,
+      defender_id,
+      defender_name,
+      attacker_faction_id,
+      defender_faction_id,
+      result,
+      respect_gain,
+      respect_loss,
+      timestamp_started,
+      timestamp_ended
+    FROM attacks
+    WHERE war_id = ?
+      AND faction_id = ?
+    `
+  )
+    .bind(war.war_id, war.faction_id)
+    .all();
+
+  const attacks = result.results || [];
+
+  const factionId = Number(war.faction_id);
+  const opponentFactionId = Number(war.opponent_faction_id || 0);
+
+  const playerSummary = new Map();
+
+  let outsideHitsTotal = 0;
+  let assistsTotal = 0;
+  let scoreDownTotal = 0;
+
+  for (const attack of attacks) {
+    const resultText = String(attack.result || "").toLowerCase();
+
+    const attackerFactionId = Number(attack.attacker_faction_id || 0);
+    const defenderFactionId = Number(attack.defender_faction_id || 0);
+
+    const isAssist = resultText.includes("assist");
+
+    const isOurOutgoing = attackerFactionId === factionId;
+    const isIncomingToUs = defenderFactionId === factionId;
+
+    const isAgainstOpponent =
+      opponentFactionId &&
+      defenderFactionId === opponentFactionId;
+
+    const isFromOpponent =
+      opponentFactionId &&
+      attackerFactionId === opponentFactionId;
+
+    const respectValue =
+      Number(attack.respect_gain || 0) ||
+      Number(attack.respect_loss || 0) ||
+      0;
+
+    if (isOurOutgoing && isAssist) {
+      const row = getAttackPlayerSummary(
+        playerSummary,
+        attack.attacker_id,
+        attack.attacker_name
+      );
+
+      row.assists += 1;
+      assistsTotal += 1;
+      continue;
+    }
+
+    if (
+      isOurOutgoing &&
+      !isAssist &&
+      !isAgainstOpponent
+    ) {
+      const row = getAttackPlayerSummary(
+        playerSummary,
+        attack.attacker_id,
+        attack.attacker_name
+      );
+
+      row.outsideHits += 1;
+      outsideHitsTotal += 1;
+      continue;
+    }
+
+    if (
+      isIncomingToUs &&
+      isFromOpponent &&
+      !isAssist
+    ) {
+      const row = getAttackPlayerSummary(
+        playerSummary,
+        attack.defender_id,
+        attack.defender_name
+      );
+
+      row.scoreDown += respectValue;
+      scoreDownTotal += respectValue;
     }
   }
 
-  return 0;
+  await applyAttackSummaryToWarLog(
+    env,
+    war,
+    [...playerSummary.values()]
+  );
+
+  return {
+    checked: attacks.length,
+    outsideHits: outsideHitsTotal,
+    assists: assistsTotal,
+    scoreDown: scoreDownTotal,
+    playersUpdated: playerSummary.size
+  };
+}
+
+function getAttackPlayerSummary(map, playerId, playerName) {
+  const id = Number(playerId);
+
+  if (!map.has(id)) {
+    map.set(id, {
+      playerId: id,
+      playerName: playerName || `Player ${id}`,
+      outsideHits: 0,
+      assists: 0,
+      scoreDown: 0
+    });
+  }
+
+  return map.get(id);
+}
+
+async function applyAttackSummaryToWarLog(env, war, rows) {
+  const now = nowUnix();
+
+  await env.DB.prepare(
+    `
+    UPDATE war_log
+    SET outside_hits = 0,
+        assists = 0,
+        score_down = 0,
+        synced_at = ?
+    WHERE war_id = ?
+      AND faction_id = ?
+    `
+  )
+    .bind(now, war.war_id, war.faction_id)
+    .run();
+
+  for (const row of rows) {
+    await env.DB.prepare(
+      `
+      INSERT INTO war_log (
+        war_id,
+        faction_id,
+        player_id,
+        player_name,
+        is_member,
+        termed,
+        war_hits,
+        outside_hits,
+        assists,
+        score_up,
+        score_down,
+        synced_at
+      )
+      VALUES (?, ?, ?, ?, 1, 0, 0, ?, ?, 0, ?, ?)
+      ON CONFLICT(war_id, player_id) DO UPDATE SET
+        player_name = excluded.player_name,
+        outside_hits = excluded.outside_hits,
+        assists = excluded.assists,
+        score_down = excluded.score_down,
+        synced_at = excluded.synced_at
+      `
+    )
+      .bind(
+        war.war_id,
+        war.faction_id,
+        row.playerId,
+        row.playerName,
+        row.outsideHits,
+        row.assists,
+        row.scoreDown,
+        now
+      )
+      .run();
+  }
 }
 
 /* =========================
@@ -1602,4 +2236,32 @@ function base64ToBytes(base64) {
   }
 
   return bytes;
+}
+
+function pickString(object, keys) {
+  for (const key of keys) {
+    if (object && object[key] !== undefined && object[key] !== null) {
+      const value = String(object[key]).trim();
+
+      if (value) {
+        return value;
+      }
+    }
+  }
+
+  return null;
+}
+
+function pickNumber(object, keys) {
+  for (const key of keys) {
+    if (object && object[key] !== undefined && object[key] !== null) {
+      const number = Number(object[key]);
+
+      if (Number.isFinite(number)) {
+        return number;
+      }
+    }
+  }
+
+  return 0;
 }
