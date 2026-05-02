@@ -35,6 +35,10 @@ export async function onRequestPost(context) {
       return await handleLogout(env, request);
     }
 
+    if (action === "getDashboardData") {
+      return await handleGetDashboardData(env, request, body);
+    }
+
     return json(
       {
         success: false,
@@ -54,7 +58,7 @@ export async function onRequestPost(context) {
 }
 
 /* =========================
-   ACTIONS
+   TEST ACTION
 ========================= */
 
 async function handleDbTest(env) {
@@ -90,6 +94,10 @@ async function handleDbTest(env) {
     row
   });
 }
+
+/* =========================
+   AUTH ACTIONS
+========================= */
 
 async function handleRegister(env, body) {
   requireDb(env);
@@ -195,7 +203,6 @@ async function handleRegister(env, body) {
 
   const passwordSalt = randomBase64Url(24);
   const passwordHash = await hashPassword(password, passwordSalt);
-
   const encryptedApiKey = await encryptText(env.APP_SECRET, apiKey);
 
   await env.DB.prepare(
@@ -468,6 +475,202 @@ async function handleLogout(env, request) {
       "Set-Cookie": clearSessionCookie()
     }
   );
+}
+
+/* =========================
+   DASHBOARD ACTIONS
+========================= */
+
+async function handleGetDashboardData(env, request, body) {
+  requireDb(env);
+
+  const currentUser = await getCurrentUser(env, request);
+  const factionId = Number(currentUser.factionId);
+
+  if (!factionId) {
+    return json(
+      {
+        success: false,
+        message: "Your account is not linked to a faction."
+      },
+      400
+    );
+  }
+
+  const filters = body.filters || {};
+
+  const termedFilter = String(filters.termedFilter || "ALL");
+  const memberFilter = String(filters.memberFilter || "ALL");
+  const search = String(filters.search || "").trim().toLowerCase();
+
+  const queryResult = await env.DB.prepare(
+    `
+    SELECT
+      player_id,
+      MAX(player_name) AS player_name,
+      MAX(is_member) AS is_member,
+      MAX(termed) AS termed,
+      COUNT(DISTINCT war_id) AS wars,
+      SUM(war_hits) AS hits,
+      SUM(outside_hits) AS outside_hits,
+      SUM(assists) AS assists,
+      SUM(score_up) AS score_up,
+      SUM(score_down) AS score_down
+    FROM war_log
+    WHERE faction_id = ?
+    GROUP BY player_id
+    `
+  )
+    .bind(factionId)
+    .all();
+
+  let data = queryResult.results || [];
+
+  if (termedFilter === "HIDE_TERMED") {
+    data = data.filter(row => Number(row.termed || 0) !== 1);
+  }
+
+  if (termedFilter === "ONLY_TERMED") {
+    data = data.filter(row => Number(row.termed || 0) === 1);
+  }
+
+  if (memberFilter === "ACTIVE") {
+    data = data.filter(row => Number(row.is_member || 0) === 1);
+  }
+
+  if (memberFilter === "LEFT") {
+    data = data.filter(row => Number(row.is_member || 0) !== 1);
+  }
+
+  if (search) {
+    data = data.filter(row => {
+      const name = String(row.player_name || "").toLowerCase();
+      const id = String(row.player_id || "");
+
+      return name.includes(search) || id.includes(search);
+    });
+  }
+
+  const mappedRows = data.map(row => {
+    const hits = Number(row.hits || 0);
+    const outsideHits = Number(row.outside_hits || 0);
+    const assists = Number(row.assists || 0);
+    const scoreUp = Number(row.score_up || 0);
+    const scoreDown = Number(row.score_down || 0);
+
+    const netScore = scoreUp - scoreDown;
+    const avgRespect = hits > 0 ? scoreUp / hits : 0;
+
+    const impactScore =
+      hits +
+      outsideHits +
+      assists * 0.5 +
+      netScore;
+
+    return {
+      "Members": row.player_name,
+      "Player_ID": row.player_id,
+      "Is Member": Number(row.is_member || 0) === 1 ? "ACTIVE" : "LEFT",
+      "Wars": Number(row.wars || 0),
+      "Hits": hits,
+      "Outside Hits": outsideHits,
+      "Assists": assists,
+      "Sum Score up": scoreUp,
+      "Sum Score down": scoreDown,
+      "Net Score": netScore,
+      "ImpactScore": impactScore,
+      "Avg R/hit": avgRespect
+    };
+  });
+
+  const sortBy = String(body.sortBy || "ImpactScore");
+  const sortDirection = String(body.sortDirection || "DESC").toUpperCase();
+
+  const allowedSorts = new Set([
+    "Members",
+    "Is Member",
+    "Wars",
+    "Hits",
+    "Outside Hits",
+    "Assists",
+    "Sum Score up",
+    "Sum Score down",
+    "Net Score",
+    "ImpactScore",
+    "Avg R/hit"
+  ]);
+
+  const safeSortBy = allowedSorts.has(sortBy) ? sortBy : "ImpactScore";
+  const direction = sortDirection === "ASC" ? 1 : -1;
+
+  mappedRows.sort((a, b) => {
+    const aValue = a[safeSortBy];
+    const bValue = b[safeSortBy];
+
+    if (typeof aValue === "string" || typeof bValue === "string") {
+      return String(aValue).localeCompare(String(bValue)) * direction;
+    }
+
+    return (Number(aValue || 0) - Number(bValue || 0)) * direction;
+  });
+
+  const totalHits = mappedRows.reduce((sum, row) => sum + row["Hits"], 0);
+  const totalScoreUp = mappedRows.reduce((sum, row) => sum + row["Sum Score up"], 0);
+  const totalNetScore = mappedRows.reduce((sum, row) => sum + row["Net Score"], 0);
+
+  const summary = {
+    membersShown: mappedRows.length,
+    totalHits,
+    avgRespect: totalHits > 0 ? totalScoreUp / totalHits : 0,
+    totalNetScore
+  };
+
+  return json({
+    success: true,
+    message: "Dashboard data loaded.",
+    rows: mappedRows,
+    summary
+  });
+}
+
+async function getCurrentUser(env, request) {
+  const sessionToken = getCookie(request, "rwengine_session");
+
+  if (!sessionToken) {
+    throw new Error("Not logged in.");
+  }
+
+  const tokenHash = await sha256Hex(sessionToken);
+  const now = nowUnix();
+
+  const row = await env.DB.prepare(
+    `
+    SELECT
+      users.user_id,
+      users.player_id,
+      users.player_name,
+      users.faction_id,
+      users.faction_name,
+      users.is_admin,
+      users.is_disabled
+    FROM sessions
+    JOIN users ON users.user_id = sessions.user_id
+    WHERE sessions.token_hash = ?
+      AND sessions.expires_at > ?
+    `
+  )
+    .bind(tokenHash, now)
+    .first();
+
+  if (!row) {
+    throw new Error("Session expired or invalid.");
+  }
+
+  if (Number(row.is_disabled) === 1) {
+    throw new Error("This account is disabled.");
+  }
+
+  return rowToPublicUser(row);
 }
 
 /* =========================
