@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>RWEngine</title>
+
+  <link rel="stylesheet" href="styles.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body data-active-tab="dashboard">
+  <!-- =========================
+       LOGIN / REGISTER
+       ========================= -->
+  <section id="loginPage" class="login-page">
+    <div class="login-card">
+      <div class="login-brand">
+        <h1>RWEngine</h1>
+        <p>Ranked war analytics for Torn factions.</p>
+      </div>
+
+      <div class="auth-switch">
+        <button id="authLoginModeButton" class="auth-switch-btn active" type="button">
+          Login
+        </button>
+
+        <button id="authRegisterModeButton" class="auth-switch-btn" type="button">
+          Register
+        </button>
+      </div>
+
+      <form id="loginForm" class="auth-form">
+        <div class="control">
+          <label for="loginPlayerIdInput">Torn player ID</label>
+          <input
+            id="loginPlayerIdInput"
+            type="text"
+            autocomplete="username"
+            required
+          />
+        </div>
+
+        <div class="control">
+          <label for="loginPasswordInput">Password</label>
+          <input
+            id="loginPasswordInput"
+            type="password"
+            autocomplete="current-password"
+            required
+          />
+        </div>
+
+        <button class="primary-btn full-width" type="submit">
+          Login
+        </button>
+      </form>
+
+      <form id="registerForm" class="auth-form hidden">
+        <div class="control">
+          <label for="registerApiKeyInput">Limited Torn API key</label>
+          <input
+            id="registerApiKeyInput"
+            type="password"
+            autocomplete="off"
+            required
+          />
+          <small>
+            Used for verification and imports. It is not shown again inside RWEngine.
+          </small>
+        </div>
+
+        <div class="control">
+          <label for="registerPasswordInput">Password</label>
+          <input
+            id="registerPasswordInput"
+            type="password"
+            autocomplete="new-password"
+            required
+          />
+        </div>
+
+        <div class="control">
+          <label for="registerPasswordConfirmInput">Confirm password</label>
+          <input
+            id="registerPasswordConfirmInput"
+            type="password"
+            autocomplete="new-password"
+            required
+          />
+        </div>
+
+        <button class="primary-btn full-width" type="submit">
+          Create account
+        </button>
+      </form>
+
+      <div id="loginError" class="form-message error hidden"></div>
+    </div>
+  </section>
+
+  <!-- =========================
+       APP PAGE
+       ========================= -->
+  <section id="appPage" class="app-shell hidden">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">RWEngine</div>
+
+        <nav class="topnav">
+          <button class="nav-btn active" data-tab="dashboard" type="button">
+            Dashboard
+          </button>
+
+          <button class="nav-btn" data-tab="import" type="button">
+            Import
+          </button>
+
+          <button class="nav-btn" data-tab="settings" type="button">
+            Settings
+          </button>
+        </nav>
+
+        <div class="topbar-user">
+          <div class="topbar-user-main">
+            <span id="userChip">Unknown user</span>
+            <span id="adminBadge" class="admin-badge hidden">Admin</span>
+          </div>
+
+          <button id="logoutButton" class="ghost-btn small" type="button">
+            Logout
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-layout">
+      <!-- =========================
+           DASHBOARD FILTER SIDEBAR
+           Only shown on Dashboard via CSS.
+           ========================= -->
+      <aside class="sidebar">
+        <h2>Filters</h2>
+
+        <div class="control">
+          <label for="fromWar">From war</label>
+          <select id="fromWar">
+            <option value="ALL">ALL</option>
+          </select>
+        </div>
+
+        <div class="control">
+          <label for="toWar">To war</label>
+          <select id="toWar">
+            <option value="ALL">ALL</option>
+          </select>
+        </div>
+
+        <div class="control">
+          <label for="termedFilter">War type</label>
+          <select id="termedFilter">
+            <option value="ALL">ALL</option>
+            <option value="HIDE_TERMED">Hide termed</option>
+            <option value="ONLY_TERMED">Only termed</option>
+          </select>
+        </div>
+
+        <div class="control">
+          <label for="memberFilter">Member status</label>
+          <select id="memberFilter">
+            <option value="ALL">ALL</option>
+            <option value="ACTIVE">Active members</option>
+            <option value="LEFT">Left members</option>
+          </select>
+        </div>
+
+        <div class="control">
+          <label for="memberSearch">Search member</label>
+          <input id="memberSearch" type="text" placeholder="Name or ID..." />
+        </div>
+
+        <button id="refreshDashboardButton" class="secondary-btn full-width" type="button">
+          Refresh dashboard
+        </button>
+      </aside>
+
+      <!-- =========================
+           MAIN CONTENT
+           ========================= -->
+      <section class="content">
+        <!-- =========================
+             DASHBOARD TAB
+             ========================= -->
+        <section id="dashboardTab" class="tab-panel active">
+          <div class="tab-header dashboard-tab-header">
+            <div>
+              <h1 id="dashboardFactionName">Faction Dashboard</h1>
+            </div>
+          </div>
+
+          <div class="summary-grid compact-summary-grid">
+            <article class="summary-card compact-summary-card">
+              <span>Members shown</span>
+              <strong id="summaryMembers">0</strong>
+            </article>
+
+            <article class="summary-card compact-summary-card">
+              <span>Total hits</span>
+              <strong id="summaryHits">0</strong>
+            </article>
+
+            <article class="summary-card compact-summary-card">
+              <span>Avg R / hit</span>
+              <strong id="summaryAvgRespect">0</strong>
+            </article>
+
+            <article class="summary-card compact-summary-card">
+              <span>Total net score</span>
+              <strong id="summaryNetScore">0</strong>
+            </article>
+          </div>
+
+          <section id="graphPanel" class="graph-card collapsed">
+            <div class="graph-header">
+              <div>
+                <h2>Member graph</h2>
+              </div>
+
+              <button
+                id="graphCollapseButton"
+                class="secondary-btn small"
+                type="button"
+                title="Expand graph"
+                aria-expanded="false"
+              >
+                ▾
+              </button>
+            </div>
+
+            <div id="graphBody" class="graph-body hidden">
+              <div class="graph-controls">
+                <div class="control">
+                  <label for="graphMembers">Players</label>
+                  <select id="graphMembers" multiple size="5">
+                    <option value="">No player selected</option>
+                  </select>
+                </div>
+
+                <div class="control">
+                  <label for="graphStat">Stat</label>
+                  <select id="graphStat">
+                    <option value="Hits">Hits</option>
+                    <option value="Outside Hits">Outside Hits</option>
+                    <option value="Assists">Assists</option>
+                    <option value="Sum Score up">Sum Score up</option>
+                    <option value="Sum Score down">Sum Score down</option>
+                    <option value="Net Score">Net Score</option>
+                    <option value="ImpactScore">ImpactScore</option>
+                    <option value="Avg R/hit">Avg R/hit</option>
+                  </select>
+                </div>
+
+                <label class="checkbox-control">
+                  <input id="showFactionAverage" type="checkbox" checked />
+                  <span>Faction average</span>
+                </label>
+              </div>
+
+              <div class="graph-canvas">
+                <canvas id="dashboardGraph"></canvas>
+              </div>
+
+              <div id="graphStatus" class="empty-state"></div>
+            </div>
+          </section>
+
+          <section class="table-card member-list-card">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th data-sort="Members">Member</th>
+                    <th data-sort="Is Member">Is Member</th>
+                    <th data-sort="Wars">Wars</th>
+                    <th data-sort="Hits">Hits</th>
+                    <th data-sort="Outside Hits">Outside Hits</th>
+                    <th data-sort="Assists">Assists</th>
+                    <th data-sort="Sum Score up">Sum Score up</th>
+                    <th data-sort="Sum Score down">Sum Score down</th>
+                    <th data-sort="Net Score">Net Score</th>
+                    <th data-sort="ImpactScore">ImpactScore</th>
+                    <th data-sort="Avg R/hit">Avg R/hit</th>
+                  </tr>
+                </thead>
+
+                <tbody id="dashboardTableBody">
+                  <tr>
+                    <td colspan="11" class="empty-table">No data loaded.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <!-- =========================
+             IMPORT TAB
+             ========================= -->
+        <section id="importTab" class="tab-panel">
+          <div class="tab-header import-header">
+            <div>
+              <h1>Import</h1>
+              <p>Import finished ranked war reports.</p>
+            </div>
+          </div>
+
+          <div class="import-layout import-layout-left-panel">
+            <aside class="import-side-panel imported-wars-panel">
+              <details class="imported-wars-dropdown" open>
+                <summary class="import-side-header imported-wars-summary">
+                  <h2>Imported wars</h2>
+                  <span id="importAddedCount">0</span>
+                </summary>
+            
+                <div id="importAddedList" class="import-added-list">
+                  <div class="empty-state">No imported reports found.</div>
+                </div>
+              </details>
+            </aside>
+
+            <section class="import-main">
+              <section class="form-card">
+                <h2>Import ranked war reports</h2>
+
+                <form id="importForm">
+                  <div class="control">
+                    <label for="rankIdInput">War report ID</label>
+                    <textarea
+                      id="rankIdInput"
+                      rows="5"
+                      placeholder="Enter one or more report IDs, separated by comma, space, or new line..."
+                      required
+                    ></textarea>
+                  </div>
+
+                  <div class="form-actions">
+                    <button class="primary-btn" type="submit">
+                      Import reports
+                    </button>
+                  </div>
+                </form>
+
+                <div id="importStatus" class="form-message hidden"></div>
+              </section>
+
+              <section id="importProgressPanel" class="import-progress-card hidden">
+                <div class="import-progress-header">
+                  <div>
+                    <h2>Import progress</h2>
+                    <p id="importProgressStage">Waiting for import.</p>
+                  </div>
+
+                  <strong id="importProgressCount">0 / 0</strong>
+                </div>
+
+                <div class="import-progress-bar">
+                  <div id="importProgressBarFill" class="import-progress-bar-fill"></div>
+                </div>
+
+                <div class="import-current-grid">
+                  <div class="import-current-row">
+                    <span>Current report</span>
+                    <strong id="importProgressCurrentWar">-</strong>
+                  </div>
+
+                  <div class="import-current-row">
+                    <span>Status</span>
+                    <strong id="importProgressCurrentStatus">-</strong>
+                  </div>
+                </div>
+
+                <div id="importProgressList" class="import-progress-list"></div>
+              </section>
+
+        <!-- =========================
+             SETTINGS TAB
+             ========================= -->
+        <section id="settingsTab" class="tab-panel">
+          <div class="tab-header">
+            <div>
+              <h1>Settings</h1>
+              <p>Account and faction information.</p>
+            </div>
+          </div>
+
+          <section class="settings-grid">
+            <article class="settings-card">
+              <h2>Account</h2>
+
+              <div class="settings-row">
+                <span>Player</span>
+                <input id="settingsUser" type="text" readonly />
+              </div>
+
+              <div class="settings-row">
+                <span>Faction</span>
+                <input id="settingsFaction" type="text" readonly />
+              </div>
+            </article>
+
+            <article class="settings-card">
+              <h2>API key status</h2>
+
+              <div id="apiKeyStatusBox" class="api-status-box pending">
+                <span id="apiKeyStatusIcon" class="api-status-icon">?</span>
+
+                <div>
+                  <strong id="apiKeyStatusTitle">Checking...</strong>
+                  <p id="apiKeyStatusText">Checking stored API key status.</p>
+                </div>
+              </div>
+            </article>
+          </section>
+        </section>
+      </section>
+    </main>
+  </section>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
