@@ -1249,10 +1249,7 @@ function summarizeAttackInto(summary, attack, war) {
     opponentFactionId &&
     attackerFactionId === opponentFactionId;
 
-  const respectValue =
-    Number(attack.respectLoss || 0) ||
-    Number(attack.respectGain || 0) ||
-    0;
+  const scoreValue = Number(attack.scoreGain || 0);
 
   if (isOurOutgoing && attack.isAssist) {
     const row = getAttackPlayerSummary(
@@ -1293,8 +1290,8 @@ function summarizeAttackInto(summary, attack, war) {
       attack.defenderName
     );
 
-    row.scoreDown += respectValue;
-    summary.scoreDown += respectValue;
+    row.scoreDown += scoreValue;
+    summary.scoreDown += scoreValue;
   }
 }
 
@@ -1677,11 +1674,14 @@ function normalizeRankedWarReport(rawData, rankId, ownFactionId) {
 
       const scoreUp = pickNumber(member, [
         "score",
+        "score_gain",
+        "scoreGain",
+        "points",
+        "points_gained",
         "respect",
         "respect_gain",
         "respectGain",
-        "points",
-        "points_gained"
+        "respect_gained"
       ]);
 
       return {
@@ -1822,19 +1822,17 @@ function normalizeAttack(attackId, attack) {
     Number(attack.assist || 0) === 1 ||
     Number(attack.modifiers?.assist || 0) > 1;
 
-  const respectGain =
+  const scoreGain =
     pickNumber(attack, [
+      "score",
+      "score_gain",
+      "scoreGain",
+      "points",
+      "points_gained",
       "respect_gain",
       "respectGain",
       "respect",
       "respect_gained"
-    ]);
-
-  const respectLoss =
-    pickNumber(attack, [
-      "respect_loss",
-      "respectLoss",
-      "respect_lost"
     ]);
 
   const timestampStarted =
@@ -1863,8 +1861,7 @@ function normalizeAttack(attackId, attack) {
     defenderFactionId,
     result,
     isAssist,
-    respectGain,
-    respectLoss,
+    scoreGain,
     timestampStarted,
     timestampEnded
   };
