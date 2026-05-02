@@ -37,6 +37,7 @@ function init() {
   setupTabs();
   setupGraphCollapse();
   setupBackendTest();
+  restoreSession();
 }
 
 /* =========================
@@ -72,6 +73,23 @@ async function api(action, payload = {}) {
   return result;
 }
 
+async function restoreSession() {
+  try {
+    const result = await api("me");
+
+    showApp(result.user);
+
+    setApiStatus(
+      "pending",
+      "?",
+      "Not checked",
+      "API key status has not been checked this session."
+    );
+  } catch {
+    // No active session. Stay on login page.
+  }
+}
+
 /* =========================
    AUTH UI
 ========================= */
@@ -99,10 +117,50 @@ function setupAuthSwitch() {
 }
 
 function setupAuthForms() {
-  loginForm.addEventListener("submit", event => {
+  loginForm.addEventListener("submit", async event => {
     event.preventDefault();
 
-    showLoginError("Real login is not implemented yet. Register a new account first.");
+    hideLoginMessage();
+
+    const playerId = loginPlayerIdInput.value.trim();
+    const password = loginPasswordInput.value;
+
+    if (!playerId) {
+      showLoginError("Missing Torn player ID.");
+      return;
+    }
+
+    if (!password) {
+      showLoginError("Missing password.");
+      return;
+    }
+
+    const submitButton = loginForm.querySelector("button[type='submit']");
+    const originalButtonText = submitButton.textContent;
+
+    submitButton.disabled = true;
+    submitButton.textContent = "Logging in...";
+
+    try {
+      const result = await api("login", {
+        playerId,
+        password
+      });
+
+      showApp(result.user);
+
+      setApiStatus(
+        "pending",
+        "?",
+        "Not checked",
+        "API key status has not been checked this session."
+      );
+    } catch (error) {
+      showLoginError(error.message);
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = originalButtonText;
+    }
   });
 
   registerForm.addEventListener("submit", async event => {
@@ -150,6 +208,10 @@ function setupAuthForms() {
         "API key stored",
         "Your Torn API key was verified and stored encrypted."
       );
+
+      registerApiKeyInput.value = "";
+      registerPasswordInput.value = "";
+      registerPasswordConfirmInput.value = "";
     } catch (error) {
       showLoginError(error.message);
     } finally {
@@ -158,7 +220,13 @@ function setupAuthForms() {
     }
   });
 
-  logoutButton.addEventListener("click", () => {
+  logoutButton.addEventListener("click", async () => {
+    try {
+      await api("logout");
+    } catch {
+      // Ignore logout API errors on the frontend.
+    }
+
     appPage.classList.add("hidden");
     loginPage.classList.remove("hidden");
 
