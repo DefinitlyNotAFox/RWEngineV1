@@ -5,7 +5,6 @@ const ATTACK_PAGE_SOFT_LIMIT = 100;
 const ATTACK_FETCH_MAX_ROUNDS = 250;
 const ATTACK_TIME_PADDING_SECONDS = 60;
 const ATTACK_CURSOR_OVERLAP_SECONDS = 5;
-const CHAIN_BONUS_HIT_MINIMUM = 10;
 
 export async function onRequest(context) {
   try {
@@ -1141,9 +1140,6 @@ async function handleApplyAttackSummary(env, request, body) {
       checked: summary.checked,
       outsideHits: summary.outsideHits,
       assists: summary.assists,
-      scoreUpAdjusted: summary.scoreUpAdjusted,
-      chainBonusHitsRemoved: summary.chainBonusHitsRemoved,
-      chainBonusScoreRemoved: summary.chainBonusScoreRemoved,
       scoreDown: summary.scoreDown,
       playersUpdated: summary.players.size
     }
@@ -1166,9 +1162,6 @@ async function fetchAndSummarizeAttacks(apiKey, war) {
     checked: 0,
     outsideHits: 0,
     assists: 0,
-    scoreUpAdjusted: 0,
-    chainBonusHitsRemoved: 0,
-    chainBonusScoreRemoved: 0,
     scoreDown: 0,
     players: new Map()
   };
@@ -1257,41 +1250,6 @@ function summarizeAttackInto(summary, attack, war) {
     attackerFactionId === opponentFactionId;
 
   const scoreValue = Number(attack.scoreGain || 0);
-  const chainBonus = Number(attack.chainBonus || 0);
-  const isChainBonusHit = chainBonus >= CHAIN_BONUS_HIT_MINIMUM;
-
-  /*
-    TEST MODE:
-    Rebuild score_up from attack logs.
-    Explicit chain bonus hits are removed entirely from score_up.
-    Official ranked-war report score_up is overwritten after attack summary.
-  */
-  if (
-    isOurOutgoing &&
-    isAgainstOpponent &&
-    !attack.isAssist
-  ) {
-    const row = getAttackPlayerSummary(
-      summary.players,
-      attack.attackerId,
-      attack.attackerName
-    );
-
-    if (isChainBonusHit) {
-      row.chainBonusHitsRemoved += 1;
-      row.chainBonusScoreRemoved += scoreValue;
-
-      summary.chainBonusHitsRemoved += 1;
-      summary.chainBonusScoreRemoved += scoreValue;
-
-      return;
-    }
-
-    row.scoreUpAdjusted += scoreValue;
-    summary.scoreUpAdjusted += scoreValue;
-
-    return;
-  }
 
   if (isOurOutgoing && attack.isAssist) {
     const row = getAttackPlayerSummary(
@@ -1346,9 +1304,6 @@ function getAttackPlayerSummary(map, playerId, playerName) {
       playerName: playerName || `Player ${id}`,
       outsideHits: 0,
       assists: 0,
-      scoreUpAdjusted: 0,
-      chainBonusHitsRemoved: 0,
-      chainBonusScoreRemoved: 0,
       scoreDown: 0
     });
   }
@@ -1364,7 +1319,6 @@ async function applyAttackSummaryToWarLog(env, war, rows) {
     UPDATE war_log
     SET outside_hits = 0,
         assists = 0,
-        score_up = 0,
         score_down = 0,
         synced_at = ?
     WHERE war_id = ?
@@ -1391,12 +1345,11 @@ async function applyAttackSummaryToWarLog(env, war, rows) {
         score_down,
         synced_at
       )
-      VALUES (?, ?, ?, ?, 1, 0, 0, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, 1, 0, 0, ?, ?, 0, ?, ?)
       ON CONFLICT(war_id, player_id) DO UPDATE SET
         player_name = excluded.player_name,
         outside_hits = excluded.outside_hits,
         assists = excluded.assists,
-        score_up = excluded.score_up,
         score_down = excluded.score_down,
         synced_at = excluded.synced_at
       `
@@ -1408,7 +1361,6 @@ async function applyAttackSummaryToWarLog(env, war, rows) {
         row.playerName,
         row.outsideHits,
         row.assists,
-        row.scoreUpAdjusted,
         row.scoreDown,
         now
       )
@@ -1883,16 +1835,6 @@ function normalizeAttack(attackId, attack) {
       "respect_gained"
     ]);
 
-  const chainBonus =
-    pickNumber(attack.modifiers || {}, [
-      "chain_bonus",
-      "chainBonus"
-    ]) ||
-    pickNumber(attack, [
-      "chain_bonus",
-      "chainBonus"
-    ]);
-
   const timestampStarted =
     pickNumber(attack, [
       "timestamp_started",
@@ -1920,7 +1862,6 @@ function normalizeAttack(attackId, attack) {
     result,
     isAssist,
     scoreGain,
-    chainBonus,
     timestampStarted,
     timestampEnded
   };
