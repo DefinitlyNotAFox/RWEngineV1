@@ -556,6 +556,8 @@ function setupImport() {
 
     let successCount = 0;
     let failedCount = 0;
+    let skippedCount = 0;
+    let overwrittenCount = 0;
 
     const submitButton = importForm.querySelector("button[type='submit']");
     const originalButtonText = submitButton.textContent;
@@ -569,22 +571,96 @@ function setupImport() {
       updateImportProgress(
         index,
         rankIds.length,
-        "Importing ranked war reports.",
+        "Checking ranked war report.",
         rankId,
-        "Importing report..."
+        "Checking..."
       );
 
       addImportProgressRow(
         rankId,
         "active",
-        "Importing",
-        "Fetching ranked war report."
+        "Checking",
+        "Checking whether this report already exists."
       );
 
       try {
-        const importResult = await api("importRankedWarReport", {
+        const status = await api("checkImportStatus", {
           rankId
         });
+
+        let overwrite = false;
+
+        if (status.exists) {
+          const opponent = status.war?.opponent_faction_name || "Unknown opponent";
+
+          overwrite = window.confirm(
+            `War report ${rankId} is already imported against ${opponent}.\n\nClick OK to overwrite it.\nClick Cancel to skip it.`
+          );
+
+          if (!overwrite) {
+            skippedCount += 1;
+
+            updateImportProgressRow(
+              rankId,
+              "skipped",
+              "Skipped",
+              "Already imported. Skipped by user."
+            );
+
+            updateImportProgress(
+              index + 1,
+              rankIds.length,
+              "Importing ranked war reports.",
+              rankId,
+              "Skipped"
+            );
+
+            continue;
+          }
+
+          overwrittenCount += 1;
+
+          updateImportProgressRow(
+            rankId,
+            "active",
+            "Overwrite",
+            "Existing report will be overwritten."
+          );
+        }
+
+        updateImportProgress(
+          index,
+          rankIds.length,
+          "Importing ranked war report.",
+          rankId,
+          overwrite ? "Overwriting..." : "Importing..."
+        );
+
+        const importResult = await api("importRankedWarReport", {
+          rankId,
+          overwrite
+        });
+
+        if (importResult.skipped) {
+          skippedCount += 1;
+
+          updateImportProgressRow(
+            rankId,
+            "skipped",
+            "Skipped",
+            importResult.message || "Already imported. Skipped."
+          );
+
+          updateImportProgress(
+            index + 1,
+            rankIds.length,
+            "Importing ranked war reports.",
+            rankId,
+            "Skipped"
+          );
+
+          continue;
+        }
 
         updateImportProgressRow(
           rankId,
@@ -593,7 +669,7 @@ function setupImport() {
           "Ranked war report imported. Fetching attack logs."
         );
 
-        const attackSummary = await applyAttackSummaryUntilDone(
+        const attackSummary = await applyAttackSummary(
           importResult.war.warId,
           rankId,
           index,
@@ -633,7 +709,7 @@ function setupImport() {
 
     showImportStatus(
       failedCount ? "error" : "success",
-      `Import finished. Successful: ${successCount}. Failed: ${failedCount}.`
+      `Import finished. Successful: ${successCount}. Failed: ${failedCount}. Skipped: ${skippedCount}. Overwritten: ${overwrittenCount}.`
     );
 
     rankIdInput.value = "";
@@ -643,45 +719,32 @@ function setupImport() {
   });
 }
 
-async function applyAttackSummaryUntilDone(warId, rankId, reportIndex, totalReports) {
-  let cursor = null;
-  let reset = true;
-  let latestSummary = null;
+async function applyAttackSummary(warId, rankId, reportIndex, totalReports) {
+  updateImportProgress(
+    reportIndex,
+    totalReports,
+    "Applying attack summary.",
+    rankId,
+    "Fetching attack logs..."
+  );
 
-  for (let round = 0; round < 80; round += 1) {
-    const result = await api("applyAttackSummary", {
-      warId,
-      cursor,
-      reset
-    });
+  const result = await api("applyAttackSummary", {
+    warId
+  });
 
-    reset = false;
-
-    updateImportProgress(
-      reportIndex,
-      totalReports,
-      `Applying attack summary. Checked ${result.checkedTotal || 0} attacks.`,
-      rankId,
-      result.done ? "Applying summary..." : "Fetching more attacks..."
-    );
-
-    if (result.done) {
-      latestSummary = result.summary;
-      break;
-    }
-
-    cursor = result.nextCursor;
-
-    if (!cursor) {
-      throw new Error("Attack summary did not return a continuation cursor.");
-    }
+  if (!result.done) {
+    throw new Error("Attack summary did not complete.");
   }
 
-  if (!latestSummary) {
-    throw new Error("Attack summary did not finish within the safety limit.");
-  }
+  updateImportProgress(
+    reportIndex,
+    totalReports,
+    `Applying attack summary. Checked ${result.summary?.checked || 0} attacks.`,
+    rankId,
+    "Applying summary..."
+  );
 
-  return latestSummary;
+  return result.summary;
 }
 
 function parseRankIds(value) {
