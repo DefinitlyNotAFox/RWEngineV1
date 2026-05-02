@@ -49,6 +49,14 @@ export async function onRequest(context) {
       return await handleGetDashboardData(env, request, body);
     }
 
+    if (action === "importRankedWarReport") {
+      return await handleImportRankedWarReport(env, request, body);
+    }
+
+    if (action === "getImportedWars") {
+      return await handleGetImportedWars(env, request);
+    }
+
     return json(
       {
         success: false,
@@ -684,6 +692,253 @@ async function getCurrentUser(env, request) {
 }
 
 /* =========================
+   IMPORT ACTIONS
+========================= */
+
+async function handleGetImportedWars(env, request) {
+  requireDb(env);
+
+  const currentUser = await getCurrentUser(env, request);
+  const factionId = Number(currentUser.factionId);
+
+  if (!factionId) {
+    return json(
+      {
+        success: false,
+        message: "Your account is not linked to a faction."
+      },
+      400
+    );
+  }
+
+  const result = await env.DB.prepare(
+    `
+    SELECT
+      war_id,
+      report_id,
+      faction_id,
+      faction_name,
+      opponent_faction_id,
+      opponent_faction_name,
+      start_timestamp,
+      end_timestamp,
+      imported_at
+    FROM wars
+    WHERE faction_id = ?
+    ORDER BY imported_at DESC
+    LIMIT 50
+    `
+  )
+    .bind(factionId)
+    .all();
+
+  return json({
+    success: true,
+    message: "Imported wars loaded.",
+    wars: result.results || []
+  });
+}
+
+async function handleImportRankedWarReport(env, request, body) {
+  requireDb(env);
+  requireSecret(env);
+
+  const currentUser = await getCurrentUserPrivate(env, request);
+
+  if (Number(currentUser.is_admin) !== 1) {
+    return json(
+      {
+        success: false,
+        message: "Only admins can import ranked war reports."
+      },
+      403
+    );
+  }
+
+  const rankId = String(body.rankId || "").trim();
+
+  if (!rankId) {
+    return json(
+      {
+        success: false,
+        message: "Missing ranked war report ID."
+      },
+      400
+    );
+  }
+
+  if (!currentUser.api_key_encrypted || !currentUser.api_key_iv) {
+    return json(
+      {
+        success: false,
+        message: "No stored API key found for this account."
+      },
+      400
+    );
+  }
+
+  const apiKey = await decryptText(
+    env.APP_SECRET,
+    currentUser.api_key_encrypted,
+    currentUser.api_key_iv
+  );
+
+  const rawReport = await fetchRankedWarReport(rankId, apiKey);
+
+  const normalized = normalizeRankedWarReport(
+    rawReport,
+    rankId,
+    Number(currentUser.faction_id)
+  );
+
+  const now = nowUnix();
+
+  await env.DB.prepare(
+    `
+    INSERT INTO wars (
+      war_id,
+      faction_id,
+      faction_name,
+      opponent_faction_id,
+      opponent_faction_name,
+      start_timestamp,
+      end_timestamp,
+      report_id,
+      war_type,
+      imported_by_user_id,
+      imported_at,
+      updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ranked', ?, ?, ?)
+    ON CONFLICT(war_id) DO UPDATE SET
+      faction_id = excluded.faction_id,
+      faction_name = excluded.faction_name,
+      opponent_faction_id = excluded.opponent_faction_id,
+      opponent_faction_name = excluded.opponent_faction_name,
+      start_timestamp = excluded.start_timestamp,
+      end_timestamp = excluded.end_timestamp,
+      report_id = excluded.report_id,
+      imported_by_user_id = excluded.imported_by_user_id,
+      updated_at = excluded.updated_at
+    `
+  )
+    .bind(
+      normalized.warId,
+      normalized.factionId,
+      normalized.factionName,
+      normalized.opponentFactionId,
+      normalized.opponentFactionName,
+      normalized.startTimestamp,
+      normalized.endTimestamp,
+      normalized.reportId,
+      currentUser.user_id,
+      now,
+      now
+    )
+    .run();
+
+  await env.DB.prepare(
+    `
+    DELETE FROM war_log
+    WHERE war_id = ?
+      AND faction_id = ?
+    `
+  )
+    .bind(normalized.warId, normalized.factionId)
+    .run();
+
+  for (const member of normalized.members) {
+    await env.DB.prepare(
+      `
+      INSERT INTO war_log (
+        war_id,
+        faction_id,
+        player_id,
+        player_name,
+        is_member,
+        termed,
+        war_hits,
+        outside_hits,
+        assists,
+        score_up,
+        score_down,
+        synced_at
+      )
+      VALUES (?, ?, ?, ?, 1, 0, ?, 0, 0, ?, 0, ?)
+      `
+    )
+      .bind(
+        normalized.warId,
+        normalized.factionId,
+        member.playerId,
+        member.playerName,
+        member.warHits,
+        member.scoreUp,
+        now
+      )
+      .run();
+  }
+
+  return json({
+    success: true,
+    message: `War imported. Members added: ${normalized.members.length}.`,
+    war: {
+      warId: normalized.warId,
+      reportId: normalized.reportId,
+      factionId: normalized.factionId,
+      factionName: normalized.factionName,
+      opponentFactionId: normalized.opponentFactionId,
+      opponentFactionName: normalized.opponentFactionName,
+      startTimestamp: normalized.startTimestamp,
+      endTimestamp: normalized.endTimestamp,
+      membersAdded: normalized.members.length
+    }
+  });
+}
+
+async function getCurrentUserPrivate(env, request) {
+  const sessionToken = getCookie(request, "rwengine_session");
+
+  if (!sessionToken) {
+    throw new Error("Not logged in.");
+  }
+
+  const tokenHash = await sha256Hex(sessionToken);
+  const now = nowUnix();
+
+  const row = await env.DB.prepare(
+    `
+    SELECT
+      users.user_id,
+      users.player_id,
+      users.player_name,
+      users.faction_id,
+      users.faction_name,
+      users.is_admin,
+      users.is_disabled,
+      users.api_key_encrypted,
+      users.api_key_iv
+    FROM sessions
+    JOIN users ON users.user_id = sessions.user_id
+    WHERE sessions.token_hash = ?
+      AND sessions.expires_at > ?
+    `
+  )
+    .bind(tokenHash, now)
+    .first();
+
+  if (!row) {
+    throw new Error("Session expired or invalid.");
+  }
+
+  if (Number(row.is_disabled) === 1) {
+    throw new Error("This account is disabled.");
+  }
+
+  return row;
+}
+
+/* =========================
    TORN
 ========================= */
 
@@ -724,6 +979,92 @@ async function verifyTornApiKey(apiKey) {
   return data;
 }
 
+async function fetchRankedWarReport(rankId, apiKey) {
+  const v2Url =
+    "https://api.torn.com/v2/faction/" +
+    encodeURIComponent(rankId) +
+    "/rankedwarreport?key=" +
+    encodeURIComponent(apiKey) +
+    "&timestamp=" +
+    Date.now();
+
+  const v1Url =
+    "https://api.torn.com/torn/" +
+    encodeURIComponent(rankId) +
+    "?selections=rankedwarreport&key=" +
+    encodeURIComponent(apiKey) +
+    "&timestamp=" +
+    Date.now();
+
+  const v2Result = await fetchTornJson(v2Url);
+
+  if (v2Result.success) {
+    return v2Result.data;
+  }
+
+  const v1Result = await fetchTornJson(v1Url);
+
+  if (v1Result.success) {
+    return v1Result.data;
+  }
+
+  throw new Error(
+    v2Result.message ||
+    v1Result.message ||
+    "Failed to fetch ranked war report."
+  );
+}
+
+async function fetchTornJson(url) {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json"
+      }
+    });
+
+    let data;
+
+    try {
+      data = await response.json();
+    } catch {
+      return {
+        success: false,
+        message: "Torn returned invalid JSON."
+      };
+    }
+
+    if (data.error) {
+      const message =
+        data.error.error ||
+        data.error.message ||
+        "Unknown Torn API error.";
+
+      return {
+        success: false,
+        message: `Torn API error: ${message}`
+      };
+    }
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: `Torn API request failed with status ${response.status}.`
+      };
+    }
+
+    return {
+      success: true,
+      data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.message || "Torn API request failed."
+    };
+  }
+}
+
 function normalizeFaction(profile) {
   const factionData = profile.faction || {};
 
@@ -743,6 +1084,230 @@ function normalizeFaction(profile) {
     factionId,
     factionName
   };
+}
+
+function normalizeRankedWarReport(rawData, rankId, ownFactionId) {
+  const report =
+    rawData.rankedwarreport ||
+    rawData.ranked_war_report ||
+    rawData.rankedWarReport ||
+    rawData.report ||
+    rawData;
+
+  const factions =
+    report.factions ||
+    report.faction ||
+    rawData.factions ||
+    {};
+
+  const factionEntries = normalizeFactionEntries(factions);
+
+  if (!factionEntries.length) {
+    throw new Error("Ranked war report did not contain faction data.");
+  }
+
+  const ownEntry = factionEntries.find(([id, faction]) => {
+    const possibleId =
+      Number(id) ||
+      Number(faction.id) ||
+      Number(faction.faction_id) ||
+      Number(faction.factionId);
+
+    return possibleId === ownFactionId;
+  });
+
+  if (!ownEntry) {
+    throw new Error(
+      `This report does not contain your faction ID (${ownFactionId}).`
+    );
+  }
+
+  const opponentEntry =
+    factionEntries.find(([id, faction]) => {
+      const possibleId =
+        Number(id) ||
+        Number(faction.id) ||
+        Number(faction.faction_id) ||
+        Number(faction.factionId);
+
+      return possibleId !== ownFactionId;
+    }) || [null, {}];
+
+  const [ownIdRaw, ownFaction] = ownEntry;
+  const [opponentIdRaw, opponentFaction] = opponentEntry;
+
+  const factionId =
+    Number(ownIdRaw) ||
+    Number(ownFaction.id) ||
+    Number(ownFaction.faction_id) ||
+    Number(ownFaction.factionId) ||
+    ownFactionId;
+
+  const opponentFactionId =
+    Number(opponentIdRaw) ||
+    Number(opponentFaction.id) ||
+    Number(opponentFaction.faction_id) ||
+    Number(opponentFaction.factionId) ||
+    null;
+
+  const factionName =
+    pickString(ownFaction, [
+      "name",
+      "faction_name",
+      "factionName"
+    ]) || "Unknown faction";
+
+  const opponentFactionName =
+    pickString(opponentFaction, [
+      "name",
+      "faction_name",
+      "factionName"
+    ]) || "Unknown opponent";
+
+  const warInfo =
+    report.war ||
+    report.ranked_war ||
+    report.rankedWar ||
+    {};
+
+  const startTimestamp =
+    pickNumber(warInfo, ["start", "started", "start_timestamp", "startTimestamp"]) ||
+    pickNumber(report, ["start", "started", "start_timestamp", "startTimestamp"]) ||
+    null;
+
+  const endTimestamp =
+    pickNumber(warInfo, ["end", "ended", "end_timestamp", "endTimestamp"]) ||
+    pickNumber(report, ["end", "ended", "end_timestamp", "endTimestamp"]) ||
+    null;
+
+  const membersRaw =
+    ownFaction.members ||
+    ownFaction.member ||
+    {};
+
+  const members = normalizeMemberEntries(membersRaw)
+    .map(([id, member]) => {
+      const playerId =
+        Number(id) ||
+        Number(member.id) ||
+        Number(member.user_id) ||
+        Number(member.player_id) ||
+        Number(member.playerId);
+
+      const playerName =
+        pickString(member, ["name", "player_name", "playerName"]) ||
+        `Player ${playerId}`;
+
+      const warHits = pickNumber(member, [
+        "attacks",
+        "hits",
+        "war_hits",
+        "warHits",
+        "attacks_made"
+      ]);
+
+      const scoreUp = pickNumber(member, [
+        "score",
+        "respect",
+        "respect_gain",
+        "respectGain",
+        "points",
+        "points_gained"
+      ]);
+
+      return {
+        playerId,
+        playerName,
+        warHits,
+        scoreUp
+      };
+    })
+    .filter(member => member.playerId && member.playerName);
+
+  if (!members.length) {
+    throw new Error("No member rows found in the ranked war report.");
+  }
+
+  return {
+    warId: String(rankId),
+    reportId: String(rankId),
+    factionId,
+    factionName,
+    opponentFactionId,
+    opponentFactionName,
+    startTimestamp,
+    endTimestamp,
+    members
+  };
+}
+
+function normalizeFactionEntries(factions) {
+  if (Array.isArray(factions)) {
+    return factions.map(faction => {
+      const id =
+        faction.id ||
+        faction.faction_id ||
+        faction.factionId ||
+        null;
+
+      return [String(id || ""), faction];
+    });
+  }
+
+  if (factions && typeof factions === "object") {
+    return Object.entries(factions);
+  }
+
+  return [];
+}
+
+function normalizeMemberEntries(members) {
+  if (Array.isArray(members)) {
+    return members.map(member => {
+      const id =
+        member.id ||
+        member.user_id ||
+        member.player_id ||
+        member.playerId ||
+        null;
+
+      return [String(id || ""), member];
+    });
+  }
+
+  if (members && typeof members === "object") {
+    return Object.entries(members);
+  }
+
+  return [];
+}
+
+function pickString(object, keys) {
+  for (const key of keys) {
+    if (object && object[key] !== undefined && object[key] !== null) {
+      const value = String(object[key]).trim();
+
+      if (value) {
+        return value;
+      }
+    }
+  }
+
+  return null;
+}
+
+function pickNumber(object, keys) {
+  for (const key of keys) {
+    if (object && object[key] !== undefined && object[key] !== null) {
+      const number = Number(object[key]);
+
+      if (Number.isFinite(number)) {
+        return number;
+      }
+    }
+  }
+
+  return 0;
 }
 
 /* =========================
@@ -912,6 +1477,48 @@ async function encryptText(secret, text) {
   };
 }
 
+async function decryptText(secret, ciphertextBase64, ivBase64) {
+  const encoder = new TextEncoder();
+
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    "PBKDF2",
+    false,
+    ["deriveKey"]
+  );
+
+  const key = await crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: encoder.encode("rwengine-v2-api-key-encryption"),
+      iterations: 100000,
+      hash: "SHA-256"
+    },
+    keyMaterial,
+    {
+      name: "AES-GCM",
+      length: 256
+    },
+    false,
+    ["decrypt"]
+  );
+
+  const iv = base64ToBytes(ivBase64);
+  const ciphertext = base64ToBytes(ciphertextBase64);
+
+  const plaintextBuffer = await crypto.subtle.decrypt(
+    {
+      name: "AES-GCM",
+      iv
+    },
+    key,
+    ciphertext
+  );
+
+  return new TextDecoder().decode(plaintextBuffer);
+}
+
 /* =========================
    HELPERS
 ========================= */
@@ -984,4 +1591,15 @@ function bytesToBase64(bytes) {
   }
 
   return btoa(binary);
+}
+
+function base64ToBytes(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return bytes;
 }
