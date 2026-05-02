@@ -1,5 +1,7 @@
 const state = {
-  activeTab: "dashboard"
+  activeTab: "dashboard",
+  sortBy: "ImpactScore",
+  sortDirection: "DESC"
 };
 
 const loginPage = document.getElementById("loginPage");
@@ -29,6 +31,21 @@ const graphPanel = document.getElementById("graphPanel");
 const graphBody = document.getElementById("graphBody");
 const graphCollapseButton = document.getElementById("graphCollapseButton");
 
+const refreshDashboardButton = document.getElementById("refreshDashboardButton");
+
+const fromWarSelect = document.getElementById("fromWar");
+const toWarSelect = document.getElementById("toWar");
+const termedFilterSelect = document.getElementById("termedFilter");
+const memberFilterSelect = document.getElementById("memberFilter");
+const memberSearchInput = document.getElementById("memberSearch");
+
+const dashboardTableBody = document.getElementById("dashboardTableBody");
+
+const summaryMembers = document.getElementById("summaryMembers");
+const summaryHits = document.getElementById("summaryHits");
+const summaryAvgRespect = document.getElementById("summaryAvgRespect");
+const summaryNetScore = document.getElementById("summaryNetScore");
+
 init();
 
 function init() {
@@ -37,6 +54,7 @@ function init() {
   setupTabs();
   setupGraphCollapse();
   setupBackendTest();
+  setupDashboard();
   restoreSession();
 }
 
@@ -58,12 +76,20 @@ async function api(action, payload = {}) {
 
   const text = await response.text();
 
+  if (!text) {
+    throw new Error(
+      `Server returned an empty response. HTTP status: ${response.status}.`
+    );
+  }
+
   let result;
 
   try {
     result = JSON.parse(text);
   } catch {
-    throw new Error("Server returned invalid JSON: " + text);
+    throw new Error(
+      `Server returned invalid JSON. HTTP status: ${response.status}. Response: ${text}`
+    );
   }
 
   if (!response.ok || !result.success) {
@@ -95,6 +121,8 @@ async function restoreSession() {
 ========================= */
 
 function setupAuthSwitch() {
+  if (!authLoginModeButton || !authRegisterModeButton) return;
+
   authLoginModeButton.addEventListener("click", () => {
     authLoginModeButton.classList.add("active");
     authRegisterModeButton.classList.remove("active");
@@ -117,123 +145,136 @@ function setupAuthSwitch() {
 }
 
 function setupAuthForms() {
-  loginForm.addEventListener("submit", async event => {
-    event.preventDefault();
+  if (loginForm) {
+    loginForm.addEventListener("submit", async event => {
+      event.preventDefault();
 
-    hideLoginMessage();
+      hideLoginMessage();
 
-    const playerId = loginPlayerIdInput.value.trim();
-    const password = loginPasswordInput.value;
+      const playerId = loginPlayerIdInput.value.trim();
+      const password = loginPasswordInput.value;
 
-    if (!playerId) {
-      showLoginError("Missing Torn player ID.");
-      return;
-    }
+      if (!playerId) {
+        showLoginError("Missing Torn player ID.");
+        return;
+      }
 
-    if (!password) {
-      showLoginError("Missing password.");
-      return;
-    }
+      if (!password) {
+        showLoginError("Missing password.");
+        return;
+      }
 
-    const submitButton = loginForm.querySelector("button[type='submit']");
-    const originalButtonText = submitButton.textContent;
+      const submitButton = loginForm.querySelector("button[type='submit']");
+      const originalButtonText = submitButton.textContent;
 
-    submitButton.disabled = true;
-    submitButton.textContent = "Logging in...";
+      submitButton.disabled = true;
+      submitButton.textContent = "Logging in...";
 
-    try {
-      const result = await api("login", {
-        playerId,
-        password
-      });
+      try {
+        const result = await api("login", {
+          playerId,
+          password
+        });
 
-      showApp(result.user);
+        showApp(result.user);
 
-      setApiStatus(
-        "pending",
-        "?",
-        "Not checked",
-        "API key status has not been checked this session."
-      );
-    } catch (error) {
-      showLoginError(error.message);
-    } finally {
-      submitButton.disabled = false;
-      submitButton.textContent = originalButtonText;
-    }
-  });
+        setApiStatus(
+          "pending",
+          "?",
+          "Not checked",
+          "API key status has not been checked this session."
+        );
+      } catch (error) {
+        showLoginError(error.message);
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = originalButtonText;
+      }
+    });
+  }
 
-  registerForm.addEventListener("submit", async event => {
-    event.preventDefault();
+  if (registerForm) {
+    registerForm.addEventListener("submit", async event => {
+      event.preventDefault();
 
-    hideLoginMessage();
+      hideLoginMessage();
 
-    const apiKey = registerApiKeyInput.value.trim();
-    const password = registerPasswordInput.value;
-    const confirmPassword = registerPasswordConfirmInput.value;
+      const apiKey = registerApiKeyInput.value.trim();
+      const password = registerPasswordInput.value;
+      const confirmPassword = registerPasswordConfirmInput.value;
 
-    if (!apiKey) {
-      showLoginError("Missing Torn API key.");
-      return;
-    }
+      if (!apiKey) {
+        showLoginError("Missing Torn API key.");
+        return;
+      }
 
-    if (!password || password.length < 8) {
-      showLoginError("Password must be at least 8 characters.");
-      return;
-    }
+      if (!password || password.length < 8) {
+        showLoginError("Password must be at least 8 characters.");
+        return;
+      }
 
-    if (password !== confirmPassword) {
-      showLoginError("Passwords do not match.");
-      return;
-    }
+      if (password !== confirmPassword) {
+        showLoginError("Passwords do not match.");
+        return;
+      }
 
-    const submitButton = registerForm.querySelector("button[type='submit']");
-    const originalButtonText = submitButton.textContent;
+      const submitButton = registerForm.querySelector("button[type='submit']");
+      const originalButtonText = submitButton.textContent;
 
-    submitButton.disabled = true;
-    submitButton.textContent = "Creating account...";
+      submitButton.disabled = true;
+      submitButton.textContent = "Creating account...";
 
-    try {
-      const result = await api("register", {
-        apiKey,
-        password,
-        confirmPassword
-      });
+      try {
+        const result = await api("register", {
+          apiKey,
+          password,
+          confirmPassword
+        });
 
-      showApp(result.user);
+        showApp(result.user);
 
-      setApiStatus(
-        "valid",
-        "✓",
-        "API key stored",
-        "Your Torn API key was verified and stored encrypted."
-      );
+        setApiStatus(
+          "valid",
+          "✓",
+          "API key stored",
+          "Your Torn API key was verified and stored encrypted."
+        );
 
-      registerApiKeyInput.value = "";
+        registerApiKeyInput.value = "";
+        registerPasswordInput.value = "";
+        registerPasswordConfirmInput.value = "";
+      } catch (error) {
+        showLoginError(error.message);
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = originalButtonText;
+      }
+    });
+  }
+
+  if (logoutButton) {
+    logoutButton.addEventListener("click", async () => {
+      try {
+        await api("logout");
+      } catch {
+        // Ignore logout API errors on the frontend.
+      }
+
+      appPage.classList.add("hidden");
+      loginPage.classList.remove("hidden");
+
+      loginPasswordInput.value = "";
       registerPasswordInput.value = "";
       registerPasswordConfirmInput.value = "";
-    } catch (error) {
-      showLoginError(error.message);
-    } finally {
-      submitButton.disabled = false;
-      submitButton.textContent = originalButtonText;
-    }
-  });
 
-  logoutButton.addEventListener("click", async () => {
-    try {
-      await api("logout");
-    } catch {
-      // Ignore logout API errors on the frontend.
-    }
-
-    appPage.classList.add("hidden");
-    loginPage.classList.remove("hidden");
-
-    loginPasswordInput.value = "";
-    registerPasswordInput.value = "";
-    registerPasswordConfirmInput.value = "";
-  });
+      renderDashboard([], {
+        membersShown: 0,
+        totalHits: 0,
+        avgRespect: 0,
+        totalNetScore: 0
+      });
+    });
+  }
 }
 
 function showApp(user) {
@@ -259,6 +300,8 @@ function showApp(user) {
   } else {
     adminBadge.classList.add("hidden");
   }
+
+  loadDashboardData();
 }
 
 function showLoginError(message) {
@@ -307,6 +350,8 @@ function setActiveTab(tabName) {
 ========================= */
 
 function setupGraphCollapse() {
+  if (!graphCollapseButton || !graphPanel || !graphBody) return;
+
   graphCollapseButton.addEventListener("click", () => {
     const isCollapsed = graphPanel.classList.toggle("collapsed");
 
@@ -315,6 +360,156 @@ function setupGraphCollapse() {
     graphCollapseButton.setAttribute("aria-expanded", String(!isCollapsed));
     graphCollapseButton.title = isCollapsed ? "Expand graph" : "Collapse graph";
   });
+}
+
+/* =========================
+   DASHBOARD
+========================= */
+
+function setupDashboard() {
+  if (refreshDashboardButton) {
+    refreshDashboardButton.addEventListener("click", () => {
+      loadDashboardData();
+    });
+  }
+
+  if (termedFilterSelect) {
+    termedFilterSelect.addEventListener("change", () => {
+      loadDashboardData();
+    });
+  }
+
+  if (memberFilterSelect) {
+    memberFilterSelect.addEventListener("change", () => {
+      loadDashboardData();
+    });
+  }
+
+  if (memberSearchInput) {
+    memberSearchInput.addEventListener("input", debounce(() => {
+      loadDashboardData();
+    }, 250));
+  }
+
+  document.querySelectorAll("th[data-sort]").forEach(header => {
+    header.addEventListener("click", () => {
+      const sortKey = header.dataset.sort;
+
+      if (state.sortBy === sortKey) {
+        state.sortDirection = state.sortDirection === "ASC" ? "DESC" : "ASC";
+      } else {
+        state.sortBy = sortKey;
+        state.sortDirection = "DESC";
+      }
+
+      loadDashboardData();
+    });
+  });
+}
+
+async function loadDashboardData() {
+  if (!dashboardTableBody) return;
+
+  try {
+    dashboardTableBody.innerHTML = `
+      <tr>
+        <td colspan="11" class="empty-table">Loading dashboard...</td>
+      </tr>
+    `;
+
+    const result = await api("getDashboardData", {
+      filters: {
+        fromWar: fromWarSelect ? fromWarSelect.value : "ALL",
+        toWar: toWarSelect ? toWarSelect.value : "ALL",
+        termedFilter: termedFilterSelect ? termedFilterSelect.value : "ALL",
+        memberFilter: memberFilterSelect ? memberFilterSelect.value : "ALL",
+        search: memberSearchInput ? memberSearchInput.value : ""
+      },
+      sortBy: state.sortBy,
+      sortDirection: state.sortDirection
+    });
+
+    console.log("Dashboard result:", result);
+
+    renderDashboard(result.rows || [], result.summary || {});
+  } catch (error) {
+    dashboardTableBody.innerHTML = `
+      <tr>
+        <td colspan="11" class="empty-table">${escapeHtml(error.message)}</td>
+      </tr>
+    `;
+
+    renderDashboardSummary({
+      membersShown: 0,
+      totalHits: 0,
+      avgRespect: 0,
+      totalNetScore: 0
+    });
+  }
+}
+
+function renderDashboard(rows, summary) {
+  renderDashboardSummary(summary);
+
+  if (!dashboardTableBody) return;
+
+  if (!rows.length) {
+    dashboardTableBody.innerHTML = `
+      <tr>
+        <td colspan="11" class="empty-table">No dashboard data found.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  dashboardTableBody.innerHTML = rows
+    .map(row => {
+      const memberUrl = `https://www.torn.com/profiles.php?XID=${encodeURIComponent(row["Player_ID"])}`;
+      const statusClass = row["Is Member"] === "ACTIVE" ? "active" : "left";
+
+      return `
+        <tr>
+          <td>
+            <a class="member-link" href="${memberUrl}" target="_blank" rel="noopener noreferrer">
+              ${escapeHtml(row["Members"])} [${escapeHtml(row["Player_ID"])}]
+            </a>
+          </td>
+          <td>
+            <span class="status-pill ${statusClass}">
+              ${escapeHtml(row["Is Member"])}
+            </span>
+          </td>
+          <td>${formatNumber(row["Wars"])}</td>
+          <td>${formatNumber(row["Hits"])}</td>
+          <td>${formatNumber(row["Outside Hits"])}</td>
+          <td>${formatNumber(row["Assists"])}</td>
+          <td>${formatNumber(row["Sum Score up"], 2)}</td>
+          <td>${formatNumber(row["Sum Score down"], 2)}</td>
+          <td>${formatNumber(row["Net Score"], 2)}</td>
+          <td>${formatNumber(row["ImpactScore"], 2)}</td>
+          <td>${formatNumber(row["Avg R/hit"], 2)}</td>
+        </tr>
+      `;
+    })
+    .join("");
+}
+
+function renderDashboardSummary(summary) {
+  if (summaryMembers) {
+    summaryMembers.textContent = formatNumber(summary.membersShown || 0);
+  }
+
+  if (summaryHits) {
+    summaryHits.textContent = formatNumber(summary.totalHits || 0);
+  }
+
+  if (summaryAvgRespect) {
+    summaryAvgRespect.textContent = formatNumber(summary.avgRespect || 0, 2);
+  }
+
+  if (summaryNetScore) {
+    summaryNetScore.textContent = formatNumber(summary.totalNetScore || 0, 2);
+  }
 }
 
 /* =========================
@@ -358,8 +553,44 @@ function setApiStatus(status, icon, title, text) {
   const titleEl = document.getElementById("apiKeyStatusTitle");
   const textEl = document.getElementById("apiKeyStatusText");
 
+  if (!box || !iconEl || !titleEl || !textEl) return;
+
   box.className = `api-status-box ${status}`;
   iconEl.textContent = icon;
   titleEl.textContent = title;
   textEl.textContent = text;
+}
+
+/* =========================
+   FORMAT HELPERS
+========================= */
+
+function formatNumber(value, decimals = 0) {
+  const number = Number(value || 0);
+
+  return number.toLocaleString(undefined, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  });
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function debounce(callback, delay = 250) {
+  let timeoutId;
+
+  return (...args) => {
+    clearTimeout(timeoutId);
+
+    timeoutId = setTimeout(() => {
+      callback(...args);
+    }, delay);
+  };
 }
