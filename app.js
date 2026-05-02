@@ -20,6 +20,8 @@ const graphPanel = document.getElementById("graphPanel");
 const graphBody = document.getElementById("graphBody");
 const graphCollapseButton = document.getElementById("graphCollapseButton");
 
+const testApiButton = document.getElementById("testApiButton");
+
 init();
 
 function init() {
@@ -27,6 +29,7 @@ function init() {
   setupFakeAuth();
   setupTabs();
   setupGraphCollapse();
+  setupBackendTest();
 }
 
 function setupAuthSwitch() {
