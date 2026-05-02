@@ -171,3 +171,40 @@ function setApiStatus(status, icon, title, text) {
   titleEl.textContent = title;
   textEl.textContent = text;
 }
+
+function setupBackendTest() {
+  testApiButton.addEventListener("click", async () => {
+    try {
+      setApiStatus(
+        "pending",
+        "?",
+        "Checking...",
+        "Testing backend connection."
+      );
+
+      const response = await fetch("/api", {
+        method: "POST"
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Backend test failed.");
+      }
+
+      setApiStatus(
+        "valid",
+        "✓",
+        "Connected",
+        result.message
+      );
+    } catch (error) {
+      setApiStatus(
+        "invalid",
+        "✕",
+        "Connection failed",
+        error.message
+      );
+    }
+  });
+}
