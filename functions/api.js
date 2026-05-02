@@ -1,8 +1,10 @@
 const SESSION_DAYS = 14;
 const SESSION_SECONDS = SESSION_DAYS * 24 * 60 * 60;
 
-const ATTACK_PAGES_PER_RUN = 8;
 const ATTACK_PAGE_SOFT_LIMIT = 100;
+const ATTACK_FETCH_MAX_ROUNDS = 250;
+const ATTACK_TIME_PADDING_SECONDS = 60;
+const ATTACK_CURSOR_OVERLAP_SECONDS = 5;
 
 export async function onRequest(context) {
   try {
@@ -52,12 +54,16 @@ export async function onRequest(context) {
       return await handleGetDashboardData(env, request, body);
     }
 
-    if (action === "importRankedWarReport") {
-      return await handleImportRankedWarReport(env, request, body);
-    }
-
     if (action === "getImportedWars") {
       return await handleGetImportedWars(env, request);
+    }
+
+    if (action === "checkImportStatus") {
+      return await handleCheckImportStatus(env, request, body);
+    }
+
+    if (action === "importRankedWarReport") {
+      return await handleImportRankedWarReport(env, request, body);
     }
 
     if (action === "applyAttackSummary") {
@@ -746,6 +752,35 @@ async function handleGetImportedWars(env, request) {
   });
 }
 
+async function handleCheckImportStatus(env, request, body) {
+  requireDb(env);
+
+  const currentUser = await getCurrentUser(env, request);
+  const rankId = String(body.rankId || "").trim();
+
+  if (!rankId) {
+    return json(
+      {
+        success: false,
+        message: "Missing ranked war report ID."
+      },
+      400
+    );
+  }
+
+  const existingWar = await getExistingImportedWar(
+    env,
+    Number(currentUser.factionId),
+    rankId
+  );
+
+  return json({
+    success: true,
+    exists: Boolean(existingWar),
+    war: existingWar
+  });
+}
+
 async function handleImportRankedWarReport(env, request, body) {
   requireDb(env);
   requireSecret(env);
@@ -763,6 +798,7 @@ async function handleImportRankedWarReport(env, request, body) {
   }
 
   const rankId = String(body.rankId || "").trim();
+  const overwrite = body.overwrite === true;
 
   if (!rankId) {
     return json(
@@ -772,6 +808,21 @@ async function handleImportRankedWarReport(env, request, body) {
       },
       400
     );
+  }
+
+  const existingWarBeforeFetch = await getExistingImportedWar(
+    env,
+    Number(currentUser.faction_id),
+    rankId
+  );
+
+  if (existingWarBeforeFetch && !overwrite) {
+    return json({
+      success: true,
+      skipped: true,
+      message: "War already imported. Skipped.",
+      war: existingWarBeforeFetch
+    });
   }
 
   if (!currentUser.api_key_encrypted || !currentUser.api_key_iv) {
@@ -797,6 +848,21 @@ async function handleImportRankedWarReport(env, request, body) {
     rankId,
     Number(currentUser.faction_id)
   );
+
+  const existingWarAfterFetch = await getExistingImportedWar(
+    env,
+    Number(currentUser.faction_id),
+    normalized.warId
+  );
+
+  if (existingWarAfterFetch && !overwrite) {
+    return json({
+      success: true,
+      skipped: true,
+      message: "War already imported. Skipped.",
+      war: existingWarAfterFetch
+    });
+  }
 
   const now = nowUnix();
 
@@ -826,6 +892,7 @@ async function handleImportRankedWarReport(env, request, body) {
       end_timestamp = excluded.end_timestamp,
       report_id = excluded.report_id,
       imported_by_user_id = excluded.imported_by_user_id,
+      imported_at = excluded.imported_at,
       updated_at = excluded.updated_at
     `
   )
@@ -888,6 +955,8 @@ async function handleImportRankedWarReport(env, request, body) {
 
   return json({
     success: true,
+    skipped: false,
+    overwritten: Boolean(existingWarBeforeFetch || existingWarAfterFetch),
     message: `War imported. Members added: ${normalized.members.length}.`,
     war: {
       warId: normalized.warId,
@@ -901,6 +970,29 @@ async function handleImportRankedWarReport(env, request, body) {
       membersAdded: normalized.members.length
     }
   });
+}
+
+async function getExistingImportedWar(env, factionId, rankId) {
+  return await env.DB.prepare(
+    `
+    SELECT
+      war_id,
+      report_id,
+      faction_id,
+      faction_name,
+      opponent_faction_id,
+      opponent_faction_name,
+      start_timestamp,
+      end_timestamp,
+      imported_at
+    FROM wars
+    WHERE faction_id = ?
+      AND (war_id = ? OR report_id = ?)
+    LIMIT 1
+    `
+  )
+    .bind(factionId, rankId, rankId)
+    .first();
 }
 
 async function getCurrentUserPrivate(env, request) {
@@ -1031,131 +1123,256 @@ async function handleApplyAttackSummary(env, request, body) {
     currentUser.api_key_iv
   );
 
-  const startTimestamp = Number(war.start_timestamp);
-  const endTimestamp = Number(war.end_timestamp);
+  const summary = await fetchAndSummarizeAttacks(apiKey, war);
 
-  let cursor = Number(body.cursor || 0);
-
-  if (!cursor || cursor < startTimestamp) {
-    cursor = startTimestamp;
-  }
-
-  const reset = body.reset === true;
-
-  if (reset) {
-    await env.DB.prepare(
-      `
-      DELETE FROM attacks
-      WHERE war_id = ?
-        AND faction_id = ?
-      `
-    )
-      .bind(war.war_id, war.faction_id)
-      .run();
-
-    await env.DB.prepare(
-      `
-      UPDATE war_log
-      SET outside_hits = 0,
-          assists = 0,
-          score_down = 0
-      WHERE war_id = ?
-        AND faction_id = ?
-      `
-    )
-      .bind(war.war_id, war.faction_id)
-      .run();
-  }
-
-  let pagesChecked = 0;
-  let attacksCheckedThisRun = 0;
-  let nextCursor = cursor;
-  let done = false;
-
-  while (
-    pagesChecked < ATTACK_PAGES_PER_RUN &&
-    nextCursor <= endTimestamp &&
-    !done
-  ) {
-    const page = await fetchFactionAttacksPage(
-      apiKey,
-      nextCursor,
-      endTimestamp
-    );
-
-    pagesChecked += 1;
-    attacksCheckedThisRun += page.attacks.length;
-
-    if (page.attacks.length) {
-      await storeAttackRows(env, war, page.attacks);
-    }
-
-    if (!page.attacks.length) {
-      done = true;
-      break;
-    }
-
-    const maxTimestampEnded = page.attacks.reduce((max, attack) => {
-      const ended = Number(attack.timestampEnded || attack.timestampStarted || 0);
-      return Math.max(max, ended);
-    }, nextCursor);
-
-    if (page.attacks.length < ATTACK_PAGE_SOFT_LIMIT) {
-      done = true;
-      break;
-    }
-
-    if (maxTimestampEnded <= nextCursor) {
-      nextCursor += 1;
-    } else {
-      nextCursor = maxTimestampEnded + 1;
-    }
-  }
-
-  if (nextCursor > endTimestamp) {
-    done = true;
-  }
-
-  const countRow = await env.DB.prepare(
-    `
-    SELECT COUNT(*) AS attack_count
-    FROM attacks
-    WHERE war_id = ?
-      AND faction_id = ?
-    `
-  )
-    .bind(war.war_id, war.faction_id)
-    .first();
-
-  const checkedTotal = Number(countRow.attack_count || 0);
-
-  if (!done) {
-    return json({
-      success: true,
-      message: "Attack summary partially fetched.",
-      done: false,
-      warId: war.war_id,
-      nextCursor,
-      checkedThisRun: attacksCheckedThisRun,
-      checkedTotal
-    });
-  }
-
-  const summary = await summarizeAndApplyAttackRows(env, war);
+  await applyAttackSummaryToWarLog(
+    env,
+    war,
+    [...summary.players.values()]
+  );
 
   return json({
     success: true,
     message: "Attack summary applied.",
     done: true,
     warId: war.war_id,
-    checkedThisRun: attacksCheckedThisRun,
-    checkedTotal,
-    summary
+    summary: {
+      checked: summary.checked,
+      outsideHits: summary.outsideHits,
+      assists: summary.assists,
+      scoreDown: summary.scoreDown,
+      playersUpdated: summary.players.size
+    }
   });
 }
 
+async function fetchAndSummarizeAttacks(apiKey, war) {
+  const startTimestamp =
+    Number(war.start_timestamp) - ATTACK_TIME_PADDING_SECONDS;
+
+  const endTimestamp =
+    Number(war.end_timestamp) + ATTACK_TIME_PADDING_SECONDS;
+
+  let cursor = startTimestamp;
+  let rounds = 0;
+
+  const seenAttackIds = new Set();
+
+  const summary = {
+    checked: 0,
+    outsideHits: 0,
+    assists: 0,
+    scoreDown: 0,
+    players: new Map()
+  };
+
+  while (cursor <= endTimestamp && rounds < ATTACK_FETCH_MAX_ROUNDS) {
+    rounds += 1;
+
+    const page = await fetchFactionAttacksPage(
+      apiKey,
+      cursor,
+      endTimestamp
+    );
+
+    if (!page.attacks.length) {
+      break;
+    }
+
+    let maxAttackTimestamp = cursor;
+
+    for (const attack of page.attacks) {
+      if (!attack.attackId || seenAttackIds.has(attack.attackId)) {
+        continue;
+      }
+
+      seenAttackIds.add(attack.attackId);
+
+      const attackTimestamp =
+        Number(attack.timestampEnded || attack.timestampStarted || 0);
+
+      if (
+        attackTimestamp &&
+        (attackTimestamp < startTimestamp || attackTimestamp > endTimestamp)
+      ) {
+        continue;
+      }
+
+      summary.checked += 1;
+      summarizeAttackInto(summary, attack, war);
+
+      if (attackTimestamp > maxAttackTimestamp) {
+        maxAttackTimestamp = attackTimestamp;
+      }
+    }
+
+    if (page.attacks.length < ATTACK_PAGE_SOFT_LIMIT) {
+      break;
+    }
+
+    const nextCursor = Math.max(
+      cursor + 1,
+      maxAttackTimestamp - ATTACK_CURSOR_OVERLAP_SECONDS
+    );
+
+    if (nextCursor <= cursor) {
+      cursor += 1;
+    } else {
+      cursor = nextCursor;
+    }
+  }
+
+  if (rounds >= ATTACK_FETCH_MAX_ROUNDS) {
+    throw new Error(
+      `Attack summary stopped after ${ATTACK_FETCH_MAX_ROUNDS} fetch rounds. The war may have too many attacks for one import run.`
+    );
+  }
+
+  return summary;
+}
+
+function summarizeAttackInto(summary, attack, war) {
+  const factionId = Number(war.faction_id);
+  const opponentFactionId = Number(war.opponent_faction_id || 0);
+
+  const attackerFactionId = Number(attack.attackerFactionId || 0);
+  const defenderFactionId = Number(attack.defenderFactionId || 0);
+
+  const isOurOutgoing = attackerFactionId === factionId;
+  const isIncomingToUs = defenderFactionId === factionId;
+
+  const isAgainstOpponent =
+    opponentFactionId &&
+    defenderFactionId === opponentFactionId;
+
+  const isFromOpponent =
+    opponentFactionId &&
+    attackerFactionId === opponentFactionId;
+
+  const respectValue =
+    Number(attack.respectLoss || 0) ||
+    Number(attack.respectGain || 0) ||
+    0;
+
+  if (isOurOutgoing && attack.isAssist) {
+    const row = getAttackPlayerSummary(
+      summary.players,
+      attack.attackerId,
+      attack.attackerName
+    );
+
+    row.assists += 1;
+    summary.assists += 1;
+    return;
+  }
+
+  if (
+    isOurOutgoing &&
+    !attack.isAssist &&
+    !isAgainstOpponent
+  ) {
+    const row = getAttackPlayerSummary(
+      summary.players,
+      attack.attackerId,
+      attack.attackerName
+    );
+
+    row.outsideHits += 1;
+    summary.outsideHits += 1;
+    return;
+  }
+
+  if (
+    isIncomingToUs &&
+    isFromOpponent &&
+    !attack.isAssist
+  ) {
+    const row = getAttackPlayerSummary(
+      summary.players,
+      attack.defenderId,
+      attack.defenderName
+    );
+
+    row.scoreDown += respectValue;
+    summary.scoreDown += respectValue;
+  }
+}
+
+function getAttackPlayerSummary(map, playerId, playerName) {
+  const id = Number(playerId);
+
+  if (!map.has(id)) {
+    map.set(id, {
+      playerId: id,
+      playerName: playerName || `Player ${id}`,
+      outsideHits: 0,
+      assists: 0,
+      scoreDown: 0
+    });
+  }
+
+  return map.get(id);
+}
+
+async function applyAttackSummaryToWarLog(env, war, rows) {
+  const now = nowUnix();
+
+  await env.DB.prepare(
+    `
+    UPDATE war_log
+    SET outside_hits = 0,
+        assists = 0,
+        score_down = 0,
+        synced_at = ?
+    WHERE war_id = ?
+      AND faction_id = ?
+    `
+  )
+    .bind(now, war.war_id, war.faction_id)
+    .run();
+
+  for (const row of rows) {
+    await env.DB.prepare(
+      `
+      INSERT INTO war_log (
+        war_id,
+        faction_id,
+        player_id,
+        player_name,
+        is_member,
+        termed,
+        war_hits,
+        outside_hits,
+        assists,
+        score_up,
+        score_down,
+        synced_at
+      )
+      VALUES (?, ?, ?, ?, 1, 0, 0, ?, ?, 0, ?, ?)
+      ON CONFLICT(war_id, player_id) DO UPDATE SET
+        player_name = excluded.player_name,
+        outside_hits = excluded.outside_hits,
+        assists = excluded.assists,
+        score_down = excluded.score_down,
+        synced_at = excluded.synced_at
+      `
+    )
+      .bind(
+        war.war_id,
+        war.faction_id,
+        row.playerId,
+        row.playerName,
+        row.outsideHits,
+        row.assists,
+        row.scoreDown,
+        now
+      )
+      .run();
+  }
+}
+
 /* =========================
-   TORN
+   TORN FETCHING
 ========================= */
 
 async function verifyTornApiKey(apiKey) {
@@ -1595,6 +1812,16 @@ function normalizeAttack(attackId, attack) {
     pickString(attack, ["result", "attack_result", "attackResult"]) ||
     "";
 
+  const resultText = result.toLowerCase();
+
+  const isAssist =
+    resultText.includes("assist") ||
+    attack.is_assist === true ||
+    Number(attack.is_assist || 0) === 1 ||
+    attack.assist === true ||
+    Number(attack.assist || 0) === 1 ||
+    Number(attack.modifiers?.assist || 0) > 1;
+
   const respectGain =
     pickNumber(attack, [
       "respect_gain",
@@ -1609,18 +1836,6 @@ function normalizeAttack(attackId, attack) {
       "respectLoss",
       "respect_lost"
     ]);
-
-  const chain =
-    pickNumber(attack, ["chain", "chain_id", "chainId"]);
-
-  const isRankedWar =
-    Number(
-      attack.is_ranked_war ??
-      attack.isRankedWar ??
-      attack.ranked_war ??
-      attack.rankedWar ??
-      0
-    ) === 1;
 
   const timestampStarted =
     pickNumber(attack, [
@@ -1647,13 +1862,11 @@ function normalizeAttack(attackId, attack) {
     attackerFactionId,
     defenderFactionId,
     result,
+    isAssist,
     respectGain,
     respectLoss,
-    chain,
-    isRankedWar,
     timestampStarted,
-    timestampEnded,
-    rawJson: JSON.stringify(attack)
+    timestampEnded
   };
 }
 
@@ -1677,271 +1890,6 @@ function parseFactionId(value) {
   }
 
   return null;
-}
-
-/* =========================
-   ATTACK STORAGE / SUMMARY
-========================= */
-
-async function storeAttackRows(env, war, attacks) {
-  const now = nowUnix();
-
-  for (const attack of attacks) {
-    await env.DB.prepare(
-      `
-      INSERT INTO attacks (
-        attack_id,
-        war_id,
-        faction_id,
-        attacker_id,
-        attacker_name,
-        defender_id,
-        defender_name,
-        attacker_faction_id,
-        defender_faction_id,
-        result,
-        respect_gain,
-        respect_loss,
-        chain,
-        is_ranked_war,
-        timestamp_started,
-        timestamp_ended,
-        raw_json,
-        created_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(attack_id) DO UPDATE SET
-        war_id = excluded.war_id,
-        faction_id = excluded.faction_id,
-        attacker_id = excluded.attacker_id,
-        attacker_name = excluded.attacker_name,
-        defender_id = excluded.defender_id,
-        defender_name = excluded.defender_name,
-        attacker_faction_id = excluded.attacker_faction_id,
-        defender_faction_id = excluded.defender_faction_id,
-        result = excluded.result,
-        respect_gain = excluded.respect_gain,
-        respect_loss = excluded.respect_loss,
-        chain = excluded.chain,
-        is_ranked_war = excluded.is_ranked_war,
-        timestamp_started = excluded.timestamp_started,
-        timestamp_ended = excluded.timestamp_ended,
-        raw_json = excluded.raw_json
-      `
-    )
-      .bind(
-        attack.attackId,
-        war.war_id,
-        war.faction_id,
-        attack.attackerId,
-        attack.attackerName,
-        attack.defenderId,
-        attack.defenderName,
-        attack.attackerFactionId,
-        attack.defenderFactionId,
-        attack.result,
-        attack.respectGain,
-        attack.respectLoss,
-        attack.chain,
-        attack.isRankedWar ? 1 : 0,
-        attack.timestampStarted,
-        attack.timestampEnded,
-        attack.rawJson,
-        now
-      )
-      .run();
-  }
-}
-
-async function summarizeAndApplyAttackRows(env, war) {
-  const result = await env.DB.prepare(
-    `
-    SELECT
-      attack_id,
-      attacker_id,
-      attacker_name,
-      defender_id,
-      defender_name,
-      attacker_faction_id,
-      defender_faction_id,
-      result,
-      respect_gain,
-      respect_loss,
-      timestamp_started,
-      timestamp_ended
-    FROM attacks
-    WHERE war_id = ?
-      AND faction_id = ?
-    `
-  )
-    .bind(war.war_id, war.faction_id)
-    .all();
-
-  const attacks = result.results || [];
-
-  const factionId = Number(war.faction_id);
-  const opponentFactionId = Number(war.opponent_faction_id || 0);
-
-  const playerSummary = new Map();
-
-  let outsideHitsTotal = 0;
-  let assistsTotal = 0;
-  let scoreDownTotal = 0;
-
-  for (const attack of attacks) {
-    const resultText = String(attack.result || "").toLowerCase();
-
-    const attackerFactionId = Number(attack.attacker_faction_id || 0);
-    const defenderFactionId = Number(attack.defender_faction_id || 0);
-
-    const isAssist = resultText.includes("assist");
-
-    const isOurOutgoing = attackerFactionId === factionId;
-    const isIncomingToUs = defenderFactionId === factionId;
-
-    const isAgainstOpponent =
-      opponentFactionId &&
-      defenderFactionId === opponentFactionId;
-
-    const isFromOpponent =
-      opponentFactionId &&
-      attackerFactionId === opponentFactionId;
-
-    const respectValue =
-      Number(attack.respect_gain || 0) ||
-      Number(attack.respect_loss || 0) ||
-      0;
-
-    if (isOurOutgoing && isAssist) {
-      const row = getAttackPlayerSummary(
-        playerSummary,
-        attack.attacker_id,
-        attack.attacker_name
-      );
-
-      row.assists += 1;
-      assistsTotal += 1;
-      continue;
-    }
-
-    if (
-      isOurOutgoing &&
-      !isAssist &&
-      !isAgainstOpponent
-    ) {
-      const row = getAttackPlayerSummary(
-        playerSummary,
-        attack.attacker_id,
-        attack.attacker_name
-      );
-
-      row.outsideHits += 1;
-      outsideHitsTotal += 1;
-      continue;
-    }
-
-    if (
-      isIncomingToUs &&
-      isFromOpponent &&
-      !isAssist
-    ) {
-      const row = getAttackPlayerSummary(
-        playerSummary,
-        attack.defender_id,
-        attack.defender_name
-      );
-
-      row.scoreDown += respectValue;
-      scoreDownTotal += respectValue;
-    }
-  }
-
-  await applyAttackSummaryToWarLog(
-    env,
-    war,
-    [...playerSummary.values()]
-  );
-
-  return {
-    checked: attacks.length,
-    outsideHits: outsideHitsTotal,
-    assists: assistsTotal,
-    scoreDown: scoreDownTotal,
-    playersUpdated: playerSummary.size
-  };
-}
-
-function getAttackPlayerSummary(map, playerId, playerName) {
-  const id = Number(playerId);
-
-  if (!map.has(id)) {
-    map.set(id, {
-      playerId: id,
-      playerName: playerName || `Player ${id}`,
-      outsideHits: 0,
-      assists: 0,
-      scoreDown: 0
-    });
-  }
-
-  return map.get(id);
-}
-
-async function applyAttackSummaryToWarLog(env, war, rows) {
-  const now = nowUnix();
-
-  await env.DB.prepare(
-    `
-    UPDATE war_log
-    SET outside_hits = 0,
-        assists = 0,
-        score_down = 0,
-        synced_at = ?
-    WHERE war_id = ?
-      AND faction_id = ?
-    `
-  )
-    .bind(now, war.war_id, war.faction_id)
-    .run();
-
-  for (const row of rows) {
-    await env.DB.prepare(
-      `
-      INSERT INTO war_log (
-        war_id,
-        faction_id,
-        player_id,
-        player_name,
-        is_member,
-        termed,
-        war_hits,
-        outside_hits,
-        assists,
-        score_up,
-        score_down,
-        synced_at
-      )
-      VALUES (?, ?, ?, ?, 1, 0, 0, ?, ?, 0, ?, ?)
-      ON CONFLICT(war_id, player_id) DO UPDATE SET
-        player_name = excluded.player_name,
-        outside_hits = excluded.outside_hits,
-        assists = excluded.assists,
-        score_down = excluded.score_down,
-        synced_at = excluded.synced_at
-      `
-    )
-      .bind(
-        war.war_id,
-        war.faction_id,
-        row.playerId,
-        row.playerName,
-        row.outsideHits,
-        row.assists,
-        row.scoreDown,
-        now
-      )
-      .run();
-  }
 }
 
 /* =========================
