@@ -2050,11 +2050,11 @@ function normalizeAttack(attackId, attack) {
     defenderFactionId,
     result,
     isAssist,
+    isRankedWar,
     scoreGain,
     timestampStarted,
     timestampEnded
   };
-}
 
 function parseFactionId(value) {
   if (value === undefined || value === null) {
