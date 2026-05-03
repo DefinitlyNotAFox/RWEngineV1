@@ -1155,6 +1155,8 @@ async function handleApplyAttackSummary(env, request, body) {
     }
   }
 
+  summaryState = normalizeAttackSummaryState(summaryState, war);
+
   const callsThisStep = await processAttackSummaryStep(
     apiKey,
     war,
@@ -1235,13 +1237,88 @@ function createAttackSummaryState(war) {
       saturatedLeafWindows: 0,
       outsideHits: 0,
       assists: 0,
-      scoreDown: 0
+      scoreDown: 0,
+
+      scoreDownRankedWarOnly: 0,
+      scoreDownNonRankedWar: 0,
+      scoreDownRankedWarOnlyCount: 0,
+      scoreDownNonRankedWarCount: 0
     },
 
     players: {},
     createdAt: nowUnix(),
     updatedAt: nowUnix()
   };
+}
+
+function normalizeAttackSummaryState(state, war) {
+  const exactStartTimestamp = Number(war.start_timestamp);
+  const exactEndTimestamp = Number(war.end_timestamp);
+
+  state.warId = String(war.war_id);
+  state.factionId = Number(war.faction_id);
+
+  state.exactStartTimestamp = Number(state.exactStartTimestamp || exactStartTimestamp);
+  state.exactEndTimestamp = Number(state.exactEndTimestamp || exactEndTimestamp);
+
+  state.fetchStartTimestamp = Number(
+    state.fetchStartTimestamp ||
+    state.exactStartTimestamp - ATTACK_TIME_PADDING_SECONDS
+  );
+
+  state.fetchEndTimestamp = Number(
+    state.fetchEndTimestamp ||
+    state.exactEndTimestamp + ATTACK_TIME_PADDING_SECONDS
+  );
+
+  if (!Array.isArray(state.pendingWindows)) {
+    state.pendingWindows = [
+      {
+        from: state.fetchStartTimestamp,
+        to: state.fetchEndTimestamp
+      }
+    ];
+  }
+
+  if (!Array.isArray(state.seenAttackIds)) {
+    state.seenAttackIds = [];
+  }
+
+  if (!state.stats || typeof state.stats !== "object") {
+    state.stats = {};
+  }
+
+  const statDefaults = {
+    checked: 0,
+    ignoredOutsideExactWarWindow: 0,
+    rawAttackRowsReturned: 0,
+    uniqueAttacksFetched: 0,
+    windowsFetched: 0,
+    splitWindows: 0,
+    saturatedLeafWindows: 0,
+    outsideHits: 0,
+    assists: 0,
+    scoreDown: 0,
+
+    scoreDownRankedWarOnly: 0,
+    scoreDownNonRankedWar: 0,
+    scoreDownRankedWarOnlyCount: 0,
+    scoreDownNonRankedWarCount: 0
+  };
+
+  for (const [key, value] of Object.entries(statDefaults)) {
+    if (state.stats[key] === undefined || state.stats[key] === null) {
+      state.stats[key] = value;
+    }
+  }
+
+  if (!state.players || typeof state.players !== "object") {
+    state.players = {};
+  }
+
+  state.updatedAt = nowUnix();
+
+  return state;
 }
 
 async function processAttackSummaryStep(apiKey, war, state) {
@@ -1396,6 +1473,14 @@ function summarizeAttackIntoState(state, attack, war) {
 
     row.scoreDown += scoreValue;
     state.stats.scoreDown += scoreValue;
+
+    if (attack.isRankedWar) {
+      state.stats.scoreDownRankedWarOnly += scoreValue;
+      state.stats.scoreDownRankedWarOnlyCount += 1;
+    } else {
+      state.stats.scoreDownNonRankedWar += scoreValue;
+      state.stats.scoreDownNonRankedWarCount += 1;
+    }
   }
 }
 
@@ -1427,6 +1512,12 @@ function publicAttackSummary(state) {
     outsideHits: state.stats.outsideHits,
     assists: state.stats.assists,
     scoreDown: state.stats.scoreDown,
+
+    scoreDownRankedWarOnly: state.stats.scoreDownRankedWarOnly,
+    scoreDownNonRankedWar: state.stats.scoreDownNonRankedWar,
+    scoreDownRankedWarOnlyCount: state.stats.scoreDownRankedWarOnlyCount,
+    scoreDownNonRankedWarCount: state.stats.scoreDownNonRankedWarCount,
+
     playersUpdated: Object.keys(state.players || {}).length
   };
 }
@@ -2055,6 +2146,7 @@ function normalizeAttack(attackId, attack) {
     timestampStarted,
     timestampEnded
   };
+}
 
 function parseFactionId(value) {
   if (value === undefined || value === null) {
