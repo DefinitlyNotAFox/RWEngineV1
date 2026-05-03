@@ -7,6 +7,8 @@ const ATTACK_FETCH_WINDOWS_PER_STEP = 5;
 const ATTACK_TIME_PADDING_SECONDS = 60;
 const ATTACK_MIN_SPLIT_SECONDS = 1;
 
+const CHAIN_REPORT_OVERLAP_PADDING_SECONDS = 3600;
+
 export async function onRequest(context) {
   try {
     const { request, env } = context;
@@ -69,6 +71,10 @@ export async function onRequest(context) {
 
     if (action === "applyAttackSummary") {
       return await handleApplyAttackSummary(env, request, body);
+    }
+
+    if (action === "applyChainBonusAdjustment") {
+      return await handleApplyChainBonusAdjustment(env, request, body);
     }
 
     return json(
@@ -140,33 +146,15 @@ async function handleRegister(env, body) {
   const confirmPassword = String(body.confirmPassword || "");
 
   if (!apiKey) {
-    return json(
-      {
-        success: false,
-        message: "Missing Torn API key."
-      },
-      400
-    );
+    return json({ success: false, message: "Missing Torn API key." }, 400);
   }
 
   if (!password || password.length < 8) {
-    return json(
-      {
-        success: false,
-        message: "Password must be at least 8 characters."
-      },
-      400
-    );
+    return json({ success: false, message: "Password must be at least 8 characters." }, 400);
   }
 
   if (password !== confirmPassword) {
-    return json(
-      {
-        success: false,
-        message: "Passwords do not match."
-      },
-      400
-    );
+    return json({ success: false, message: "Passwords do not match." }, 400);
   }
 
   const tornProfile = await verifyTornApiKey(apiKey);
@@ -311,23 +299,11 @@ async function handleLogin(env, body) {
   const password = String(body.password || "");
 
   if (!playerId) {
-    return json(
-      {
-        success: false,
-        message: "Missing Torn player ID."
-      },
-      400
-    );
+    return json({ success: false, message: "Missing Torn player ID." }, 400);
   }
 
   if (!password) {
-    return json(
-      {
-        success: false,
-        message: "Missing password."
-      },
-      400
-    );
+    return json({ success: false, message: "Missing password." }, 400);
   }
 
   const userRow = await env.DB.prepare(
@@ -350,35 +326,17 @@ async function handleLogin(env, body) {
     .first();
 
   if (!userRow) {
-    return json(
-      {
-        success: false,
-        message: "Invalid player ID or password."
-      },
-      401
-    );
+    return json({ success: false, message: "Invalid player ID or password." }, 401);
   }
 
   if (Number(userRow.is_disabled) === 1) {
-    return json(
-      {
-        success: false,
-        message: "This account is disabled."
-      },
-      403
-    );
+    return json({ success: false, message: "This account is disabled." }, 403);
   }
 
   const attemptedHash = await hashPassword(password, userRow.password_salt);
 
   if (attemptedHash !== userRow.password_hash) {
-    return json(
-      {
-        success: false,
-        message: "Invalid player ID or password."
-      },
-      401
-    );
+    return json({ success: false, message: "Invalid player ID or password." }, 401);
   }
 
   const now = nowUnix();
@@ -414,13 +372,7 @@ async function handleMe(env, request) {
   const sessionToken = getCookie(request, "rwengine_session");
 
   if (!sessionToken) {
-    return json(
-      {
-        success: false,
-        message: "Not logged in."
-      },
-      401
-    );
+    return json({ success: false, message: "Not logged in." }, 401);
   }
 
   const tokenHash = await sha256Hex(sessionToken);
@@ -547,7 +499,11 @@ async function handleGetDashboardData(env, request, body) {
       SUM(outside_hits) AS outside_hits,
       SUM(assists) AS assists,
       SUM(score_up) AS score_up,
-      SUM(score_down) AS score_down
+      SUM(score_down) AS score_down,
+      SUM(score_up_official) AS score_up_official,
+      SUM(score_up_adjusted) AS score_up_adjusted,
+      SUM(chain_bonus_score) AS chain_bonus_score,
+      SUM(chain_bonus_hits) AS chain_bonus_hits
     FROM war_log
     WHERE faction_id = ?
     GROUP BY player_id
@@ -608,6 +564,9 @@ async function handleGetDashboardData(env, request, body) {
       "Outside Hits": outsideHits,
       "Assists": assists,
       "Sum Score up": scoreUp,
+      "Official Score up": Number(row.score_up_official || 0),
+      "Chain Bonus Score": Number(row.chain_bonus_score || 0),
+      "Chain Bonus Hits": Number(row.chain_bonus_hits || 0),
       "Sum Score down": scoreDown,
       "Net Score": netScore,
       "ImpactScore": impactScore,
@@ -626,6 +585,9 @@ async function handleGetDashboardData(env, request, body) {
     "Outside Hits",
     "Assists",
     "Sum Score up",
+    "Official Score up",
+    "Chain Bonus Score",
+    "Chain Bonus Hits",
     "Sum Score down",
     "Net Score",
     "ImpactScore",
@@ -736,7 +698,10 @@ async function handleGetImportedWars(env, request) {
       opponent_faction_name,
       start_timestamp,
       end_timestamp,
-      imported_at
+      imported_at,
+      chain_adjusted_at,
+      chain_adjustment_status,
+      chain_adjustment_message
     FROM wars
     WHERE faction_id = ?
     ORDER BY imported_at DESC
@@ -883,9 +848,12 @@ async function handleImportRankedWarReport(env, request, body) {
       war_type,
       imported_by_user_id,
       imported_at,
-      updated_at
+      updated_at,
+      chain_adjusted_at,
+      chain_adjustment_status,
+      chain_adjustment_message
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ranked', ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ranked', ?, ?, ?, NULL, NULL, NULL)
     ON CONFLICT(war_id) DO UPDATE SET
       faction_id = excluded.faction_id,
       faction_name = excluded.faction_name,
@@ -896,7 +864,10 @@ async function handleImportRankedWarReport(env, request, body) {
       report_id = excluded.report_id,
       imported_by_user_id = excluded.imported_by_user_id,
       imported_at = excluded.imported_at,
-      updated_at = excluded.updated_at
+      updated_at = excluded.updated_at,
+      chain_adjusted_at = NULL,
+      chain_adjustment_status = NULL,
+      chain_adjustment_message = NULL
     `
   )
     .bind(
@@ -938,10 +909,14 @@ async function handleImportRankedWarReport(env, request, body) {
         outside_hits,
         assists,
         score_up,
+        score_up_official,
+        score_up_adjusted,
+        chain_bonus_score,
+        chain_bonus_hits,
         score_down,
         synced_at
       )
-      VALUES (?, ?, ?, ?, 1, 0, ?, 0, 0, ?, 0, ?)
+      VALUES (?, ?, ?, ?, 1, 0, ?, 0, 0, ?, ?, ?, 0, 0, 0, ?)
       `
     )
       .bind(
@@ -951,16 +926,25 @@ async function handleImportRankedWarReport(env, request, body) {
         member.playerName,
         member.warHits,
         member.scoreUp,
+        member.scoreUp,
+        member.scoreUp,
         now
       )
       .run();
   }
+
+  const chainAdjustment = await applyChainBonusAdjustment(
+    env,
+    apiKey,
+    normalized
+  );
 
   return json({
     success: true,
     skipped: false,
     overwritten: Boolean(existingWarBeforeFetch || existingWarAfterFetch),
     message: `War imported. Members added: ${normalized.members.length}.`,
+    chainAdjustment,
     war: {
       warId: normalized.warId,
       reportId: normalized.reportId,
@@ -972,6 +956,97 @@ async function handleImportRankedWarReport(env, request, body) {
       endTimestamp: normalized.endTimestamp,
       membersAdded: normalized.members.length
     }
+  });
+}
+
+async function handleApplyChainBonusAdjustment(env, request, body) {
+  requireDb(env);
+  requireSecret(env);
+
+  const currentUser = await getCurrentUserPrivate(env, request);
+
+  if (Number(currentUser.is_admin) !== 1) {
+    return json(
+      {
+        success: false,
+        message: "Only admins can apply chain bonus adjustments."
+      },
+      403
+    );
+  }
+
+  const warId = String(body.warId || "").trim();
+
+  if (!warId) {
+    return json(
+      {
+        success: false,
+        message: "Missing war ID."
+      },
+      400
+    );
+  }
+
+  const war = await env.DB.prepare(
+    `
+    SELECT
+      war_id,
+      report_id,
+      faction_id,
+      faction_name,
+      opponent_faction_id,
+      opponent_faction_name,
+      start_timestamp,
+      end_timestamp
+    FROM wars
+    WHERE war_id = ?
+      AND faction_id = ?
+    `
+  )
+    .bind(warId, currentUser.faction_id)
+    .first();
+
+  if (!war) {
+    return json(
+      {
+        success: false,
+        message: "War not found for your faction."
+      },
+      404
+    );
+  }
+
+  if (!currentUser.api_key_encrypted || !currentUser.api_key_iv) {
+    return json(
+      {
+        success: false,
+        message: "No stored API key found for this account."
+      },
+      400
+    );
+  }
+
+  const apiKey = await decryptText(
+    env.APP_SECRET,
+    currentUser.api_key_encrypted,
+    currentUser.api_key_iv
+  );
+
+  const result = await applyChainBonusAdjustment(env, apiKey, {
+    warId: String(war.war_id),
+    reportId: String(war.report_id || war.war_id),
+    factionId: Number(war.faction_id),
+    factionName: war.faction_name,
+    opponentFactionId: Number(war.opponent_faction_id || 0),
+    opponentFactionName: war.opponent_faction_name,
+    startTimestamp: Number(war.start_timestamp),
+    endTimestamp: Number(war.end_timestamp)
+  });
+
+  return json({
+    success: true,
+    message: "Chain bonus adjustment checked.",
+    chainAdjustment: result
   });
 }
 
@@ -1038,6 +1113,356 @@ async function getCurrentUserPrivate(env, request) {
   }
 
   return row;
+}
+
+/* =========================
+   CHAIN BONUS ADJUSTMENT
+========================= */
+
+async function applyChainBonusAdjustment(env, apiKey, war) {
+  const startedAt = nowUnix();
+
+  try {
+    await env.DB.prepare(
+      `
+      UPDATE war_log
+      SET
+        score_up_official = CASE
+          WHEN score_up_official > 0 THEN score_up_official
+          ELSE score_up
+        END,
+        score_up_adjusted = CASE
+          WHEN score_up_official > 0 THEN score_up_official
+          ELSE score_up
+        END,
+        score_up = CASE
+          WHEN score_up_official > 0 THEN score_up_official
+          ELSE score_up
+        END,
+        chain_bonus_score = 0,
+        chain_bonus_hits = 0,
+        synced_at = ?
+      WHERE war_id = ?
+        AND faction_id = ?
+      `
+    )
+      .bind(startedAt, war.warId, war.factionId)
+      .run();
+
+    const chainResult = await fetchLatestChainReport(apiKey);
+
+    if (!chainResult.success) {
+      await saveChainAdjustmentStatus(
+        env,
+        war,
+        "skipped",
+        chainResult.message || "Chain report could not be fetched.",
+        startedAt
+      );
+
+      return {
+        applied: false,
+        status: "skipped",
+        message: chainResult.message || "Chain report could not be fetched.",
+        bonusHits: 0,
+        bonusScore: 0
+      };
+    }
+
+    const chainReport = normalizeChainReport(chainResult.data);
+
+    if (!chainReport.bonuses.length) {
+      await saveChainAdjustmentStatus(
+        env,
+        war,
+        "skipped",
+        "Chain report fetched, but no bonus hits were found.",
+        startedAt
+      );
+
+      return {
+        applied: false,
+        status: "skipped",
+        message: "Chain report fetched, but no bonus hits were found.",
+        bonusHits: 0,
+        bonusScore: 0
+      };
+    }
+
+    if (!chainReportOverlapsWar(chainReport, war)) {
+      await saveChainAdjustmentStatus(
+        env,
+        war,
+        "skipped",
+        "Latest chain report did not overlap this war window.",
+        startedAt
+      );
+
+      return {
+        applied: false,
+        status: "skipped",
+        message: "Latest chain report did not overlap this war window.",
+        chainStart: chainReport.startTimestamp,
+        chainEnd: chainReport.endTimestamp,
+        bonusHits: chainReport.bonuses.length,
+        bonusScore: sum(chainReport.bonuses.map(bonus => bonus.respect))
+      };
+    }
+
+    const bonusByAttacker = new Map();
+
+    for (const bonus of chainReport.bonuses) {
+      if (!bonus.attackerId || !bonus.respect) {
+        continue;
+      }
+
+      const current = bonusByAttacker.get(bonus.attackerId) || {
+        playerId: bonus.attackerId,
+        hits: 0,
+        score: 0
+      };
+
+      current.hits += 1;
+      current.score += Number(bonus.respect || 0);
+
+      bonusByAttacker.set(bonus.attackerId, current);
+    }
+
+    let appliedRows = 0;
+    let appliedBonusHits = 0;
+    let appliedBonusScore = 0;
+
+    for (const bonus of bonusByAttacker.values()) {
+      const result = await env.DB.prepare(
+        `
+        UPDATE war_log
+        SET
+          chain_bonus_score = ?,
+          chain_bonus_hits = ?,
+          score_up_adjusted = MAX(0, score_up_official - ?),
+          score_up = MAX(0, score_up_official - ?),
+          synced_at = ?
+        WHERE war_id = ?
+          AND faction_id = ?
+          AND player_id = ?
+        `
+      )
+        .bind(
+          bonus.score,
+          bonus.hits,
+          bonus.score,
+          bonus.score,
+          startedAt,
+          war.warId,
+          war.factionId,
+          bonus.playerId
+        )
+        .run();
+
+      if (result.meta && result.meta.changes > 0) {
+        appliedRows += result.meta.changes;
+        appliedBonusHits += bonus.hits;
+        appliedBonusScore += bonus.score;
+      }
+    }
+
+    const message =
+      appliedRows > 0
+        ? `Applied chain bonus adjustment to ${appliedRows} member rows.`
+        : "Chain report overlapped the war, but no bonus attackers matched imported members.";
+
+    await saveChainAdjustmentStatus(
+      env,
+      war,
+      appliedRows > 0 ? "applied" : "skipped",
+      message,
+      startedAt
+    );
+
+    return {
+      applied: appliedRows > 0,
+      status: appliedRows > 0 ? "applied" : "skipped",
+      message,
+      chainStart: chainReport.startTimestamp,
+      chainEnd: chainReport.endTimestamp,
+      bonusHits: appliedBonusHits,
+      bonusScore: appliedBonusScore,
+      matchedPlayers: appliedRows
+    };
+  } catch (error) {
+    await saveChainAdjustmentStatus(
+      env,
+      war,
+      "error",
+      error.message || "Chain adjustment failed.",
+      startedAt
+    );
+
+    return {
+      applied: false,
+      status: "error",
+      message: error.message || "Chain adjustment failed.",
+      bonusHits: 0,
+      bonusScore: 0
+    };
+  }
+}
+
+async function saveChainAdjustmentStatus(env, war, status, message, timestamp) {
+  await env.DB.prepare(
+    `
+    UPDATE wars
+    SET
+      chain_adjusted_at = ?,
+      chain_adjustment_status = ?,
+      chain_adjustment_message = ?,
+      updated_at = ?
+    WHERE war_id = ?
+      AND faction_id = ?
+    `
+  )
+    .bind(
+      timestamp,
+      status,
+      message,
+      timestamp,
+      war.warId,
+      war.factionId
+    )
+    .run();
+}
+
+async function fetchLatestChainReport(apiKey) {
+  const v2Url =
+    "https://api.torn.com/v2/faction/chainreport?key=" +
+    encodeURIComponent(apiKey) +
+    "&timestamp=" +
+    Date.now();
+
+  const v1Url =
+    "https://api.torn.com/faction/?selections=chainreport&key=" +
+    encodeURIComponent(apiKey) +
+    "&timestamp=" +
+    Date.now();
+
+  const v2Result = await fetchTornJson(v2Url);
+
+  if (v2Result.success) {
+    return v2Result;
+  }
+
+  const v1Result = await fetchTornJson(v1Url);
+
+  if (v1Result.success) {
+    return v1Result;
+  }
+
+  return {
+    success: false,
+    message:
+      v2Result.message ||
+      v1Result.message ||
+      "Failed to fetch chain report."
+  };
+}
+
+function normalizeChainReport(rawData) {
+  const report =
+    rawData.chainreport ||
+    rawData.chain_report ||
+    rawData.chainReport ||
+    rawData.report ||
+    rawData;
+
+  const startTimestamp =
+    pickNumber(report, [
+      "start",
+      "started",
+      "start_timestamp",
+      "timestamp_started",
+      "startTimestamp",
+      "timestampStarted"
+    ]);
+
+  const endTimestamp =
+    pickNumber(report, [
+      "end",
+      "ended",
+      "end_timestamp",
+      "timestamp_ended",
+      "endTimestamp",
+      "timestampEnded",
+      "finish",
+      "finished"
+    ]);
+
+  const rawBonuses =
+    report.bonuses ||
+    report.bonus_hits ||
+    report.bonusHits ||
+    report.bonus ||
+    [];
+
+  const bonuses = normalizeChainBonusEntries(rawBonuses)
+    .map(([id, bonus]) => {
+      const attackerId =
+        pickNumber(bonus, ["attacker", "attacker_id", "attackerId"]) ||
+        pickNumber(bonus.attacker || {}, ["id", "user_id", "player_id"]);
+
+      const defenderId =
+        pickNumber(bonus, ["defender", "defender_id", "defenderId"]) ||
+        pickNumber(bonus.defender || {}, ["id", "user_id", "player_id"]);
+
+      const chain =
+        pickNumber(bonus, ["chain", "chain_number", "chainNumber"]);
+
+      const respect =
+        pickNumber(bonus, ["respect", "score", "score_gain", "respect_gain"]);
+
+      return {
+        id: String(id || ""),
+        attackerId,
+        defenderId,
+        chain,
+        respect
+      };
+    })
+    .filter(bonus => bonus.attackerId && bonus.respect);
+
+  return {
+    startTimestamp,
+    endTimestamp,
+    bonuses
+  };
+}
+
+function normalizeChainBonusEntries(bonuses) {
+  if (Array.isArray(bonuses)) {
+    return bonuses.map((bonus, index) => [String(index), bonus]);
+  }
+
+  if (bonuses && typeof bonuses === "object") {
+    return Object.entries(bonuses);
+  }
+
+  return [];
+}
+
+function chainReportOverlapsWar(chainReport, war) {
+  if (!chainReport.startTimestamp || !chainReport.endTimestamp) {
+    return false;
+  }
+
+  const chainStart =
+    Number(chainReport.startTimestamp) - CHAIN_REPORT_OVERLAP_PADDING_SECONDS;
+
+  const chainEnd =
+    Number(chainReport.endTimestamp) + CHAIN_REPORT_OVERLAP_PADDING_SECONDS;
+
+  const warStart = Number(war.startTimestamp);
+  const warEnd = Number(war.endTimestamp);
+
+  return chainStart <= warEnd && chainEnd >= warStart;
 }
 
 /* =========================
@@ -1211,22 +1636,17 @@ function createAttackSummaryState(war) {
   return {
     warId: String(war.war_id),
     factionId: Number(war.faction_id),
-
     exactStartTimestamp,
     exactEndTimestamp,
-
     fetchStartTimestamp,
     fetchEndTimestamp,
-
     pendingWindows: [
       {
         from: fetchStartTimestamp,
         to: fetchEndTimestamp
       }
     ],
-
     seenAttackIds: [],
-
     stats: {
       checked: 0,
       ignoredOutsideExactWarWindow: 0,
@@ -1238,13 +1658,11 @@ function createAttackSummaryState(war) {
       outsideHits: 0,
       assists: 0,
       scoreDown: 0,
-
       scoreDownRankedWarOnly: 0,
       scoreDownNonRankedWar: 0,
       scoreDownRankedWarOnlyCount: 0,
       scoreDownNonRankedWarCount: 0
     },
-
     players: {},
     createdAt: nowUnix(),
     updatedAt: nowUnix()
@@ -1299,7 +1717,6 @@ function normalizeAttackSummaryState(state, war) {
     outsideHits: 0,
     assists: 0,
     scoreDown: 0,
-
     scoreDownRankedWarOnly: 0,
     scoreDownNonRankedWar: 0,
     scoreDownRankedWarOnlyCount: 0,
@@ -1512,12 +1929,10 @@ function publicAttackSummary(state) {
     outsideHits: state.stats.outsideHits,
     assists: state.stats.assists,
     scoreDown: state.stats.scoreDown,
-
     scoreDownRankedWarOnly: state.stats.scoreDownRankedWarOnly,
     scoreDownNonRankedWar: state.stats.scoreDownNonRankedWar,
     scoreDownRankedWarOnlyCount: state.stats.scoreDownRankedWarOnlyCount,
     scoreDownNonRankedWarCount: state.stats.scoreDownNonRankedWarCount,
-
     playersUpdated: Object.keys(state.players || {}).length
   };
 }
@@ -1608,10 +2023,14 @@ async function applyAttackSummaryToWarLog(env, war, rows) {
         outside_hits,
         assists,
         score_up,
+        score_up_official,
+        score_up_adjusted,
+        chain_bonus_score,
+        chain_bonus_hits,
         score_down,
         synced_at
       )
-      VALUES (?, ?, ?, ?, 1, 0, 0, ?, ?, 0, ?, ?)
+      VALUES (?, ?, ?, ?, 1, 0, 0, ?, ?, 0, 0, 0, 0, ?, ?)
       ON CONFLICT(war_id, player_id) DO UPDATE SET
         player_name = excluded.player_name,
         outside_hits = excluded.outside_hits,
@@ -2490,4 +2909,8 @@ function pickNumber(object, keys) {
   }
 
   return 0;
+}
+
+function sum(values) {
+  return values.reduce((total, value) => total + Number(value || 0), 0);
 }
