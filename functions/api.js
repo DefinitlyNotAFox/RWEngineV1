@@ -753,16 +753,6 @@ async function handleImportRankedWarReport(env, request, body) {
 
   const currentUser = await getCurrentUserPrivate(env, request);
 
-  if (Number(currentUser.is_admin) !== 1) {
-    return json(
-      {
-        success: false,
-        message: "Only admins can import ranked war reports."
-      },
-      403
-    );
-  }
-
   const rankId = String(body.rankId || "").trim();
   const overwrite = body.overwrite === true;
 
@@ -965,16 +955,6 @@ async function handleApplyChainBonusAdjustment(env, request, body) {
 
   const currentUser = await getCurrentUserPrivate(env, request);
 
-  if (Number(currentUser.is_admin) !== 1) {
-    return json(
-      {
-        success: false,
-        message: "Only admins can apply chain bonus adjustments."
-      },
-      403
-    );
-  }
-
   const warId = String(body.warId || "").trim();
 
   if (!warId) {
@@ -1165,7 +1145,8 @@ async function applyChainBonusAdjustment(env, apiKey, war) {
         status: "skipped",
         message: chainsResult.message || "Faction chains could not be fetched.",
         bonusHits: 0,
-        bonusScore: 0
+        bonusScore: 0,
+        unmatchedBonusAttackers: []
       };
     }
 
@@ -1191,7 +1172,8 @@ async function applyChainBonusAdjustment(env, apiKey, war) {
         chainsChecked: chains.length,
         chainsMatched: 0,
         bonusHits: 0,
-        bonusScore: 0
+        bonusScore: 0,
+        unmatchedBonusAttackers: []
       };
     }
 
@@ -1230,11 +1212,16 @@ async function applyChainBonusAdjustment(env, apiKey, war) {
         const current = bonusByAttacker.get(bonus.attackerId) || {
           playerId: bonus.attackerId,
           hits: 0,
-          score: 0
+          score: 0,
+          chains: []
         };
 
         current.hits += 1;
         current.score += Number(bonus.respect || 0);
+
+        if (bonus.chain) {
+          current.chains.push(bonus.chain);
+        }
 
         bonusByAttacker.set(bonus.attackerId, current);
       }
@@ -1263,13 +1250,16 @@ async function applyChainBonusAdjustment(env, apiKey, war) {
         totalBonusHitsFound,
         totalBonusScoreFound,
         bonusHits: 0,
-        bonusScore: 0
+        bonusScore: 0,
+        unmatchedBonusAttackers: []
       };
     }
 
     let appliedRows = 0;
     let appliedBonusHits = 0;
     let appliedBonusScore = 0;
+
+    const unmatchedBonusAttackers = [];
 
     for (const bonus of bonusByAttacker.values()) {
       const result = await env.DB.prepare(
@@ -1302,13 +1292,24 @@ async function applyChainBonusAdjustment(env, apiKey, war) {
         appliedRows += result.meta.changes;
         appliedBonusHits += bonus.hits;
         appliedBonusScore += bonus.score;
+      } else {
+        unmatchedBonusAttackers.push({
+          playerId: bonus.playerId,
+          hits: bonus.hits,
+          score: bonus.score,
+          chains: [...new Set(bonus.chains || [])]
+        });
       }
     }
 
-    const message =
+    let message =
       appliedRows > 0
         ? `Applied chain bonus adjustment to ${appliedRows} member rows.`
         : "Chain reports overlapped the war, but no bonus attackers matched imported members.";
+
+    if (unmatchedBonusAttackers.length) {
+      message += ` ${unmatchedBonusAttackers.length} bonus attacker(s) did not match imported war members.`;
+    }
 
     await saveChainAdjustmentStatus(
       env,
@@ -1330,7 +1331,8 @@ async function applyChainBonusAdjustment(env, apiKey, war) {
       totalBonusScoreFound,
       bonusHits: appliedBonusHits,
       bonusScore: appliedBonusScore,
-      matchedPlayers: appliedRows
+      matchedPlayers: appliedRows,
+      unmatchedBonusAttackers
     };
   } catch (error) {
     await saveChainAdjustmentStatus(
@@ -1346,7 +1348,8 @@ async function applyChainBonusAdjustment(env, apiKey, war) {
       status: "error",
       message: error.message || "Chain adjustment failed.",
       bonusHits: 0,
-      bonusScore: 0
+      bonusScore: 0,
+      unmatchedBonusAttackers: []
     };
   }
 }
@@ -1615,16 +1618,6 @@ async function handleApplyAttackSummary(env, request, body) {
   requireSecret(env);
 
   const currentUser = await getCurrentUserPrivate(env, request);
-
-  if (Number(currentUser.is_admin) !== 1) {
-    return json(
-      {
-        success: false,
-        message: "Only admins can apply attack summaries."
-      },
-      403
-    );
-  }
 
   const warId = String(body.warId || "").trim();
   const reset = body.reset === true;
@@ -2640,13 +2633,27 @@ function normalizeAttack(attackId, attack) {
 
   const resultText = result.toLowerCase();
 
+  const hasAssistModifier =
+    attack.modifiers &&
+    Object.prototype.hasOwnProperty.call(attack.modifiers, "assist");
+
+  const assistModifierNumber = Number(attack.modifiers?.assist);
+
   const isAssist =
     resultText.includes("assist") ||
     attack.is_assist === true ||
     Number(attack.is_assist || 0) === 1 ||
     attack.assist === true ||
     Number(attack.assist || 0) === 1 ||
-    Number(attack.modifiers?.assist || 0) > 1;
+    attack.modifiers?.assist === true ||
+    (
+      hasAssistModifier &&
+      attack.modifiers.assist !== false &&
+      (
+        !Number.isFinite(assistModifierNumber) ||
+        assistModifierNumber !== 0
+      )
+    );
 
   const isRankedWar =
     attack.is_ranked_war === true ||
