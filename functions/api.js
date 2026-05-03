@@ -2,9 +2,9 @@ const SESSION_DAYS = 14;
 const SESSION_SECONDS = SESSION_DAYS * 24 * 60 * 60;
 
 const ATTACK_PAGE_SOFT_LIMIT = 100;
-const ATTACK_FETCH_MAX_ROUNDS = 250;
+const ATTACK_FETCH_MAX_WINDOWS = 800;
 const ATTACK_TIME_PADDING_SECONDS = 60;
-const ATTACK_CURSOR_OVERLAP_SECONDS = 5;
+const ATTACK_MIN_SPLIT_SECONDS = 1;
 
 export async function onRequest(context) {
   try {
@@ -1138,6 +1138,11 @@ async function handleApplyAttackSummary(env, request, body) {
     warId: war.war_id,
     summary: {
       checked: summary.checked,
+      rawAttackRowsReturned: summary.rawAttackRowsReturned,
+      uniqueAttacksFetched: summary.uniqueAttacksFetched,
+      windowsFetched: summary.windowsFetched,
+      splitWindows: summary.splitWindows,
+      saturatedLeafWindows: summary.saturatedLeafWindows,
       outsideHits: summary.outsideHits,
       assists: summary.assists,
       scoreDown: summary.scoreDown,
@@ -1153,82 +1158,123 @@ async function fetchAndSummarizeAttacks(apiKey, war) {
   const endTimestamp =
     Number(war.end_timestamp) + ATTACK_TIME_PADDING_SECONDS;
 
-  let cursor = startTimestamp;
-  let rounds = 0;
+  const fetchStats = {
+    windowsFetched: 0,
+    splitWindows: 0,
+    saturatedLeafWindows: 0,
+    rawAttackRowsReturned: 0
+  };
+
+  const fetchedAttacks = await fetchFactionAttacksRecursive(
+    apiKey,
+    startTimestamp,
+    endTimestamp,
+    fetchStats,
+    0
+  );
 
   const seenAttackIds = new Set();
 
   const summary = {
     checked: 0,
+    rawAttackRowsReturned: fetchStats.rawAttackRowsReturned,
+    uniqueAttacksFetched: 0,
+    windowsFetched: fetchStats.windowsFetched,
+    splitWindows: fetchStats.splitWindows,
+    saturatedLeafWindows: fetchStats.saturatedLeafWindows,
     outsideHits: 0,
     assists: 0,
     scoreDown: 0,
     players: new Map()
   };
 
-  while (cursor <= endTimestamp && rounds < ATTACK_FETCH_MAX_ROUNDS) {
-    rounds += 1;
-
-    const page = await fetchFactionAttacksPage(
-      apiKey,
-      cursor,
-      endTimestamp
-    );
-
-    if (!page.attacks.length) {
-      break;
+  for (const attack of fetchedAttacks) {
+    if (!attack.attackId || seenAttackIds.has(attack.attackId)) {
+      continue;
     }
 
-    let maxAttackTimestamp = cursor;
+    seenAttackIds.add(attack.attackId);
 
-    for (const attack of page.attacks) {
-      if (!attack.attackId || seenAttackIds.has(attack.attackId)) {
-        continue;
-      }
+    const attackTimestamp =
+      Number(attack.timestampEnded || attack.timestampStarted || 0);
 
-      seenAttackIds.add(attack.attackId);
-
-      const attackTimestamp =
-        Number(attack.timestampEnded || attack.timestampStarted || 0);
-
-      if (
-        attackTimestamp &&
-        (attackTimestamp < startTimestamp || attackTimestamp > endTimestamp)
-      ) {
-        continue;
-      }
-
-      summary.checked += 1;
-      summarizeAttackInto(summary, attack, war);
-
-      if (attackTimestamp > maxAttackTimestamp) {
-        maxAttackTimestamp = attackTimestamp;
-      }
+    if (
+      attackTimestamp &&
+      (attackTimestamp < startTimestamp || attackTimestamp > endTimestamp)
+    ) {
+      continue;
     }
 
-    if (page.attacks.length < ATTACK_PAGE_SOFT_LIMIT) {
-      break;
-    }
+    summary.checked += 1;
+    summary.uniqueAttacksFetched += 1;
 
-    const nextCursor = Math.max(
-      cursor + 1,
-      maxAttackTimestamp - ATTACK_CURSOR_OVERLAP_SECONDS
-    );
-
-    if (nextCursor <= cursor) {
-      cursor += 1;
-    } else {
-      cursor = nextCursor;
-    }
-  }
-
-  if (rounds >= ATTACK_FETCH_MAX_ROUNDS) {
-    throw new Error(
-      `Attack summary stopped after ${ATTACK_FETCH_MAX_ROUNDS} fetch rounds. The war may have too many attacks for one import run.`
-    );
+    summarizeAttackInto(summary, attack, war);
   }
 
   return summary;
+}
+
+async function fetchFactionAttacksRecursive(
+  apiKey,
+  fromTimestamp,
+  toTimestamp,
+  stats,
+  depth
+) {
+  if (fromTimestamp > toTimestamp) {
+    return [];
+  }
+
+  if (stats.windowsFetched >= ATTACK_FETCH_MAX_WINDOWS) {
+    throw new Error(
+      `Attack fetch stopped after ${ATTACK_FETCH_MAX_WINDOWS} windows. The war window is too dense to import safely in one run.`
+    );
+  }
+
+  stats.windowsFetched += 1;
+
+  const page = await fetchFactionAttacksPage(
+    apiKey,
+    fromTimestamp,
+    toTimestamp
+  );
+
+  stats.rawAttackRowsReturned += page.attacks.length;
+
+  const windowSize = toTimestamp - fromTimestamp;
+  const looksCapped = page.attacks.length >= ATTACK_PAGE_SOFT_LIMIT;
+
+  if (looksCapped && windowSize > ATTACK_MIN_SPLIT_SECONDS) {
+    stats.splitWindows += 1;
+
+    const middleTimestamp = Math.floor(
+      fromTimestamp + windowSize / 2
+    );
+
+    const left = await fetchFactionAttacksRecursive(
+      apiKey,
+      fromTimestamp,
+      middleTimestamp,
+      stats,
+      depth + 1
+    );
+
+    const right = await fetchFactionAttacksRecursive(
+      apiKey,
+      middleTimestamp + 1,
+      toTimestamp,
+      stats,
+      depth + 1
+    );
+
+    return [...left, ...right];
+  }
+
+  if (looksCapped) {
+    stats.saturatedLeafWindows += 1;
+  }
+
+  return page.attacks;
 }
 
 function summarizeAttackInto(summary, attack, war) {
