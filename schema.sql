@@ -1,5 +1,19 @@
 PRAGMA foreign_keys = ON;
 
+CREATE TABLE IF NOT EXISTS app_meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+ALTER TABLE war_log ADD COLUMN score_up_official REAL NOT NULL DEFAULT 0;
+ALTER TABLE war_log ADD COLUMN score_up_adjusted REAL NOT NULL DEFAULT 0;
+ALTER TABLE war_log ADD COLUMN chain_bonus_score REAL NOT NULL DEFAULT 0;
+ALTER TABLE war_log ADD COLUMN chain_bonus_hits INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE wars ADD COLUMN chain_adjusted_at INTEGER;
+ALTER TABLE wars ADD COLUMN chain_adjustment_status TEXT;
+ALTER TABLE wars ADD COLUMN chain_adjustment_message TEXT;
+
 CREATE TABLE IF NOT EXISTS factions (
   faction_id INTEGER PRIMARY KEY,
   faction_name TEXT NOT NULL,
