@@ -1997,6 +1997,20 @@ function normalizeAttack(attackId, attack) {
     Number(attack.assist || 0) === 1 ||
     Number(attack.modifiers?.assist || 0) > 1;
 
+  const isRankedWar =
+    attack.is_ranked_war === true ||
+    attack.isRankedWar === true ||
+    attack.ranked_war === true ||
+    attack.rankedWar === true ||
+    Number(attack.is_ranked_war || 0) === 1 ||
+    Number(attack.isRankedWar || 0) === 1 ||
+    Number(attack.ranked_war || 0) === 1 ||
+    Number(attack.rankedWar || 0) === 1 ||
+    attack.modifiers?.ranked_war === true ||
+    attack.modifiers?.rankedWar === true ||
+    Number(attack.modifiers?.ranked_war || 0) === 1 ||
+    Number(attack.modifiers?.rankedWar || 0) === 1;
+
   const scoreGain =
     pickNumber(attack, [
       "score",
