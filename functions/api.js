@@ -2030,7 +2030,7 @@ async function applyAttackSummaryToWarLog(env, war, rows) {
         score_down,
         synced_at
       )
-      VALUES (?, ?, ?, ?, 1, 0, 0, ?, ?, 0, 0, 0, 0, ?, ?)
+      VALUES (?, ?, ?, ?, 1, 0, 0, ?, ?, 0, 0, 0, 0, 0, ?, ?)
       ON CONFLICT(war_id, player_id) DO UPDATE SET
         player_name = excluded.player_name,
         outside_hits = excluded.outside_hits,
@@ -2050,7 +2050,7 @@ async function applyAttackSummaryToWarLog(env, war, rows) {
         now
       )
       .run();
-  }
+      }
 }
 
 /* =========================
