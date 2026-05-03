@@ -1271,7 +1271,6 @@ function createAttackSummaryState(war) {
     createdAt: nowUnix(),
     updatedAt: nowUnix()
   };
-}
 
 async function processAttackSummaryStep(apiKey, war, state) {
   const seenAttackIds = new Set(state.seenAttackIds || []);
