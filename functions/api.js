@@ -3,6 +3,7 @@ const SESSION_SECONDS = SESSION_DAYS * 24 * 60 * 60;
 
 const ATTACK_PAGE_SOFT_LIMIT = 100;
 const ATTACK_FETCH_MAX_WINDOWS = 800;
+const ATTACK_FETCH_WINDOWS_PER_STEP = 5;
 const ATTACK_TIME_PADDING_SECONDS = 60;
 const ATTACK_MIN_SPLIT_SECONDS = 1;
 
@@ -864,6 +865,8 @@ async function handleImportRankedWarReport(env, request, body) {
     });
   }
 
+  await deleteAttackSummaryState(env, normalized.factionId, normalized.warId);
+
   const now = nowUnix();
 
   await env.DB.prepare(
@@ -1058,6 +1061,7 @@ async function handleApplyAttackSummary(env, request, body) {
   }
 
   const warId = String(body.warId || "").trim();
+  const reset = body.reset === true;
 
   if (!warId) {
     return json(
@@ -1123,161 +1127,202 @@ async function handleApplyAttackSummary(env, request, body) {
     currentUser.api_key_iv
   );
 
-  const summary = await fetchAndSummarizeAttacks(apiKey, war);
+  let summaryState;
+
+  if (reset) {
+    await deleteAttackSummaryState(env, war.faction_id, war.war_id);
+
+    summaryState = createAttackSummaryState(war);
+
+    await env.DB.prepare(
+      `
+      UPDATE war_log
+      SET outside_hits = 0,
+          assists = 0,
+          score_down = 0,
+          synced_at = ?
+      WHERE war_id = ?
+        AND faction_id = ?
+      `
+    )
+      .bind(nowUnix(), war.war_id, war.faction_id)
+      .run();
+  } else {
+    summaryState = await loadAttackSummaryState(env, war.faction_id, war.war_id);
+
+    if (!summaryState) {
+      summaryState = createAttackSummaryState(war);
+    }
+  }
+
+  const callsThisStep = await processAttackSummaryStep(
+    apiKey,
+    war,
+    summaryState
+  );
+
+  const done = summaryState.pendingWindows.length === 0;
+
+  if (!done) {
+    await saveAttackSummaryState(env, war.faction_id, war.war_id, summaryState);
+
+    return json({
+      success: true,
+      message: "Attack summary partially processed.",
+      done: false,
+      warId: war.war_id,
+      callsThisStep,
+      pendingWindows: summaryState.pendingWindows.length,
+      summary: publicAttackSummary(summaryState)
+    });
+  }
 
   await applyAttackSummaryToWarLog(
     env,
     war,
-    [...summary.players.values()]
+    Object.values(summaryState.players)
   );
+
+  await deleteAttackSummaryState(env, war.faction_id, war.war_id);
 
   return json({
     success: true,
     message: "Attack summary applied.",
     done: true,
     warId: war.war_id,
-    summary: {
-      checked: summary.checked,
-      rawAttackRowsReturned: summary.rawAttackRowsReturned,
-      uniqueAttacksFetched: summary.uniqueAttacksFetched,
-      windowsFetched: summary.windowsFetched,
-      splitWindows: summary.splitWindows,
-      saturatedLeafWindows: summary.saturatedLeafWindows,
-      outsideHits: summary.outsideHits,
-      assists: summary.assists,
-      scoreDown: summary.scoreDown,
-      playersUpdated: summary.players.size
-    }
+    callsThisStep,
+    pendingWindows: 0,
+    summary: publicAttackSummary(summaryState)
   });
 }
 
-async function fetchAndSummarizeAttacks(apiKey, war) {
+function createAttackSummaryState(war) {
   const startTimestamp =
     Number(war.start_timestamp) - ATTACK_TIME_PADDING_SECONDS;
 
   const endTimestamp =
     Number(war.end_timestamp) + ATTACK_TIME_PADDING_SECONDS;
 
-  const fetchStats = {
-    windowsFetched: 0,
-    splitWindows: 0,
-    saturatedLeafWindows: 0,
-    rawAttackRowsReturned: 0
-  };
-
-  const fetchedAttacks = await fetchFactionAttacksRecursive(
-    apiKey,
+  return {
+    warId: String(war.war_id),
+    factionId: Number(war.faction_id),
     startTimestamp,
     endTimestamp,
-    fetchStats,
-    0
-  );
-
-  const seenAttackIds = new Set();
-
-  const summary = {
-    checked: 0,
-    rawAttackRowsReturned: fetchStats.rawAttackRowsReturned,
-    uniqueAttacksFetched: 0,
-    windowsFetched: fetchStats.windowsFetched,
-    splitWindows: fetchStats.splitWindows,
-    saturatedLeafWindows: fetchStats.saturatedLeafWindows,
-    outsideHits: 0,
-    assists: 0,
-    scoreDown: 0,
-    players: new Map()
+    pendingWindows: [
+      {
+        from: startTimestamp,
+        to: endTimestamp
+      }
+    ],
+    seenAttackIds: [],
+    stats: {
+      checked: 0,
+      rawAttackRowsReturned: 0,
+      uniqueAttacksFetched: 0,
+      windowsFetched: 0,
+      splitWindows: 0,
+      saturatedLeafWindows: 0,
+      outsideHits: 0,
+      assists: 0,
+      scoreDown: 0
+    },
+    players: {},
+    createdAt: nowUnix(),
+    updatedAt: nowUnix()
   };
+}
 
-  for (const attack of fetchedAttacks) {
-    if (!attack.attackId || seenAttackIds.has(attack.attackId)) {
+async function processAttackSummaryStep(apiKey, war, state) {
+  const seenAttackIds = new Set(state.seenAttackIds || []);
+  let callsThisStep = 0;
+
+  while (
+    state.pendingWindows.length > 0 &&
+    callsThisStep < ATTACK_FETCH_WINDOWS_PER_STEP
+  ) {
+    if (state.stats.windowsFetched >= ATTACK_FETCH_MAX_WINDOWS) {
+      throw new Error(
+        `Attack summary stopped after ${ATTACK_FETCH_MAX_WINDOWS} windows. The war window is too dense to import safely.`
+      );
+    }
+
+    const window = state.pendingWindows.shift();
+
+    const page = await fetchFactionAttacksPage(
+      apiKey,
+      window.from,
+      window.to
+    );
+
+    callsThisStep += 1;
+    state.stats.windowsFetched += 1;
+    state.stats.rawAttackRowsReturned += page.attacks.length;
+
+    const windowSize = Number(window.to) - Number(window.from);
+    const looksCapped = page.attacks.length >= ATTACK_PAGE_SOFT_LIMIT;
+
+    if (looksCapped && windowSize > ATTACK_MIN_SPLIT_SECONDS) {
+      state.stats.splitWindows += 1;
+
+      const middleTimestamp = Math.floor(
+        Number(window.from) + windowSize / 2
+      );
+
+      state.pendingWindows.unshift(
+        {
+          from: middleTimestamp + 1,
+          to: Number(window.to)
+        }
+      );
+
+      state.pendingWindows.unshift(
+        {
+          from: Number(window.from),
+          to: middleTimestamp
+        }
+      );
+
       continue;
     }
 
-    seenAttackIds.add(attack.attackId);
-
-    const attackTimestamp =
-      Number(attack.timestampEnded || attack.timestampStarted || 0);
-
-    if (
-      attackTimestamp &&
-      (attackTimestamp < startTimestamp || attackTimestamp > endTimestamp)
-    ) {
-      continue;
+    if (looksCapped) {
+      state.stats.saturatedLeafWindows += 1;
     }
 
-    summary.checked += 1;
-    summary.uniqueAttacksFetched += 1;
+    for (const attack of page.attacks) {
+      if (!attack.attackId || seenAttackIds.has(attack.attackId)) {
+        continue;
+      }
 
-    summarizeAttackInto(summary, attack, war);
+      seenAttackIds.add(attack.attackId);
+
+      const attackTimestamp =
+        Number(attack.timestampEnded || attack.timestampStarted || 0);
+
+      if (
+        attackTimestamp &&
+        (
+          attackTimestamp < Number(state.startTimestamp) ||
+          attackTimestamp > Number(state.endTimestamp)
+        )
+      ) {
+        continue;
+      }
+
+      state.stats.checked += 1;
+      state.stats.uniqueAttacksFetched += 1;
+
+      summarizeAttackIntoState(state, attack, war);
+    }
   }
 
-  return summary;
+  state.seenAttackIds = [...seenAttackIds];
+  state.updatedAt = nowUnix();
+
+  return callsThisStep;
 }
 
-async function fetchFactionAttacksRecursive(
-  apiKey,
-  fromTimestamp,
-  toTimestamp,
-  stats,
-  depth
-) {
-  if (fromTimestamp > toTimestamp) {
-    return [];
-  }
-
-  if (stats.windowsFetched >= ATTACK_FETCH_MAX_WINDOWS) {
-    throw new Error(
-      `Attack fetch stopped after ${ATTACK_FETCH_MAX_WINDOWS} windows. The war window is too dense to import safely in one run.`
-    );
-  }
-
-  stats.windowsFetched += 1;
-
-  const page = await fetchFactionAttacksPage(
-    apiKey,
-    fromTimestamp,
-    toTimestamp
-  );
-
-  stats.rawAttackRowsReturned += page.attacks.length;
-
-  const windowSize = toTimestamp - fromTimestamp;
-  const looksCapped = page.attacks.length >= ATTACK_PAGE_SOFT_LIMIT;
-
-  if (looksCapped && windowSize > ATTACK_MIN_SPLIT_SECONDS) {
-    stats.splitWindows += 1;
-
-    const middleTimestamp = Math.floor(
-      fromTimestamp + windowSize / 2
-    );
-
-    const left = await fetchFactionAttacksRecursive(
-      apiKey,
-      fromTimestamp,
-      middleTimestamp,
-      stats,
-      depth + 1
-    );
-
-    const right = await fetchFactionAttacksRecursive(
-      apiKey,
-      middleTimestamp + 1,
-      toTimestamp,
-      stats,
-      depth + 1
-    );
-
-    return [...left, ...right];
-  }
-
-  if (looksCapped) {
-    stats.saturatedLeafWindows += 1;
-  }
-
-  return page.attacks;
-}
-
-function summarizeAttackInto(summary, attack, war) {
+function summarizeAttackIntoState(state, attack, war) {
   const factionId = Number(war.faction_id);
   const opponentFactionId = Number(war.opponent_faction_id || 0);
 
@@ -1299,13 +1344,13 @@ function summarizeAttackInto(summary, attack, war) {
 
   if (isOurOutgoing && attack.isAssist) {
     const row = getAttackPlayerSummary(
-      summary.players,
+      state.players,
       attack.attackerId,
       attack.attackerName
     );
 
     row.assists += 1;
-    summary.assists += 1;
+    state.stats.assists += 1;
     return;
   }
 
@@ -1315,13 +1360,13 @@ function summarizeAttackInto(summary, attack, war) {
     !isAgainstOpponent
   ) {
     const row = getAttackPlayerSummary(
-      summary.players,
+      state.players,
       attack.attackerId,
       attack.attackerName
     );
 
     row.outsideHits += 1;
-    summary.outsideHits += 1;
+    state.stats.outsideHits += 1;
     return;
   }
 
@@ -1331,30 +1376,100 @@ function summarizeAttackInto(summary, attack, war) {
     !attack.isAssist
   ) {
     const row = getAttackPlayerSummary(
-      summary.players,
+      state.players,
       attack.defenderId,
       attack.defenderName
     );
 
     row.scoreDown += scoreValue;
-    summary.scoreDown += scoreValue;
+    state.stats.scoreDown += scoreValue;
   }
 }
 
-function getAttackPlayerSummary(map, playerId, playerName) {
-  const id = Number(playerId);
+function getAttackPlayerSummary(players, playerId, playerName) {
+  const id = String(Number(playerId));
 
-  if (!map.has(id)) {
-    map.set(id, {
-      playerId: id,
-      playerName: playerName || `Player ${id}`,
+  if (!players[id]) {
+    players[id] = {
+      playerId: Number(playerId),
+      playerName: playerName || `Player ${playerId}`,
       outsideHits: 0,
       assists: 0,
       scoreDown: 0
-    });
+    };
   }
 
-  return map.get(id);
+  return players[id];
+}
+
+function publicAttackSummary(state) {
+  return {
+    checked: state.stats.checked,
+    rawAttackRowsReturned: state.stats.rawAttackRowsReturned,
+    uniqueAttacksFetched: state.stats.uniqueAttacksFetched,
+    windowsFetched: state.stats.windowsFetched,
+    splitWindows: state.stats.splitWindows,
+    saturatedLeafWindows: state.stats.saturatedLeafWindows,
+    outsideHits: state.stats.outsideHits,
+    assists: state.stats.assists,
+    scoreDown: state.stats.scoreDown,
+    playersUpdated: Object.keys(state.players || {}).length
+  };
+}
+
+function attackSummaryStateKey(factionId, warId) {
+  return `attack_summary:${factionId}:${warId}`;
+}
+
+async function loadAttackSummaryState(env, factionId, warId) {
+  const row = await env.DB.prepare(
+    `
+    SELECT value
+    FROM app_meta
+    WHERE key = ?
+    `
+  )
+    .bind(attackSummaryStateKey(factionId, warId))
+    .first();
+
+  if (!row || !row.value) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(row.value);
+  } catch {
+    return null;
+  }
+}
+
+async function saveAttackSummaryState(env, factionId, warId, state) {
+  await env.DB.prepare(
+    `
+    INSERT INTO app_meta (key, value, updated_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(key) DO UPDATE SET
+      value = excluded.value,
+      updated_at = excluded.updated_at
+    `
+  )
+    .bind(
+      attackSummaryStateKey(factionId, warId),
+      JSON.stringify(state),
+      nowUnix()
+    )
+    .run();
+}
+
+async function deleteAttackSummaryState(env, factionId, warId) {
+  await env.DB.prepare(
+    `
+    DELETE FROM app_meta
+    WHERE key = ?
+    `
+  )
+    .bind(attackSummaryStateKey(factionId, warId))
+    .run();
 }
 
 async function applyAttackSummaryToWarLog(env, war, rows) {
