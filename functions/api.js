@@ -1244,34 +1244,6 @@ function createAttackSummaryState(war) {
   };
 }
 
-  return {
-    warId: String(war.war_id),
-    factionId: Number(war.faction_id),
-    startTimestamp,
-    endTimestamp,
-    pendingWindows: [
-      {
-        from: startTimestamp,
-        to: endTimestamp
-      }
-    ],
-    seenAttackIds: [],
-    stats: {
-      checked: 0,
-      rawAttackRowsReturned: 0,
-      uniqueAttacksFetched: 0,
-      windowsFetched: 0,
-      splitWindows: 0,
-      saturatedLeafWindows: 0,
-      outsideHits: 0,
-      assists: 0,
-      scoreDown: 0
-    },
-    players: {},
-    createdAt: nowUnix(),
-    updatedAt: nowUnix()
-  };
-
 async function processAttackSummaryStep(apiKey, war, state) {
   const seenAttackIds = new Set(state.seenAttackIds || []);
   let callsThisStep = 0;
