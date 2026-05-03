@@ -1149,83 +1149,122 @@ async function applyChainBonusAdjustment(env, apiKey, war) {
       .bind(startedAt, war.warId, war.factionId)
       .run();
 
-    const chainResult = await fetchLatestChainReport(apiKey);
+    const chainsResult = await fetchFactionChains(apiKey);
 
-    if (!chainResult.success) {
+    if (!chainsResult.success) {
       await saveChainAdjustmentStatus(
         env,
         war,
         "skipped",
-        chainResult.message || "Chain report could not be fetched.",
+        chainsResult.message || "Faction chains could not be fetched.",
         startedAt
       );
 
       return {
         applied: false,
         status: "skipped",
-        message: chainResult.message || "Chain report could not be fetched.",
+        message: chainsResult.message || "Faction chains could not be fetched.",
         bonusHits: 0,
         bonusScore: 0
       };
     }
 
-    const chainReport = normalizeChainReport(chainResult.data);
+    const chains = normalizeFactionChains(chainsResult.data);
 
-    if (!chainReport.bonuses.length) {
+    const overlappingChains = chains.filter(chain =>
+      chainOverlapsWar(chain, war)
+    );
+
+    if (!overlappingChains.length) {
       await saveChainAdjustmentStatus(
         env,
         war,
         "skipped",
-        "Chain report fetched, but no bonus hits were found.",
+        "No completed faction chains overlapped this war window.",
         startedAt
       );
 
       return {
         applied: false,
         status: "skipped",
-        message: "Chain report fetched, but no bonus hits were found.",
+        message: "No completed faction chains overlapped this war window.",
+        chainsChecked: chains.length,
+        chainsMatched: 0,
         bonusHits: 0,
         bonusScore: 0
-      };
-    }
-
-    if (!chainReportOverlapsWar(chainReport, war)) {
-      await saveChainAdjustmentStatus(
-        env,
-        war,
-        "skipped",
-        "Latest chain report did not overlap this war window.",
-        startedAt
-      );
-
-      return {
-        applied: false,
-        status: "skipped",
-        message: "Latest chain report did not overlap this war window.",
-        chainStart: chainReport.startTimestamp,
-        chainEnd: chainReport.endTimestamp,
-        bonusHits: chainReport.bonuses.length,
-        bonusScore: sum(chainReport.bonuses.map(bonus => bonus.respect))
       };
     }
 
     const bonusByAttacker = new Map();
 
-    for (const bonus of chainReport.bonuses) {
-      if (!bonus.attackerId || !bonus.respect) {
+    let chainReportsFetched = 0;
+    let chainReportsWithBonuses = 0;
+    let totalBonusHitsFound = 0;
+    let totalBonusScoreFound = 0;
+
+    for (const chain of overlappingChains) {
+      const reportResult = await fetchChainReportById(apiKey, chain.chainId);
+
+      if (!reportResult.success) {
         continue;
       }
 
-      const current = bonusByAttacker.get(bonus.attackerId) || {
-        playerId: bonus.attackerId,
-        hits: 0,
-        score: 0
+      chainReportsFetched += 1;
+
+      const chainReport = normalizeChainReport(reportResult.data);
+
+      if (!chainReport.bonuses.length) {
+        continue;
+      }
+
+      chainReportsWithBonuses += 1;
+
+      for (const bonus of chainReport.bonuses) {
+        if (!bonus.attackerId || !bonus.respect) {
+          continue;
+        }
+
+        totalBonusHitsFound += 1;
+        totalBonusScoreFound += Number(bonus.respect || 0);
+
+        const current = bonusByAttacker.get(bonus.attackerId) || {
+          playerId: bonus.attackerId,
+          hits: 0,
+          score: 0
+        };
+
+        current.hits += 1;
+        current.score += Number(bonus.respect || 0);
+
+        bonusByAttacker.set(bonus.attackerId, current);
+      }
+    }
+
+    if (!bonusByAttacker.size) {
+      const message =
+        "Matching chain reports were found, but no usable bonus hits were found.";
+
+      await saveChainAdjustmentStatus(
+        env,
+        war,
+        "skipped",
+        message,
+        startedAt
+      );
+
+      return {
+        applied: false,
+        status: "skipped",
+        message,
+        chainsChecked: chains.length,
+        chainsMatched: overlappingChains.length,
+        chainReportsFetched,
+        chainReportsWithBonuses,
+        totalBonusHitsFound,
+        totalBonusScoreFound,
+        bonusHits: 0,
+        bonusScore: 0
       };
-
-      current.hits += 1;
-      current.score += Number(bonus.respect || 0);
-
-      bonusByAttacker.set(bonus.attackerId, current);
     }
 
     let appliedRows = 0;
@@ -1269,7 +1308,7 @@ async function applyChainBonusAdjustment(env, apiKey, war) {
     const message =
       appliedRows > 0
         ? `Applied chain bonus adjustment to ${appliedRows} member rows.`
-        : "Chain report overlapped the war, but no bonus attackers matched imported members.";
+        : "Chain reports overlapped the war, but no bonus attackers matched imported members.";
 
     await saveChainAdjustmentStatus(
       env,
@@ -1283,8 +1322,12 @@ async function applyChainBonusAdjustment(env, apiKey, war) {
       applied: appliedRows > 0,
       status: appliedRows > 0 ? "applied" : "skipped",
       message,
-      chainStart: chainReport.startTimestamp,
-      chainEnd: chainReport.endTimestamp,
+      chainsChecked: chains.length,
+      chainsMatched: overlappingChains.length,
+      chainReportsFetched,
+      chainReportsWithBonuses,
+      totalBonusHitsFound,
+      totalBonusScoreFound,
       bonusHits: appliedBonusHits,
       bonusScore: appliedBonusScore,
       matchedPlayers: appliedRows
@@ -1332,15 +1375,15 @@ async function saveChainAdjustmentStatus(env, war, status, message, timestamp) {
     .run();
 }
 
-async function fetchLatestChainReport(apiKey) {
+async function fetchFactionChains(apiKey) {
   const v2Url =
-    "https://api.torn.com/v2/faction/chainreport?key=" +
+    "https://api.torn.com/v2/faction/chains?key=" +
     encodeURIComponent(apiKey) +
     "&timestamp=" +
     Date.now();
 
   const v1Url =
-    "https://api.torn.com/faction/?selections=chainreport&key=" +
+    "https://api.torn.com/faction/?selections=chains&key=" +
     encodeURIComponent(apiKey) +
     "&timestamp=" +
     Date.now();
@@ -1362,8 +1405,110 @@ async function fetchLatestChainReport(apiKey) {
     message:
       v2Result.message ||
       v1Result.message ||
-      "Failed to fetch chain report."
+      "Failed to fetch faction chains."
   };
+}
+
+async function fetchChainReportById(apiKey, chainId) {
+  const v2Url =
+    "https://api.torn.com/v2/faction/" +
+    encodeURIComponent(chainId) +
+    "/chainreport?key=" +
+    encodeURIComponent(apiKey) +
+    "&timestamp=" +
+    Date.now();
+
+  const v1Url =
+    "https://api.torn.com/faction/" +
+    encodeURIComponent(chainId) +
+    "?selections=chainreport&key=" +
+    encodeURIComponent(apiKey) +
+    "&timestamp=" +
+    Date.now();
+
+  const v2Result = await fetchTornJson(v2Url);
+
+  if (v2Result.success) {
+    return v2Result;
+  }
+
+  const v1Result = await fetchTornJson(v1Url);
+
+  if (v1Result.success) {
+    return v1Result;
+  }
+
+  return {
+    success: false,
+    message:
+      v2Result.message ||
+      v1Result.message ||
+      `Failed to fetch chain report for chain ${chainId}.`
+  };
+}
+
+function normalizeFactionChains(rawData) {
+  const chainsRaw =
+    rawData.chains ||
+    rawData.faction_chains ||
+    rawData.chain ||
+    [];
+
+  return normalizeChainEntries(chainsRaw)
+    .map(([id, chain]) => {
+      const chainId =
+        pickNumber(chain, ["id", "chain_id", "chainId"]) ||
+        Number(id);
+
+      const startTimestamp =
+        pickNumber(chain, [
+          "start",
+          "started",
+          "start_timestamp",
+          "timestamp_started",
+          "startTimestamp",
+          "timestampStarted"
+        ]);
+
+      const endTimestamp =
+        pickNumber(chain, [
+          "end",
+          "ended",
+          "end_timestamp",
+          "timestamp_ended",
+          "endTimestamp",
+          "timestampEnded",
+          "finish",
+          "finished"
+        ]);
+
+      return {
+        chainId,
+        startTimestamp,
+        endTimestamp
+      };
+    })
+    .filter(chain => chain.chainId && chain.startTimestamp && chain.endTimestamp);
+}
+
+function normalizeChainEntries(chains) {
+  if (Array.isArray(chains)) {
+    return chains.map(chain => {
+      const id =
+        chain.id ||
+        chain.chain_id ||
+        chain.chainId ||
+        null;
+
+      return [String(id || ""), chain];
+    });
+  }
+
+  if (chains && typeof chains === "object") {
+    return Object.entries(chains);
+  }
+
+  return [];
 }
 
 function normalizeChainReport(rawData) {
@@ -1448,16 +1593,12 @@ function normalizeChainBonusEntries(bonuses) {
   return [];
 }
 
-function chainReportOverlapsWar(chainReport, war) {
-  if (!chainReport.startTimestamp || !chainReport.endTimestamp) {
-    return false;
-  }
-
+function chainOverlapsWar(chain, war) {
   const chainStart =
-    Number(chainReport.startTimestamp) - CHAIN_REPORT_OVERLAP_PADDING_SECONDS;
+    Number(chain.startTimestamp) - CHAIN_REPORT_OVERLAP_PADDING_SECONDS;
 
   const chainEnd =
-    Number(chainReport.endTimestamp) + CHAIN_REPORT_OVERLAP_PADDING_SECONDS;
+    Number(chain.endTimestamp) + CHAIN_REPORT_OVERLAP_PADDING_SECONDS;
 
   const warStart = Number(war.startTimestamp);
   const warEnd = Number(war.endTimestamp);
@@ -2050,7 +2191,7 @@ async function applyAttackSummaryToWarLog(env, war, rows) {
         now
       )
       .run();
-      }
+  }
 }
 
 /* =========================
@@ -2909,8 +3050,4 @@ function pickNumber(object, keys) {
   }
 
   return 0;
-}
-
-function sum(values) {
-  return values.reduce((total, value) => total + Number(value || 0), 0);
 }
