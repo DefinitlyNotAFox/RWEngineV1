@@ -1197,11 +1197,52 @@ async function handleApplyAttackSummary(env, request, body) {
 }
 
 function createAttackSummaryState(war) {
-  const startTimestamp =
-    Number(war.start_timestamp) - ATTACK_TIME_PADDING_SECONDS;
+  const exactStartTimestamp = Number(war.start_timestamp);
+  const exactEndTimestamp = Number(war.end_timestamp);
 
-  const endTimestamp =
-    Number(war.end_timestamp) + ATTACK_TIME_PADDING_SECONDS;
+  const fetchStartTimestamp =
+    exactStartTimestamp - ATTACK_TIME_PADDING_SECONDS;
+
+  const fetchEndTimestamp =
+    exactEndTimestamp + ATTACK_TIME_PADDING_SECONDS;
+
+  return {
+    warId: String(war.war_id),
+    factionId: Number(war.faction_id),
+
+    exactStartTimestamp,
+    exactEndTimestamp,
+
+    fetchStartTimestamp,
+    fetchEndTimestamp,
+
+    pendingWindows: [
+      {
+        from: fetchStartTimestamp,
+        to: fetchEndTimestamp
+      }
+    ],
+
+    seenAttackIds: [],
+
+    stats: {
+      checked: 0,
+      ignoredOutsideExactWarWindow: 0,
+      rawAttackRowsReturned: 0,
+      uniqueAttacksFetched: 0,
+      windowsFetched: 0,
+      splitWindows: 0,
+      saturatedLeafWindows: 0,
+      outsideHits: 0,
+      assists: 0,
+      scoreDown: 0
+    },
+
+    players: {},
+    createdAt: nowUnix(),
+    updatedAt: nowUnix()
+  };
+}
 
   return {
     warId: String(war.war_id),
