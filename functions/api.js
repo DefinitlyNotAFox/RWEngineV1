@@ -1447,6 +1447,7 @@ function getAttackPlayerSummary(players, playerId, playerName) {
 function publicAttackSummary(state) {
   return {
     checked: state.stats.checked,
+    ignoredOutsideExactWarWindow: state.stats.ignoredOutsideExactWarWindow,
     rawAttackRowsReturned: state.stats.rawAttackRowsReturned,
     uniqueAttacksFetched: state.stats.uniqueAttacksFetched,
     windowsFetched: state.stats.windowsFetched,
