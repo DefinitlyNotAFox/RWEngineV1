@@ -1,3 +1,6 @@
+const ATTACK_STEP_DELAY_MS = 6000;
+const WAR_IMPORT_COOLDOWN_MS = 30000;
+
 const state = {
   activeTab: "dashboard",
   sortBy: "ImpactScore",
@@ -567,6 +570,7 @@ function setupImport() {
 
     for (let index = 0; index < rankIds.length; index += 1) {
       const rankId = rankIds[index];
+      let usedTornApi = false;
 
       updateImportProgress(
         index,
@@ -591,11 +595,7 @@ function setupImport() {
         let overwrite = false;
 
         if (status.exists) {
-          const opponent = status.war?.opponent_faction_name || "Unknown opponent";
-
-          overwrite = window.confirm(
-            `War report ${rankId} is already imported against ${opponent}.\n\nClick OK to overwrite it.\nClick Cancel to skip it.`
-          );
+          overwrite = await askImportDecision(rankId, status.war);
 
           if (!overwrite) {
             skippedCount += 1;
@@ -641,6 +641,8 @@ function setupImport() {
           overwrite
         });
 
+        usedTornApi = true;
+
         if (importResult.skipped) {
           skippedCount += 1;
 
@@ -666,7 +668,7 @@ function setupImport() {
           rankId,
           "active",
           "Attack summary",
-          "Ranked war report imported. Fetching attack logs."
+          "Ranked war report imported. Fetching attack logs in limited steps."
         );
 
         const attackSummary = await applyAttackSummary(
@@ -682,7 +684,7 @@ function setupImport() {
           rankId,
           "success",
           "Complete",
-          `${importResult.message} Attack summary: checked ${attackSummary.checked}, outside hits ${attackSummary.outsideHits}, assists ${attackSummary.assists}, score down ${formatNumber(attackSummary.scoreDown, 2)}.`
+          `${importResult.message} Attack summary: checked ${attackSummary.checked}, windows ${attackSummary.windowsFetched}, outside hits ${attackSummary.outsideHits}, assists ${attackSummary.assists}, score down ${formatNumber(attackSummary.scoreDown, 2)}.`
         );
       } catch (error) {
         failedCount += 1;
@@ -702,6 +704,18 @@ function setupImport() {
         rankId,
         "Done"
       );
+
+      if (usedTornApi && index < rankIds.length - 1) {
+        updateImportProgress(
+          index + 1,
+          rankIds.length,
+          "Cooldown before next report.",
+          rankId,
+          `Waiting ${Math.round(WAR_IMPORT_COOLDOWN_MS / 1000)} seconds...`
+        );
+
+        await delay(WAR_IMPORT_COOLDOWN_MS);
+      }
     }
 
     submitButton.disabled = false;
@@ -719,32 +733,80 @@ function setupImport() {
   });
 }
 
-async function applyAttackSummary(warId, rankId, reportIndex, totalReports) {
-  updateImportProgress(
-    reportIndex,
-    totalReports,
-    "Applying attack summary.",
-    rankId,
-    "Fetching attack logs..."
-  );
+async function askImportDecision(rankId, war) {
+  return new Promise(resolve => {
+    const opponent = war?.opponent_faction_name || "Unknown opponent";
+    const importedAt = war?.imported_at ? formatUnixTimestamp(war.imported_at) : "-";
 
-  const result = await api("applyAttackSummary", {
-    warId
+    const actionsHtml = `
+      <button class="secondary-btn small" type="button" data-import-decision="skip">
+        Skip
+      </button>
+      <button class="primary-btn small" type="button" data-import-decision="overwrite">
+        Overwrite
+      </button>
+    `;
+
+    updateImportProgressRow(
+      rankId,
+      "decision",
+      "Already imported",
+      `Against ${opponent}. Imported at ${importedAt}.`,
+      actionsHtml
+    );
+
+    const row = importProgressList.querySelector(`[data-rank-id="${cssEscape(rankId)}"]`);
+
+    if (!row) {
+      resolve(false);
+      return;
+    }
+
+    const skipButton = row.querySelector('[data-import-decision="skip"]');
+    const overwriteButton = row.querySelector('[data-import-decision="overwrite"]');
+
+    skipButton.addEventListener("click", () => resolve(false), { once: true });
+    overwriteButton.addEventListener("click", () => resolve(true), { once: true });
   });
+}
 
-  if (!result.done) {
-    throw new Error("Attack summary did not complete.");
+async function applyAttackSummary(warId, rankId, reportIndex, totalReports) {
+  let reset = true;
+  let latestSummary = null;
+
+  for (let step = 0; step < 300; step += 1) {
+    const result = await api("applyAttackSummary", {
+      warId,
+      reset
+    });
+
+    reset = false;
+
+    latestSummary = result.summary || {};
+
+    updateImportProgress(
+      reportIndex,
+      totalReports,
+      `Applying attack summary. Checked ${latestSummary.checked || 0} attacks. Windows ${latestSummary.windowsFetched || 0}. Pending ${result.pendingWindows || 0}.`,
+      rankId,
+      result.done ? "Applying summary..." : "Waiting before next batch..."
+    );
+
+    updateImportProgressRow(
+      rankId,
+      "active",
+      "Attack summary",
+      `Checked ${latestSummary.checked || 0}; windows ${latestSummary.windowsFetched || 0}; pending ${result.pendingWindows || 0}; saturated ${latestSummary.saturatedLeafWindows || 0}.`
+    );
+
+    if (result.done) {
+      return latestSummary;
+    }
+
+    await delay(ATTACK_STEP_DELAY_MS);
   }
 
-  updateImportProgress(
-    reportIndex,
-    totalReports,
-    `Applying attack summary. Checked ${result.summary?.checked || 0} attacks.`,
-    rankId,
-    "Applying summary..."
-  );
-
-  return result.summary;
+  throw new Error("Attack summary did not finish within the frontend safety limit.");
 }
 
 function parseRankIds(value) {
@@ -778,7 +840,7 @@ function updateImportProgress(done, total, stage, currentWar, currentStatus) {
   }
 }
 
-function addImportProgressRow(rankId, stateName, status, message) {
+function addImportProgressRow(rankId, stateName, status, message, actionsHtml = "") {
   if (!importProgressList) return;
 
   const row = document.createElement("div");
@@ -790,19 +852,19 @@ function addImportProgressRow(rankId, stateName, status, message) {
     <span class="import-progress-war">${escapeHtml(rankId)}</span>
     <span class="import-progress-state">${escapeHtml(status)}</span>
     <span class="import-progress-message">${escapeHtml(message)}</span>
-    <span></span>
+    <span class="import-progress-actions">${actionsHtml}</span>
   `;
 
   importProgressList.appendChild(row);
 }
 
-function updateImportProgressRow(rankId, stateName, status, message) {
+function updateImportProgressRow(rankId, stateName, status, message, actionsHtml = "") {
   if (!importProgressList) return;
 
   const row = importProgressList.querySelector(`[data-rank-id="${cssEscape(rankId)}"]`);
 
   if (!row) {
-    addImportProgressRow(rankId, stateName, status, message);
+    addImportProgressRow(rankId, stateName, status, message, actionsHtml);
     return;
   }
 
@@ -812,7 +874,7 @@ function updateImportProgressRow(rankId, stateName, status, message) {
     <span class="import-progress-war">${escapeHtml(rankId)}</span>
     <span class="import-progress-state">${escapeHtml(status)}</span>
     <span class="import-progress-message">${escapeHtml(message)}</span>
-    <span></span>
+    <span class="import-progress-actions">${actionsHtml}</span>
   `;
 }
 
@@ -967,7 +1029,7 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-function debounce(callback, delay = 250) {
+function debounce(callback, delayMs = 250) {
   let timeoutId;
 
   return (...args) => {
@@ -975,6 +1037,12 @@ function debounce(callback, delay = 250) {
 
     timeoutId = setTimeout(() => {
       callback(...args);
-    }, delay);
+    }, delayMs);
   };
+}
+
+function delay(ms) {
+  return new Promise(resolve => {
+    setTimeout(resolve, ms);
+  });
 }
