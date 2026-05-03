@@ -1343,10 +1343,11 @@ async function processAttackSummaryStep(apiKey, war, state) {
       if (
         attackTimestamp &&
         (
-          attackTimestamp < Number(state.startTimestamp) ||
-          attackTimestamp > Number(state.endTimestamp)
+          attackTimestamp < Number(state.exactStartTimestamp) ||
+          attackTimestamp > Number(state.exactEndTimestamp)
         )
       ) {
+        state.stats.ignoredOutsideExactWarWindow += 1;
         continue;
       }
 
