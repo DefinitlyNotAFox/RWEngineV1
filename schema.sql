@@ -6,13 +6,41 @@ CREATE TABLE IF NOT EXISTS app_meta (
   updated_at INTEGER NOT NULL
 );
 
-ALTER TABLE war_log ADD COLUMN score_up_official REAL NOT NULL DEFAULT 0;
-ALTER TABLE war_log ADD COLUMN score_up_adjusted REAL NOT NULL DEFAULT 0;
-ALTER TABLE war_log ADD COLUMN chain_bonus_score REAL NOT NULL DEFAULT 0;
-ALTER TABLE war_log ADD COLUMN chain_bonus_hits INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE wars ADD COLUMN chain_adjusted_at INTEGER;
-ALTER TABLE wars ADD COLUMN chain_adjustment_status TEXT;
-ALTER TABLE wars ADD COLUMN chain_adjustment_message TEXT;
+/*
+  Required war_log columns for hybrid score handling:
+
+  score_up:
+    The dashboard-facing score. After chain adjustment, this becomes adjusted score.
+
+  score_up_official:
+    Original score from Torn ranked war report.
+
+  score_up_adjusted:
+    Official score minus known chain bonus score.
+
+  chain_bonus_score:
+    Sum of chain-report bonus respect attributed to this player.
+
+  chain_bonus_hits:
+    Number of chain bonus hits attributed to this player.
+*/
+
+/*
+  Add these columns to war_log in your CREATE TABLE war_log statement if rebuilding schema:
+
+  score_up_official REAL NOT NULL DEFAULT 0,
+  score_up_adjusted REAL NOT NULL DEFAULT 0,
+  chain_bonus_score REAL NOT NULL DEFAULT 0,
+  chain_bonus_hits INTEGER NOT NULL DEFAULT 0
+*/
+
+/*
+  Add these columns to wars in your CREATE TABLE wars statement if rebuilding schema:
+
+  chain_adjusted_at INTEGER,
+  chain_adjustment_status TEXT,
+  chain_adjustment_message TEXT
+*/
 
 CREATE TABLE IF NOT EXISTS factions (
   faction_id INTEGER PRIMARY KEY,
