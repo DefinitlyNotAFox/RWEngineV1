@@ -292,6 +292,94 @@ async function handleRegister(env, body) {
   );
 }
 
+async function refreshUserFactionFromStoredApiKey(env, userRow, options = {}) {
+  const strict = options.strict === true;
+
+  try {
+    if (!userRow.api_key_encrypted || !userRow.api_key_iv) {
+      if (strict) {
+        throw new Error("No stored API key found for this account.");
+      }
+
+      return userRow;
+    }
+
+    const apiKey = await decryptText(
+      env.APP_SECRET,
+      userRow.api_key_encrypted,
+      userRow.api_key_iv
+    );
+
+    const tornProfile = await verifyTornApiKey(apiKey);
+
+    const playerName =
+      String(tornProfile.name || userRow.player_name || "").trim() ||
+      userRow.player_name;
+
+    const faction = normalizeFaction(tornProfile);
+    const now = nowUnix();
+
+    if (faction.factionId) {
+      await env.DB.prepare(
+        `
+        INSERT INTO factions (
+          faction_id,
+          faction_name,
+          enabled,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, 1, ?, ?)
+        ON CONFLICT(faction_id) DO UPDATE SET
+          faction_name = excluded.faction_name,
+          enabled = 1,
+          updated_at = excluded.updated_at
+        `
+      )
+        .bind(
+          faction.factionId,
+          faction.factionName || "Unknown faction",
+          now,
+          now
+        )
+        .run();
+    }
+
+    await env.DB.prepare(
+      `
+      UPDATE users
+      SET
+        player_name = ?,
+        faction_id = ?,
+        faction_name = ?,
+        updated_at = ?
+      WHERE user_id = ?
+      `
+    )
+      .bind(
+        playerName,
+        faction.factionId || null,
+        faction.factionName || null,
+        now,
+        userRow.user_id
+      )
+      .run();
+
+    return {
+      ...userRow,
+      player_name: playerName,
+      faction_id: faction.factionId || null,
+      faction_name: faction.factionName || null
+    };
+  } catch (error) {
+    if (strict) {
+      throw error;
+    }
+
+    return userRow;
+  }
+}
+
 async function handleLogin(env, body) {
   requireDb(env);
 
