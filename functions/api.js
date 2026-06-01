@@ -1156,7 +1156,7 @@ async function applyChainBonusAdjustment(env, apiKey, war) {
       chainOverlapsWar(chain, war)
     );
 
-        if (!overlappingChains.length) {
+    if (!overlappingChains.length) {
       const chainWindowDebug = chains.slice(0, 25).map(chain => ({
         chainId: chain.chainId,
         source: chain.source,
@@ -1164,7 +1164,7 @@ async function applyChainBonusAdjustment(env, apiKey, war) {
         endTimestamp: chain.endTimestamp,
         overlaps: chainOverlapsWar(chain, war)
       }));
-    
+
       await saveChainAdjustmentStatus(
         env,
         war,
@@ -1172,7 +1172,7 @@ async function applyChainBonusAdjustment(env, apiKey, war) {
         "No completed faction chains overlapped this war window.",
         startedAt
       );
-    
+
       return {
         applied: false,
         status: "skipped",
@@ -1593,6 +1593,7 @@ function normalizeChainEntries(chains) {
   if (Array.isArray(chains)) {
     return chains.map(chain => {
       const id =
+        chain.chain ||
         chain.id ||
         chain.chain_id ||
         chain.chainId ||
@@ -1617,27 +1618,33 @@ function normalizeChainReport(rawData) {
     rawData.report ||
     rawData;
 
-  const startTimestamp =
-    pickNumber(report, [
-      "start",
-      "started",
-      "start_timestamp",
-      "timestamp_started",
-      "startTimestamp",
-      "timestampStarted"
-    ]);
+  const startTimestamp = pickTimestamp(report, [
+    "start",
+    "started",
+    "start_at",
+    "started_at",
+    "start_time",
+    "start_timestamp",
+    "timestamp_started",
+    "startTimestamp",
+    "timestampStarted"
+  ]);
 
-  const endTimestamp =
-    pickNumber(report, [
-      "end",
-      "ended",
-      "end_timestamp",
-      "timestamp_ended",
-      "endTimestamp",
-      "timestampEnded",
-      "finish",
-      "finished"
-    ]);
+  const endTimestamp = pickTimestamp(report, [
+    "end",
+    "ended",
+    "end_at",
+    "ended_at",
+    "end_time",
+    "end_timestamp",
+    "timestamp_ended",
+    "endTimestamp",
+    "timestampEnded",
+    "finish",
+    "finished",
+    "finish_at",
+    "finished_at"
+  ]);
 
   const rawBonuses =
     report.bonuses ||
@@ -3140,17 +3147,6 @@ function pickString(object, keys) {
   return null;
 }
 
-function pickNumber(object, keys) {
-  for (const key of keys) {
-    if (object && object[key] !== undefined && object[key] !== null) {
-      const number = Number(object[key]);
-
-      if (Number.isFinite(number)) {
-        return number;
-      }
-    }
-  }
-
 function pickTimestamp(object, keys) {
   for (const key of keys) {
     const value = object?.[key];
@@ -3189,12 +3185,23 @@ function normalizeUnixTimestamp(value) {
     return 0;
   }
 
-  // Milliseconds -> seconds
   if (number > 1000000000000) {
     return Math.floor(number / 1000);
   }
 
   return Math.floor(number);
-}  
+}
+
+function pickNumber(object, keys) {
+  for (const key of keys) {
+    if (object && object[key] !== undefined && object[key] !== null) {
+      const number = Number(object[key]);
+
+      if (Number.isFinite(number)) {
+        return number;
+      }
+    }
+  }
+
   return 0;
 }
