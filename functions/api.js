@@ -1156,7 +1156,15 @@ async function applyChainBonusAdjustment(env, apiKey, war) {
       chainOverlapsWar(chain, war)
     );
 
-    if (!overlappingChains.length) {
+        if (!overlappingChains.length) {
+      const chainWindowDebug = chains.slice(0, 25).map(chain => ({
+        chainId: chain.chainId,
+        source: chain.source,
+        startTimestamp: chain.startTimestamp,
+        endTimestamp: chain.endTimestamp,
+        overlaps: chainOverlapsWar(chain, war)
+      }));
+    
       await saveChainAdjustmentStatus(
         env,
         war,
@@ -1164,13 +1172,22 @@ async function applyChainBonusAdjustment(env, apiKey, war) {
         "No completed faction chains overlapped this war window.",
         startedAt
       );
-
+    
       return {
         applied: false,
         status: "skipped",
         message: "No completed faction chains overlapped this war window.",
+        warWindow: {
+          startTimestamp: Number(war.startTimestamp),
+          endTimestamp: Number(war.endTimestamp),
+          paddedStartTimestamp:
+            Number(war.startTimestamp) - CHAIN_REPORT_OVERLAP_PADDING_SECONDS,
+          paddedEndTimestamp:
+            Number(war.endTimestamp) + CHAIN_REPORT_OVERLAP_PADDING_SECONDS
+        },
         chainsChecked: chains.length,
         chainsMatched: 0,
+        chainWindowDebug,
         bonusHits: 0,
         bonusScore: 0,
         unmatchedBonusAttackers: []
@@ -1486,32 +1503,17 @@ async function fetchChainReportById(apiKey, chainId) {
     "&timestamp=" +
     Date.now();
 
-  const v1Url =
-    "https://api.torn.com/faction/" +
-    encodeURIComponent(chainId) +
-    "?selections=chainreport&key=" +
-    encodeURIComponent(apiKey) +
-    "&timestamp=" +
-    Date.now();
-
   const v2Result = await fetchTornJson(v2Url);
 
   if (v2Result.success) {
     return v2Result;
   }
 
-  const v1Result = await fetchTornJson(v1Url);
-
-  if (v1Result.success) {
-    return v1Result;
-  }
-
   return {
     success: false,
     message:
       v2Result.message ||
-      v1Result.message ||
-      `Failed to fetch chain report for chain ${chainId}.`
+      `Failed to fetch historical chain report for chain ${chainId}.`
   };
 }
 
