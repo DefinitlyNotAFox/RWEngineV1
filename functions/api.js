@@ -1129,7 +1129,7 @@ async function applyChainBonusAdjustment(env, apiKey, war) {
       .bind(startedAt, war.warId, war.factionId)
       .run();
 
-    const chainsResult = await fetchFactionChains(apiKey);
+    const chainsResult = await fetchFactionChains(apiKey, war);
 
     if (!chainsResult.success) {
       await saveChainAdjustmentStatus(
@@ -1378,37 +1378,102 @@ async function saveChainAdjustmentStatus(env, war, status, message, timestamp) {
     .run();
 }
 
-async function fetchFactionChains(apiKey) {
-  const v2Url =
-    "https://api.torn.com/v2/faction/chains?key=" +
-    encodeURIComponent(apiKey) +
-    "&timestamp=" +
-    Date.now();
+async function fetchFactionChains(apiKey, war = null) {
+  const timestamp = Date.now();
 
-  const v1Url =
-    "https://api.torn.com/faction/?selections=chains&key=" +
-    encodeURIComponent(apiKey) +
-    "&timestamp=" +
-    Date.now();
+  const urls = [];
 
-  const v2Result = await fetchTornJson(v2Url);
+  if (war && war.startTimestamp && war.endTimestamp) {
+    const from =
+      Number(war.startTimestamp) -
+      CHAIN_REPORT_OVERLAP_PADDING_SECONDS;
 
-  if (v2Result.success) {
-    return v2Result;
+    const to =
+      Number(war.endTimestamp) +
+      CHAIN_REPORT_OVERLAP_PADDING_SECONDS;
+
+    urls.push({
+      source: "v1 bounded chains",
+      url:
+        "https://api.torn.com/faction/?selections=chains" +
+        "&from=" +
+        encodeURIComponent(from) +
+        "&to=" +
+        encodeURIComponent(to) +
+        "&key=" +
+        encodeURIComponent(apiKey) +
+        "&timestamp=" +
+        timestamp
+    });
+
+    urls.push({
+      source: "v2 bounded chains",
+      url:
+        "https://api.torn.com/v2/faction/chains" +
+        "?from=" +
+        encodeURIComponent(from) +
+        "&to=" +
+        encodeURIComponent(to) +
+        "&key=" +
+        encodeURIComponent(apiKey) +
+        "&timestamp=" +
+        timestamp
+    });
   }
 
-  const v1Result = await fetchTornJson(v1Url);
+  urls.push({
+    source: "v1 default chains",
+    url:
+      "https://api.torn.com/faction/?selections=chains" +
+      "&key=" +
+      encodeURIComponent(apiKey) +
+      "&timestamp=" +
+      timestamp
+  });
 
-  if (v1Result.success) {
-    return v1Result;
+  urls.push({
+    source: "v2 default chains",
+    url:
+      "https://api.torn.com/v2/faction/chains" +
+      "?key=" +
+      encodeURIComponent(apiKey) +
+      "&timestamp=" +
+      timestamp
+  });
+
+  const successfulResults = [];
+  const errors = [];
+
+  for (const request of urls) {
+    const result = await fetchTornJson(request.url);
+
+    if (result.success) {
+      successfulResults.push({
+        source: request.source,
+        data: result.data
+      });
+    } else {
+      errors.push({
+        source: request.source,
+        message: result.message
+      });
+    }
+  }
+
+  if (!successfulResults.length) {
+    return {
+      success: false,
+      message:
+        errors.map(error => `${error.source}: ${error.message}`).join(" | ") ||
+        "Failed to fetch faction chains."
+    };
   }
 
   return {
-    success: false,
-    message:
-      v2Result.message ||
-      v1Result.message ||
-      "Failed to fetch faction chains."
+    success: true,
+    data: {
+      chain_sources: successfulResults
+    }
   };
 }
 
@@ -1451,47 +1516,75 @@ async function fetchChainReportById(apiKey, chainId) {
 }
 
 function normalizeFactionChains(rawData) {
-  const chainsRaw =
-    rawData.chains ||
-    rawData.faction_chains ||
-    rawData.chain ||
-    [];
+  const sources = Array.isArray(rawData.chain_sources)
+    ? rawData.chain_sources
+    : [
+        {
+          source: "single payload",
+          data: rawData
+        }
+      ];
 
-  return normalizeChainEntries(chainsRaw)
-    .map(([id, chain]) => {
+  const chainsById = new Map();
+
+  for (const sourceEntry of sources) {
+    const sourceName = sourceEntry.source || "unknown source";
+    const sourceData = sourceEntry.data || {};
+
+    const chainsRaw =
+      sourceData.chains ||
+      sourceData.faction_chains ||
+      sourceData.chain ||
+      [];
+
+    for (const [id, chain] of normalizeChainEntries(chainsRaw)) {
       const chainId =
-        pickNumber(chain, ["id", "chain_id", "chainId"]) ||
+        pickNumber(chain, ["chain", "id", "chain_id", "chainId"]) ||
         Number(id);
 
-      const startTimestamp =
-        pickNumber(chain, [
-          "start",
-          "started",
-          "start_timestamp",
-          "timestamp_started",
-          "startTimestamp",
-          "timestampStarted"
-        ]);
+      const startTimestamp = pickTimestamp(chain, [
+        "start",
+        "started",
+        "start_at",
+        "started_at",
+        "start_time",
+        "start_timestamp",
+        "timestamp_started",
+        "startTimestamp",
+        "timestampStarted"
+      ]);
 
-      const endTimestamp =
-        pickNumber(chain, [
-          "end",
-          "ended",
-          "end_timestamp",
-          "timestamp_ended",
-          "endTimestamp",
-          "timestampEnded",
-          "finish",
-          "finished"
-        ]);
+      const endTimestamp = pickTimestamp(chain, [
+        "end",
+        "ended",
+        "end_at",
+        "ended_at",
+        "end_time",
+        "end_timestamp",
+        "timestamp_ended",
+        "endTimestamp",
+        "timestampEnded",
+        "finish",
+        "finished",
+        "finish_at",
+        "finished_at"
+      ]);
 
-      return {
+      if (!chainId || !startTimestamp || !endTimestamp) {
+        continue;
+      }
+
+      chainsById.set(String(chainId), {
         chainId,
         startTimestamp,
-        endTimestamp
-      };
-    })
-    .filter(chain => chain.chainId && chain.startTimestamp && chain.endTimestamp);
+        endTimestamp,
+        source: sourceName
+      });
+    }
+  }
+
+  return [...chainsById.values()]
+    .sort((a, b) => Number(a.startTimestamp) - Number(b.startTimestamp));
 }
 
 function normalizeChainEntries(chains) {
@@ -3056,5 +3149,50 @@ function pickNumber(object, keys) {
     }
   }
 
+function pickTimestamp(object, keys) {
+  for (const key of keys) {
+    const value = object?.[key];
+
+    const timestamp = normalizeUnixTimestamp(value);
+
+    if (timestamp) {
+      return timestamp;
+    }
+  }
+
+  return 0;
+}
+
+function normalizeUnixTimestamp(value) {
+  if (value === undefined || value === null) {
+    return 0;
+  }
+
+  if (typeof value === "object") {
+    const nested =
+      value.timestamp ??
+      value.time ??
+      value.epoch ??
+      value.unix ??
+      value.seconds ??
+      value.value ??
+      value.date;
+
+    return normalizeUnixTimestamp(nested);
+  }
+
+  const number = Number(value);
+
+  if (!Number.isFinite(number) || number <= 0) {
+    return 0;
+  }
+
+  // Milliseconds -> seconds
+  if (number > 1000000000000) {
+    return Math.floor(number / 1000);
+  }
+
+  return Math.floor(number);
+}  
   return 0;
 }
