@@ -427,6 +427,8 @@ async function handleLogin(env, body) {
     return json({ success: false, message: "Invalid player ID or password." }, 401);
   }
 
+  const syncedUserRow = await refreshUserFactionFromStoredApiKey(env, userRow);
+
   const now = nowUnix();
 
   await env.DB.prepare(
@@ -445,7 +447,7 @@ async function handleLogin(env, body) {
     {
       success: true,
       message: "Logged in.",
-      user: rowToPublicUser(userRow)
+      user: rowToPublicUser(syncedUserRow)
     },
     200,
     {
@@ -474,6 +476,8 @@ async function handleMe(env, request) {
       users.player_name,
       users.faction_id,
       users.faction_name,
+      users.api_key_encrypted,
+      users.api_key_iv,
       users.is_admin,
       users.is_disabled,
       sessions.expires_at
@@ -512,10 +516,12 @@ async function handleMe(env, request) {
     );
   }
 
+  const syncedRow = await refreshUserFactionFromStoredApiKey(env, row);
+  
   return json({
     success: true,
     message: "Session restored.",
-    user: rowToPublicUser(row)
+    user: rowToPublicUser(syncedRow)
   });
 }
 
@@ -839,7 +845,13 @@ async function handleImportRankedWarReport(env, request, body) {
   requireDb(env);
   requireSecret(env);
 
-  const currentUser = await getCurrentUserPrivate(env, request);
+  let currentUser = await getCurrentUserPrivate(env, request);
+
+  currentUser = await refreshUserFactionFromStoredApiKey(
+    env,
+    currentUser,
+    { strict: true }
+  );
 
   const rankId = String(body.rankId || "").trim();
   const overwrite = body.overwrite === true;
