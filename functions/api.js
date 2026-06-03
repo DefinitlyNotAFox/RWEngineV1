@@ -81,6 +81,10 @@ export async function onRequest(context) {
       return await handleGetCurrentWarIntel(env, request);
     }
 
+    if (action === "saveOpponentReportIds") {
+      return await handleSaveOpponentReportIds(env, request, body);
+    }
+
     return json(
       {
         success: false,
@@ -1295,6 +1299,69 @@ async function handleGetCurrentWarIntel(env, request) {
     success: true,
     totalWars: Object.keys(rankedWars).length,
     sample: wars.slice(0, 10)
+  });
+}
+
+async function handleSaveOpponentReportIds(env, request, body) {
+  requireDb(env);
+
+  await getCurrentUser(env, request);
+
+  const opponentFactionId = Number(body.opponentFactionId);
+  const opponentFactionName = String(body.opponentFactionName || "").trim();
+  const reportIds = Array.isArray(body.reportIds) ? body.reportIds : [];
+
+  if (!opponentFactionId) {
+    return json({ success: false, message: "Missing opponent faction ID." }, 400);
+  }
+
+  const cleanReportIds = [...new Set(
+    reportIds
+      .map(id => String(id || "").trim())
+      .filter(id => /^\d+$/.test(id))
+  )];
+
+  if (!cleanReportIds.length) {
+    return json({ success: false, message: "No valid report IDs found." }, 400);
+  }
+
+  const now = nowUnix();
+
+  let saved = 0;
+
+  for (const reportId of cleanReportIds) {
+    const result = await env.DB.prepare(
+      `
+      INSERT OR IGNORE INTO opponent_report_ids (
+        opponent_faction_id,
+        opponent_faction_name,
+        report_id,
+        added_at,
+        source
+      )
+      VALUES (?, ?, ?, ?, 'RWEC')
+      `
+    )
+      .bind(
+        opponentFactionId,
+        opponentFactionName || null,
+        reportId,
+        now
+      )
+      .run();
+
+    if (result.meta && result.meta.changes > 0) {
+      saved += 1;
+    }
+  }
+
+  return json({
+    success: true,
+    message: `Saved ${saved} new report ID(s).`,
+    opponentFactionId,
+    opponentFactionName,
+    received: cleanReportIds.length,
+    saved
   });
 }
 
