@@ -1414,6 +1414,9 @@ async function fetchFactionBasicMembers(apiKey, factionId) {
       level:
         pickNumber(member, ["level"]) ||
         null,
+      position:
+        pickString(member, ["position", "rank", "role"]) ||
+        "",
       activity:
         pickString(lastAction, ["relative", "status"]) ||
         pickString(member, ["status", "activity"]) ||
@@ -1584,16 +1587,21 @@ async function handleGetOpponentThreatList(env, request) {
     }
   }
 
-  const rows = Object.values(players).map(row => {
-    const activity = activityMembers[String(row.playerId)] || {};
+  const rows = Object.values(players)
+    .filter(row => {
+      return Boolean(activityMembers[String(row.playerId)]);
+  })
+  .map(row => {
+    const member = activityMembers[String(row.playerId)] || {};
 
-    row.level = activity.level || row.level;
-    row.activity = activity.activity || "-";
-    row.playerName = activity.playerName || row.playerName;
+    row.level = member.level || row.level;
+    row.position = member.position || "";
+    row.playerName = member.playerName || row.playerName;
 
+    row.avgHitsPerWar = row.warsSeen > 0 ? row.hits / row.warsSeen : 0;
     row.avgScorePerHit = row.hits > 0 ? row.score / row.hits : 0;
     row.threatScore = calculateThreatScore(row);
-    row.tag = getThreatTag(row.threatScore, row.activity);
+    row.tag = getThreatTag(row.threatScore);
 
     return row;
   });
