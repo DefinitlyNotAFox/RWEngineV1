@@ -1552,6 +1552,7 @@ async function handleGetOpponentThreatList(env, request) {
   }
 
   const activityMembers = await fetchFactionBasicMembers(apiKey, opponentFactionId);
+  const ownMembers = await fetchFactionBasicMembers(apiKey, Number(currentUser.faction_id));
   const players = {};
 
   for (const reportId of reportIds) {
@@ -1613,8 +1614,18 @@ async function handleGetOpponentThreatList(env, request) {
     message: "Opponent threat list loaded.",
     war: currentIntel.war,
     reportIds,
-    rows
+    rows,
+    ownMembers,
+    opponentMembers: activityMembers,
+    ownBannerUrl: getFactionBannerUrl(Number(currentUser.faction_id)),
+    opponentBannerUrl: getFactionBannerUrl(opponentFactionId)
   });
+}
+
+function getFactionBannerUrl(factionId) {
+  const id = Number(factionId || 0);
+  if (!id) return "";
+  return `https://factionimages.torn.com/${encodeURIComponent(id)}.jpg`;
 }
 
 async function getExistingImportedWar(env, factionId, rankId) {
