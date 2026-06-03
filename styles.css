@@ -1756,3 +1756,271 @@ tbody tr:hover {
     flex-wrap: wrap;
   }
 }
+/* =========================
+   CURRENT WAR DENSE REBUILD
+========================= */
+
+:root {
+  --opponent-primary: #3b82f6;
+  --opponent-soft: rgba(59, 130, 246, 0.22);
+  --opponent-dark: rgba(59, 130, 246, 0.42);
+  --own-primary: #ff4545;
+  --own-soft: rgba(255, 69, 69, 0.22);
+  --own-dark: rgba(255, 69, 69, 0.42);
+}
+
+body[data-active-tab="currentWar"] .main-layout {
+  max-width: 1500px;
+  padding: 0 8px 12px;
+}
+
+body[data-active-tab="currentWar"] .content {
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+#currentWarTab.current-war-dense {
+  padding-bottom: 12px;
+}
+
+.current-war-dense .matchup-hero {
+  min-height: 228px;
+  grid-template-columns: minmax(280px, 1fr) 300px minmax(280px, 1fr);
+  padding: 24px 26px 16px;
+  border-bottom: 1px solid var(--border);
+  background:
+    linear-gradient(
+      112deg,
+      var(--opponent-dark) 0%,
+      rgba(5, 8, 10, 0.94) 44%,
+      rgba(5, 8, 10, 0.94) 56%,
+      var(--own-dark) 100%
+    ),
+    var(--bg);
+}
+
+.current-war-dense .matchup-hero::before {
+  background:
+    radial-gradient(circle at 16% 42%, var(--opponent-soft), transparent 32%),
+    radial-gradient(circle at 84% 42%, var(--own-soft), transparent 32%),
+    radial-gradient(circle, rgba(255,255,255,0.045) 1px, transparent 1px);
+  background-size: auto, auto, 16px 16px;
+}
+
+.current-war-dense .matchup-hero::after {
+  left: calc(var(--opponent-share) - 32px);
+  width: 68px;
+  background:
+    linear-gradient(
+      90deg,
+      var(--opponent-soft),
+      rgba(0,0,0,0.72) 46%,
+      var(--own-soft)
+    );
+}
+
+.dense-war-strip {
+  top: 10px;
+  gap: 8px;
+  font-size: 11px;
+}
+
+#warInfoInline {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.current-war-dense .matchup-side {
+  gap: 12px;
+  min-width: 0;
+}
+
+.current-war-dense .matchup-own {
+  text-align: right;
+  justify-items: end;
+}
+
+.faction-title-block h1 {
+  margin: 2px 0 0;
+  font-size: 24px;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+
+.current-war-dense .side-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.faction-banner {
+  width: 190px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.faction-banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.faction-banner.empty-banner {
+  display: none;
+}
+
+.dense-stat-strip {
+  margin-top: 4px;
+  grid-template-columns: repeat(3, minmax(68px, auto));
+  gap: 0;
+}
+
+.dense-stat-strip div {
+  padding: 0 12px;
+}
+
+.dense-stat-strip strong {
+  font-size: 18px;
+}
+
+.dense-stat-strip span {
+  font-size: 10px;
+}
+
+.dense-matchup-center {
+  gap: 6px;
+}
+
+.current-war-dense .vs-mark {
+  font-size: 44px;
+  line-height: 0.95;
+}
+
+.dense-win-card {
+  width: 260px;
+  padding: 12px 14px;
+}
+
+.dense-win-card h2 {
+  font-size: 11px;
+  margin-bottom: 8px;
+}
+
+.dense-win-card .win-numbers strong {
+  font-size: 28px;
+}
+
+.dense-win-card .confidence {
+  margin-top: 7px;
+  font-size: 11px;
+}
+
+.dense-win-card p {
+  display: none;
+}
+
+.opponent-color-text {
+  color: var(--opponent-primary) !important;
+}
+
+.own-color-text {
+  color: var(--own-primary) !important;
+}
+
+.win-bar-opponent {
+  background: var(--opponent-primary);
+  height: 100%;
+}
+
+.win-bar-own {
+  background: var(--own-primary);
+  height: 100%;
+}
+
+.dense-matchup-grid {
+  grid-template-columns: 250px 1fr 250px;
+  gap: 8px;
+  padding: 8px;
+}
+
+.current-war-dense .match-card {
+  padding: 10px;
+}
+
+.current-war-dense .match-card h2 {
+  margin: 0 0 8px;
+  font-size: 12px;
+}
+
+.compact-chart-wrap {
+  height: 180px;
+}
+
+.current-war-dense .top-player-row {
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  min-height: 25px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.current-war-dense .top-player-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dense-roster-split {
+  gap: 8px;
+  padding: 0 8px 8px;
+}
+
+.current-war-dense .roster-card-header {
+  margin-bottom: 6px;
+}
+
+.current-war-dense .roster-card-header h2 {
+  font-size: 12px;
+}
+
+.dense-table-wrap {
+  max-height: 420px;
+  overflow: auto;
+}
+
+.current-war-dense table {
+  font-size: 11px;
+}
+
+.current-war-dense th,
+.current-war-dense td {
+  padding: 4px 6px;
+  line-height: 1.15;
+}
+
+.current-war-dense .status-pill,
+.current-war-dense .threat-pill {
+  padding: 2px 5px;
+  font-size: 10px;
+}
+
+.dense-current-war-actions {
+  padding: 0 8px 8px;
+}
+
+@media (max-width: 1100px) {
+  .current-war-dense .matchup-hero,
+  .dense-matchup-grid,
+  .dense-roster-split {
+    grid-template-columns: 1fr;
+  }
+
+  .current-war-dense .matchup-own {
+    text-align: left;
+    justify-items: start;
+  }
+}
