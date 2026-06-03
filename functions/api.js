@@ -1369,6 +1369,78 @@ async function handleSaveOpponentReportIds(env, request, body) {
   });
 }
 
+async function getCurrentWarIntelCore(apiKey, currentUser) {
+  const ownFactionId = Number(currentUser.faction_id);
+
+  const result = await fetchTornJson(
+    "https://api.torn.com/faction/?selections=rankedwars" +
+      "&key=" +
+      encodeURIComponent(apiKey) +
+      "&timestamp=" +
+      Date.now()
+  );
+
+  if (!result.success) {
+    throw new Error(result.message || "Failed to fetch ranked wars.");
+  }
+
+  const rankedWars = result.data.rankedwars || {};
+  const currentTimestamp = nowUnix();
+
+  const wars = Object.entries(rankedWars)
+    .map(([warId, war]) => {
+      const factions = war.factions || {};
+      const factionEntries = Object.entries(factions);
+
+      const ownFaction = factions[String(ownFactionId)];
+
+      const opponentEntry = factionEntries.find(([id]) => {
+        return Number(id) !== ownFactionId;
+      });
+
+      if (!ownFaction || !opponentEntry) {
+        return null;
+      }
+
+      const [opponentFactionIdRaw, opponentFaction] = opponentEntry;
+
+      const startTimestamp = Number(war.war?.start || 0);
+      const endTimestamp = Number(war.war?.end || 0);
+
+      return {
+        warId: String(warId),
+        ownFactionId,
+        ownFactionName:
+          ownFaction.name ||
+          currentUser.faction_name ||
+          "Your faction",
+        ownScore: Number(ownFaction.score || 0),
+        opponentFactionId: Number(opponentFactionIdRaw),
+        opponentFactionName: opponentFaction.name || "Unknown opponent",
+        opponentScore: Number(opponentFaction.score || 0),
+        startTimestamp,
+        endTimestamp,
+        target: Number(war.war?.target || 0),
+        winner: Number(war.war?.winner || 0),
+        isActive:
+          startTimestamp > 0 &&
+          startTimestamp <= currentTimestamp &&
+          (!endTimestamp || endTimestamp >= currentTimestamp)
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => {
+      if (a.isActive && !b.isActive) return -1;
+      if (!a.isActive && b.isActive) return 1;
+      return Number(b.startTimestamp || 0) - Number(a.startTimestamp || 0);
+    });
+
+  return {
+    war: wars[0] || null,
+    wars
+  };
+}
+
 async function handleGetOpponentThreatList(env, request) {
   requireDb(env);
   requireSecret(env);
