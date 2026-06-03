@@ -12,9 +12,6 @@
 </head>
 
 <body data-active-tab="dashboard">
-  <!-- =========================
-       LOGIN / REGISTER
-       ========================= -->
   <section id="loginPage" class="login-page">
     <div class="login-card">
       <div class="login-brand">
@@ -23,107 +20,68 @@
       </div>
 
       <div class="auth-switch">
-        <button id="authLoginModeButton" class="auth-switch-btn active" type="button">
-          Login
-        </button>
-
-        <button id="authRegisterModeButton" class="auth-switch-btn" type="button">
-          Register
-        </button>
+        <button id="authLoginModeButton" class="auth-switch-btn active" type="button">Login</button>
+        <button id="authRegisterModeButton" class="auth-switch-btn" type="button">Register</button>
       </div>
 
       <form id="loginForm" class="auth-form">
         <div class="control">
           <label for="loginPlayerIdInput">Torn player ID</label>
-          <input
-            id="loginPlayerIdInput"
-            type="text"
-            autocomplete="username"
-            required
-          />
+          <input id="loginPlayerIdInput" type="text" autocomplete="username" required />
         </div>
 
         <div class="control">
           <label for="loginPasswordInput">Password</label>
-          <input
-            id="loginPasswordInput"
-            type="password"
-            autocomplete="current-password"
-            required
-          />
+          <input id="loginPasswordInput" type="password" autocomplete="current-password" required />
         </div>
 
-        <button class="primary-btn full-width" type="submit">
-          Login
-        </button>
+        <button class="primary-btn full-width" type="submit">Login</button>
       </form>
 
       <form id="registerForm" class="auth-form hidden">
         <div class="control">
           <label for="registerApiKeyInput">Limited Torn API key</label>
-          <input
-            id="registerApiKeyInput"
-            type="password"
-            autocomplete="off"
-            required
-          />
-          <small>
-            Used for verification and imports. It is not shown again inside RWEngine.
-          </small>
+          <input id="registerApiKeyInput" type="password" autocomplete="off" required />
+          <small>Used for verification and imports. It is not shown again inside RWEngine.</small>
         </div>
 
         <div class="control">
           <label for="registerPasswordInput">Password</label>
-          <input
-            id="registerPasswordInput"
-            type="password"
-            autocomplete="new-password"
-            required
-          />
+          <input id="registerPasswordInput" type="password" autocomplete="new-password" required />
         </div>
 
         <div class="control">
           <label for="registerPasswordConfirmInput">Confirm password</label>
-          <input
-            id="registerPasswordConfirmInput"
-            type="password"
-            autocomplete="new-password"
-            required
-          />
+          <input id="registerPasswordConfirmInput" type="password" autocomplete="new-password" required />
         </div>
 
-        <button class="primary-btn full-width" type="submit">
-          Create account
-        </button>
+        <button class="primary-btn full-width" type="submit">Create account</button>
       </form>
 
       <div id="loginError" class="form-message error hidden"></div>
     </div>
   </section>
 
-  <!-- =========================
-       APP PAGE
-       ========================= -->
   <section id="appPage" class="app-shell hidden">
     <header class="topbar">
       <div class="topbar-inner">
-        <div class="brand">RWEngine</div>
+        <div class="brand"><span>RW</span>Engine</div>
 
         <nav class="topnav">
           <button class="nav-btn active" data-tab="dashboard" type="button">
-            Dashboard
+            <span class="nav-icon">⌂</span> Dashboard
           </button>
 
           <button class="nav-btn" data-tab="currentWar" type="button">
-            Current War
+            <span class="nav-icon">⚔</span> Current War
           </button>
-          
+
           <button class="nav-btn" data-tab="import" type="button">
-            Import
+            <span class="nav-icon">⇧</span> Import
           </button>
 
           <button class="nav-btn" data-tab="settings" type="button">
-            Settings
+            <span class="nav-icon">⚙</span> Settings
           </button>
         </nav>
 
@@ -133,18 +91,12 @@
             <span id="adminBadge" class="admin-badge hidden">Admin</span>
           </div>
 
-          <button id="logoutButton" class="ghost-btn small" type="button">
-            Logout
-          </button>
+          <button id="logoutButton" class="ghost-btn small logout-icon" type="button">⇥</button>
         </div>
       </div>
     </header>
 
     <main class="main-layout">
-      <!-- =========================
-           DASHBOARD FILTER SIDEBAR
-           Only shown on Dashboard via CSS.
-           ========================= -->
       <aside class="sidebar">
         <h2>Filters</h2>
 
@@ -190,13 +142,7 @@
         </button>
       </aside>
 
-      <!-- =========================
-           MAIN CONTENT
-           ========================= -->
       <section class="content">
-        <!-- =========================
-             DASHBOARD TAB
-             ========================= -->
         <section id="dashboardTab" class="tab-panel active">
           <div class="tab-header dashboard-tab-header">
             <div>
@@ -232,13 +178,7 @@
                 <h2>Member graph</h2>
               </div>
 
-              <button
-                id="graphCollapseButton"
-                class="secondary-btn small"
-                type="button"
-                title="Expand graph"
-                aria-expanded="false"
-              >
+              <button id="graphCollapseButton" class="secondary-btn small" type="button" title="Expand graph" aria-expanded="false">
                 ▾
               </button>
             </div>
@@ -309,79 +249,82 @@
           </section>
         </section>
 
-        <!-- =========================
-         CURRENT WAR TAB
-         ========================= -->
-
         <section id="currentWarTab" class="tab-panel">
           <section id="matchupHero" class="matchup-hero">
-            <div class="matchup-hero-bg matchup-hero-left"></div>
-            <div class="matchup-hero-bg matchup-hero-right"></div>
+            <div class="matchup-bg matchup-bg-left"></div>
+            <div class="matchup-bg matchup-bg-right"></div>
 
-            <div class="matchup-hero-top">
+            <div class="matchup-topline">
               <span id="matchupWarId">Ranked War</span>
-              <span id="matchupStatusBadge" class="matchup-status">UPCOMING</span>
+              <span id="matchupStatusBadge" class="match-status pending">Pending</span>
             </div>
 
-            <div class="matchup-side-card matchup-side-own">
-              <div class="faction-emblem faction-emblem-own">L</div>
-              <h1 id="matchupOwnName">Luminescence</h1>
-              <p id="matchupOwnTag">[LUM]</p>
+            <div class="matchup-side matchup-opponent">
+              <div class="faction-logo blue" id="opponentLogo">O</div>
+              <div>
+                <div class="side-label blue-text">Opponent</div>
+                <h1 id="opponentName">Opponent</h1>
+                <div id="opponentTag" class="faction-tag blue-text">[OPP]</div>
+              </div>
 
-              <div class="matchup-side-stats">
+              <div class="faction-stat-strip">
                 <div>
-                  <strong id="matchupOwnMembers">0</strong>
-                  <span>Members</span>
+                  <strong id="opponentMembers">0</strong>
+                  <span>Active Members</span>
                 </div>
                 <div>
-                  <strong id="matchupOwnAvgLevel">0</strong>
+                  <strong id="opponentAvgLevel">0</strong>
                   <span>Avg Level</span>
                 </div>
                 <div>
-                  <strong id="matchupOwnRank">#?</strong>
+                  <strong id="opponentRank">#?</strong>
                   <span>Rank</span>
                 </div>
               </div>
             </div>
 
             <div class="matchup-center">
-              <div class="matchup-vs">VS</div>
+              <div class="vs-mark">VS</div>
 
-              <div class="win-card">
+              <article class="win-card">
                 <h2>Win Probability</h2>
 
-                <div class="win-score-row">
-                  <strong id="matchupOwnChance" class="win-own">50%</strong>
+                <div class="win-numbers">
+                  <strong id="opponentChance" class="blue-text">50%</strong>
                   <span></span>
-                  <strong id="matchupOpponentChance" class="win-opponent">50%</strong>
+                  <strong id="ownChance" class="red-text">50%</strong>
                 </div>
 
                 <div class="win-bar">
-                  <div id="matchupChanceOwnBar" class="win-bar-own"></div>
-                  <div id="matchupChanceOpponentBar" class="win-bar-opponent"></div>
+                  <div id="opponentWinBar" class="win-bar-blue"></div>
+                  <div id="ownWinBar" class="win-bar-red"></div>
                 </div>
 
-                <p id="matchupConfidence">Confidence: Low</p>
-                <small id="matchupStatusText">Matchup data not loaded.</small>
-              </div>
+                <strong id="matchupConfidence" class="confidence">Confidence: Low</strong>
+                <p>Based on historical performance, active members, score output, and top player impact.</p>
+              </article>
             </div>
 
-            <div class="matchup-side-card matchup-side-opponent">
-              <div class="faction-emblem faction-emblem-opponent">P</div>
-              <h1 id="matchupOpponentName">Opponent</h1>
-              <p id="matchupOpponentTag">[OPP]</p>
+            <div class="matchup-side matchup-own">
+              <div>
+                <div class="side-label red-text">Your Faction</div>
+                <h1 id="ownName">Your Faction</h1>
+                <div id="ownTag" class="faction-tag red-text">[YOU]</div>
+              </div>
 
-              <div class="matchup-side-stats">
+              <div class="faction-logo red" id="ownLogo">Y</div>
+
+              <div class="faction-stat-strip">
                 <div>
-                  <strong id="matchupOpponentMembers">0</strong>
-                  <span>Members</span>
+                  <strong id="ownMembers">0</strong>
+                  <span>Active Members</span>
                 </div>
                 <div>
-                  <strong id="matchupOpponentAvgLevel">0</strong>
+                  <strong id="ownAvgLevel">0</strong>
                   <span>Avg Level</span>
                 </div>
                 <div>
-                  <strong id="matchupOpponentRank">#?</strong>
+                  <strong id="ownRank">#?</strong>
                   <span>Rank</span>
                 </div>
               </div>
@@ -389,104 +332,114 @@
           </section>
 
           <section class="matchup-grid">
-            <article class="matchup-panel star-panel">
-              <header>
-                <h2>Top Assets</h2>
-              </header>
-
-              <div id="topAssetsList" class="star-list">
-                <div class="mini-empty">No data loaded.</div>
+            <article class="match-card list-card">
+              <h2 class="blue-text">Top Threats</h2>
+              <div id="topThreatsList" class="top-player-list">
+                <div class="empty-state">No data loaded.</div>
               </div>
             </article>
 
-            <article class="matchup-panel projection-panel">
-              <header>
-                <h2>Projected War Outcome</h2>
-              </header>
-
-              <div class="projection-canvas">
+            <article class="match-card graph-match-card">
+              <h2>Projected War Outcome</h2>
+              <div class="match-chart-wrap">
                 <canvas id="matchupProjectionChart"></canvas>
               </div>
+              <p class="match-card-note">Projections update as more reports and activity data become available.</p>
             </article>
 
-            <article class="matchup-panel star-panel">
-              <header>
-                <h2>Top Threats</h2>
-              </header>
-
-              <div id="topThreatsList" class="star-list">
-                <div class="mini-empty">No data loaded.</div>
+            <article class="match-card list-card">
+              <h2 class="red-text">Top Assets</h2>
+              <div id="topAssetsList" class="top-player-list">
+                <div class="empty-state">No data loaded.</div>
               </div>
             </article>
           </section>
 
           <section class="matchup-lower-grid">
-            <article class="matchup-panel">
-              <header>
-                <h2>Team Comparison</h2>
-              </header>
-
-              <table class="comparison-table">
-                <tbody id="teamComparisonBody">
-                  <tr>
-                    <td colspan="3" class="empty-table">No comparison loaded.</td>
-                  </tr>
-                </tbody>
-              </table>
+            <article class="match-card">
+              <h2>Team Comparison</h2>
+              <div id="teamComparison" class="comparison-table">
+                <div class="empty-state">No comparison loaded.</div>
+              </div>
             </article>
 
-            <article class="matchup-panel">
-              <header>
-                <h2>War Information</h2>
-              </header>
-
-              <table class="war-info-table">
-                <tbody id="warInfoBody">
-                  <tr>
-                    <td colspan="2" class="empty-table">No war data loaded.</td>
-                  </tr>
-                </tbody>
-              </table>
+            <article class="match-card">
+              <h2>War Information</h2>
+              <div id="warInformation" class="war-info-list">
+                <div class="empty-state">No war data loaded.</div>
+              </div>
             </article>
           </section>
 
-          <section class="table-card matchup-roster-card">
-            <div class="roster-header">
-              <h2>Opponent Roster Analysis</h2>
-              <button id="refreshCurrentWarButton" class="primary-btn small" type="button">
-                Refresh Intel
-              </button>
-            </div>
+          <section class="roster-split">
+            <article class="match-card roster-card">
+              <div class="roster-card-header">
+                <h2 class="blue-text">Opponent Roster</h2>
+                <button class="secondary-btn small" type="button">View full roster</button>
+              </div>
 
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Player</th>
-                    <th>Level</th>
-                    <th>Wars</th>
-                    <th>Hits</th>
-                    <th>Avg Hits / War</th>
-                    <th>Score</th>
-                    <th>Threat Score</th>
-                    <th>Tag</th>
-                  </tr>
-                </thead>
+              <div class="table-wrap matchup-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Player</th>
+                      <th>Level</th>
+                      <th>Wars</th>
+                      <th>Hits</th>
+                      <th>Avg R / Hit</th>
+                      <th>Score</th>
+                      <th>Threat</th>
+                    </tr>
+                  </thead>
 
-                <tbody id="currentWarTableBody">
-                  <tr>
-                    <td colspan="9" class="empty-table">No matchup data loaded.</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+                  <tbody id="currentWarTableBody">
+                    <tr>
+                      <td colspan="8" class="empty-table">No opponent data loaded.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="match-card roster-card">
+              <div class="roster-card-header">
+                <h2 class="red-text">Your Roster</h2>
+                <button class="secondary-btn small" type="button">View full roster</button>
+              </div>
+
+              <div class="table-wrap matchup-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Player</th>
+                      <th>Status</th>
+                      <th>Wars</th>
+                      <th>Hits</th>
+                      <th>Avg R / Hit</th>
+                      <th>Score</th>
+                      <th>Impact</th>
+                    </tr>
+                  </thead>
+
+                  <tbody id="ownRosterTableBody">
+                    <tr>
+                      <td colspan="8" class="empty-table">No own roster data loaded.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
           </section>
+
+          <div class="current-war-actions">
+            <button id="refreshCurrentWarButton" class="primary-btn" type="button">
+              Refresh Intel
+            </button>
+          </div>
         </section>
 
-        <!-- =========================
-             IMPORT TAB
-             ========================= -->
         <section id="importTab" class="tab-panel">
           <div class="tab-header import-header">
             <div>
@@ -516,18 +469,11 @@
                 <form id="importForm">
                   <div class="control">
                     <label for="rankIdInput">War report ID</label>
-                    <textarea
-                      id="rankIdInput"
-                      rows="5"
-                      placeholder="Enter one or more report IDs, separated by comma, space, or new line..."
-                      required
-                    ></textarea>
+                    <textarea id="rankIdInput" rows="5" placeholder="Enter one or more report IDs, separated by comma, space, or new line..." required></textarea>
                   </div>
 
                   <div class="form-actions">
-                    <button class="primary-btn" type="submit">
-                      Import reports
-                    </button>
+                    <button class="primary-btn" type="submit">Import reports</button>
                   </div>
                 </form>
 
@@ -566,9 +512,6 @@
           </div>
         </section>
 
-        <!-- =========================
-             SETTINGS TAB
-             ========================= -->
         <section id="settingsTab" class="tab-panel">
           <div class="tab-header">
             <div>
