@@ -1071,37 +1071,7 @@ async function handleApplyChainBonusAdjustment(env, request, body) {
     );
   }
 
-    /* =========================
-     CURRENT WAR LIVE INTEL
-  ========================= */
   
-  async function handleGetCurrentWarIntel(...) {
-   ...
-  }
-  
-  async function fetchCurrentRankedWar(...) {
-   ...
-  }
-  
-  function normalizeCurrentRankedWar(...) {
-   ...
-  }
-  
-  async function fetchFactionBasicMembers(...) {
-   ...
-  }
-  
-  function buildCurrentWarWantedRows(...) {
-   ...
-  }
-  
-  function calculateCurrentWarWantedScore(...) {
-   ...
-  }
-  
-  function getCurrentWarWantedTag(...) {
-   ...
-  }
 
   const war = await env.DB.prepare(
     `
@@ -1163,6 +1133,33 @@ async function handleApplyChainBonusAdjustment(env, request, body) {
     success: true,
     message: "Chain bonus adjustment checked.",
     chainAdjustment: result
+  });
+}
+
+/* =========================
+   CURRENT WAR LIVE INTEL
+========================= */
+
+async function handleGetCurrentWarIntel(env, request) {
+  requireSecret(env);
+
+  const currentUser = await getCurrentUserPrivate(env, request);
+
+  if (!currentUser.faction_id) {
+    return json({ success: false, message: "Your account is not linked to a faction." }, 400);
+  }
+
+  const apiKey = await decryptText(
+    env.APP_SECRET,
+    currentUser.api_key_encrypted,
+    currentUser.api_key_iv
+  );
+
+  return json({
+    success: true,
+    message: "Current war intel placeholder loaded.",
+    war: null,
+    rows: []
   });
 }
 
