@@ -602,43 +602,63 @@ function setMatchupError(message) {
 function renderMatchupOverview(result) {
   const war = result.war || {};
   const opponentRows = result.rows || [];
-  const ownRows = getOwnRosterRows();
+  const ownRows = getOwnRosterRows(result.ownMembers || {});
 
   const opponentSummary = buildOpponentSummary(opponentRows);
   const ownSummary = buildOwnSummary(ownRows);
 
   opponentSummary.name = war.opponentFactionName || "Opponent";
+  opponentSummary.factionId = war.opponentFactionId;
+  ownSummary.factionId = war.ownFactionId || state.currentUser?.factionId;
   ownSummary.name =
     war.ownFactionName ||
     state.currentUser?.factionName ||
     "Your Faction";
 
+  opponentSummary.bannerUrl = result.opponentBannerUrl || getFactionBannerUrl(war.opponentFactionId);
+  ownSummary.bannerUrl = result.ownBannerUrl || getFactionBannerUrl(war.ownFactionId || state.currentUser?.factionId);
+
   const win = calculateWinProbability(ownSummary, opponentSummary);
   const projection = buildProjectionData(war, ownSummary, opponentSummary, win);
 
+  applyFactionIdentity("opponent", opponentSummary, "#3b82f6");
+  applyFactionIdentity("own", ownSummary, "#ff4545");
+
   renderMatchupHero(war, ownSummary, opponentSummary, win);
   renderTopLists(ownRows, opponentRows);
-  renderTeamComparison(ownSummary, opponentSummary);
   renderWarInformation(war, result.reportIds || []);
   renderProjectionChart(projection, ownSummary.name, opponentSummary.name);
   renderOpponentRoster(opponentRows);
   renderOwnRoster(ownRows);
 }
 
-function getOwnRosterRows() {
+function getOwnRosterRows(currentMembers = {}) {
+  const currentMemberMap = new Map(
+    Object.values(currentMembers || {}).map(member => [String(member.playerId), member])
+  );
+
   return (state.dashboardRows || [])
     .filter(row => row["Is Member"] === "ACTIVE")
-    .map(row => ({
-      playerId: row["Player_ID"],
-      playerName: row["Members"],
-      status: row["Is Member"],
-      warsSeen: Number(row["Wars"] || 0),
-      hits: Number(row["Hits"] || 0),
-      score: Number(row["Sum Score up"] || 0),
-      avgScorePerHit: Number(row["Avg R/hit"] || 0),
-      impactScore: Number(row["ImpactScore"] || 0),
-      level: null
-    }))
+    .filter(row => {
+      if (!currentMemberMap.size) return true;
+      return currentMemberMap.has(String(row["Player_ID"]));
+    })
+    .map(row => {
+      const currentMember = currentMemberMap.get(String(row["Player_ID"])) || {};
+
+      return {
+        playerId: row["Player_ID"],
+        playerName: currentMember.playerName || row["Members"],
+        status: row["Is Member"],
+        warsSeen: Number(row["Wars"] || 0),
+        hits: Number(row["Hits"] || 0),
+        score: Number(row["Sum Score up"] || 0),
+        avgScorePerHit: Number(row["Avg R/hit"] || 0),
+        impactScore: Number(row["ImpactScore"] || 0),
+        level: currentMember.level || null,
+        position: currentMember.position || ""
+      };
+    })
     .sort((a, b) => Number(b.impactScore || 0) - Number(a.impactScore || 0));
 }
 
@@ -654,7 +674,6 @@ function buildOpponentSummary(rows) {
 
   return {
     name: "Opponent",
-    tag: "OPP",
     activeMembers: count,
     avgLevel,
     totalHits,
@@ -669,12 +688,16 @@ function buildOwnSummary(rows) {
   const count = rows.length;
   const totalHits = rows.reduce((sum, row) => sum + Number(row.hits || 0), 0);
   const totalScore = rows.reduce((sum, row) => sum + Number(row.score || 0), 0);
+  const levelRows = rows.filter(row => Number(row.level || 0) > 0);
+  const avgLevel =
+    levelRows.length > 0
+      ? levelRows.reduce((sum, row) => sum + Number(row.level || 0), 0) / levelRows.length
+      : 0;
 
   return {
     name: state.currentUser?.factionName || "Your Faction",
-    tag: createFactionTag(state.currentUser?.factionName || "YOU"),
     activeMembers: count,
-    avgLevel: 0,
+    avgLevel,
     totalHits,
     totalScore,
     avgScorePerHit: totalHits > 0 ? totalScore / totalHits : 0,
@@ -698,7 +721,6 @@ function calculateWinProbability(own, opponent) {
 
   const ownChance = Math.round((ownStrength / total) * 100);
   const opponentChance = 100 - ownChance;
-
   const gap = Math.abs(ownChance - opponentChance);
 
   return {
@@ -737,20 +759,14 @@ function renderMatchupHero(war, own, opponent, win) {
   setText("opponentName", opponent.name);
   setText("ownName", own.name);
 
-  setText("opponentTag", `[${createFactionTag(opponent.name)}]`);
-  setText("ownTag", `[${createFactionTag(own.name)}]`);
-
-  setText("opponentLogo", createFactionTag(opponent.name).slice(0, 1));
-  setText("ownLogo", createFactionTag(own.name).slice(0, 1));
-
   setText("opponentMembers", formatNumber(opponent.activeMembers));
   setText("ownMembers", formatNumber(own.activeMembers));
 
-  setText("opponentAvgLevel", formatNumber(opponent.avgLevel || 0, 1));
+  setText("opponentAvgLevel", opponent.avgLevel ? formatNumber(opponent.avgLevel || 0, 1) : "-");
   setText("ownAvgLevel", own.avgLevel ? formatNumber(own.avgLevel, 1) : "-");
 
-  setText("opponentRank", "#?");
-  setText("ownRank", "#?");
+  setText("opponentScoreNow", formatNumber(war.opponentScore || 0));
+  setText("ownScoreNow", formatNumber(war.ownScore || 0));
 
   setText("opponentChance", `${win.opponentChance}%`);
   setText("ownChance", `${win.ownChance}%`);
@@ -772,20 +788,27 @@ function renderMatchupHero(war, own, opponent, win) {
     badge.textContent = war.isActive ? "Ongoing" : "Pending";
     badge.className = `match-status ${war.isActive ? "ongoing" : "pending"}`;
   }
+
+  const warInfoInline = document.getElementById("warInfoInline");
+  if (warInfoInline) {
+    const start = war.startTimestamp ? formatUnixTimestamp(war.startTimestamp) : "-";
+    const target = war.target ? formatNumber(war.target) : "-";
+    warInfoInline.textContent = `Start: ${start} · Target: ${target} · Score: ${formatNumber(war.opponentScore || 0)} - ${formatNumber(war.ownScore || 0)}`;
+  }
 }
 
 function renderTopLists(ownRows, opponentRows) {
   renderTopPlayerList(
     "topThreatsList",
-    opponentRows.slice(0, 5),
-    "blue",
+    opponentRows.slice(0, 6),
+    "opponent",
     row => Number(row.score || 0)
   );
 
   renderTopPlayerList(
     "topAssetsList",
-    ownRows.slice(0, 5),
-    "red",
+    ownRows.slice(0, 6),
+    "own",
     row => Number(row.score || 0)
   );
 }
@@ -805,43 +828,11 @@ function renderTopPlayerList(elementId, rows, color, valueGetter) {
         <div class="top-player-row">
           <span>${index + 1}</span>
           <strong>${escapeHtml(row.playerName)}</strong>
-          <em class="${color}-text">${formatNumber(valueGetter(row), 0)}</em>
+          <em class="${color}-color-text">${formatNumber(valueGetter(row), 0)}</em>
         </div>
       `;
     })
     .join("");
-}
-
-function renderTeamComparison(own, opponent) {
-  const el = document.getElementById("teamComparison");
-  if (!el) return;
-
-  const rows = [
-    ["Active Members", opponent.activeMembers, own.activeMembers],
-    ["Average Level", opponent.avgLevel, own.avgLevel || "-"],
-    ["Historical Hits", opponent.totalHits, own.totalHits],
-    ["Historical Score", opponent.totalScore, own.totalScore],
-    ["Average Score / Hit", opponent.avgScorePerHit, own.avgScorePerHit],
-    ["Top Player Score", opponent.topPlayerScore, own.topPlayerScore]
-  ];
-
-  el.innerHTML = `
-    <div class="comparison-header">
-      <span class="blue-text">${escapeHtml(opponent.name)} (Opponent)</span>
-      <span></span>
-      <span class="red-text">${escapeHtml(own.name)} (You)</span>
-    </div>
-    ${rows
-      .map(([label, left, right]) => `
-        <div class="comparison-row">
-          <span>${escapeHtml(label)}</span>
-          <strong class="blue-text">${formatComparisonValue(left)}</strong>
-          <i>◆</i>
-          <strong class="red-text">${formatComparisonValue(right)}</strong>
-        </div>
-      `)
-      .join("")}
-  `;
 }
 
 function renderWarInformation(war, reportIds) {
@@ -877,6 +868,9 @@ function renderProjectionChart(data, ownName, opponentName) {
   }
 
   const ctx = canvas.getContext("2d");
+  const styles = getComputedStyle(document.documentElement);
+  const opponentColor = styles.getPropertyValue("--opponent-primary").trim() || "#3b82f6";
+  const ownColor = styles.getPropertyValue("--own-primary").trim() || "#ff4545";
 
   state.matchupChart = new Chart(ctx, {
     type: "line",
@@ -886,18 +880,18 @@ function renderProjectionChart(data, ownName, opponentName) {
         {
           label: `${opponentName} projected`,
           data: data.map(row => row.opponent),
-          borderColor: "#3b82f6",
-          backgroundColor: "rgba(59, 130, 246, 0.16)",
+          borderColor: opponentColor,
+          backgroundColor: hexToRgba(opponentColor, 0.16),
           tension: 0.35,
-          pointRadius: 3
+          pointRadius: 2
         },
         {
           label: `${ownName} projected`,
           data: data.map(row => row.own),
-          borderColor: "#ff4545",
-          backgroundColor: "rgba(255, 69, 69, 0.16)",
+          borderColor: ownColor,
+          backgroundColor: hexToRgba(ownColor, 0.16),
           tension: 0.35,
-          pointRadius: 3
+          pointRadius: 2
         }
       ]
     },
@@ -908,17 +902,18 @@ function renderProjectionChart(data, ownName, opponentName) {
         legend: {
           labels: {
             color: "#d8d8d8",
-            boxWidth: 14
+            boxWidth: 10,
+            font: { size: 10 }
           }
         }
       },
       scales: {
         x: {
-          ticks: { color: "#a5a5a5" },
+          ticks: { color: "#a5a5a5", font: { size: 10 } },
           grid: { color: "rgba(255,255,255,0.06)" }
         },
         y: {
-          ticks: { color: "#a5a5a5" },
+          ticks: { color: "#a5a5a5", font: { size: 10 } },
           grid: { color: "rgba(255,255,255,0.06)" }
         }
       }
@@ -932,14 +927,13 @@ function renderOpponentRoster(rows) {
   if (!rows.length) {
     currentWarTableBody.innerHTML = `
       <tr>
-        <td colspan="8" class="empty-table">No opponent data found.</td>
+        <td colspan="8" class="empty-table">No current opponent members with report data found.</td>
       </tr>
     `;
     return;
   }
 
   currentWarTableBody.innerHTML = rows
-    .slice(0, 12)
     .map((row, index) => {
       const memberUrl = `https://www.torn.com/profiles.php?XID=${encodeURIComponent(row.playerId)}`;
       const roleSymbol = getFactionRoleSymbol(row.position);
@@ -970,26 +964,26 @@ function renderOwnRoster(rows) {
   if (!rows.length) {
     ownRosterTableBody.innerHTML = `
       <tr>
-        <td colspan="8" class="empty-table">No own faction data found.</td>
+        <td colspan="8" class="empty-table">No current own faction members found.</td>
       </tr>
     `;
     return;
   }
 
   ownRosterTableBody.innerHTML = rows
-    .slice(0, 12)
     .map((row, index) => {
       const memberUrl = `https://www.torn.com/profiles.php?XID=${encodeURIComponent(row.playerId)}`;
+      const roleSymbol = getFactionRoleSymbol(row.position);
 
       return `
         <tr>
           <td>${index + 1}</td>
           <td>
             <a class="member-link" href="${memberUrl}" target="_blank" rel="noopener noreferrer">
-              ${escapeHtml(row.playerName)}
+              ${roleSymbol}${escapeHtml(row.playerName)}
             </a>
           </td>
-          <td><span class="status-pill active">Active</span></td>
+          <td>${row.level ? formatNumber(row.level) : "-"}</td>
           <td>${formatNumber(row.warsSeen || 0)}</td>
           <td>${formatNumber(row.hits || 0)}</td>
           <td>${formatNumber(row.avgScorePerHit || 0, 1)}</td>
@@ -999,6 +993,146 @@ function renderOwnRoster(rows) {
       `;
     })
     .join("");
+}
+
+function applyFactionIdentity(side, summary, fallbackColor) {
+  const banner = document.getElementById(`${side}Banner`);
+  const factionId = side === "opponent"
+    ? summary?.factionId
+    : state.currentUser?.factionId;
+  const bannerUrl = summary.bannerUrl || getFactionBannerUrl(factionId);
+  const fallback = deriveFactionColor(summary.name || side, fallbackColor);
+
+  setFactionColor(side, fallback);
+
+  if (!banner) return;
+
+  if (!bannerUrl) {
+    banner.removeAttribute("src");
+    banner.closest(".faction-banner")?.classList.add("empty-banner");
+    return;
+  }
+
+  banner.crossOrigin = "anonymous";
+  banner.onload = () => {
+    const extracted = extractImageAccentColor(banner);
+    if (extracted) setFactionColor(side, extracted);
+  };
+  banner.onerror = () => {
+    banner.closest(".faction-banner")?.classList.add("empty-banner");
+  };
+  banner.src = bannerUrl;
+}
+
+function getFactionBannerUrl(factionId) {
+  const id = Number(factionId || 0);
+  if (!id) return "";
+  return `https://factionimages.torn.com/${encodeURIComponent(id)}.jpg`;
+}
+
+function deriveFactionColor(name, fallbackColor) {
+  const text = String(name || "");
+  if (!text) return fallbackColor;
+
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+  }
+
+  const hue = hash % 360;
+  return hslToHex(hue, 78, 58);
+}
+
+function extractImageAccentColor(img) {
+  try {
+    const canvas = document.createElement("canvas");
+    const size = 32;
+    canvas.width = size;
+    canvas.height = size;
+
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, size, size);
+
+    const data = ctx.getImageData(0, 0, size, size).data;
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    let count = 0;
+
+    for (let i = 0; i < data.length; i += 16) {
+      const alpha = data[i + 3];
+      if (alpha < 80) continue;
+
+      const rr = data[i];
+      const gg = data[i + 1];
+      const bb = data[i + 2];
+      const brightness = (rr + gg + bb) / 3;
+      if (brightness < 25 || brightness > 235) continue;
+
+      r += rr;
+      g += gg;
+      b += bb;
+      count += 1;
+    }
+
+    if (!count) return "";
+
+    return rgbToHex(
+      Math.round(r / count),
+      Math.round(g / count),
+      Math.round(b / count)
+    );
+  } catch {
+    return "";
+  }
+}
+
+function setFactionColor(side, color) {
+  document.documentElement.style.setProperty(`--${side}-primary`, color);
+  document.documentElement.style.setProperty(`--${side}-soft`, hexToRgba(color, 0.22));
+  document.documentElement.style.setProperty(`--${side}-dark`, hexToRgba(color, 0.42));
+}
+
+function hexToRgba(hex, alpha) {
+  const clean = String(hex || "").replace("#", "").trim();
+  if (!/^[0-9a-fA-F]{6}$/.test(clean)) return `rgba(255,255,255,${alpha})`;
+
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function rgbToHex(r, g, b) {
+  return "#" + [r, g, b]
+    .map(value => Math.max(0, Math.min(255, value)).toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function hslToHex(h, s, l) {
+  s /= 100;
+  l /= 100;
+
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+  const m = l - c / 2;
+  let r = 0;
+  let g = 0;
+  let b = 0;
+
+  if (h < 60) [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+
+  return rgbToHex(
+    Math.round((r + m) * 255),
+    Math.round((g + m) * 255),
+    Math.round((b + m) * 255)
+  );
 }
 
 function getFactionRoleSymbol(position) {
