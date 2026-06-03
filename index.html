@@ -249,91 +249,94 @@
           </section>
         </section>
 
-        <section id="currentWarTab" class="tab-panel">
-          <section id="matchupHero" class="matchup-hero">
+        <section id="currentWarTab" class="tab-panel current-war-dense">
+          <section id="matchupHero" class="matchup-hero compact-war-hero">
             <div class="matchup-bg matchup-bg-left"></div>
             <div class="matchup-bg matchup-bg-right"></div>
 
-            <div class="matchup-topline">
+            <div class="matchup-topline dense-war-strip">
               <span id="matchupWarId">Ranked War</span>
               <span id="matchupStatusBadge" class="match-status pending">Pending</span>
+              <span id="warInfoInline">No war data loaded.</span>
             </div>
 
             <div class="matchup-side matchup-opponent">
-              <div class="faction-logo blue" id="opponentLogo">O</div>
-              <div>
-                <div class="side-label blue-text">Opponent</div>
-                <h1 id="opponentName">Opponent</h1>
-                <div id="opponentTag" class="faction-tag blue-text">[OPP]</div>
+              <div class="faction-banner opponent-banner">
+                <img id="opponentBanner" alt="Opponent faction banner" />
               </div>
 
-              <div class="faction-stat-strip">
+              <div class="faction-title-block">
+                <div class="side-label opponent-color-text">Opponent</div>
+                <h1 id="opponentName">Opponent</h1>
+              </div>
+
+              <div class="faction-stat-strip dense-stat-strip">
                 <div>
                   <strong id="opponentMembers">0</strong>
-                  <span>Active Members</span>
+                  <span>Members</span>
                 </div>
                 <div>
                   <strong id="opponentAvgLevel">0</strong>
                   <span>Avg Level</span>
                 </div>
                 <div>
-                  <strong id="opponentRank">#?</strong>
-                  <span>Rank</span>
+                  <strong id="opponentScoreNow">0</strong>
+                  <span>War Score</span>
                 </div>
               </div>
             </div>
 
-            <div class="matchup-center">
+            <div class="matchup-center dense-matchup-center">
               <div class="vs-mark">VS</div>
 
-              <article class="win-card">
+              <article class="win-card dense-win-card">
                 <h2>Win Probability</h2>
 
                 <div class="win-numbers">
-                  <strong id="opponentChance" class="blue-text">50%</strong>
+                  <strong id="opponentChance" class="opponent-color-text">50%</strong>
                   <span></span>
-                  <strong id="ownChance" class="red-text">50%</strong>
+                  <strong id="ownChance" class="own-color-text">50%</strong>
                 </div>
 
                 <div class="win-bar">
-                  <div id="opponentWinBar" class="win-bar-blue"></div>
-                  <div id="ownWinBar" class="win-bar-red"></div>
+                  <div id="opponentWinBar" class="win-bar-opponent"></div>
+                  <div id="ownWinBar" class="win-bar-own"></div>
                 </div>
 
                 <strong id="matchupConfidence" class="confidence">Confidence: Low</strong>
-                <p>Based on historical performance, active members, score output, and top player impact.</p>
               </article>
             </div>
 
             <div class="matchup-side matchup-own">
-              <div>
-                <div class="side-label red-text">Your Faction</div>
+              <div class="faction-title-block own-title-block">
+                <div class="side-label own-color-text">Your Faction</div>
                 <h1 id="ownName">Your Faction</h1>
-                <div id="ownTag" class="faction-tag red-text">[YOU]</div>
               </div>
 
-              <div class="faction-logo red" id="ownLogo">Y</div>
+              <div class="faction-banner own-banner">
+                <img id="ownBanner" alt="Your faction banner" />
+              </div>
 
-              <div class="faction-stat-strip">
+              <div class="faction-stat-strip dense-stat-strip">
                 <div>
                   <strong id="ownMembers">0</strong>
-                  <span>Active Members</span>
+                  <span>Members</span>
                 </div>
                 <div>
                   <strong id="ownAvgLevel">0</strong>
                   <span>Avg Level</span>
                 </div>
                 <div>
-                  <strong id="ownRank">#?</strong>
-                  <span>Rank</span>
+                  <strong id="ownScoreNow">0</strong>
+                  <span>War Score</span>
                 </div>
               </div>
             </div>
           </section>
 
-          <section class="matchup-grid">
+          <section class="matchup-grid dense-matchup-grid">
             <article class="match-card list-card">
-              <h2 class="blue-text">Top Threats</h2>
+              <h2 class="opponent-color-text">Top Threats</h2>
               <div id="topThreatsList" class="top-player-list">
                 <div class="empty-state">No data loaded.</div>
               </div>
@@ -341,53 +344,35 @@
 
             <article class="match-card graph-match-card">
               <h2>Projected War Outcome</h2>
-              <div class="match-chart-wrap">
+              <div class="match-chart-wrap compact-chart-wrap">
                 <canvas id="matchupProjectionChart"></canvas>
               </div>
-              <p class="match-card-note">Projections update as more reports and activity data become available.</p>
             </article>
 
             <article class="match-card list-card">
-              <h2 class="red-text">Top Assets</h2>
+              <h2 class="own-color-text">Top Assets</h2>
               <div id="topAssetsList" class="top-player-list">
                 <div class="empty-state">No data loaded.</div>
               </div>
             </article>
           </section>
 
-          <section class="matchup-lower-grid">
-            <article class="match-card">
-              <h2>Team Comparison</h2>
-              <div id="teamComparison" class="comparison-table">
-                <div class="empty-state">No comparison loaded.</div>
-              </div>
-            </article>
-
-            <article class="match-card">
-              <h2>War Information</h2>
-              <div id="warInformation" class="war-info-list">
-                <div class="empty-state">No war data loaded.</div>
-              </div>
-            </article>
-          </section>
-
-          <section class="roster-split">
+          <section class="roster-split dense-roster-split">
             <article class="match-card roster-card">
               <div class="roster-card-header">
-                <h2 class="blue-text">Opponent Roster</h2>
-                <button class="secondary-btn small" type="button">View full roster</button>
+                <h2 class="opponent-color-text">Opponent Roster</h2>
               </div>
 
-              <div class="table-wrap matchup-table-wrap">
+              <div class="table-wrap matchup-table-wrap dense-table-wrap">
                 <table>
                   <thead>
                     <tr>
                       <th>#</th>
                       <th>Player</th>
-                      <th>Level</th>
+                      <th>Lvl</th>
                       <th>Wars</th>
                       <th>Hits</th>
-                      <th>Avg R / Hit</th>
+                      <th>Avg</th>
                       <th>Score</th>
                       <th>Threat</th>
                     </tr>
@@ -404,20 +389,19 @@
 
             <article class="match-card roster-card">
               <div class="roster-card-header">
-                <h2 class="red-text">Your Roster</h2>
-                <button class="secondary-btn small" type="button">View full roster</button>
+                <h2 class="own-color-text">Your Roster</h2>
               </div>
 
-              <div class="table-wrap matchup-table-wrap">
+              <div class="table-wrap matchup-table-wrap dense-table-wrap">
                 <table>
                   <thead>
                     <tr>
                       <th>#</th>
                       <th>Player</th>
-                      <th>Status</th>
+                      <th>Lvl</th>
                       <th>Wars</th>
                       <th>Hits</th>
-                      <th>Avg R / Hit</th>
+                      <th>Avg</th>
                       <th>Score</th>
                       <th>Impact</th>
                     </tr>
@@ -433,7 +417,7 @@
             </article>
           </section>
 
-          <div class="current-war-actions">
+          <div class="current-war-actions dense-current-war-actions">
             <button id="refreshCurrentWarButton" class="primary-btn" type="button">
               Refresh Intel
             </button>
