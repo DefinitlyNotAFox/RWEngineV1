@@ -314,44 +314,176 @@
          ========================= -->
 
         <section id="currentWarTab" class="tab-panel">
-          <div class="tab-header">
-            <div>
-              <h1>Current War</h1>
-              <p>Opponent threat list</p>
+          <section id="matchupHero" class="matchup-hero">
+            <div class="matchup-hero-bg matchup-hero-left"></div>
+            <div class="matchup-hero-bg matchup-hero-right"></div>
+
+            <div class="matchup-hero-top">
+              <span id="matchupWarId">Ranked War</span>
+              <span id="matchupStatusBadge" class="matchup-status">UPCOMING</span>
             </div>
-        
-            <button id="refreshCurrentWarButton" class="primary-btn" type="button">
-              Refresh Intel
-            </button>
-          </div>
-        
-          <section class="table-card">
+
+            <div class="matchup-side-card matchup-side-own">
+              <div class="faction-emblem faction-emblem-own">L</div>
+              <h1 id="matchupOwnName">Luminescence</h1>
+              <p id="matchupOwnTag">[LUM]</p>
+
+              <div class="matchup-side-stats">
+                <div>
+                  <strong id="matchupOwnMembers">0</strong>
+                  <span>Members</span>
+                </div>
+                <div>
+                  <strong id="matchupOwnAvgLevel">0</strong>
+                  <span>Avg Level</span>
+                </div>
+                <div>
+                  <strong id="matchupOwnRank">#?</strong>
+                  <span>Rank</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="matchup-center">
+              <div class="matchup-vs">VS</div>
+
+              <div class="win-card">
+                <h2>Win Probability</h2>
+
+                <div class="win-score-row">
+                  <strong id="matchupOwnChance" class="win-own">50%</strong>
+                  <span></span>
+                  <strong id="matchupOpponentChance" class="win-opponent">50%</strong>
+                </div>
+
+                <div class="win-bar">
+                  <div id="matchupChanceOwnBar" class="win-bar-own"></div>
+                  <div id="matchupChanceOpponentBar" class="win-bar-opponent"></div>
+                </div>
+
+                <p id="matchupConfidence">Confidence: Low</p>
+                <small id="matchupStatusText">Matchup data not loaded.</small>
+              </div>
+            </div>
+
+            <div class="matchup-side-card matchup-side-opponent">
+              <div class="faction-emblem faction-emblem-opponent">P</div>
+              <h1 id="matchupOpponentName">Opponent</h1>
+              <p id="matchupOpponentTag">[OPP]</p>
+
+              <div class="matchup-side-stats">
+                <div>
+                  <strong id="matchupOpponentMembers">0</strong>
+                  <span>Members</span>
+                </div>
+                <div>
+                  <strong id="matchupOpponentAvgLevel">0</strong>
+                  <span>Avg Level</span>
+                </div>
+                <div>
+                  <strong id="matchupOpponentRank">#?</strong>
+                  <span>Rank</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="matchup-grid">
+            <article class="matchup-panel star-panel">
+              <header>
+                <h2>Top Assets</h2>
+              </header>
+
+              <div id="topAssetsList" class="star-list">
+                <div class="mini-empty">No data loaded.</div>
+              </div>
+            </article>
+
+            <article class="matchup-panel projection-panel">
+              <header>
+                <h2>Projected War Outcome</h2>
+              </header>
+
+              <div class="projection-canvas">
+                <canvas id="matchupProjectionChart"></canvas>
+              </div>
+            </article>
+
+            <article class="matchup-panel star-panel">
+              <header>
+                <h2>Top Threats</h2>
+              </header>
+
+              <div id="topThreatsList" class="star-list">
+                <div class="mini-empty">No data loaded.</div>
+              </div>
+            </article>
+          </section>
+
+          <section class="matchup-lower-grid">
+            <article class="matchup-panel">
+              <header>
+                <h2>Team Comparison</h2>
+              </header>
+
+              <table class="comparison-table">
+                <tbody id="teamComparisonBody">
+                  <tr>
+                    <td colspan="3" class="empty-table">No comparison loaded.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </article>
+
+            <article class="matchup-panel">
+              <header>
+                <h2>War Information</h2>
+              </header>
+
+              <table class="war-info-table">
+                <tbody id="warInfoBody">
+                  <tr>
+                    <td colspan="2" class="empty-table">No war data loaded.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </article>
+          </section>
+
+          <section class="table-card matchup-roster-card">
+            <div class="roster-header">
+              <h2>Opponent Roster Analysis</h2>
+              <button id="refreshCurrentWarButton" class="primary-btn small" type="button">
+                Refresh Intel
+              </button>
+            </div>
+
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
+                    <th>#</th>
                     <th>Player</th>
                     <th>Level</th>
                     <th>Wars</th>
                     <th>Hits</th>
                     <th>Avg Hits / War</th>
                     <th>Score</th>
-                    <th>Avg / Hit</th>
                     <th>Threat Score</th>
                     <th>Tag</th>
                   </tr>
                 </thead>
-        
+
                 <tbody id="currentWarTableBody">
                   <tr>
-                    <td colspan="9" class="empty-table">No war intel loaded.</td>
+                    <td colspan="9" class="empty-table">No matchup data loaded.</td>
                   </tr>
                 </tbody>
               </table>
             </div>
           </section>
         </section>
-        
+
         <!-- =========================
              IMPORT TAB
              ========================= -->
