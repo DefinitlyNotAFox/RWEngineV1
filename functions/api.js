@@ -1171,6 +1171,8 @@ async function handleGetCurrentWarIntel(env, request) {
     currentUser.api_key_iv
   );
 
+  const ownFactionId = Number(currentUser.faction_id);
+
   const result = await fetchTornJson(
     "https://api.torn.com/faction/?selections=rankedwars" +
       "&key=" +
@@ -1179,11 +1181,85 @@ async function handleGetCurrentWarIntel(env, request) {
       Date.now()
   );
 
+  if (!result.success) {
+    return json(
+      {
+        success: false,
+        message: result.message || "Failed to fetch ranked wars."
+      },
+      400
+    );
+  }
+
+  const rankedWars = result.data.rankedwars || {};
+  const currentTimestamp = nowUnix();
+
+  const wars = Object.entries(rankedWars)
+    .map(([warId, war]) => {
+      const factions = war.factions || {};
+      const factionEntries = Object.entries(factions);
+
+      const ownFaction = factions[String(ownFactionId)];
+
+      const opponentEntry = factionEntries.find(([id]) => {
+        return Number(id) !== ownFactionId;
+      });
+
+      if (!ownFaction || !opponentEntry) {
+        return null;
+      }
+
+      const [opponentFactionIdRaw, opponentFaction] = opponentEntry;
+
+      const startTimestamp = Number(war.war?.start || 0);
+      const endTimestamp = Number(war.war?.end || 0);
+
+      return {
+        warId: String(warId),
+        ownFactionId,
+        ownFactionName: ownFaction.name || currentUser.faction_name || "Your faction",
+        ownScore: Number(ownFaction.score || 0),
+        opponentFactionId: Number(opponentFactionIdRaw),
+        opponentFactionName: opponentFaction.name || "Unknown opponent",
+        opponentScore: Number(opponentFaction.score || 0),
+        startTimestamp,
+        endTimestamp,
+        target: Number(war.war?.target || 0),
+        winner: Number(war.war?.winner || 0),
+        isActive:
+          startTimestamp > 0 &&
+          startTimestamp <= currentTimestamp &&
+          (
+            !endTimestamp ||
+            endTimestamp >= currentTimestamp
+          )
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => {
+      if (a.isActive && !b.isActive) return -1;
+      if (!a.isActive && b.isActive) return 1;
+      return Number(b.startTimestamp || 0) - Number(a.startTimestamp || 0);
+    });
+
+  const war = wars[0] || null;
+
+  if (!war) {
+    return json({
+      success: true,
+      message: "No ranked war found for your faction.",
+      war: null,
+      rows: []
+    });
+  }
+
   return json({
     success: true,
-    message: "Current war debug loaded.",
-    rankedWarKeys: Object.keys(result.data.rankedwars || {}),
-    firstWar: Object.values(result.data.rankedwars || {})[0]
+    message: war.isActive
+      ? "Current war loaded."
+      : "No active war found. Showing latest ranked war.",
+    war,
+    rows: []
   });
 }
 
