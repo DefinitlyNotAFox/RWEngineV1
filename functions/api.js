@@ -1182,7 +1182,8 @@ async function handleGetCurrentWarIntel(env, request) {
   return json({
     success: true,
     message: "Current war debug loaded.",
-    debug: result
+    rankedWarKeys: Object.keys(result.data.rankedwars || {}),
+    firstWar: Object.values(result.data.rankedwars || {})[0]
   });
 }
 
