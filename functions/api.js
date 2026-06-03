@@ -1252,14 +1252,57 @@ async function handleGetCurrentWarIntel(env, request) {
       rows: []
     });
   }
-
+  const memberResult = await fetchTornJson(
+    "https://api.torn.com/faction/" +
+      encodeURIComponent(war.opponentFactionId) +
+      "?selections=basic" +
+      "&key=" +
+      encodeURIComponent(apiKey) +
+      "&timestamp=" +
+      Date.now()
+  );
+  
+  const rows = [];
+  
+  if (memberResult.success) {
+    const members = memberResult.data.members || {};
+  
+    for (const [playerId, member] of Object.entries(members)) {
+      const lastAction = member.last_action || {};
+  
+      rows.push({
+        playerId: Number(playerId),
+        playerName: member.name || `Player ${playerId}`,
+        level: Number(member.level || 0),
+        hits: 0,
+        score: 0,
+        avgScorePerHit: 0,
+        activity:
+          lastAction.relative ||
+          member.status ||
+          "-",
+        wantedScore: 0,
+        tag: "Unscouted"
+      });
+    }
+  
+    rows.sort((a, b) => {
+      return Number(b.level || 0) - Number(a.level || 0);
+    });
+  }
+  
   return json({
     success: true,
     message: war.isActive
       ? "Current war loaded."
       : "No active war found. Showing latest ranked war.",
     war,
-    rows: []
+    memberFetch: {
+      success: memberResult.success,
+      message: memberResult.message || null,
+      count: rows.length
+    },
+    rows
   });
 }
 
