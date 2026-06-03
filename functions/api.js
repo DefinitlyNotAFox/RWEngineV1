@@ -85,6 +85,10 @@ export async function onRequest(context) {
       return await handleSaveOpponentReportIds(env, request, body);
     }
 
+    if (action === "getOpponentThreatList") {
+      return await handleGetOpponentThreatList(env, request);
+    }
+
     return json(
       {
         success: false,
@@ -1362,6 +1366,119 @@ async function handleSaveOpponentReportIds(env, request, body) {
     opponentFactionName,
     received: cleanReportIds.length,
     saved
+  });
+}
+
+async function handleGetOpponentThreatList(env, request) {
+  requireDb(env);
+  requireSecret(env);
+
+  const currentUser = await getCurrentUserPrivate(env, request);
+
+  if (!currentUser.faction_id) {
+    return json({ success: false, message: "Your account is not linked to a faction." }, 400);
+  }
+
+  const apiKey = await decryptText(
+    env.APP_SECRET,
+    currentUser.api_key_encrypted,
+    currentUser.api_key_iv
+  );
+
+  const currentIntel = await getCurrentWarIntelCore(apiKey, currentUser);
+  const opponentFactionId = Number(currentIntel?.war?.opponentFactionId || 0);
+
+  if (!opponentFactionId) {
+    return json({
+      success: true,
+      message: "No current opponent found.",
+      war: null,
+      rows: []
+    });
+  }
+
+  const reportRows = await env.DB.prepare(
+    `
+    SELECT report_id
+    FROM opponent_report_ids
+    WHERE opponent_faction_id = ?
+    ORDER BY added_at DESC
+    LIMIT 10
+    `
+  )
+    .bind(opponentFactionId)
+    .all();
+
+  const reportIds = (reportRows.results || []).map(row => String(row.report_id));
+
+  if (!reportIds.length) {
+    return json({
+      success: true,
+      message: "No saved opponent report IDs found.",
+      war: currentIntel.war,
+      reportIds: [],
+      rows: []
+    });
+  }
+
+  const activityMembers = await fetchFactionBasicMembers(apiKey, opponentFactionId);
+  const players = {};
+
+  for (const reportId of reportIds) {
+    try {
+      const rawReport = await fetchRankedWarReport(reportId, apiKey);
+      const rows = extractFactionRowsFromRankedWarReport(
+        rawReport,
+        reportId,
+        opponentFactionId
+      );
+
+      for (const row of rows) {
+        const id = String(row.playerId);
+
+        if (!players[id]) {
+          players[id] = {
+            playerId: row.playerId,
+            playerName: row.playerName,
+            level: null,
+            warsSeen: 0,
+            hits: 0,
+            score: 0,
+            activity: "-"
+          };
+        }
+
+        players[id].warsSeen += 1;
+        players[id].hits += Number(row.hits || 0);
+        players[id].score += Number(row.score || 0);
+      }
+    } catch (error) {
+      // Skip bad/inaccessible report IDs instead of breaking the whole threat list.
+    }
+  }
+
+  const rows = Object.values(players).map(row => {
+    const activity = activityMembers[String(row.playerId)] || {};
+
+    row.level = activity.level || row.level;
+    row.activity = activity.activity || "-";
+    row.playerName = activity.playerName || row.playerName;
+
+    row.avgScorePerHit = row.hits > 0 ? row.score / row.hits : 0;
+    row.threatScore = calculateThreatScore(row);
+    row.tag = getThreatTag(row.threatScore, row.activity);
+
+    return row;
+  });
+
+  rows.sort((a, b) => b.threatScore - a.threatScore);
+
+  return json({
+    success: true,
+    message: "Opponent threat list loaded.",
+    war: currentIntel.war,
+    reportIds,
+    rows
   });
 }
 
@@ -3539,4 +3656,99 @@ function pickNumber(object, keys) {
   }
 
   return 0;
+}
+
+function extractFactionRowsFromRankedWarReport(rawData, reportId, factionId) {
+  const report =
+    rawData.rankedwarreport ||
+    rawData.ranked_war_report ||
+    rawData.rankedWarReport ||
+    rawData.report ||
+    rawData;
+
+  const factions = report.factions || report.faction || rawData.factions || {};
+  const factionEntries = normalizeFactionEntries(factions);
+
+  const factionEntry = factionEntries.find(([id, faction]) => {
+    const possibleId =
+      Number(id) ||
+      Number(faction.id) ||
+      Number(faction.faction_id) ||
+      Number(faction.factionId);
+
+    return possibleId === Number(factionId);
+  });
+
+  if (!factionEntry) return [];
+
+  const [, faction] = factionEntry;
+  const membersRaw = faction.members || faction.member || {};
+
+  return normalizeMemberEntries(membersRaw)
+    .map(([id, member]) => {
+      const playerId =
+        Number(id) ||
+        Number(member.id) ||
+        Number(member.user_id) ||
+        Number(member.player_id) ||
+        Number(member.playerId);
+
+      const playerName =
+        pickString(member, ["name", "player_name", "playerName"]) ||
+        `Player ${playerId}`;
+
+      const hits = pickNumber(member, [
+        "attacks",
+        "hits",
+        "war_hits",
+        "warHits",
+        "attacks_made"
+      ]);
+
+      const score = pickNumber(member, [
+        "score",
+        "score_gain",
+        "scoreGain",
+        "points",
+        "points_gained",
+        "respect",
+        "respect_gain",
+        "respectGain",
+        "respect_gained"
+      ]);
+
+      return {
+        reportId,
+        playerId,
+        playerName,
+        hits,
+        score
+      };
+    })
+    .filter(row => row.playerId);
+}
+
+function calculateThreatScore(row) {
+  const hits = Number(row.hits || 0);
+  const score = Number(row.score || 0);
+  const avg = Number(row.avgScorePerHit || 0);
+  const warsSeen = Number(row.warsSeen || 0);
+  const activity = String(row.activity || "").toLowerCase();
+
+  let activityScore = 0;
+
+  if (activity.includes("online")) activityScore = 50;
+  else if (activity.includes("minute")) activityScore = 35;
+  else if (activity.includes("hour")) activityScore = 15;
+
+  return hits * 2 + score * 0.3 + avg * 5 + warsSeen * 10 + activityScore;
+}
+
+function getThreatTag(score, activity) {
+  const text = String(activity || "").toLowerCase();
+
+  if (score >= 300) return "Priority";
+  if (score >= 150) return "Watch";
+  if (text.includes("minute") || text.includes("online")) return "Active";
+  return "Low";
 }
