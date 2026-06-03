@@ -1149,12 +1149,6 @@ async function handleGetCurrentWarIntel(env, request) {
     return json({ success: false, message: "Your account is not linked to a faction." }, 400);
   }
 
-  const apiKey = await decryptText(
-    env.APP_SECRET,
-    currentUser.api_key_encrypted,
-    currentUser.api_key_iv
-  );
-
   return json({
     success: true,
     message: "Current war intel placeholder loaded.",
