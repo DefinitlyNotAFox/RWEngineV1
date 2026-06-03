@@ -585,6 +585,50 @@ function renderCurrentWarIntel(rows, war) {
   currentWarTableBody.innerHTML = rows
     .map(row => {
       const memberUrl = `https://www.torn.com/profiles.php?XID=${encodeURIComponent(row.playerId)}`;
+      const roleSymbol = getFactionRoleSymbol(row.position);
+
+      return `
+        <tr>
+          <td>
+            <a class="member-link" href="${memberUrl}" target="_blank" rel="noopener noreferrer">
+              ${roleSymbol}${escapeHtml(row.playerName)} [${escapeHtml(row.playerId)}]
+            </a>
+          </td>
+          <td>${row.level ? formatNumber(row.level) : "-"}</td>
+          <td>${formatNumber(row.warsSeen || 0)}</td>
+          <td>${formatNumber(row.hits || 0)}</td>
+          <td>${formatNumber(row.avgHitsPerWar || 0, 2)}</td>
+          <td>${formatNumber(row.score || 0, 2)}</td>
+          <td>${formatNumber(row.avgScorePerHit || 0, 2)}</td>
+          <td>${formatNumber(row.threatScore || 0, 2)}</td>
+          <td>${escapeHtml(row.tag || "-")}</td>
+        </tr>
+      `;
+    })
+    .join("");
+}
+
+function getFactionRoleSymbol(position) {
+  const text = String(position || "").toLowerCase();
+
+  if (text.includes("leader") && !text.includes("co")) {
+    return "♛ ";
+  }
+
+  if (
+    text.includes("co-leader") ||
+    text.includes("co leader") ||
+    text.includes("coleader")
+  ) {
+    return "♜ ";
+  }
+
+  return "";
+}
+
+  currentWarTableBody.innerHTML = rows
+    .map(row => {
+      const memberUrl = `https://www.torn.com/profiles.php?XID=${encodeURIComponent(row.playerId)}`;
 
       return `
         <tr>
