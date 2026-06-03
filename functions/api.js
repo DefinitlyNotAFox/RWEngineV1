@@ -1290,19 +1290,11 @@ async function handleGetCurrentWarIntel(env, request) {
       return Number(b.level || 0) - Number(a.level || 0);
     });
   }
-  
+    
   return json({
     success: true,
-    message: war.isActive
-      ? "Current war loaded."
-      : "No active war found. Showing latest ranked war.",
-    war,
-    memberFetch: {
-      success: memberResult.success,
-      message: memberResult.message || null,
-      count: rows.length
-    },
-    rows
+    totalWars: Object.keys(rankedWars).length,
+    sample: wars.slice(0, 10)
   });
 }
 
