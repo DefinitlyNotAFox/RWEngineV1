@@ -1161,6 +1161,23 @@ async function handleGetCurrentWarIntel(env, request) {
     war: null,
     rows: []
   });
+
+  const apiKey = await decryptText(
+  env.APP_SECRET,
+  currentUser.api_key_encrypted,
+  currentUser.api_key_iv
+  );
+  
+  const result = await fetchTornJson(
+    "https://api.torn.com/faction/?selections=rankedwars" +
+    "&key=" + encodeURIComponent(apiKey) +
+    "&timestamp=" + Date.now()
+  );
+  
+  return json({
+    success: true,
+    debug: result
+  });
 }
 
 async function getExistingImportedWar(env, factionId, rankId) {
