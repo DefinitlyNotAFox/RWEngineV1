@@ -64,9 +64,13 @@ const importProgressList = document.getElementById("importProgressList");
 const importAddedCount = document.getElementById("importAddedCount");
 const importAddedList = document.getElementById("importAddedList");
 
+const refreshCurrentWarButton = document.getElementById("refreshCurrentWarButton");
+const currentWarTableBody = document.getElementById("currentWarTableBody");
+
 init();
 
 function init() {
+  setupCurrentWar();
   setupAuthSwitch();
   setupAuthForms();
   setupTabs();
@@ -321,7 +325,7 @@ function showApp(user) {
   }
 
   loadDashboardData();
-  loadImportedWars();
+  loadedWars();
 }
 
 function showLoginError(message) {
@@ -528,6 +532,78 @@ function renderDashboardSummary(summary) {
   if (summaryNetScore) {
     summaryNetScore.textContent = formatNumber(summary.totalNetScore || 0, 2);
   }
+}
+
+/* =========================
+   CURRENT WAR
+========================= */
+
+function setupCurrentWar() {
+  if (!refreshCurrentWarButton) return;
+
+  refreshCurrentWarButton.addEventListener("click", () => {
+    loadCurrentWarIntel();
+  });
+}
+
+async function loadCurrentWarIntel() {
+  if (!currentWarTableBody) return;
+
+  currentWarTableBody.innerHTML = `
+    <tr>
+      <td colspan="8" class="empty-table">Loading current war intel...</td>
+    </tr>
+  `;
+
+  try {
+    const result = await api("getCurrentWarIntel");
+
+    renderCurrentWarIntel(result.rows || [], result.war || null);
+  } catch (error) {
+    currentWarTableBody.innerHTML = `
+      <tr>
+        <td colspan="8" class="empty-table">${escapeHtml(error.message)}</td>
+      </tr>
+    `;
+  }
+}
+
+function renderCurrentWarIntel(rows, war) {
+  if (!currentWarTableBody) return;
+
+  if (!rows.length) {
+    currentWarTableBody.innerHTML = `
+      <tr>
+        <td colspan="8" class="empty-table">
+          ${war ? "No opponent activity found yet." : "No active ranked war found."}
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  currentWarTableBody.innerHTML = rows
+    .map(row => {
+      const memberUrl = `https://www.torn.com/profiles.php?XID=${encodeURIComponent(row.playerId)}`;
+
+      return `
+        <tr>
+          <td>
+            <a class="member-link" href="${memberUrl}" target="_blank" rel="noopener noreferrer">
+              ${escapeHtml(row.playerName)} [${escapeHtml(row.playerId)}]
+            </a>
+          </td>
+          <td>${row.level ? formatNumber(row.level) : "-"}</td>
+          <td>${formatNumber(row.hits)}</td>
+          <td>${formatNumber(row.score, 2)}</td>
+          <td>${formatNumber(row.avgScorePerHit, 2)}</td>
+          <td>${escapeHtml(row.activity || "-")}</td>
+          <td>${formatNumber(row.wantedScore, 2)}</td>
+          <td>${escapeHtml(row.tag)}</td>
+        </tr>
+      `;
+    })
+    .join("");
 }
 
 /* =========================
