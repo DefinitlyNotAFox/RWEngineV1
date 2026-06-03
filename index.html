@@ -114,6 +114,10 @@
             Dashboard
           </button>
 
+          <button class="nav-btn" data-tab="currentWar" type="button">
+            Current War
+          </button>
+          
           <button class="nav-btn" data-tab="import" type="button">
             Import
           </button>
@@ -305,6 +309,48 @@
           </section>
         </section>
 
+        <!-- =========================
+         CURRENT WAR TAB
+         ========================= -->
+
+        <section id="currentWarTab" class="tab-panel">
+          <div class="tab-header">
+            <div>
+              <h1>Current War</h1>
+              <p>Live opponent wanted list. No data is saved.</p>
+            </div>
+        
+            <button id="refreshCurrentWarButton" class="primary-btn" type="button">
+              Refresh Intel
+            </button>
+          </div>
+        
+          <section class="table-card">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Player</th>
+                    <th>Level</th>
+                    <th>Hits</th>
+                    <th>Score</th>
+                    <th>Avg / Hit</th>
+                    <th>Activity</th>
+                    <th>Wanted Score</th>
+                    <th>Tag</th>
+                  </tr>
+                </thead>
+        
+                <tbody id="currentWarTableBody">
+                  <tr>
+                    <td colspan="8" class="empty-table">No current war intel loaded.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+        
         <!-- =========================
              IMPORT TAB
              ========================= -->
