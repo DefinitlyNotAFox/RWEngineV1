@@ -77,6 +77,10 @@ export async function onRequest(context) {
       return await handleApplyChainBonusAdjustment(env, request, body);
     }
 
+    if (action === "getCurrentWarIntel") {
+      return await handleGetCurrentWarIntel(env, request);
+    }
+
     return json(
       {
         success: false,
@@ -1065,6 +1069,38 @@ async function handleApplyChainBonusAdjustment(env, request, body) {
       },
       400
     );
+  }
+
+    /* =========================
+     CURRENT WAR LIVE INTEL
+  ========================= */
+  
+  async function handleGetCurrentWarIntel(...) {
+   ...
+  }
+  
+  async function fetchCurrentRankedWar(...) {
+   ...
+  }
+  
+  function normalizeCurrentRankedWar(...) {
+   ...
+  }
+  
+  async function fetchFactionBasicMembers(...) {
+   ...
+  }
+  
+  function buildCurrentWarWantedRows(...) {
+   ...
+  }
+  
+  function calculateCurrentWarWantedScore(...) {
+   ...
+  }
+  
+  function getCurrentWarWantedTag(...) {
+   ...
   }
 
   const war = await env.DB.prepare(
