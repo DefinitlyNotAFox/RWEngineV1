@@ -1369,6 +1369,61 @@ async function handleSaveOpponentReportIds(env, request, body) {
   });
 }
 
+async function fetchFactionBasicMembers(apiKey, factionId) {
+  const result = await fetchTornJson(
+    "https://api.torn.com/faction/" +
+      encodeURIComponent(factionId) +
+      "?selections=basic" +
+      "&key=" +
+      encodeURIComponent(apiKey) +
+      "&timestamp=" +
+      Date.now()
+  );
+
+  if (!result.success) {
+    return {};
+  }
+
+  const membersRaw =
+    result.data.members ||
+    result.data.member ||
+    {};
+
+  const members = {};
+
+  for (const [id, member] of normalizeMemberEntries(membersRaw)) {
+    const playerId =
+      Number(id) ||
+      Number(member.id) ||
+      Number(member.user_id) ||
+      Number(member.player_id) ||
+      Number(member.playerId);
+
+    if (!playerId) continue;
+
+    const lastAction =
+      member.last_action ||
+      member.lastAction ||
+      {};
+
+    members[String(playerId)] = {
+      playerId,
+      playerName:
+        pickString(member, ["name", "player_name", "playerName"]) ||
+        `Player ${playerId}`,
+      level:
+        pickNumber(member, ["level"]) ||
+        null,
+      activity:
+        pickString(lastAction, ["relative", "status"]) ||
+        pickString(member, ["status", "activity"]) ||
+        "-"
+    };
+  }
+
+  return members;
+}
+
 async function getCurrentWarIntelCore(apiKey, currentUser) {
   const ownFactionId = Number(currentUser.faction_id);
 
