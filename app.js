@@ -325,7 +325,7 @@ function showApp(user) {
   }
 
   loadDashboardData();
-  loadedWars();
+  loadImportedWars();
 }
 
 function showLoginError(message) {
@@ -624,31 +624,6 @@ function getFactionRoleSymbol(position) {
   }
 
   return "";
-}
-
-  currentWarTableBody.innerHTML = rows
-    .map(row => {
-      const memberUrl = `https://www.torn.com/profiles.php?XID=${encodeURIComponent(row.playerId)}`;
-
-      return `
-        <tr>
-          <td>
-            <a class="member-link" href="${memberUrl}" target="_blank" rel="noopener noreferrer">
-              ${escapeHtml(row.playerName)} [${escapeHtml(row.playerId)}]
-            </a>
-          </td>
-          <td>${row.level ? formatNumber(row.level) : "-"}</td>
-          <td>${formatNumber(row.warsSeen || 0)}</td>
-          <td>${formatNumber(row.hits || 0)}</td>
-          <td>${formatNumber(row.score || 0, 2)}</td>
-          <td>${formatNumber(row.avgScorePerHit || 0, 2)}</td>
-          <td>${escapeHtml(row.activity || "-")}</td>
-          <td>${formatNumber(row.threatScore || 0, 2)}</td>
-          <td>${escapeHtml(row.tag || "-")}</td>
-        </tr>
-      `;
-    })
-    .join("");
 }
 
 /* =========================
