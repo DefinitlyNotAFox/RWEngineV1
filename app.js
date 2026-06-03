@@ -471,6 +471,7 @@ async function loadDashboardData() {
 }
 
 function renderDashboard(rows, summary) {
+  state.dashboardRows = rows || [];
   renderDashboardSummary(summary);
 
   if (!dashboardTableBody) return;
@@ -534,9 +535,12 @@ function renderDashboardSummary(summary) {
   }
 }
 
+
 /* =========================
-   CURRENT WAR
+   CURRENT WAR / MATCHUP
 ========================= */
+
+let matchupChart = null;
 
 function setupCurrentWar() {
   if (!refreshCurrentWarButton) return;
@@ -549,23 +553,366 @@ function setupCurrentWar() {
 async function loadCurrentWarIntel() {
   if (!currentWarTableBody) return;
 
-  currentWarTableBody.innerHTML = `
-    <tr>
-      <td colspan="8" class="empty-table">Loading current war intel...</td>
-    </tr>
-  `;
+  setMatchupLoadingState("Loading matchup overview...");
 
   try {
     const result = await api("getOpponentThreatList");
 
-    renderCurrentWarIntel(result.rows || [], result.war || null);
+    let dashboardRows = state.dashboardRows || [];
+
+    try {
+      const dashboardResult = await api("getDashboardData", {
+        filters: {
+          fromWar: "ALL",
+          toWar: "ALL",
+          termedFilter: "ALL",
+          memberFilter: "ACTIVE",
+          search: ""
+        },
+        sortBy: "ImpactScore",
+        sortDirection: "DESC"
+      });
+
+      dashboardRows = dashboardResult.rows || dashboardRows;
+    } catch {
+      // Keep the matchup page usable even if the dashboard query fails.
+    }
+
+    hydrateMatchupResult(result, dashboardRows);
+    renderMatchupOverview(result);
   } catch (error) {
+    setMatchupLoadingState(error.message, true);
+  }
+}
+
+function setMatchupLoadingState(message, isError = false) {
+  const status = document.getElementById("matchupStatusText");
+
+  if (status) {
+    status.textContent = message;
+    status.classList.toggle("error", Boolean(isError));
+  }
+
+  if (currentWarTableBody) {
     currentWarTableBody.innerHTML = `
       <tr>
-        <td colspan="8" class="empty-table">${escapeHtml(error.message)}</td>
+        <td colspan="9" class="empty-table">${escapeHtml(message)}</td>
       </tr>
     `;
   }
+}
+
+
+function hydrateMatchupResult(result, dashboardRows) {
+  const war = result.war || {};
+  const opponentRows = result.rows || [];
+  const reportIds = result.reportIds || [];
+
+  if (!result.ownFaction) {
+    result.ownFaction = buildOwnFactionFromDashboard(war, dashboardRows || []);
+  }
+
+  if (!result.opponentFaction) {
+    result.opponentFaction = buildOpponentFactionFromRows(war, opponentRows, reportIds);
+  }
+
+  if (!result.winChance) {
+    result.winChance = calculateClientWinChance(result.ownFaction, result.opponentFaction);
+  }
+
+  if (!result.projection) {
+    result.projection = buildClientProjection(war, result.winChance);
+  }
+}
+
+function buildOwnFactionFromDashboard(war, dashboardRows) {
+  const rows = dashboardRows || [];
+  const activeRows = rows.filter(row => row["Is Member"] === "ACTIVE");
+  const sourceRows = activeRows.length ? activeRows : rows;
+
+  const activeMembers = sourceRows.length;
+  const historicalHits = sourceRows.reduce((sum, row) => sum + Number(row["Hits"] || 0), 0);
+  const historicalScore = sourceRows.reduce((sum, row) => sum + Number(row["Sum Score up"] || 0), 0);
+  const avgScorePerHit = historicalHits > 0 ? historicalScore / historicalHits : 0;
+  const topPlayerScore = sourceRows.reduce((max, row) => Math.max(max, Number(row["Sum Score up"] || 0)), 0);
+
+  const topPlayers = [...sourceRows]
+    .sort((a, b) => Number(b["ImpactScore"] || 0) - Number(a["ImpactScore"] || 0))
+    .slice(0, 5)
+    .map(row => ({
+      playerId: row["Player_ID"],
+      playerName: row["Members"],
+      score: Number(row["Sum Score up"] || 0),
+      hits: Number(row["Hits"] || 0),
+      position: ""
+    }));
+
+  return {
+    factionId: war.ownFactionId,
+    factionName: war.ownFactionName || "Your faction",
+    activeMembers,
+    avgLevel: 0,
+    historicalHits,
+    historicalScore,
+    avgScorePerHit,
+    topPlayerScore,
+    topPlayers
+  };
+}
+
+function buildOpponentFactionFromRows(war, rows, reportIds) {
+  const activeMembers = rows.length;
+  const historicalHits = rows.reduce((sum, row) => sum + Number(row.hits || 0), 0);
+  const historicalScore = rows.reduce((sum, row) => sum + Number(row.score || 0), 0);
+  const avgLevel = activeMembers > 0
+    ? rows.reduce((sum, row) => sum + Number(row.level || 0), 0) / activeMembers
+    : 0;
+  const avgScorePerHit = historicalHits > 0 ? historicalScore / historicalHits : 0;
+  const topPlayerScore = rows.reduce((max, row) => Math.max(max, Number(row.score || 0)), 0);
+
+  return {
+    factionId: war.opponentFactionId,
+    factionName: war.opponentFactionName || "Opponent",
+    activeMembers,
+    avgLevel,
+    historicalHits,
+    historicalScore,
+    avgScorePerHit,
+    topPlayerScore,
+    reports: (reportIds || []).length,
+    topPlayers: rows.slice(0, 5)
+  };
+}
+
+function calculateClientWinChance(ownFaction, opponentFaction) {
+  const ownStrength = calculateClientFactionStrength(ownFaction);
+  const opponentStrength = calculateClientFactionStrength(opponentFaction);
+  const total = ownStrength + opponentStrength;
+
+  let own = total > 0 ? Math.round((ownStrength / total) * 100) : 50;
+  own = Math.max(5, Math.min(95, own));
+
+  const gap = Math.abs(own - 50);
+
+  return {
+    own,
+    opponent: 100 - own,
+    confidence: gap >= 25 ? "High" : gap >= 12 ? "Medium" : "Low"
+  };
+}
+
+function calculateClientFactionStrength(faction) {
+  const members = Number(faction.activeMembers || 0);
+  const hits = Number(faction.historicalHits || 0);
+  const score = Number(faction.historicalScore || 0);
+  const avgLevel = Number(faction.avgLevel || 0);
+  const avgScorePerHit = Number(faction.avgScorePerHit || 0);
+  const topPlayerScore = Number(faction.topPlayerScore || 0);
+
+  return (
+    members * 30 +
+    Math.sqrt(Math.max(0, hits)) * 45 +
+    Math.sqrt(Math.max(0, score)) * 35 +
+    avgLevel * 12 +
+    avgScorePerHit * 180 +
+    Math.sqrt(Math.max(0, topPlayerScore)) * 30
+  );
+}
+
+function buildClientProjection(war, winChance) {
+  const target = Number(war.target || 2400) || 2400;
+  const ownFinish = Math.round(target * (0.82 + Number(winChance.own || 50) / 125));
+  const opponentFinish = Math.round(target * (0.82 + Number(winChance.opponent || 50) / 125));
+
+  return [
+    { stage: "Start", own: 0, opponent: 0 },
+    { stage: "25%", own: Math.round(ownFinish * 0.24), opponent: Math.round(opponentFinish * 0.24) },
+    { stage: "50%", own: Math.round(ownFinish * 0.50), opponent: Math.round(opponentFinish * 0.50) },
+    { stage: "75%", own: Math.round(ownFinish * 0.77), opponent: Math.round(opponentFinish * 0.77) },
+    { stage: "Finish", own: ownFinish, opponent: opponentFinish }
+  ];
+}
+
+function renderMatchupOverview(result) {
+  const war = result.war || null;
+  const ownFaction = result.ownFaction || null;
+  const opponentFaction = result.opponentFaction || null;
+  const winChance = result.winChance || { own: 50, opponent: 50, confidence: "Low" };
+  const projection = result.projection || [];
+  const rows = result.rows || [];
+
+  if (!war || !ownFaction || !opponentFaction) {
+    setMatchupLoadingState("No matchup data found.");
+    return;
+  }
+
+  setText("matchupStatusText", result.message || "Matchup overview loaded.");
+  setText("matchupWarId", `Ranked War #${war.warId || "-"}`);
+  setText("matchupStatusBadge", war.isActive ? "ONGOING" : "UPCOMING");
+  setText("matchupOwnName", ownFaction.factionName || "Your faction");
+  setText("matchupOpponentName", opponentFaction.factionName || "Opponent");
+  setText("matchupOwnTag", `[${shortFactionTag(ownFaction.factionName)}]`);
+  setText("matchupOpponentTag", `[${shortFactionTag(opponentFaction.factionName)}]`);
+
+  setText("matchupOwnMembers", formatNumber(ownFaction.activeMembers || 0));
+  setText("matchupOpponentMembers", formatNumber(opponentFaction.activeMembers || 0));
+  setText("matchupOwnAvgLevel", formatNumber(ownFaction.avgLevel || 0, 1));
+  setText("matchupOpponentAvgLevel", formatNumber(opponentFaction.avgLevel || 0, 1));
+  setText("matchupOwnRank", "#?");
+  setText("matchupOpponentRank", "#?");
+
+  setText("matchupOwnChance", `${formatNumber(winChance.own || 0)}%`);
+  setText("matchupOpponentChance", `${formatNumber(winChance.opponent || 0)}%`);
+  setText("matchupConfidence", `Confidence: ${winChance.confidence || "Low"}`);
+
+  const ownBar = document.getElementById("matchupChanceOwnBar");
+  const opponentBar = document.getElementById("matchupChanceOpponentBar");
+
+  if (ownBar) {
+    ownBar.style.width = `${Math.max(0, Math.min(100, Number(winChance.own || 0)))}%`;
+  }
+
+  if (opponentBar) {
+    opponentBar.style.width = `${Math.max(0, Math.min(100, Number(winChance.opponent || 0)))}%`;
+  }
+
+  const hero = document.getElementById("matchupHero");
+
+  if (hero) {
+    hero.style.setProperty("--own-share", `${Math.max(10, Math.min(90, Number(winChance.own || 50)))}%`);
+  }
+
+  renderTopPlayers("topAssetsList", ownFaction.topPlayers || [], "own");
+  renderTopPlayers("topThreatsList", opponentFaction.topPlayers || [], "opponent");
+  renderTeamComparison(ownFaction, opponentFaction);
+  renderWarInformation(war, result.reportIds || []);
+  renderProjectionChart(projection, ownFaction.factionName, opponentFaction.factionName);
+  renderCurrentWarIntel(rows, war);
+}
+
+function renderTopPlayers(elementId, players, side) {
+  const element = document.getElementById(elementId);
+  if (!element) return;
+
+  if (!players.length) {
+    element.innerHTML = `<div class="mini-empty">No player data.</div>`;
+    return;
+  }
+
+  element.innerHTML = players.slice(0, 5).map((player, index) => {
+    const memberUrl = `https://www.torn.com/profiles.php?XID=${encodeURIComponent(player.playerId)}`;
+    const symbol = getFactionRoleSymbol(player.position);
+
+    return `
+      <a class="star-player ${side}" href="${memberUrl}" target="_blank" rel="noopener noreferrer">
+        <span class="star-rank">${index + 1}</span>
+        <span class="star-name">${symbol}${escapeHtml(player.playerName)}</span>
+        <strong>${formatNumber(player.score || 0, 0)}</strong>
+      </a>
+    `;
+  }).join("");
+}
+
+function renderTeamComparison(ownFaction, opponentFaction) {
+  const body = document.getElementById("teamComparisonBody");
+  if (!body) return;
+
+  const rows = [
+    ["Active Members", ownFaction.activeMembers, opponentFaction.activeMembers, 0],
+    ["Average Level", ownFaction.avgLevel, opponentFaction.avgLevel, 1],
+    ["Historical Hits", ownFaction.historicalHits, opponentFaction.historicalHits, 0],
+    ["Historical Score", ownFaction.historicalScore, opponentFaction.historicalScore, 0],
+    ["Avg Score / Hit", ownFaction.avgScorePerHit, opponentFaction.avgScorePerHit, 2],
+    ["Top Player Score", ownFaction.topPlayerScore, opponentFaction.topPlayerScore, 0]
+  ];
+
+  body.innerHTML = rows.map(([label, ownValue, opponentValue, decimals]) => `
+    <tr>
+      <td class="compare-own">${formatNumber(ownValue || 0, decimals)}</td>
+      <td class="compare-label">${escapeHtml(label)}</td>
+      <td class="compare-opponent">${formatNumber(opponentValue || 0, decimals)}</td>
+    </tr>
+  `).join("");
+}
+
+function renderWarInformation(war, reportIds) {
+  const body = document.getElementById("warInfoBody");
+  if (!body) return;
+
+  const rows = [
+    ["War ID", war.warId || "-"],
+    ["Status", war.isActive ? "Ongoing" : "Upcoming"],
+    ["Target", formatNumber(war.target || 0)],
+    ["Own Score", formatNumber(war.ownScore || 0)],
+    ["Opponent Score", formatNumber(war.opponentScore || 0)],
+    ["Historical Reports", formatNumber((reportIds || []).length)],
+    ["Starts", war.startTimestamp ? formatUnixTimestamp(war.startTimestamp) : "-"]
+  ];
+
+  body.innerHTML = rows.map(([label, value]) => `
+    <tr>
+      <td>${escapeHtml(label)}</td>
+      <td>${escapeHtml(value)}</td>
+    </tr>
+  `).join("");
+}
+
+function renderProjectionChart(projection, ownName, opponentName) {
+  const canvas = document.getElementById("matchupProjectionChart");
+  if (!canvas || typeof Chart === "undefined") return;
+
+  if (matchupChart) {
+    matchupChart.destroy();
+  }
+
+  matchupChart = new Chart(canvas, {
+    type: "line",
+    data: {
+      labels: projection.map(point => point.stage),
+      datasets: [
+        {
+          label: ownName || "Your faction",
+          data: projection.map(point => point.own),
+          tension: 0.35,
+          borderColor: "#b83a3a",
+          backgroundColor: "rgba(184,58,58,0.12)",
+          borderWidth: 2,
+          pointRadius: 3
+        },
+        {
+          label: opponentName || "Opponent",
+          data: projection.map(point => point.opponent),
+          tension: 0.35,
+          borderColor: "#3b82f6",
+          backgroundColor: "rgba(59,130,246,0.12)",
+          borderWidth: 2,
+          pointRadius: 3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: {
+            color: "#d7d7d7",
+            boxWidth: 12
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: "#a5a5a5" },
+          grid: { color: "rgba(255,255,255,0.06)" }
+        },
+        y: {
+          ticks: { color: "#a5a5a5" },
+          grid: { color: "rgba(255,255,255,0.06)" }
+        }
+      }
+    }
+  });
 }
 
 function renderCurrentWarIntel(rows, war) {
@@ -575,7 +922,7 @@ function renderCurrentWarIntel(rows, war) {
     currentWarTableBody.innerHTML = `
       <tr>
         <td colspan="9" class="empty-table">
-          No opponent threat data found.
+          No opponent roster analysis found.
         </td>
       </tr>
     `;
@@ -583,12 +930,13 @@ function renderCurrentWarIntel(rows, war) {
   }
 
   currentWarTableBody.innerHTML = rows
-    .map(row => {
+    .map((row, index) => {
       const memberUrl = `https://www.torn.com/profiles.php?XID=${encodeURIComponent(row.playerId)}`;
       const roleSymbol = getFactionRoleSymbol(row.position);
 
       return `
         <tr>
+          <td>${index + 1}</td>
           <td>
             <a class="member-link" href="${memberUrl}" target="_blank" rel="noopener noreferrer">
               ${roleSymbol}${escapeHtml(row.playerName)} [${escapeHtml(row.playerId)}]
@@ -598,10 +946,9 @@ function renderCurrentWarIntel(rows, war) {
           <td>${formatNumber(row.warsSeen || 0)}</td>
           <td>${formatNumber(row.hits || 0)}</td>
           <td>${formatNumber(row.avgHitsPerWar || 0, 2)}</td>
-          <td>${formatNumber(row.score || 0, 2)}</td>
-          <td>${formatNumber(row.avgScorePerHit || 0, 2)}</td>
-          <td>${formatNumber(row.threatScore || 0, 2)}</td>
-          <td>${escapeHtml(row.tag || "-")}</td>
+          <td>${formatNumber(row.score || 0, 0)}</td>
+          <td>${formatNumber(row.threatScore || 0, 1)}</td>
+          <td><span class="threat-pill threat-${slugify(row.tag || "low")}">${escapeHtml(row.tag || "-")}</span></td>
         </tr>
       `;
     })
@@ -625,6 +972,28 @@ function getFactionRoleSymbol(position) {
 
   return "";
 }
+
+function setText(id, value) {
+  const element = document.getElementById(id);
+  if (element) {
+    element.textContent = value;
+  }
+}
+
+function shortFactionTag(name) {
+  return String(name || "")
+    .replace(/[^A-Za-z0-9]/g, "")
+    .slice(0, 6)
+    .toUpperCase() || "TAG";
+}
+
+function slugify(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
 
 /* =========================
    IMPORT
