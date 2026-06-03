@@ -556,7 +556,7 @@ async function loadCurrentWarIntel() {
   `;
 
   try {
-    const result = await api("getCurrentWarIntel");
+    const result = await api("getOpponentThreatList");
 
     renderCurrentWarIntel(result.rows || [], result.war || null);
   } catch (error) {
@@ -574,8 +574,8 @@ function renderCurrentWarIntel(rows, war) {
   if (!rows.length) {
     currentWarTableBody.innerHTML = `
       <tr>
-        <td colspan="8" class="empty-table">
-          ${war ? "No opponent activity found yet." : "No active ranked war found."}
+        <td colspan="9" class="empty-table">
+          No opponent threat data found.
         </td>
       </tr>
     `;
@@ -594,12 +594,13 @@ function renderCurrentWarIntel(rows, war) {
             </a>
           </td>
           <td>${row.level ? formatNumber(row.level) : "-"}</td>
-          <td>${formatNumber(row.hits)}</td>
-          <td>${formatNumber(row.score, 2)}</td>
-          <td>${formatNumber(row.avgScorePerHit, 2)}</td>
+          <td>${formatNumber(row.warsSeen || 0)}</td>
+          <td>${formatNumber(row.hits || 0)}</td>
+          <td>${formatNumber(row.score || 0, 2)}</td>
+          <td>${formatNumber(row.avgScorePerHit || 0, 2)}</td>
           <td>${escapeHtml(row.activity || "-")}</td>
-          <td>${formatNumber(row.wantedScore, 2)}</td>
-          <td>${escapeHtml(row.tag)}</td>
+          <td>${formatNumber(row.threatScore || 0, 2)}</td>
+          <td>${escapeHtml(row.tag || "-")}</td>
         </tr>
       `;
     })
