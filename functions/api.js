@@ -3893,8 +3893,8 @@ function calculateThreatScore(row) {
 function getThreatTag(score, activity) {
   const text = String(activity || "").toLowerCase();
 
-  if (score >= 300) return "Priority";
-  if (score >= 150) return "Watch";
-  if (text.includes("minute") || text.includes("online")) return "Active";
+  if (score >= 300) return "Critical";
+  if (score >= 150) return "High";
+  if (text.includes("minute") || text.includes("online")) return "Medium";
   return "Low";
 }
