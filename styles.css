@@ -2024,3 +2024,141 @@ body[data-active-tab="currentWar"] .content {
     justify-items: start;
   }
 }
+
+
+/* =========================
+   CURRENT WAR DENSE V2
+   - shorter hero
+   - banners above names
+   - only member count in hero
+   - shorter graph and tighter lists
+========================= */
+
+.current-war-dense .matchup-hero {
+  min-height: 182px;
+  grid-template-columns: minmax(250px, 1fr) 260px minmax(250px, 1fr);
+  padding: 18px 22px 12px;
+}
+
+.current-war-dense .matchup-side {
+  align-content: center;
+  gap: 8px;
+}
+
+.current-war-dense .faction-banner {
+  width: 220px;
+  height: 55px;
+  border-color: rgba(255,255,255,0.18);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.24);
+}
+
+.current-war-dense .matchup-own .faction-banner {
+  justify-self: end;
+}
+
+.current-war-dense .faction-title-block h1 {
+  font-size: 22px;
+}
+
+.current-war-dense .side-label {
+  font-size: 9px;
+}
+
+.current-war-dense .one-stat-strip {
+  display: flex;
+  margin-top: 0;
+}
+
+.current-war-dense .one-stat-strip div {
+  padding: 0;
+  border: 0;
+}
+
+.current-war-dense .one-stat-strip strong {
+  font-size: 17px;
+}
+
+.current-war-dense .one-stat-strip span {
+  font-size: 10px;
+}
+
+.current-war-dense .vs-mark {
+  font-size: 38px;
+}
+
+.current-war-dense .dense-win-card {
+  width: 250px;
+  padding: 10px 13px;
+}
+
+.current-war-dense .dense-win-card h2 {
+  margin-bottom: 6px;
+}
+
+.current-war-dense .dense-win-card .win-numbers strong {
+  font-size: 25px;
+}
+
+.current-war-dense .win-bar {
+  height: 8px;
+  margin-top: 8px;
+}
+
+.current-war-dense .dense-war-strip {
+  top: 8px;
+}
+
+.current-war-dense .dense-matchup-grid {
+  grid-template-columns: 250px 1fr 250px;
+  gap: 7px;
+  padding: 7px;
+}
+
+.current-war-dense .compact-chart-wrap {
+  height: 150px;
+}
+
+.current-war-dense .top-player-list {
+  display: grid;
+  gap: 0;
+}
+
+.current-war-dense .top-player-row {
+  min-height: 23px;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.055);
+}
+
+.current-war-dense .match-card {
+  padding: 8px 10px;
+}
+
+.current-war-dense .dense-roster-split {
+  gap: 7px;
+  padding: 0 7px 7px;
+}
+
+.current-war-dense .dense-table-wrap {
+  max-height: 390px;
+}
+
+.current-war-dense th,
+.current-war-dense td {
+  padding: 3px 6px;
+}
+
+.current-war-dense .threat-pill.priority,
+.current-war-dense .threat-pill.very-high,
+.current-war-dense .threat-pill.high,
+.current-war-dense .threat-pill.medium,
+.current-war-dense .threat-pill.low {
+  min-width: 62px;
+  text-align: center;
+}
+
+@media (min-width: 1500px) {
+  body[data-active-tab="currentWar"] .main-layout,
+  body[data-active-tab="currentWar"] .content {
+    max-width: 1500px;
+  }
+}
