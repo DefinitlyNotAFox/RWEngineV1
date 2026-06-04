@@ -1015,8 +1015,21 @@ function applyFactionIdentity(side, summary, fallbackColor) {
 
   banner.crossOrigin = "anonymous";
   banner.onload = () => {
+    banner.closest(".faction-banner")?.classList.remove("empty-banner");
     const extracted = extractImageAccentColor(banner);
-    if (extracted) setFactionColor(side, extracted);
+    if (extracted) {
+      setFactionColor(side, extracted);
+      if (state.matchupChart) {
+        const styles = getComputedStyle(document.documentElement);
+        const opponentColor = styles.getPropertyValue("--opponent-primary").trim() || "#3b82f6";
+        const ownColor = styles.getPropertyValue("--own-primary").trim() || "#ff4545";
+        state.matchupChart.data.datasets[0].borderColor = opponentColor;
+        state.matchupChart.data.datasets[0].backgroundColor = hexToRgba(opponentColor, 0.16);
+        state.matchupChart.data.datasets[1].borderColor = ownColor;
+        state.matchupChart.data.datasets[1].backgroundColor = hexToRgba(ownColor, 0.16);
+        state.matchupChart.update("none");
+      }
+    }
   };
   banner.onerror = () => {
     banner.closest(".faction-banner")?.classList.add("empty-banner");
