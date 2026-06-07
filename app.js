@@ -626,7 +626,6 @@ function renderMatchupOverview(result) {
 
   renderMatchupHero(war, ownSummary, opponentSummary, win);
   renderTopLists(ownRows, opponentRows);
-  renderWarInformation(war, result.reportIds || []);
   renderProjectionChart(projection, ownSummary.name, opponentSummary.name);
   renderOpponentRoster(opponentRows);
   renderOwnRoster(ownRows);
@@ -762,11 +761,7 @@ function renderMatchupHero(war, own, opponent, win) {
   setText("opponentMembers", formatNumber(opponent.activeMembers));
   setText("ownMembers", formatNumber(own.activeMembers));
 
-  setText("opponentAvgLevel", opponent.avgLevel ? formatNumber(opponent.avgLevel || 0, 1) : "-");
-  setText("ownAvgLevel", own.avgLevel ? formatNumber(own.avgLevel, 1) : "-");
 
-  setText("opponentScoreNow", formatNumber(war.opponentScore || 0));
-  setText("ownScoreNow", formatNumber(war.ownScore || 0));
 
   setText("opponentChance", `${win.opponentChance}%`);
   setText("ownChance", `${win.ownChance}%`);
@@ -832,30 +827,6 @@ function renderTopPlayerList(elementId, rows, color, valueGetter) {
         </div>
       `;
     })
-    .join("");
-}
-
-function renderWarInformation(war, reportIds) {
-  const el = document.getElementById("warInformation");
-  if (!el) return;
-
-  const rows = [
-    ["War ID", war.warId || "-"],
-    ["Status", war.isActive ? "Ongoing" : "Pending"],
-    ["Start", war.startTimestamp ? formatUnixTimestamp(war.startTimestamp) : "-"],
-    ["Target", war.target ? formatNumber(war.target) : "-"],
-    ["Own Score", formatNumber(war.ownScore || 0)],
-    ["Opponent Score", formatNumber(war.opponentScore || 0)],
-    ["Known reports", formatNumber(reportIds.length || 0)]
-  ];
-
-  el.innerHTML = rows
-    .map(([label, value]) => `
-      <div class="war-info-row">
-        <span>${escapeHtml(label)}</span>
-        <strong>${escapeHtml(value)}</strong>
-      </div>
-    `)
     .join("");
 }
 
@@ -1174,22 +1145,6 @@ function getThreatClass(tag) {
   if (text.includes("watch")) return "medium";
   if (text.includes("active")) return "medium";
   return "low";
-}
-
-function createFactionTag(name) {
-  const clean = String(name || "")
-    .replace(/[^a-zA-Z0-9 ]/g, "")
-    .trim();
-
-  if (!clean) return "TAG";
-
-  const words = clean.split(/\s+/).filter(Boolean);
-
-  if (words.length >= 2) {
-    return words.map(word => word[0]).join("").slice(0, 5).toUpperCase();
-  }
-
-  return clean.slice(0, 5).toUpperCase();
 }
 
 function formatComparisonValue(value) {
