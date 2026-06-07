@@ -568,32 +568,60 @@ body[data-active-tab="currentWar"] .content {
 }
 
 /* =========================
-   MATCHUP OVERVIEW
+   CURRENT WAR
+   Clean compact layout only
 ========================= */
 
+:root {
+  --opponent-primary: #4ee34e;
+  --opponent-soft: rgba(78, 227, 78, 0.16);
+  --opponent-dark: rgba(78, 227, 78, 0.28);
+  --own-primary: #2fa4ff;
+  --own-soft: rgba(47, 164, 255, 0.16);
+  --own-dark: rgba(47, 164, 255, 0.28);
+}
+
+body[data-active-tab="currentWar"] .main-layout {
+  max-width: 100%;
+  padding: 0 8px 10px;
+  grid-template-columns: 1fr;
+}
+
+body[data-active-tab="currentWar"] .content {
+  width: 100%;
+  max-width: 100%;
+}
+
 #currentWarTab {
-  padding-bottom: 28px;
+  padding-bottom: 8px;
+}
+
+.current-war-dense {
+  display: grid;
+  gap: 8px;
 }
 
 .matchup-hero {
   --opponent-share: 50%;
   position: relative;
-  min-height: 360px;
+  height: 150px;
+  min-height: 150px;
   overflow: hidden;
   isolation: isolate;
   display: grid;
-  grid-template-columns: minmax(320px, 1fr) 360px minmax(320px, 1fr);
+  grid-template-columns: minmax(220px, 1fr) 260px minmax(220px, 1fr);
   align-items: center;
-  padding: 28px 36px;
-  border-bottom: 1px solid var(--border);
+  gap: 14px;
+  padding: 8px 18px;
+  border: 1px solid var(--border-soft);
+  border-radius: 0 0 var(--radius) var(--radius);
   background:
-    linear-gradient(
-      112deg,
-      rgba(5, 22, 42, 0.98) 0%,
-      rgba(5, 22, 42, 0.94) var(--opponent-share),
-      rgba(55, 12, 12, 0.96) var(--opponent-share),
-      rgba(55, 12, 12, 0.98) 100%
-    );
+    linear-gradient(105deg,
+      var(--opponent-dark) 0%,
+      rgba(5, 8, 10, 0.95) 42%,
+      rgba(5, 8, 10, 0.95) 58%,
+      var(--own-dark) 100%),
+    var(--bg);
 }
 
 .matchup-hero::before {
@@ -601,337 +629,265 @@ body[data-active-tab="currentWar"] .content {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.18), transparent 34%),
-    radial-gradient(circle at 80% 40%, rgba(255, 69, 69, 0.20), transparent 36%),
-    radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px);
-  background-size: auto, auto, 18px 18px;
-  opacity: 0.75;
+    radial-gradient(circle at 15% 50%, var(--opponent-soft), transparent 32%),
+    radial-gradient(circle at 85% 50%, var(--own-soft), transparent 32%),
+    radial-gradient(circle, rgba(255,255,255,0.045) 1px, transparent 1px);
+  background-size: auto, auto, 16px 16px;
   z-index: -2;
 }
 
 .matchup-hero::after {
   content: "";
   position: absolute;
-  top: -18%;
-  bottom: -18%;
-  left: calc(var(--opponent-share) - 36px);
-  width: 78px;
+  top: -25%;
+  bottom: -25%;
+  left: calc(var(--opponent-share) - 24px);
+  width: 52px;
   transform: skewX(-18deg);
-  background:
-    linear-gradient(
-      90deg,
-      rgba(59, 130, 246, 0.35),
-      rgba(0,0,0,0.75) 40%,
-      rgba(255, 69, 69, 0.42)
-    );
+  background: linear-gradient(90deg, var(--opponent-soft), rgba(0,0,0,0.65), var(--own-soft));
   z-index: -1;
 }
 
 .matchup-bg {
-  position: absolute;
-  inset: 0;
-  opacity: 0.08;
-  pointer-events: none;
-}
-
-.matchup-bg-left {
-  background:
-    radial-gradient(circle at 15% 40%, transparent 0 9%, rgba(255,255,255,0.35) 10%, transparent 11%),
-    linear-gradient(135deg, rgba(59, 130, 246, 0.6), transparent 52%);
-}
-
-.matchup-bg-right {
-  background:
-    radial-gradient(circle at 84% 35%, transparent 0 9%, rgba(255,255,255,0.35) 10%, transparent 11%),
-    linear-gradient(225deg, rgba(255, 69, 69, 0.55), transparent 52%);
+  display: none;
 }
 
 .matchup-topline {
   position: absolute;
-  top: 26px;
+  top: 8px;
   left: 50%;
   transform: translateX(-50%);
-  display: grid;
-  place-items: center;
-  gap: 8px;
   z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
   font-weight: 800;
+  white-space: nowrap;
 }
 
 .match-status {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  width: max-content;
-  padding: 4px 9px;
-  border-radius: 5px;
+  gap: 5px;
+  padding: 3px 7px;
   border: 1px solid var(--border);
-  background: rgba(0,0,0,0.36);
-  font-size: 11px;
+  border-radius: 5px;
+  background: rgba(0,0,0,0.45);
+  color: var(--text);
+  font-size: 10px;
   text-transform: uppercase;
 }
 
 .match-status::before {
   content: "";
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 999px;
 }
 
-.match-status.ongoing::before {
-  background: var(--good);
-}
+.match-status.ongoing::before { background: var(--good); }
+.match-status.pending::before { background: var(--warn); }
 
-.match-status.pending::before {
-  background: var(--warn);
+#warInfoInline {
+  color: var(--muted);
+  font-weight: 700;
 }
 
 .matchup-side {
-  display: grid;
-  gap: 18px;
   position: relative;
   z-index: 1;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  min-width: 0;
 }
 
 .matchup-opponent {
-  grid-template-columns: 88px 1fr;
-  justify-self: start;
+  justify-items: start;
 }
 
 .matchup-own {
-  grid-template-columns: 1fr 88px;
-  justify-self: end;
+  justify-items: end;
   text-align: right;
 }
 
-.faction-logo {
-  width: 74px;
-  height: 74px;
+.faction-banner {
+  width: 190px;
+  height: 44px;
   display: grid;
   place-items: center;
-  border-radius: 18px;
-  font-size: 36px;
-  font-weight: 950;
-  background: rgba(0,0,0,0.24);
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 5px;
+  background: rgba(0,0,0,0.20);
 }
 
-.faction-logo.blue {
-  color: var(--blue);
-  border: 2px solid rgba(59, 130, 246, 0.55);
-  box-shadow: 0 0 25px rgba(59, 130, 246, 0.16);
+.faction-banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.faction-logo.red {
-  color: var(--red);
-  border: 2px solid rgba(255, 69, 69, 0.55);
-  box-shadow: 0 0 25px rgba(255, 69, 69, 0.16);
+.faction-banner.empty-banner {
+  display: none;
+}
+
+.faction-title-block h1 {
+  margin: 1px 0 0;
+  font-size: 22px;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
 }
 
 .side-label {
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 900;
-  text-transform: uppercase;
   letter-spacing: 0.08em;
-  margin-bottom: 6px;
-}
-
-.matchup-side h1 {
-  margin: 0;
-  font-size: 33px;
-  line-height: 1.05;
-  letter-spacing: -0.04em;
-}
-
-.faction-tag {
-  margin-top: 8px;
-  font-size: 16px;
-  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .faction-stat-strip {
-  grid-column: 1 / -1;
   display: flex;
-  align-items: center;
-  gap: 18px;
-  margin-top: 18px;
-}
-
-.matchup-own .faction-stat-strip {
-  justify-content: flex-end;
+  gap: 10px;
 }
 
 .faction-stat-strip div {
-  min-width: 84px;
-  padding-right: 18px;
-  border-right: 1px solid rgba(255,255,255,0.18);
-}
-
-.faction-stat-strip div:last-child {
-  border-right: 0;
-  padding-right: 0;
+  display: grid;
+  gap: 1px;
 }
 
 .faction-stat-strip strong {
-  display: block;
-  font-size: 22px;
-  margin-bottom: 4px;
+  font-size: 16px;
+  line-height: 1;
 }
 
 .faction-stat-strip span {
-  display: block;
-  font-size: 11px;
   color: var(--muted);
+  font-size: 10px;
 }
 
 .matchup-center {
+  align-self: center;
   display: grid;
-  place-items: center;
-  gap: 20px;
-  z-index: 2;
+  justify-items: center;
+  gap: 2px;
+  margin-top: 10px;
 }
 
 .vs-mark {
-  margin-top: 52px;
-  font-size: 62px;
-  font-weight: 950;
+  color: #fff;
+  font-size: 34px;
+  line-height: .85;
+  font-weight: 900;
   font-style: italic;
-  line-height: 1;
-  text-shadow:
-    0 2px 0 rgba(0,0,0,0.75),
-    0 0 25px rgba(255,255,255,0.45);
+  text-shadow: 0 3px 10px rgba(0,0,0,0.65);
 }
 
 .win-card {
-  width: 330px;
-  padding: 20px 22px;
-  text-align: center;
-  background: rgba(7, 10, 12, 0.76);
-  border: 1px solid rgba(255,255,255,0.20);
+  width: 230px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 18px 60px rgba(0,0,0,0.35);
-  backdrop-filter: blur(14px);
+  background: rgba(0,0,0,0.45);
+  box-shadow: 0 10px 26px rgba(0,0,0,0.24);
 }
 
 .win-card h2 {
-  margin: 0 0 14px;
-  font-size: 14px;
+  margin: 0 0 6px;
+  font-size: 10px;
+  text-align: center;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
+
+.win-card p { display: none; }
 
 .win-numbers {
   display: grid;
   grid-template-columns: 1fr 1px 1fr;
   align-items: center;
-  gap: 18px;
-}
-
-.win-numbers strong {
-  font-size: 42px;
-  line-height: 1;
+  gap: 10px;
 }
 
 .win-numbers span {
-  height: 46px;
-  background: rgba(255,255,255,0.16);
+  height: 30px;
+  background: var(--border);
 }
 
-.win-bar {
-  height: 9px;
-  display: flex;
-  overflow: hidden;
-  margin: 18px 0 16px;
-  background: rgba(255,255,255,0.09);
-  border-radius: 999px;
-}
-
-.win-bar-blue {
-  background: var(--blue);
-}
-
-.win-bar-red {
-  background: var(--red);
-}
-
-.confidence {
-  display: block;
-  color: #ffd84d;
-  text-transform: uppercase;
-  margin-bottom: 12px;
-}
-
-.win-card p {
-  margin: 0;
-  color: #d8d8d8;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.matchup-grid {
-  display: grid;
-  grid-template-columns: 300px minmax(0, 1fr) 300px;
-  gap: 14px;
-  padding: 14px 18px 0;
-}
-
-.matchup-lower-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
-  gap: 14px;
-  padding: 14px 18px 0;
-}
-
-.roster-split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  padding: 14px 18px 0;
-}
-
-.match-card {
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.03), transparent),
-    var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.match-card h2 {
-  margin: 0;
-  padding: 14px 16px;
-  font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 0.035em;
-  border-bottom: 1px solid var(--border-soft);
+.win-numbers strong {
+  font-size: 24px;
   text-align: center;
 }
 
+.win-bar {
+  height: 7px;
+  display: flex;
+  overflow: hidden;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+}
+
+.win-bar-opponent { height: 100%; background: var(--opponent-primary); }
+.win-bar-own { height: 100%; background: var(--own-primary); }
+
+.confidence {
+  display: block;
+  margin-top: 7px;
+  color: var(--warn);
+  font-size: 10px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.opponent-color-text { color: var(--opponent-primary) !important; }
+.own-color-text { color: var(--own-primary) !important; }
+
+.matchup-grid {
+  display: grid;
+  grid-template-columns: 250px 1fr 250px;
+  gap: 8px;
+  padding: 0 6px;
+}
+
+.match-card {
+  min-width: 0;
+  overflow: hidden;
+  padding: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.match-card h2 {
+  margin: 0 0 8px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 12px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
 .list-card {
-  min-height: 340px;
+  height: 180px;
 }
 
 .top-player-list {
   display: grid;
   gap: 0;
-  padding: 10px 16px 16px;
 }
 
 .top-player-row {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) auto;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
-  min-height: 44px;
+  min-height: 21px;
+  gap: 8px;
+  padding: 2px 0;
   border-bottom: 1px solid var(--border-soft);
-}
-
-.top-player-row:last-child {
-  border-bottom: 0;
-}
-
-.top-player-row span {
-  color: var(--muted);
+  font-size: 12px;
 }
 
 .top-player-row strong {
@@ -946,124 +902,83 @@ body[data-active-tab="currentWar"] .content {
 }
 
 .graph-match-card {
-  min-height: 340px;
+  height: 180px;
 }
 
 .match-chart-wrap {
-  height: 250px;
-  padding: 16px 18px 0;
+  height: 135px;
 }
 
-.match-card-note {
-  margin: 10px 18px 16px;
-  color: var(--muted);
-  font-size: 12px;
-  text-align: center;
+.match-chart-wrap canvas {
+  width: 100% !important;
+  height: 135px !important;
 }
 
-.comparison-table {
-  padding: 14px 18px 18px;
-}
-
-.comparison-header,
-.comparison-row {
+.roster-split {
   display: grid;
-  grid-template-columns: 1fr 1fr 34px 1fr;
-  align-items: center;
-  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 6px;
 }
 
-.comparison-header {
-  padding-bottom: 10px;
-  font-weight: 900;
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.comparison-header span:last-child {
-  text-align: right;
-}
-
-.comparison-row {
-  min-height: 34px;
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.comparison-row:last-child {
-  border-bottom: 0;
-}
-
-.comparison-row i {
-  text-align: center;
-  color: var(--muted);
-  font-style: normal;
-}
-
-.comparison-row strong:last-child {
-  text-align: right;
-}
-
-.war-info-list {
-  padding: 14px 18px 18px;
-}
-
-.war-info-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: 34px;
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.war-info-row:last-child {
-  border-bottom: 0;
-}
-
-.war-info-row span {
-  color: var(--muted);
-}
-
-.war-info-row strong {
-  text-align: right;
+.roster-card {
+  height: 315px;
+  padding: 8px 10px;
 }
 
 .roster-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border-soft);
+  margin-bottom: 6px;
 }
 
 .roster-card-header h2 {
-  padding: 0;
-  border: 0;
-  text-align: left;
+  margin: 0;
+  font-size: 12px;
+  text-transform: uppercase;
 }
 
 .matchup-table-wrap {
-  max-height: 390px;
+  max-height: 270px;
+  overflow: auto;
+}
+
+.roster-card table {
+  min-width: 640px;
+}
+
+.current-war-dense table {
+  font-size: 11px;
+}
+
+.current-war-dense th,
+.current-war-dense td {
+  padding: 3px 5px;
+  line-height: 1.1;
 }
 
 .current-war-actions {
   display: flex;
   justify-content: flex-end;
-  padding: 14px 18px 0;
+  padding: 0 6px;
 }
 
 .threat-pill {
   display: inline-flex;
   justify-content: center;
-  min-width: 74px;
-  padding: 3px 8px;
+  min-width: 62px;
+  padding: 2px 5px;
   border-radius: 5px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 900;
 }
 
+.threat-pill.critical,
+.threat-pill.priority,
 .threat-pill.very-high {
-  color: #ffd2d2;
-  background: rgba(255, 69, 69, 0.25);
+  color: #dcebff;
+  background: rgba(47, 128, 237, 0.32);
 }
 
 .threat-pill.high {
@@ -1079,6 +994,27 @@ body[data-active-tab="currentWar"] .content {
 .threat-pill.low {
   color: #bcd7ff;
   background: rgba(59, 130, 246, 0.18);
+}
+
+@media (max-width: 1100px) {
+  .matchup-hero,
+  .matchup-grid,
+  .roster-split {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .matchup-own {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .matchup-topline {
+    position: static;
+    transform: none;
+    grid-column: 1;
+    margin-bottom: 4px;
+  }
 }
 
 /* =========================
@@ -1754,411 +1690,5 @@ tbody tr:hover {
 
   .faction-stat-strip {
     flex-wrap: wrap;
-  }
-}
-/* =========================
-   CURRENT WAR DENSE REBUILD
-========================= */
-
-:root {
-  --opponent-primary: #3b82f6;
-  --opponent-soft: rgba(59, 130, 246, 0.22);
-  --opponent-dark: rgba(59, 130, 246, 0.42);
-  --own-primary: #ff4545;
-  --own-soft: rgba(255, 69, 69, 0.22);
-  --own-dark: rgba(255, 69, 69, 0.42);
-}
-
-body[data-active-tab="currentWar"] .main-layout {
-  max-width: 1500px;
-  padding: 0 8px 12px;
-}
-
-body[data-active-tab="currentWar"] .content {
-  max-width: 1500px;
-  margin: 0 auto;
-}
-
-#currentWarTab.current-war-dense {
-  padding-bottom: 12px;
-}
-
-.current-war-dense .matchup-hero {
-  min-height: 228px;
-  grid-template-columns: minmax(280px, 1fr) 300px minmax(280px, 1fr);
-  padding: 24px 26px 16px;
-  border-bottom: 1px solid var(--border);
-  background:
-    linear-gradient(
-      112deg,
-      var(--opponent-dark) 0%,
-      rgba(5, 8, 10, 0.94) 44%,
-      rgba(5, 8, 10, 0.94) 56%,
-      var(--own-dark) 100%
-    ),
-    var(--bg);
-}
-
-.current-war-dense .matchup-hero::before {
-  background:
-    radial-gradient(circle at 16% 42%, var(--opponent-soft), transparent 32%),
-    radial-gradient(circle at 84% 42%, var(--own-soft), transparent 32%),
-    radial-gradient(circle, rgba(255,255,255,0.045) 1px, transparent 1px);
-  background-size: auto, auto, 16px 16px;
-}
-
-.current-war-dense .matchup-hero::after {
-  left: calc(var(--opponent-share) - 32px);
-  width: 68px;
-  background:
-    linear-gradient(
-      90deg,
-      var(--opponent-soft),
-      rgba(0,0,0,0.72) 46%,
-      var(--own-soft)
-    );
-}
-
-.dense-war-strip {
-  top: 10px;
-  gap: 8px;
-  font-size: 11px;
-}
-
-#warInfoInline {
-  color: var(--muted);
-  font-weight: 700;
-}
-
-.current-war-dense .matchup-side {
-  gap: 12px;
-  min-width: 0;
-}
-
-.current-war-dense .matchup-own {
-  text-align: right;
-  justify-items: end;
-}
-
-.faction-title-block h1 {
-  margin: 2px 0 0;
-  font-size: 24px;
-  line-height: 1.05;
-  letter-spacing: -0.035em;
-}
-
-.current-war-dense .side-label {
-  font-size: 10px;
-  letter-spacing: 0.08em;
-}
-
-.faction-banner {
-  width: 190px;
-  height: 48px;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.28);
-}
-
-.faction-banner img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
-}
-
-.faction-banner.empty-banner {
-  display: none;
-}
-
-.dense-stat-strip {
-  margin-top: 4px;
-  grid-template-columns: repeat(3, minmax(68px, auto));
-  gap: 0;
-}
-
-.dense-stat-strip div {
-  padding: 0 12px;
-}
-
-.dense-stat-strip strong {
-  font-size: 18px;
-}
-
-.dense-stat-strip span {
-  font-size: 10px;
-}
-
-.dense-matchup-center {
-  gap: 6px;
-}
-
-.current-war-dense .vs-mark {
-  font-size: 44px;
-  line-height: 0.95;
-}
-
-.dense-win-card {
-  width: 260px;
-  padding: 12px 14px;
-}
-
-.dense-win-card h2 {
-  font-size: 11px;
-  margin-bottom: 8px;
-}
-
-.dense-win-card .win-numbers strong {
-  font-size: 28px;
-}
-
-.dense-win-card .confidence {
-  margin-top: 7px;
-  font-size: 11px;
-}
-
-.dense-win-card p {
-  display: none;
-}
-
-.opponent-color-text {
-  color: var(--opponent-primary) !important;
-}
-
-.own-color-text {
-  color: var(--own-primary) !important;
-}
-
-.win-bar-opponent {
-  background: var(--opponent-primary);
-  height: 100%;
-}
-
-.win-bar-own {
-  background: var(--own-primary);
-  height: 100%;
-}
-
-.dense-matchup-grid {
-  grid-template-columns: 250px 1fr 250px;
-  gap: 8px;
-  padding: 8px;
-}
-
-.current-war-dense .match-card {
-  padding: 10px;
-}
-
-.current-war-dense .match-card h2 {
-  margin: 0 0 8px;
-  font-size: 12px;
-}
-
-.compact-chart-wrap {
-  height: 180px;
-}
-
-.current-war-dense .top-player-row {
-  grid-template-columns: 20px minmax(0, 1fr) auto;
-  min-height: 25px;
-  padding: 4px 0;
-  font-size: 12px;
-}
-
-.current-war-dense .top-player-row strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.dense-roster-split {
-  gap: 8px;
-  padding: 0 8px 8px;
-}
-
-.current-war-dense .roster-card-header {
-  margin-bottom: 6px;
-}
-
-.current-war-dense .roster-card-header h2 {
-  font-size: 12px;
-}
-
-.dense-table-wrap {
-  max-height: 420px;
-  overflow: auto;
-}
-
-.current-war-dense table {
-  font-size: 11px;
-}
-
-.current-war-dense th,
-.current-war-dense td {
-  padding: 4px 6px;
-  line-height: 1.15;
-}
-
-.current-war-dense .status-pill,
-.current-war-dense .threat-pill {
-  padding: 2px 5px;
-  font-size: 10px;
-}
-
-.dense-current-war-actions {
-  padding: 0 8px 8px;
-}
-
-@media (max-width: 1100px) {
-  .current-war-dense .matchup-hero,
-  .dense-matchup-grid,
-  .dense-roster-split {
-    grid-template-columns: 1fr;
-  }
-
-  .current-war-dense .matchup-own {
-    text-align: left;
-    justify-items: start;
-  }
-}
-
-
-/* =========================
-   CURRENT WAR DENSE V2
-   - shorter hero
-   - banners above names
-   - only member count in hero
-   - shorter graph and tighter lists
-========================= */
-
-.current-war-dense .matchup-hero {
-  min-height: 182px;
-  grid-template-columns: minmax(250px, 1fr) 260px minmax(250px, 1fr);
-  padding: 18px 22px 12px;
-}
-
-.current-war-dense .matchup-side {
-  align-content: center;
-  gap: 8px;
-}
-
-.current-war-dense .faction-banner {
-  width: 220px;
-  height: 55px;
-  border-color: rgba(255,255,255,0.18);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.24);
-}
-
-.current-war-dense .matchup-own .faction-banner {
-  justify-self: end;
-}
-
-.current-war-dense .faction-title-block h1 {
-  font-size: 22px;
-}
-
-.current-war-dense .side-label {
-  font-size: 9px;
-}
-
-.current-war-dense .one-stat-strip {
-  display: flex;
-  margin-top: 0;
-}
-
-.current-war-dense .one-stat-strip div {
-  padding: 0;
-  border: 0;
-}
-
-.current-war-dense .one-stat-strip strong {
-  font-size: 17px;
-}
-
-.current-war-dense .one-stat-strip span {
-  font-size: 10px;
-}
-
-.current-war-dense .vs-mark {
-  font-size: 38px;
-}
-
-.current-war-dense .dense-win-card {
-  width: 250px;
-  padding: 10px 13px;
-}
-
-.current-war-dense .dense-win-card h2 {
-  margin-bottom: 6px;
-}
-
-.current-war-dense .dense-win-card .win-numbers strong {
-  font-size: 25px;
-}
-
-.current-war-dense .win-bar {
-  height: 8px;
-  margin-top: 8px;
-}
-
-.current-war-dense .dense-war-strip {
-  top: 8px;
-}
-
-.current-war-dense .dense-matchup-grid {
-  grid-template-columns: 250px 1fr 250px;
-  gap: 7px;
-  padding: 7px;
-}
-
-.current-war-dense .compact-chart-wrap {
-  height: 150px;
-}
-
-.current-war-dense .top-player-list {
-  display: grid;
-  gap: 0;
-}
-
-.current-war-dense .top-player-row {
-  min-height: 23px;
-  padding: 3px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.055);
-}
-
-.current-war-dense .match-card {
-  padding: 8px 10px;
-}
-
-.current-war-dense .dense-roster-split {
-  gap: 7px;
-  padding: 0 7px 7px;
-}
-
-.current-war-dense .dense-table-wrap {
-  max-height: 390px;
-}
-
-.current-war-dense th,
-.current-war-dense td {
-  padding: 3px 6px;
-}
-
-.current-war-dense .threat-pill.priority,
-.current-war-dense .threat-pill.very-high,
-.current-war-dense .threat-pill.high,
-.current-war-dense .threat-pill.medium,
-.current-war-dense .threat-pill.low {
-  min-width: 62px;
-  text-align: center;
-}
-
-@media (min-width: 1500px) {
-  body[data-active-tab="currentWar"] .main-layout,
-  body[data-active-tab="currentWar"] .content {
-    max-width: 1500px;
   }
 }
