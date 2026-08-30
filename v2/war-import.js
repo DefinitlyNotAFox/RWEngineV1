@@ -1,6 +1,8 @@
 const ATTACK_STEP_DELAY_MS = 6000;
+const ATTACK_DETAIL_STEP_DELAY_MS = 1200;
 const WAR_IMPORT_COOLDOWN_MS = 30000;
 const ATTACK_STEP_LIMIT = 300;
+const ATTACK_DETAIL_STEP_LIMIT = 20;
 
 const form = document.querySelector('#historicalWarImportForm');
 const reportIdsInput = document.querySelector('#historicalWarReportIds');
@@ -84,9 +86,15 @@ async function handleImportSubmit(event) {
         }
 
         const warId = imported.war?.warId || imported.war?.war_id || reportId;
-        updateReportRow(reportId, 'active', 'Attacks', 'Base report stored. Building the detailed attack summary…');
+        updateReportRow(reportId, 'active', 'Attacks', 'Base report stored. Building the score and attack summary…');
 
         const summary = await applyAttackSummary(warId, reportId, index, reportIds.length);
+
+        updateReportRow(reportId, 'active', 'Verify', 'Verifying complete attack coverage through Torn API v2…');
+        setOverallProgress(index, reportIds.length, `Report ${reportId}: verifying complete attack coverage…`);
+        await sleep(ATTACK_DETAIL_STEP_DELAY_MS);
+        const detail = await applyAttackDetailSupplement(warId, reportId, index, reportIds.length);
+
         successful += 1;
 
         const chain = imported.chainAdjustment;
@@ -95,7 +103,7 @@ async function handleImportSubmit(event) {
           reportId,
           'success',
           'Complete',
-          `Checked ${formatNumber(summary.checked || 0)} attacks · ${formatNumber(summary.assists || 0)} assists · ${formatNumber(summary.outsideHits || 0)} outside hits · chain adjustment ${chainNote}.`
+          `Verified ${formatNumber(detail.storedTotal || 0)} attack rows via v2 · ${formatNumber(detail.assists || 0)} assists · respect +${formatDecimal(detail.respectEarned || 0, 2)} / -${formatDecimal(detail.respectLost || 0, 2)} · score pass checked ${formatNumber(summary.checked || 0)} · chain adjustment ${chainNote}.`
         );
         setOverallProgress(index + 1, reportIds.length, `Report ${reportId} complete.`);
       } catch (error) {
@@ -116,9 +124,6 @@ async function handleImportSubmit(event) {
 
     if (reportIdsInput && failed === 0) reportIdsInput.value = '';
 
-    // The main app owns the war archive and analytics state. Ask it to refresh
-    // once after the batch instead of independently fetching and repainting the
-    // same archive from this importer module.
     window.dispatchEvent(new CustomEvent('rwe:wars-changed'));
     refreshButton?.click();
   } finally {
@@ -146,12 +151,12 @@ async function applyAttackSummary(warId, reportId, reportIndex, totalReports) {
       reportId,
       'active',
       'Attacks',
-      `Checked ${formatNumber(checked)} attacks · ${formatNumber(windows)} windows · ${formatNumber(pending)} pending.`
+      `Score pass: ${formatNumber(checked)} attacks · ${formatNumber(windows)} windows · ${formatNumber(pending)} pending.`
     );
     setOverallProgress(
       reportIndex,
       totalReports,
-      `Report ${reportId}: processing attack logs (${formatNumber(checked)} checked)…`
+      `Report ${reportId}: processing score attack logs (${formatNumber(checked)} checked)…`
     );
 
     if (result.done) return latestSummary;
@@ -159,6 +164,63 @@ async function applyAttackSummary(warId, reportId, reportIndex, totalReports) {
   }
 
   throw new Error('Attack summary did not finish within the safety limit.');
+}
+
+async function applyAttackDetailSupplement(warId, reportId, reportIndex, totalReports) {
+  let nextUrl = null;
+  let latest = null;
+
+  for (let step = 0; step < ATTACK_DETAIL_STEP_LIMIT; step += 1) {
+    const result = await attackDetailApi({
+      warId,
+      ...(nextUrl ? { nextUrl } : {})
+    });
+    latest = result;
+
+    updateReportRow(
+      reportId,
+      'active',
+      'Verify',
+      `v2 coverage: ${formatNumber(result.storedTotal || 0)} attack rows · ${formatNumber(result.assists || 0)} assists · ${formatNumber(result.membersWithDetail || 0)} members with detail.`
+    );
+    setOverallProgress(
+      reportIndex,
+      totalReports,
+      `Report ${reportId}: verified ${formatNumber(result.storedTotal || 0)} attack rows…`
+    );
+
+    if (result.done) return result;
+    nextUrl = result.nextUrl;
+    if (!nextUrl) throw new Error('Torn reported more attack pages but did not provide a next page URL.');
+    await sleep(ATTACK_DETAIL_STEP_DELAY_MS);
+  }
+
+  throw new Error(`Attack-detail verification exceeded ${ATTACK_DETAIL_STEP_LIMIT} v2 pages${latest ? ` after ${formatNumber(latest.storedTotal || 0)} rows` : ''}.`);
+}
+
+async function attackDetailApi(payload = {}) {
+  const adminFactionId = Number(document.querySelector('#adminFactionSelect')?.value || 0);
+  const response = await fetch('/v2/war-attack-detail', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ...payload,
+      ...(adminFactionId > 0 ? { factionId: adminFactionId } : {})
+    })
+  });
+
+  let result;
+  try {
+    result = await response.json();
+  } catch (_) {
+    throw new Error(`Attack-detail backend returned HTTP ${response.status} without JSON.`);
+  }
+
+  if (!response.ok || result.success === false) {
+    throw new Error(result.message || `Attack-detail verification failed with HTTP ${response.status}.`);
+  }
+  return result;
 }
 
 async function cooldown(reportId, milliseconds) {
@@ -241,6 +303,13 @@ async function api(action, payload = {}) {
 
 function formatNumber(value) {
   return new Intl.NumberFormat().format(Number(value || 0));
+}
+
+function formatDecimal(value, digits) {
+  return Number(value || 0).toLocaleString(undefined, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits
+  });
 }
 
 function cssEscape(value) {
