@@ -21,9 +21,21 @@
   min-width: 220px;
   border: 0;
   background: transparent;
-  color: inherit;
+  color: #e8f1f2;
   font: inherit;
   outline: none;
+}
+
+/* Firefox/Windows can render the opened native select menu on a light
+   system surface even while the closed control inherits the dark RWE theme. */
+.admin-faction-switcher select option {
+  background: #f4f4f4;
+  color: #111;
+}
+
+.admin-faction-switcher select option:checked {
+  background: #d8d8d8;
+  color: #111;
 }
 
 .admin-faction-panel {
