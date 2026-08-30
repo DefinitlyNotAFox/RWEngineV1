@@ -44,6 +44,9 @@ export async function onRequest(context) {
     // is_ranked_war is authoritative for war membership. Incoming stealthed
     // attacks may hide attacker identity/faction, so do not require the
     // opponent faction ID when the imported member is the defender.
+    // Chain bonus hits are derived directly from the stored chain position,
+    // which keeps the official report totals untouched and makes exclusion a
+    // reversible presentation choice in Performance.
     const attackMetricsResult = await env.DB.prepare(`
       SELECT
         own.player_id,
@@ -69,7 +72,42 @@ export async function onRequest(context) {
           WHEN a.is_ranked_war = 1
            AND (a.attacker_id = own.player_id OR a.defender_id = own.player_id)
           THEN 1 ELSE 0 END
-        ) AS attack_rows
+        ) AS attack_rows,
+        SUM(CASE
+          WHEN a.attacker_id = own.player_id
+           AND a.is_ranked_war = 1
+           AND a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+           AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
+          THEN 1 ELSE 0 END
+        ) AS chain_bonus_hits_out,
+        SUM(CASE
+          WHEN a.attacker_id = own.player_id
+           AND a.is_ranked_war = 1
+           AND a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+           AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
+          THEN COALESCE(a.respect_gain, 0) ELSE 0 END
+        ) AS chain_bonus_score_out,
+        SUM(CASE
+          WHEN a.defender_id = own.player_id
+           AND a.is_ranked_war = 1
+           AND a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+           AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
+          THEN 1 ELSE 0 END
+        ) AS chain_bonus_hits_in,
+        SUM(CASE
+          WHEN a.defender_id = own.player_id
+           AND a.is_ranked_war = 1
+           AND a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+           AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
+          THEN COALESCE(a.respect_gain, 0) ELSE 0 END
+        ) AS chain_bonus_score_in,
+        SUM(CASE
+          WHEN a.defender_id = own.player_id
+           AND a.is_ranked_war = 1
+           AND a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+           AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
+          THEN ABS(COALESCE(a.respect_loss, 0)) ELSE 0 END
+        ) AS chain_bonus_respect_lost_in
       FROM war_log own
       JOIN wars w
         ON w.war_id = own.war_id
@@ -89,7 +127,12 @@ export async function onRequest(context) {
         assists: Number(row.assists || 0),
         respectEarned: Number(row.respect_earned || 0),
         respectLost: Number(row.respect_lost || 0),
-        attackRows: Number(row.attack_rows || 0)
+        attackRows: Number(row.attack_rows || 0),
+        chainBonusHitsOut: Number(row.chain_bonus_hits_out || 0),
+        chainBonusScoreOut: Number(row.chain_bonus_score_out || 0),
+        chainBonusHitsIn: Number(row.chain_bonus_hits_in || 0),
+        chainBonusScoreIn: Number(row.chain_bonus_score_in || 0),
+        chainBonusRespectLostIn: Number(row.chain_bonus_respect_lost_in || 0)
       }
     ]));
     const totalWars = Number(totalWarsRow?.count || 0);
@@ -118,6 +161,11 @@ export async function onRequest(context) {
         respectEarned: hasAttackDetails ? attackMetrics.respectEarned : null,
         respectLost: hasAttackDetails ? attackMetrics.respectLost : null,
         attackDetailsAvailable: hasAttackDetails,
+        chainBonusHitsOut: hasAttackDetails ? attackMetrics.chainBonusHitsOut : 0,
+        chainBonusScoreOut: hasAttackDetails ? attackMetrics.chainBonusScoreOut : 0,
+        chainBonusHitsIn: hasAttackDetails ? attackMetrics.chainBonusHitsIn : 0,
+        chainBonusScoreIn: hasAttackDetails ? attackMetrics.chainBonusScoreIn : 0,
+        chainBonusRespectLostIn: hasAttackDetails ? attackMetrics.chainBonusRespectLostIn : 0,
         scoreUp,
         scoreDown,
         netScore: scoreUp - scoreDown
