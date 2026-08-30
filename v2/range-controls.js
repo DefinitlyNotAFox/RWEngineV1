@@ -3,21 +3,22 @@ const intelTo = document.querySelector('#intelTo');
 const applyRangeButton = document.querySelector('#applyRangeButton');
 const memberSearch = document.querySelector('#memberSearch');
 const syncStatus = document.querySelector('#syncStatus');
-const metricMembers = document.querySelector('#metricMembers');
 
 let trackingStartDate = null;
 let availableMinDate = null;
 let importedWars = [];
 let activePreset = null;
-let restoringBounds = false;
+let warsLoaded = false;
+let initAttempts = 0;
 
 if (intelFrom && intelTo && applyRangeButton && syncStatus) {
   installStylesheet();
   hideLegacyRangeInputs();
   installToolbar();
-  installObservers();
   updateVisibility();
-  window.setTimeout(refreshBounds, 750);
+
+  window.addEventListener('rwe:wars-changed', refreshWarsAfterImport);
+  window.setTimeout(initializePeriodData, 350);
 }
 
 function installStylesheet() {
@@ -82,46 +83,56 @@ function installToolbar() {
   toolbar.querySelector('#customRangeTo')?.addEventListener('change', updateCoverageNoteFromDisplay);
 
   document.querySelectorAll('.nav-button').forEach(button => {
-    button.addEventListener('click', () => window.setTimeout(updateVisibility, 0));
+    button.addEventListener('click', updateVisibility);
   });
 }
 
-function installObservers() {
-  const minObserver = new MutationObserver(() => {
-    const candidate = intelFrom.min;
-
-    if (!restoringBounds && candidate && candidate !== availableMinDate) {
-      if (!trackingStartDate || !availableMinDate || candidate > availableMinDate) trackingStartDate = candidate;
-    }
-
-    restoreAvailableBounds();
-  });
-  minObserver.observe(intelFrom, { attributes: true, attributeFilter: ['min', 'max'] });
-
-  if (metricMembers) {
-    const dataObserver = new MutationObserver(() => {
-      if (metricMembers.textContent.trim() === '—') return;
-      window.setTimeout(refreshBounds, 0);
-    });
-    dataObserver.observe(metricMembers, { childList: true, characterData: true, subtree: true });
-  }
-}
-
-async function refreshBounds() {
+async function initializePeriodData() {
   captureTrackingStart();
 
-  try {
-    importedWars = await fetchImportedWars();
-  } catch (_) {
-    importedWars = [];
+  if (!warsLoaded) {
+    try {
+      importedWars = await fetchImportedWars();
+      warsLoaded = true;
+    } catch (_) {
+      importedWars = [];
+    }
   }
 
-  updateAvailableMinFromWars();
+  recalculateBounds();
+  syncCustomInputs();
+  updateCoverageNote();
+
+  if (!trackingStartDate && initAttempts < 8) {
+    initAttempts += 1;
+    window.setTimeout(initializePeriodData, 300);
+  }
+}
+
+async function refreshWarsAfterImport() {
+  try {
+    importedWars = await fetchImportedWars();
+    warsLoaded = true;
+  } catch (_) {
+    return;
+  }
+
+  captureTrackingStart();
+  recalculateBounds();
   syncCustomInputs();
   updateCoverageNote();
 }
 
-function updateAvailableMinFromWars() {
+function captureTrackingStart() {
+  const candidate = intelFrom.min;
+  if (!candidate) return;
+
+  if (!trackingStartDate || candidate > trackingStartDate) {
+    trackingStartDate = candidate;
+  }
+}
+
+function recalculateBounds() {
   const earliestWarStart = importedWars
     .map(warStartTimestamp)
     .filter(Boolean)
@@ -129,48 +140,36 @@ function updateAvailableMinFromWars() {
 
   const earliestWarDate = earliestWarStart ? toDateInput(earliestWarStart) : null;
   availableMinDate = minDate(earliestWarDate, trackingStartDate) || trackingStartDate || earliestWarDate;
-  restoreAvailableBounds();
+  applyDateBounds();
 }
 
-function captureTrackingStart() {
-  const currentMin = intelFrom.min;
-  if (!currentMin) return;
-
-  if (!availableMinDate || currentMin !== availableMinDate) {
-    trackingStartDate = currentMin;
-  }
-}
-
-function restoreAvailableBounds() {
+function applyDateBounds() {
   if (!availableMinDate) return;
 
   const today = toDateInput(Math.floor(Date.now() / 1000));
-  restoringBounds = true;
+  intelFrom.min = availableMinDate;
+  intelTo.min = availableMinDate;
+  intelFrom.max = today;
+  intelTo.max = today;
 
-  try {
-    intelFrom.min = availableMinDate;
-    intelTo.min = availableMinDate;
-    intelFrom.max = today;
-    intelTo.max = today;
+  const displayFrom = document.querySelector('#customRangeFrom');
+  const displayTo = document.querySelector('#customRangeTo');
 
-    const displayFrom = document.querySelector('#customRangeFrom');
-    const displayTo = document.querySelector('#customRangeTo');
-    if (displayFrom) {
-      displayFrom.min = availableMinDate;
-      displayFrom.max = today;
-    }
-    if (displayTo) {
-      displayTo.min = availableMinDate;
-      displayTo.max = today;
-    }
-  } finally {
-    queueMicrotask(() => { restoringBounds = false; });
+  if (displayFrom) {
+    displayFrom.min = availableMinDate;
+    displayFrom.max = today;
+  }
+  if (displayTo) {
+    displayTo.min = availableMinDate;
+    displayTo.max = today;
   }
 }
 
-async function selectPreset(preset) {
+function selectPreset(preset) {
+  captureTrackingStart();
+  recalculateBounds();
+
   if (preset === 'custom') {
-    await refreshBounds();
     activePreset = 'custom';
     updatePresetButtons();
     document.querySelector('#customRangeControls')?.classList.remove('hidden');
@@ -181,11 +180,6 @@ async function selectPreset(preset) {
 
   document.querySelector('#customRangeControls')?.classList.add('hidden');
 
-  try {
-    importedWars = await fetchImportedWars();
-    updateAvailableMinFromWars();
-  } catch (_) {}
-
   const now = new Date();
   const today = toDateInput(Math.floor(Date.now() / 1000));
   let fromDate = null;
@@ -193,11 +187,7 @@ async function selectPreset(preset) {
 
   if (preset === 'last4') {
     const latestFour = importedWars
-      .map(war => ({
-        war,
-        start: warStartTimestamp(war),
-        end: warEndTimestamp(war)
-      }))
+      .map(war => ({ start: warStartTimestamp(war), end: warEndTimestamp(war) }))
       .filter(item => item.start || item.end)
       .sort((a, b) => (b.end || b.start) - (a.end || a.start))
       .slice(0, 4);
@@ -224,10 +214,8 @@ async function selectPreset(preset) {
       return;
     }
 
-    const earliest = Math.min(...(starts.length ? starts : ends));
-    const latest = Math.max(...(ends.length ? ends : starts));
-    fromDate = toDateInput(earliest);
-    toDate = toDateInput(latest);
+    fromDate = toDateInput(Math.min(...(starts.length ? starts : ends)));
+    toDate = toDateInput(Math.max(...(ends.length ? ends : starts)));
   } else if (preset === 'available') {
     fromDate = availableMinDate || trackingStartDate || today;
     toDate = today;
