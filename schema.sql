@@ -6,53 +6,11 @@ CREATE TABLE IF NOT EXISTS app_meta (
   updated_at INTEGER NOT NULL
 );
 
-/*
-  Required war_log columns for hybrid score handling:
-
-  score_up:
-    The dashboard-facing score. After chain adjustment, this becomes adjusted score.
-
-  score_up_official:
-    Original score from Torn ranked war report.
-
-  score_up_adjusted:
-    Official score minus known chain bonus score.
-
-  chain_bonus_score:
-    Sum of chain-report bonus respect attributed to this player.
-
-  chain_bonus_hits:
-    Number of chain bonus hits attributed to this player.
-*/
-
-/*
-  Add these columns to war_log in your CREATE TABLE war_log statement if rebuilding schema:
-
-  score_up_official REAL NOT NULL DEFAULT 0,
-  score_up_adjusted REAL NOT NULL DEFAULT 0,
-  chain_bonus_score REAL NOT NULL DEFAULT 0,
-  chain_bonus_hits INTEGER NOT NULL DEFAULT 0
-*/
-
-/*
-  Add these columns to wars in your CREATE TABLE wars statement if rebuilding schema:
-
-  chain_adjusted_at INTEGER,
-  chain_adjustment_status TEXT,
-  chain_adjustment_message TEXT
-*/
-
 CREATE TABLE IF NOT EXISTS factions (
   faction_id INTEGER PRIMARY KEY,
   faction_name TEXT NOT NULL,
   enabled INTEGER NOT NULL DEFAULT 1,
   created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS app_meta (
-  key TEXT PRIMARY KEY,
-  value TEXT NOT NULL,
   updated_at INTEGER NOT NULL
 );
 
@@ -93,21 +51,6 @@ CREATE TABLE IF NOT EXISTS sessions (
   FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_users_player_id
-ON users(player_id);
-
-CREATE INDEX IF NOT EXISTS idx_users_faction_id
-ON users(faction_id);
-
-CREATE INDEX IF NOT EXISTS idx_sessions_user_id
-ON sessions(user_id);
-
-CREATE INDEX IF NOT EXISTS idx_sessions_token_hash
-ON sessions(token_hash);
-
-CREATE INDEX IF NOT EXISTS idx_sessions_expires_at
-ON sessions(expires_at);
-
 CREATE TABLE IF NOT EXISTS faction_config (
   config_id INTEGER PRIMARY KEY AUTOINCREMENT,
 
@@ -141,6 +84,10 @@ CREATE TABLE IF NOT EXISTS wars (
   imported_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
 
+  chain_adjusted_at INTEGER,
+  chain_adjustment_status TEXT,
+  chain_adjustment_message TEXT,
+
   FOREIGN KEY (faction_id) REFERENCES factions(faction_id),
   FOREIGN KEY (imported_by_user_id) REFERENCES users(user_id)
 );
@@ -161,8 +108,18 @@ CREATE TABLE IF NOT EXISTS war_log (
   outside_hits INTEGER NOT NULL DEFAULT 0,
   assists INTEGER NOT NULL DEFAULT 0,
 
+  /*
+    score_up is the dashboard-facing score.
+    Before chain adjustment it matches the official ranked-war score.
+    After adjustment it matches score_up_adjusted.
+  */
   score_up REAL NOT NULL DEFAULT 0,
+  score_up_official REAL NOT NULL DEFAULT 0,
+  score_up_adjusted REAL NOT NULL DEFAULT 0,
   score_down REAL NOT NULL DEFAULT 0,
+
+  chain_bonus_score REAL NOT NULL DEFAULT 0,
+  chain_bonus_hits INTEGER NOT NULL DEFAULT 0,
 
   synced_at INTEGER NOT NULL,
 
@@ -204,6 +161,21 @@ CREATE TABLE IF NOT EXISTS attacks (
   FOREIGN KEY (war_id) REFERENCES wars(war_id) ON DELETE CASCADE,
   FOREIGN KEY (faction_id) REFERENCES factions(faction_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_users_player_id
+ON users(player_id);
+
+CREATE INDEX IF NOT EXISTS idx_users_faction_id
+ON users(faction_id);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id
+ON sessions(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_token_hash
+ON sessions(token_hash);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at
+ON sessions(expires_at);
 
 CREATE INDEX IF NOT EXISTS idx_wars_faction_id
 ON wars(faction_id);
