@@ -1,0 +1,54 @@
+html.rwe-booting #loginView,
+html.rwe-booting #appView {
+  visibility: hidden !important;
+}
+
+html.rwe-booting body::before {
+  content: 'RWEngine';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  background: #060b0c;
+  color: #d9f6ec;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: .03em;
+}
+
+html.rwe-booting body::after {
+  content: 'Loading faction workspace…';
+  position: fixed;
+  left: 50%;
+  top: calc(50% + 34px);
+  z-index: 10000;
+  transform: translateX(-50%);
+  color: #82a99c;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* Reserve the final admin-control footprint before its data arrives. */
+.admin-faction-switcher {
+  min-width: 324px;
+}
+
+.admin-faction-switcher select {
+  min-width: 218px;
+}
+
+.topbar .member-controls {
+  min-height: 42px;
+}
+
+.metric-grid {
+  min-height: 90px;
+}
+
+@media (max-width: 900px) {
+  .admin-faction-switcher,
+  .admin-faction-switcher select {
+    min-width: 0;
+  }
+}
