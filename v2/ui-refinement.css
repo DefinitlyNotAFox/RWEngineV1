@@ -1,0 +1,20 @@
+#performanceTable .performance-stat-cell {
+  text-align: center;
+}
+
+#performanceTable .performance-sort-header:not(.is-left) {
+  text-align: center;
+}
+
+#performanceTable .performance-sort-header:not(.is-left) .performance-sort {
+  justify-content: center;
+}
+
+#performanceTable .performance-sort-header.is-left,
+#performanceTable .performance-member-cell {
+  text-align: left;
+}
+
+#performanceTable .performance-sort-header.is-left .performance-sort {
+  justify-content: flex-start;
+}
