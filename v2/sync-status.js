@@ -4,8 +4,8 @@ import './admin-import-enable.js?v=2';
 import './sync-router.js?v=2';
 import './member-table.js?v=4';
 import './range-controls.js?v=4';
-import './member-detail-redesign.js?v=5';
-import './performance-table.js?v=2';
+import './member-detail-redesign.js?v=6';
+import './performance-table.js?v=3';
 
 const syncStatus = document.querySelector('#syncStatus');
 
