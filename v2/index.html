@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RWEngine Rebuild</title>
-  <link rel="stylesheet" href="/v2/styles.css?v=1" />
+  <link rel="stylesheet" href="/v2/styles.css?v=2" />
 </head>
 <body>
   <div id="loginView" class="login-view">
@@ -62,7 +62,7 @@
       <section id="overviewTab" class="tab active">
         <div class="metric-grid">
           <article class="metric-card">
-            <span>Tracked members</span>
+            <span>Current members</span>
             <strong id="metricMembers">—</strong>
           </article>
           <article class="metric-card">
@@ -104,26 +104,39 @@
         </div>
 
         <article class="panel rebuild-note">
-          <p class="eyebrow">Rebuild status</p>
-          <h2>Faction-wide intelligence comes next</h2>
+          <p class="eyebrow">Faction intelligence</p>
+          <h2>Roster and member history are now separate from war imports</h2>
           <p>
-            This first rebuild screen intentionally uses the existing ranked-war database.
-            The new member snapshot model is being added separately so activity, Xanax,
-            battle-stat estimates and membership history can be layered in without
-            destabilizing war analytics again.
+            RWE keeps the detailed ranked-war archive, but the faction collector now maintains
+            the live roster and cumulative member snapshots independently. This is the base for
+            activity trends, Xanax usage, battle-stat estimates, membership history and later OC data.
           </p>
         </article>
       </section>
 
       <section id="membersTab" class="tab">
         <article class="panel">
-          <div class="panel-header">
+          <div class="panel-header members-header">
             <div>
-              <p class="eyebrow">Faction history</p>
+              <p class="eyebrow">Faction intelligence</p>
               <h2>Members</h2>
             </div>
-            <input id="memberSearch" class="search" type="search" placeholder="Search member…" />
+
+            <div class="member-controls">
+              <label class="compact-control">
+                <span>Period</span>
+                <select id="intelDays">
+                  <option value="7">7 days</option>
+                  <option value="30" selected>30 days</option>
+                  <option value="90">90 days</option>
+                </select>
+              </label>
+              <input id="memberSearch" class="search" type="search" placeholder="Search member…" />
+              <button id="syncIntelButton" class="button" type="button">Sync faction</button>
+            </div>
           </div>
+
+          <div id="syncStatus" class="sync-status hidden"></div>
 
           <div class="table-wrap">
             <table>
@@ -131,14 +144,16 @@
                 <tr>
                   <th>Member</th>
                   <th>Status</th>
+                  <th>Lvl</th>
+                  <th>Position</th>
+                  <th>Last action</th>
+                  <th>Est. BS</th>
+                  <th>Activity / day</th>
+                  <th>Xanax / day</th>
                   <th>Wars</th>
-                  <th>Hits</th>
-                  <th>Outside</th>
-                  <th>Assists</th>
-                  <th>Score +</th>
-                  <th>Score -</th>
-                  <th>Net</th>
-                  <th>R / hit</th>
+                  <th>War hits</th>
+                  <th>Participation</th>
+                  <th>Net score</th>
                 </tr>
               </thead>
               <tbody id="membersBody"></tbody>
@@ -216,6 +231,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=1"></script>
+  <script type="module" src="/v2/app.js?v=2"></script>
 </body>
 </html>
