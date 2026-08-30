@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/styles.css?v=2" />
+  <link rel="stylesheet" href="/v2/styles.css?v=3" />
 </head>
 <body>
   <div id="loginView" class="login-view">
@@ -70,7 +70,7 @@
             <strong id="metricMembers">—</strong>
           </article>
           <article class="metric-card">
-            <span>Imported wars</span>
+            <span>Wars in range</span>
             <strong id="metricWars">—</strong>
           </article>
           <article class="metric-card">
@@ -98,7 +98,7 @@
           <article class="panel">
             <div class="panel-header">
               <div>
-                <p class="eyebrow">Historical performance</p>
+                <p class="eyebrow">Selected range</p>
                 <h2>Top contributors</h2>
               </div>
               <button class="text-button jump-button" data-jump="members" type="button">View members</button>
@@ -108,12 +108,11 @@
         </div>
 
         <article class="panel rebuild-note">
-          <p class="eyebrow">Faction intelligence</p>
-          <h2>Roster and member history</h2>
-          <p>
-            RWE keeps the detailed ranked-war archive while maintaining the live roster
-            and cumulative member snapshots independently. This is the base for activity
-            trends, Xanax usage, battle-stat estimates, membership history and later OC data.
+          <p class="eyebrow">Tracking</p>
+          <h2>RWE records forward from faction signup</h2>
+          <p id="trackingText">
+            Member activity and development are calculated from snapshots recorded by RWE. Historical
+            data before tracking began is not used for faction-intelligence trends.
           </p>
         </article>
       </section>
@@ -126,35 +125,33 @@
               <h2>Members</h2>
             </div>
 
-            <div class="member-controls">
+            <div class="member-controls range-controls">
               <label class="compact-control">
-                <span>Period</span>
-                <select id="intelDays">
-                  <option value="7">7 days</option>
-                  <option value="30" selected>30 days</option>
-                  <option value="90">90 days</option>
-                </select>
+                <span>From</span>
+                <input id="intelFrom" type="date" />
               </label>
+              <label class="compact-control">
+                <span>To</span>
+                <input id="intelTo" type="date" />
+              </label>
+              <button id="applyRangeButton" class="button" type="button">Apply</button>
               <input id="memberSearch" class="search" type="search" placeholder="Search member…" />
             </div>
           </div>
 
           <div class="table-wrap">
-            <table>
+            <table class="members-table">
               <thead>
                 <tr>
                   <th>Member</th>
-                  <th>Status</th>
-                  <th>Lvl</th>
                   <th>Position</th>
                   <th>Last action</th>
-                  <th>Est. BS</th>
+                  <th>Stats</th>
                   <th>Activity / day</th>
                   <th>Xanax / day</th>
-                  <th>Wars</th>
-                  <th>War hits</th>
-                  <th>Participation</th>
-                  <th>Net score</th>
+                  <th>OCs / month</th>
+                  <th>RW participation</th>
+                  <th>Avg hits / war</th>
                 </tr>
               </thead>
               <tbody id="membersBody"></tbody>
@@ -194,8 +191,7 @@
           <p class="eyebrow">Matchup intelligence</p>
           <h2>Current War</h2>
           <p>
-            This module will answer one question: <strong>who are we fighting?</strong>
-            It will compare both rosters, surface known history and estimates, and explain
+            This module will compare both rosters, surface known history and estimates, and explain
             why specific opponents are important rather than reducing the matchup to an opaque score.
           </p>
           <div class="placeholder-grid">
@@ -232,6 +228,21 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=2"></script>
+  <div id="memberModal" class="modal hidden" aria-hidden="true">
+    <button id="memberModalBackdrop" class="modal-backdrop" type="button" aria-label="Close member details"></button>
+    <section class="member-modal-card" role="dialog" aria-modal="true" aria-labelledby="memberModalName">
+      <header class="member-modal-header">
+        <div>
+          <p class="eyebrow">Member details</p>
+          <h2 id="memberModalName">Member</h2>
+          <p id="memberModalMeta" class="muted"></p>
+        </div>
+        <button id="memberModalClose" class="modal-close" type="button" aria-label="Close">×</button>
+      </header>
+      <div id="memberModalBody"></div>
+    </section>
+  </div>
+
+  <script type="module" src="/v2/app.js?v=3"></script>
 </body>
 </html>
