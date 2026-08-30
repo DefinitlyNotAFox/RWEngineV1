@@ -14,7 +14,7 @@ window.fetch = async function rwengineCurrentSyncFetch(input, init = {}) {
     const headers = new Headers(init.headers || {});
     headers.set('Content-Type', 'application/json');
 
-    return previousFetch('/v2/sync', {
+    return previousFetch('/v2/sync-current', {
       ...init,
       method: 'POST',
       credentials: init.credentials || 'same-origin',
