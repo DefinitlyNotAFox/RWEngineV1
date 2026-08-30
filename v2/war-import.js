@@ -40,11 +40,12 @@ async function handleImportSubmit(event) {
   const overwrite = Boolean(overwriteInput?.checked);
   const submitButton = form.querySelector('button[type="submit"]');
   const originalText = submitButton?.textContent || 'Import reports';
+  const targetName = document.querySelector('#adminFactionSelect')?.selectedOptions?.[0]?.textContent?.trim();
 
   showStatus('', '');
   progressBox?.classList.remove('hidden');
   if (progressList) progressList.innerHTML = '';
-  setOverallProgress(0, reportIds.length, 'Starting historical import…');
+  setOverallProgress(0, reportIds.length, targetName ? `Starting import for ${targetName}…` : 'Starting historical import…');
 
   if (submitButton) {
     submitButton.disabled = true;
@@ -256,11 +257,20 @@ function showStatus(type, message) {
 }
 
 async function api(action, payload = {}) {
-  const response = await fetch('/api', {
+  const adminFactionId = Number(document.querySelector('#adminFactionSelect')?.value || 0);
+  const useAdminImporter = adminFactionId > 0;
+  const endpoint = useAdminImporter ? '/v2/war-import-admin' : '/api';
+  const requestBody = {
+    action,
+    ...payload,
+    ...(useAdminImporter ? { factionId: adminFactionId } : {})
+  };
+
+  const response = await fetch(endpoint, {
     method: 'POST',
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, ...payload })
+    body: JSON.stringify(requestBody)
   });
 
   let result;
