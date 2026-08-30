@@ -2,8 +2,8 @@ import './admin-workspace.js?v=1';
 import './admin-key-selector.js?v=1';
 import './admin-import-enable.js?v=2';
 import './sync-router.js?v=2';
-import './member-table.js?v=1';
-import './range-controls.js?v=3';
+import './member-table.js?v=2';
+import './range-controls.js?v=4';
 
 const syncStatus = document.querySelector('#syncStatus');
 
