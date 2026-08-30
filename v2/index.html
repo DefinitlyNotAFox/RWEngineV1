@@ -69,31 +69,16 @@
 
       <section id="overviewTab" class="tab active">
         <div class="metric-grid">
-          <article class="metric-card">
-            <span>Current members</span>
-            <strong id="metricMembers">—</strong>
-          </article>
-          <article class="metric-card">
-            <span>Wars in range</span>
-            <strong id="metricWars">—</strong>
-          </article>
-          <article class="metric-card">
-            <span>Total war hits</span>
-            <strong id="metricHits">—</strong>
-          </article>
-          <article class="metric-card">
-            <span>Net score</span>
-            <strong id="metricNetScore">—</strong>
-          </article>
+          <article class="metric-card"><span>Current members</span><strong id="metricMembers">—</strong></article>
+          <article class="metric-card"><span>Wars in range</span><strong id="metricWars">—</strong></article>
+          <article class="metric-card"><span>Total war hits</span><strong id="metricHits">—</strong></article>
+          <article class="metric-card"><span>Net score</span><strong id="metricNetScore">—</strong></article>
         </div>
 
         <div class="two-column">
           <article class="panel">
             <div class="panel-header">
-              <div>
-                <p class="eyebrow">Recent history</p>
-                <h2>Latest wars</h2>
-              </div>
+              <div><p class="eyebrow">Recent history</p><h2>Latest wars</h2></div>
               <button class="text-button jump-button" data-jump="wars" type="button">View all</button>
             </div>
             <div id="overviewWars" class="stack-list"></div>
@@ -101,10 +86,7 @@
 
           <article class="panel">
             <div class="panel-header">
-              <div>
-                <p class="eyebrow">Selected range</p>
-                <h2>Top contributors</h2>
-              </div>
+              <div><p class="eyebrow">Selected range</p><h2>Top contributors</h2></div>
               <button class="text-button jump-button" data-jump="members" type="button">View members</button>
             </div>
             <div id="overviewMembers" class="stack-list"></div>
@@ -114,30 +96,17 @@
         <article class="panel rebuild-note">
           <p class="eyebrow">Tracking</p>
           <h2>RWE records forward from faction signup</h2>
-          <p id="trackingText">
-            Member activity and development are calculated from snapshots recorded by RWE. Historical
-            data before tracking began is not used for faction-intelligence trends.
-          </p>
+          <p id="trackingText">Member activity and development are calculated from snapshots recorded by RWE. Historical data before tracking began is not used for faction-intelligence trends.</p>
         </article>
       </section>
 
       <section id="membersTab" class="tab">
         <article class="panel">
           <div class="panel-header members-header">
-            <div>
-              <p class="eyebrow">Faction intelligence</p>
-              <h2>Members</h2>
-            </div>
-
+            <div><p class="eyebrow">Faction intelligence</p><h2>Members</h2></div>
             <div class="member-controls range-controls">
-              <label class="compact-control">
-                <span>From</span>
-                <input id="intelFrom" type="date" />
-              </label>
-              <label class="compact-control">
-                <span>To</span>
-                <input id="intelTo" type="date" />
-              </label>
+              <label class="compact-control"><span>From</span><input id="intelFrom" type="date" /></label>
+              <label class="compact-control"><span>To</span><input id="intelTo" type="date" /></label>
               <button id="applyRangeButton" class="button" type="button">Apply</button>
               <input id="memberSearch" class="search" type="search" placeholder="Search member…" />
             </div>
@@ -145,19 +114,7 @@
 
           <div class="table-wrap members-table-wrap">
             <table class="members-table">
-              <thead>
-                <tr>
-                  <th>Member</th>
-                  <th>Position</th>
-                  <th>Last action</th>
-                  <th>Stats</th>
-                  <th>Activity / day</th>
-                  <th>Xanax / day</th>
-                  <th>OCs / month</th>
-                  <th>RW participation</th>
-                  <th>Avg hits / war</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Member</th><th>Position</th><th>Last action</th><th>Stats</th><th>Activity / day</th><th>Xanax / day</th><th>OCs / month</th><th>RW participation</th><th>Avg hits / war</th></tr></thead>
               <tbody id="membersBody"></tbody>
             </table>
           </div>
@@ -166,110 +123,50 @@
 
       <section id="warsTab" class="tab">
         <article class="panel">
-          <div class="panel-header">
-            <div>
-              <p class="eyebrow">Ranked war archive</p>
-              <h2>Wars</h2>
-            </div>
-          </div>
-
+          <div class="panel-header"><div><p class="eyebrow">Ranked war archive</p><h2>Wars</h2></div></div>
           <details class="war-import">
-            <summary>
-              <span>
-                <strong>Import historical war reports</strong>
-                <small>Add finished ranked wars from before RWE started tracking this faction.</small>
-              </span>
-            </summary>
+            <summary><span><strong>Import historical war reports</strong><small>Add finished ranked wars from before RWE started tracking this faction.</small></span></summary>
             <div class="war-import-body">
               <form id="historicalWarImportForm" class="historical-import-form">
-                <label class="historical-import-input">
-                  <span>Ranked war report IDs</span>
-                  <textarea id="historicalWarReportIds" rows="3" placeholder="One or more report IDs, separated by spaces, commas or new lines" required></textarea>
-                </label>
+                <label class="historical-import-input"><span>Ranked war report IDs</span><textarea id="historicalWarReportIds" rows="3" placeholder="One or more report IDs, separated by spaces, commas or new lines" required></textarea></label>
                 <div class="historical-import-actions">
-                  <label class="historical-import-options">
-                    <input id="historicalWarOverwrite" type="checkbox" />
-                    Overwrite existing reports
-                  </label>
+                  <label class="historical-import-options"><input id="historicalWarOverwrite" type="checkbox" />Overwrite existing reports</label>
                   <button class="button primary" type="submit">Import reports</button>
                 </div>
               </form>
-
               <div id="historicalWarImportStatus" class="historical-import-status hidden"></div>
-
               <div id="historicalWarImportProgress" class="historical-import-progress hidden">
-                <div class="historical-import-progress-head">
-                  <span id="historicalWarImportSummary">Preparing import…</span>
-                </div>
-                <div class="historical-import-progress-track">
-                  <span id="historicalWarImportBar"></span>
-                </div>
+                <div class="historical-import-progress-head"><span id="historicalWarImportSummary">Preparing import…</span></div>
+                <div class="historical-import-progress-track"><span id="historicalWarImportBar"></span></div>
                 <div id="historicalWarImportList" class="historical-import-list"></div>
               </div>
             </div>
           </details>
-
           <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Opponent</th>
-                  <th>War ID</th>
-                  <th>Started</th>
-                  <th>Ended</th>
-                  <th>Chain adjustment</th>
-                </tr>
-              </thead>
-              <tbody id="warsBody"></tbody>
-            </table>
+            <table><thead><tr><th>Opponent</th><th>War ID</th><th>Started</th><th>Ended</th><th>Chain adjustment</th></tr></thead><tbody id="warsBody"></tbody></table>
           </div>
         </article>
       </section>
 
       <section id="current-warTab" class="tab">
         <article class="panel feature-placeholder">
-          <p class="eyebrow">Matchup intelligence</p>
-          <h2>Current War</h2>
-          <p>
-            This module will compare both rosters, surface known history and estimates, and explain
-            why specific opponents are important rather than reducing the matchup to an opaque score.
-          </p>
-          <div class="placeholder-grid">
-            <div><span>Own roster</span><strong>Planned</strong></div>
-            <div><span>Opponent roster</span><strong>Planned</strong></div>
-            <div><span>Historical context</span><strong>Planned</strong></div>
-            <div><span>Explainable threats</span><strong>Planned</strong></div>
-          </div>
+          <p class="eyebrow">Matchup intelligence</p><h2>Current War</h2>
+          <p>This module will compare both rosters, surface known history and estimates, and explain why specific opponents are important rather than reducing the matchup to an opaque score.</p>
+          <div class="placeholder-grid"><div><span>Own roster</span><strong>Planned</strong></div><div><span>Opponent roster</span><strong>Planned</strong></div><div><span>Historical context</span><strong>Planned</strong></div><div><span>Explainable threats</span><strong>Planned</strong></div></div>
         </article>
       </section>
 
       <section id="settingsTab" class="tab">
         <div class="two-column">
-          <article class="panel">
-            <p class="eyebrow">Account</p>
-            <h2>Identity</h2>
-            <dl class="definition-list">
-              <div><dt>Player</dt><dd id="settingsPlayer">—</dd></div>
-              <div><dt>Faction</dt><dd id="settingsFaction">—</dd></div>
-              <div><dt>Faction ID</dt><dd id="settingsFactionId">—</dd></div>
-            </dl>
-          </article>
-
-          <article class="panel">
-            <p class="eyebrow">Application</p>
-            <h2>RWEngine</h2>
-            <p class="muted">
-              Faction intelligence, member history, ranked-war analytics and matchup information
-              in one place.
-            </p>
-          </article>
+          <article class="panel"><p class="eyebrow">Account</p><h2>Identity</h2><dl class="definition-list"><div><dt>Player</dt><dd id="settingsPlayer">—</dd></div><div><dt>Faction</dt><dd id="settingsFaction">—</dd></div><div><dt>Faction ID</dt><dd id="settingsFactionId">—</dd></div></dl></article>
+          <article class="panel"><p class="eyebrow">Application</p><h2>RWEngine</h2><p class="muted">Faction intelligence, member history, ranked-war analytics and matchup information in one place.</p></article>
         </div>
       </section>
     </main>
   </div>
 
   <script type="module" src="/v2/app.js?v=4"></script>
-  <script type="module" src="/v2/sync-status.js?v=7"></script>
+  <script type="module" src="/v2/sync-status.js?v=8"></script>
   <script type="module" src="/v2/war-import.js?v=2"></script>
 </body>
 </html>
