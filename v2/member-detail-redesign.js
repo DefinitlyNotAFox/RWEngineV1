@@ -1,9 +1,11 @@
 const membersBody = document.querySelector('#membersBody');
+const overviewMembers = document.querySelector('#overviewMembers');
 const memberSearch = document.querySelector('#memberSearch');
 const refreshButton = document.querySelector('#refreshButton');
 const applyRangeButton = document.querySelector('#applyRangeButton');
 const syncButton = document.querySelector('#syncIntelButton');
 const membersNav = document.querySelector('.nav-button[data-tab="members"]');
+const performanceNav = document.querySelector('.nav-button[data-tab="performance"]');
 const intelFrom = document.querySelector('#intelFrom');
 const intelTo = document.querySelector('#intelTo');
 
@@ -14,47 +16,44 @@ let metadataPromise = null;
 if (membersBody) {
   installStylesheet();
 
+  // Members is now a pure roster table. Stop the legacy app.js row-click
+  // handler before it can create an inline member-detail row.
   membersBody.addEventListener('click', event => {
-    if (event.target.closest('tr.member-row[data-member-id]')) {
-      scheduleDetailRedesign();
-      scheduleRosterFormatting();
-    }
-  });
+    if (event.target.closest('a.member-profile-link')) return;
+    const row = event.target.closest('tr.member-row[data-member-id]');
+    if (!row) return;
+    event.stopImmediatePropagation();
+  }, true);
 
   memberSearch?.addEventListener('input', scheduleRosterFormatting);
-  membersNav?.addEventListener('click', () => {
-    scheduleRosterFormatting();
-    scheduleDetailRedesign();
-  });
-
+  membersNav?.addEventListener('click', scheduleRosterFormatting);
   refreshButton?.addEventListener('click', () => scheduleMetadataRefresh(true));
   applyRangeButton?.addEventListener('click', () => scheduleMetadataRefresh(true));
   syncButton?.addEventListener('click', () => scheduleMetadataRefresh(true));
-  window.addEventListener('rwe:member-sort-reset', () => {
-    scheduleRosterFormatting();
-    scheduleDetailRedesign();
-  });
+  window.addEventListener('rwe:member-sort-reset', scheduleRosterFormatting);
 
   scheduleMetadataRefresh(false);
-  scheduleDetailRedesign();
+}
+
+if (overviewMembers) {
+  // Ranked-war contributor rows belong in Performance now, not in the removed
+  // Members dropdown.
+  overviewMembers.addEventListener('click', event => {
+    const contributor = event.target.closest('[data-open-member]');
+    if (!contributor) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    performanceNav?.click();
+  }, true);
 }
 
 function installStylesheet() {
   if (document.querySelector('link[data-rwe-member-detail-redesign]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/v2/member-detail-redesign.css?v=4';
+  link.href = '/v2/member-detail-redesign.css?v=5';
   link.dataset.rweMemberDetailRedesign = '1';
   document.head.appendChild(link);
-}
-
-function scheduleDetailRedesign() {
-  [0, 60, 180, 450, 900, 1600, 2600].forEach(delay => {
-    window.setTimeout(() => {
-      redesignVisibleMemberDetail();
-      formatRosterRows();
-    }, delay);
-  });
 }
 
 function scheduleRosterFormatting() {
@@ -113,7 +112,14 @@ async function refreshRosterMetadata(force = false) {
 }
 
 function formatRosterRows() {
+  // Remove any legacy detail row left behind by a render that happened before
+  // this module loaded.
+  membersBody.querySelectorAll('tr.member-detail-row').forEach(row => row.remove());
+
   for (const row of membersBody.querySelectorAll('tr.member-row[data-member-id]')) {
+    row.classList.remove('selected');
+    row.removeAttribute('title');
+
     const playerId = Number(row.dataset.memberId || 0);
     const cell = row.cells?.[0];
     if (!playerId || !cell) continue;
@@ -127,8 +133,7 @@ function formatRosterRows() {
       row.dataset.memberStatus = /\bcurrent\b/i.test(originalMeta) ? 'current' : 'former';
     }
 
-    let level = memberLevels.get(playerId);
-    if (level === undefined || level === null) level = row.dataset.memberLevel || levelFromExpandedRow(row);
+    const level = memberLevels.get(playerId);
     if (level === undefined || level === null || level === '') continue;
 
     const link = document.createElement('a');
@@ -139,7 +144,6 @@ function formatRosterRows() {
     link.dataset.playerName = name;
     link.textContent = `${name} [${playerId}]`;
     link.title = `Open ${name}'s Torn profile`;
-    link.addEventListener('click', event => event.stopPropagation());
 
     const meta = document.createElement('span');
     meta.className = 'member-id member-roster-meta';
@@ -147,88 +151,4 @@ function formatRosterRows() {
 
     cell.replaceChildren(link, meta);
   }
-}
-
-function levelFromExpandedRow(row) {
-  const detail = row.nextElementSibling;
-  if (!detail?.classList.contains('member-detail-row')) return null;
-  const text = detail.querySelector('.member-inline-header p:last-child')?.textContent || '';
-  const match = text.match(/Level\s+(\d+)/i);
-  if (!match) return null;
-  row.dataset.memberLevel = match[1];
-  return match[1];
-}
-
-function redesignVisibleMemberDetail() {
-  const panel = membersBody.querySelector('.member-inline-panel');
-  const body = panel?.querySelector('.member-inline-body');
-  if (!panel || !body) return;
-
-  preserveExpandedLevel(panel);
-  stripRepeatedHeader(panel);
-  if (body.classList.contains('member-detail-redesigned')) return;
-
-  const summaryGrid = directChild(body, '.detail-grid:not(.compact)') || body.querySelector(':scope > .detail-grid');
-  if (!summaryGrid) return;
-
-  const summaryCards = [...summaryGrid.children];
-  const trackingLine = document.createElement('div');
-  trackingLine.className = 'member-tracking-inline';
-  trackingLine.textContent = buildTrackingSummary(summaryCards);
-
-  body.replaceChildren(trackingLine);
-  body.classList.add('member-detail-redesigned');
-  panel.classList.add('compact-member-panel');
-}
-
-function preserveExpandedLevel(panel) {
-  const detailRow = panel.closest('tr.member-detail-row');
-  const memberRow = detailRow?.previousElementSibling;
-  if (!memberRow?.matches('tr.member-row[data-member-id]')) return;
-  const text = panel.querySelector('.member-inline-header p:last-child')?.textContent || '';
-  const match = text.match(/Level\s+(\d+)/i);
-  if (match) memberRow.dataset.memberLevel = match[1];
-}
-
-function stripRepeatedHeader(panel) {
-  const header = panel.querySelector('.member-inline-header');
-  if (!header) return;
-
-  const close = header.querySelector('[data-close-member]');
-  if (close) {
-    close.classList.add('member-floating-close');
-    panel.appendChild(close);
-  }
-  header.remove();
-  panel.classList.add('compact-member-panel');
-}
-
-function directChild(parent, selector) {
-  return [...parent.children].find(child => child.matches(selector)) || null;
-}
-
-function buildTrackingSummary(summaryCards) {
-  const notes = [];
-
-  for (const card of summaryCards) {
-    const label = card.querySelector('span')?.textContent?.trim();
-    const note = card.querySelector('small')?.textContent?.trim();
-    if (!label || !note) continue;
-
-    if (label === 'Battle stats') {
-      if (/verified/i.test(note)) notes.push('Battle stats verified by member API');
-      else if (/estimate/i.test(note)) notes.push('Battle stats use an estimate');
-      else notes.push('No battle-stat source');
-    }
-
-    if (label === 'Activity / day') {
-      notes.push(note.replace(/\.$/, ''));
-    }
-
-    if (label === 'OCs / month' && /tracking will|unavailable/i.test(note)) {
-      notes.push('OC trend not available yet');
-    }
-  }
-
-  return notes.filter(Boolean).join(' · ') || 'No additional tracking details available yet';
 }
