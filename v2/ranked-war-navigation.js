@@ -6,6 +6,7 @@ const titles = {
   overview: 'Overview',
   members: 'Members',
   'ranked-war': 'Ranked War',
+  performance: 'Performance',
   wars: 'War history',
   'current-war': 'Current matchup',
   settings: 'Settings'
@@ -33,9 +34,6 @@ document.querySelectorAll('.nav-button[data-tab], .jump-button[data-jump]').forE
 
 syncNavigationState();
 
-// range-controls.js inserts the Period bar shortly after boot. Poll only until
-// that element exists, then stop; this prevents a startup flash without a
-// permanent MutationObserver.
 let startupChecks = 0;
 const startupTimer = window.setInterval(() => {
   startupChecks += 1;
@@ -48,10 +46,10 @@ const startupTimer = window.setInterval(() => {
 function syncNavigationState() {
   const activeButton = document.querySelector('.nav-button.active[data-tab]');
   const active = activeButton?.dataset.tab || 'overview';
-  const inRankedWar = ['ranked-war', 'wars', 'current-war'].includes(active);
+  const inRankedWar = ['ranked-war', 'performance', 'wars', 'current-war'].includes(active);
 
   rankedWarGroup?.classList.toggle('section-active', inRankedWar);
-  if (['wars', 'current-war'].includes(active)) {
+  if (['performance', 'wars', 'current-war'].includes(active)) {
     rankedWarGroup?.classList.add('open');
     rankedWarParent?.setAttribute('aria-expanded', 'true');
   }
