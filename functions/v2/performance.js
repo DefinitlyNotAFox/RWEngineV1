@@ -41,47 +41,33 @@ export async function onRequest(context) {
       ORDER BY MAX(wl.player_name) COLLATE NOCASE
     `).bind(factionId, range.from, range.to).all();
 
-    // Only attacks between the two ranked-war factions belong in the detailed
-    // war comparison. Outside attacks remain stored for other analytics but do
-    // not contribute to assists or respect +/- here.
+    // is_ranked_war is authoritative for war membership. Incoming stealthed
+    // attacks may hide attacker identity/faction, so do not require the
+    // opponent faction ID when the imported member is the defender.
     const attackMetricsResult = await env.DB.prepare(`
       SELECT
         own.player_id,
         SUM(CASE
           WHEN a.attacker_id = own.player_id
-           AND a.attacker_faction_id = own.faction_id
-           AND a.defender_faction_id = w.opponent_faction_id
            AND a.is_ranked_war = 1
            AND LOWER(TRIM(COALESCE(a.result, ''))) LIKE '%assist%'
           THEN 1 ELSE 0 END
         ) AS assists,
         SUM(CASE
           WHEN a.attacker_id = own.player_id
-           AND a.attacker_faction_id = own.faction_id
-           AND a.defender_faction_id = w.opponent_faction_id
            AND a.is_ranked_war = 1
            AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
           THEN COALESCE(a.respect_gain, 0) ELSE 0 END
         ) AS respect_earned,
         SUM(CASE
           WHEN a.defender_id = own.player_id
-           AND a.attacker_faction_id = w.opponent_faction_id
-           AND a.defender_faction_id = own.faction_id
            AND a.is_ranked_war = 1
            AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
           THEN ABS(COALESCE(a.respect_loss, 0)) ELSE 0 END
         ) AS respect_lost,
         SUM(CASE
           WHEN a.is_ranked_war = 1
-           AND (
-             (a.attacker_id = own.player_id
-              AND a.attacker_faction_id = own.faction_id
-              AND a.defender_faction_id = w.opponent_faction_id)
-             OR
-             (a.defender_id = own.player_id
-              AND a.attacker_faction_id = w.opponent_faction_id
-              AND a.defender_faction_id = own.faction_id)
-           )
+           AND (a.attacker_id = own.player_id OR a.defender_id = own.player_id)
           THEN 1 ELSE 0 END
         ) AS attack_rows
       FROM war_log own
