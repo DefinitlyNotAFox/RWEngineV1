@@ -249,6 +249,7 @@ function applyCustomRange() {
 function applyDates(from, to) {
   if (!from || !to) return;
 
+  window.dispatchEvent(new CustomEvent('rwe:member-sort-reset'));
   intelFrom.value = from;
   intelTo.value = to;
   syncCustomInputs();
