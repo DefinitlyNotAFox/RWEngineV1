@@ -1,0 +1,245 @@
+.war-history-row {
+  cursor: pointer;
+}
+
+.war-history-row:hover,
+.war-history-row:focus-visible {
+  background: rgba(255, 255, 255, .035);
+  outline: none;
+}
+
+.war-drilldown {
+  padding-top: 2px;
+}
+
+.war-detail-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  margin-bottom: 12px;
+}
+
+.war-detail-back {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  padding-left: 0;
+}
+
+.war-detail-heading {
+  min-width: 0;
+}
+
+.war-detail-heading small,
+.war-detail-heading span {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.war-detail-heading h2 {
+  margin: 2px 0 3px;
+  font-size: 17px;
+}
+
+.war-detail-score {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 20px;
+  padding: 10px 0 12px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.war-detail-side {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.war-detail-side.is-opponent {
+  justify-content: flex-start;
+}
+
+.war-detail-side span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.war-detail-side strong {
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.war-detail-versus {
+  color: var(--muted-dim);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.war-detail-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin: 10px 0;
+  background: var(--border);
+}
+
+.war-detail-metrics article {
+  min-width: 0;
+  padding: 8px 10px;
+  background: var(--bg);
+}
+
+.war-detail-metrics span,
+.war-detail-metrics small {
+  display: block;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.war-detail-metrics strong {
+  display: block;
+  margin: 2px 0 1px;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.war-detail-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.war-detail-toolbar-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+}
+
+.war-detail-search {
+  width: 190px;
+  padding: 7px 9px;
+  font-size: 12px;
+}
+
+.war-detail-table-wrap {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#warDetailTable {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  border: 0;
+  border-collapse: collapse;
+}
+
+#warDetailTable th,
+#warDetailTable td {
+  border: 0 !important;
+}
+
+#warDetailTable th:first-child,
+#warDetailTable td:first-child {
+  width: 22%;
+}
+
+#warDetailTable .performance-stat-cell,
+#warDetailTable .performance-sort-header:not(.is-left) {
+  text-align: center;
+}
+
+#warDetailTable .performance-sort-header:not(.is-left) .performance-sort {
+  justify-content: center;
+}
+
+#warDetailTable .performance-member-cell,
+#warDetailTable .performance-sort-header.is-left {
+  text-align: left;
+}
+
+#warDetailTable .performance-sort-header.is-left .performance-sort {
+  justify-content: flex-start;
+}
+
+#warDetailTable tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, .012);
+}
+
+#warDetailTable tbody tr:hover {
+  background: rgba(255, 255, 255, .035);
+}
+
+#warDetailTable td {
+  padding: 6px;
+  font-size: 12px;
+  line-height: 1.15;
+  vertical-align: middle;
+}
+
+#warDetailTable .performance-member-cell small {
+  display: block;
+  margin-top: 1px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+#warDetailTable .performance-net-cell,
+#warDetailTable .performance-sort-header.is-net {
+  box-shadow: inset 1px 0 rgba(255, 255, 255, .07);
+}
+
+#warDetailTable .performance-net-cell .performance-stat-primary {
+  font-weight: 780;
+}
+
+@media (max-width: 900px) {
+  .war-detail-score {
+    gap: 10px;
+  }
+
+  .war-detail-side {
+    align-items: flex-end;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .war-detail-side.is-opponent {
+    align-items: flex-start;
+  }
+
+  .war-detail-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .war-detail-header,
+  .war-detail-toolbar,
+  .war-detail-toolbar-right {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .war-detail-search {
+    width: 100%;
+  }
+}
