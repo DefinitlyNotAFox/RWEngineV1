@@ -1,6 +1,9 @@
 const membersBody = document.querySelector('#membersBody');
 const membersTable = document.querySelector('.members-table');
 const warsMetric = document.querySelector('#metricWars');
+const memberSearch = document.querySelector('#memberSearch');
+const refreshButton = document.querySelector('#refreshButton');
+const syncButton = document.querySelector('#syncIntelButton');
 
 const sortState = {
   key: null,
@@ -16,20 +19,28 @@ const sortColumns = {
   hits: { index: 8, label: 'Avg hits / war', parse: parseNumber }
 };
 
-let observer = null;
-
 if (membersBody && membersTable) {
   installStylesheet();
   installHeaders();
-  observeTable();
-  normalizeAndSort();
+
+  memberSearch?.addEventListener('input', schedulePresentation);
+  membersBody.addEventListener('click', event => {
+    if (event.target.closest('tr.member-row[data-member-id]')) resetSort();
+    schedulePresentation();
+  });
+  refreshButton?.addEventListener('click', resetSort);
+  syncButton?.addEventListener('click', resetSort);
+  window.addEventListener('rwe:member-sort-reset', resetSort);
+
+  window.setTimeout(schedulePresentation, 500);
+  window.setTimeout(schedulePresentation, 1400);
 }
 
 function installStylesheet() {
   if (document.querySelector('link[data-rwe-member-table]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/v2/member-table.css?v=1';
+  link.href = '/v2/member-table.css?v=2';
   link.dataset.rweMemberTable = '1';
   document.head.appendChild(link);
 }
@@ -67,27 +78,25 @@ function installHeaders() {
       sortState.direction = 'desc';
     }
 
-    normalizeAndSort();
+    applyPresentation();
   });
 }
 
-function observeTable() {
-  observer = new MutationObserver(() => normalizeAndSort());
-  observer.observe(membersBody, { childList: true, subtree: true });
-  if (warsMetric) observer.observe(warsMetric, { childList: true, characterData: true, subtree: true });
+function schedulePresentation() {
+  window.requestAnimationFrame(applyPresentation);
 }
 
-function normalizeAndSort() {
-  if (!membersBody || !observer) return;
+function applyPresentation() {
+  applyEmptyStates();
+  updateIndicators();
+  if (sortState.key) applySort();
+}
 
-  observer.disconnect();
-  try {
-    applyEmptyStates();
-    updateIndicators();
-    if (sortState.key) applySort();
-  } finally {
-    observeTable();
-  }
+function resetSort() {
+  if (!sortState.key) return;
+  sortState.key = null;
+  sortState.direction = 'desc';
+  updateIndicators();
 }
 
 function applyEmptyStates() {
