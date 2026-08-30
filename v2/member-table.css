@@ -1,8 +1,8 @@
 /* Position/faction rank and last action are intentionally hidden from the roster scan. */
-.members-table th:nth-child(2),
-.members-table td:nth-child(2),
-.members-table th:nth-child(3),
-.members-table td:nth-child(3) {
+.members-table > thead > tr > th:nth-child(2),
+.members-table > thead > tr > th:nth-child(3),
+.members-table > tbody > tr.member-row > td:nth-child(2),
+.members-table > tbody > tr.member-row > td:nth-child(3) {
   display: none;
 }
 
