@@ -6,6 +6,7 @@
   <title>RWEngine</title>
   <link rel="stylesheet" href="/v2/styles.css?v=5" />
   <link rel="stylesheet" href="/v2/compact.css?v=1" />
+  <link rel="stylesheet" href="/v2/war-import.css?v=1" />
 </head>
 <body>
   <div id="loginView" class="login-view">
@@ -170,6 +171,42 @@
             </div>
           </div>
 
+          <details class="war-import">
+            <summary>
+              <span>
+                <strong>Import historical war reports</strong>
+                <small>Add finished ranked wars from before RWE started tracking this faction.</small>
+              </span>
+            </summary>
+            <div class="war-import-body">
+              <form id="historicalWarImportForm" class="historical-import-form">
+                <label class="historical-import-input">
+                  <span>Ranked war report IDs</span>
+                  <textarea id="historicalWarReportIds" rows="3" placeholder="One or more report IDs, separated by spaces, commas or new lines" required></textarea>
+                </label>
+                <div class="historical-import-actions">
+                  <label class="historical-import-options">
+                    <input id="historicalWarOverwrite" type="checkbox" />
+                    Overwrite existing reports
+                  </label>
+                  <button class="button primary" type="submit">Import reports</button>
+                </div>
+              </form>
+
+              <div id="historicalWarImportStatus" class="historical-import-status hidden"></div>
+
+              <div id="historicalWarImportProgress" class="historical-import-progress hidden">
+                <div class="historical-import-progress-head">
+                  <span id="historicalWarImportSummary">Preparing import…</span>
+                </div>
+                <div class="historical-import-progress-track">
+                  <span id="historicalWarImportBar"></span>
+                </div>
+                <div id="historicalWarImportList" class="historical-import-list"></div>
+              </div>
+            </div>
+          </details>
+
           <div class="table-wrap">
             <table>
               <thead>
@@ -230,5 +267,7 @@
   </div>
 
   <script type="module" src="/v2/app.js?v=4"></script>
+  <script type="module" src="/v2/sync-status.js?v=1"></script>
+  <script type="module" src="/v2/war-import.js?v=1"></script>
 </body>
 </html>
