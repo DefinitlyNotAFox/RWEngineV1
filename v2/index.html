@@ -9,12 +9,13 @@
   <link rel="stylesheet" href="/v2/war-import.css?v=1" />
   <link rel="stylesheet" href="/v2/admin-workspace.css?v=1" data-rwe-admin-workspace="1" />
   <link rel="stylesheet" href="/v2/boot-stability.css?v=1" />
+  <link rel="stylesheet" href="/v2/layout-refinement.css?v=1" />
 </head>
 <body>
   <div id="loginView" class="login-view hidden">
     <form id="loginForm" class="login-card">
       <div class="wordmark"><span>RW</span>Engine</div>
-      <p class="muted">Faction intelligence</p>
+      <p class="muted">Faction analytics</p>
 
       <label>
         Torn player ID
@@ -54,10 +55,7 @@
 
     <main class="main">
       <header class="topbar">
-        <div>
-          <p class="eyebrow">Faction intelligence</p>
-          <h1 id="pageTitle">Overview</h1>
-        </div>
+        <h1 id="pageTitle">Overview</h1>
         <div class="member-controls">
           <button id="syncIntelButton" class="button primary" type="button">Sync faction</button>
           <button id="refreshButton" class="button" type="button">Refresh</button>
@@ -103,7 +101,6 @@
       <section id="membersTab" class="tab">
         <article class="panel">
           <div class="panel-header members-header">
-            <div><p class="eyebrow">Faction intelligence</p><h2>Members</h2></div>
             <div class="member-controls range-controls">
               <label class="compact-control"><span>From</span><input id="intelFrom" type="date" /></label>
               <label class="compact-control"><span>To</span><input id="intelTo" type="date" /></label>
@@ -123,7 +120,6 @@
 
       <section id="warsTab" class="tab">
         <article class="panel">
-          <div class="panel-header"><div><p class="eyebrow">Ranked war archive</p><h2>Wars</h2></div></div>
           <details class="war-import">
             <summary><span><strong>Import historical war reports</strong><small>Add finished ranked wars from before RWE started tracking this faction.</small></span></summary>
             <div class="war-import-body">
@@ -159,7 +155,7 @@
       <section id="settingsTab" class="tab">
         <div class="two-column">
           <article class="panel"><p class="eyebrow">Account</p><h2>Identity</h2><dl class="definition-list"><div><dt>Player</dt><dd id="settingsPlayer">—</dd></div><div><dt>Faction</dt><dd id="settingsFaction">—</dd></div><div><dt>Faction ID</dt><dd id="settingsFactionId">—</dd></div></dl></article>
-          <article class="panel"><p class="eyebrow">Application</p><h2>RWEngine</h2><p class="muted">Faction intelligence, member history, ranked-war analytics and matchup information in one place.</p></article>
+          <article class="panel"><p class="eyebrow">Application</p><h2>RWEngine</h2><p class="muted">Faction analytics, member history, ranked-war analytics and matchup information in one place.</p></article>
         </div>
       </section>
     </main>
