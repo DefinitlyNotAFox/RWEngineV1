@@ -6,6 +6,7 @@ import './member-table.js?v=4';
 import './range-controls.js?v=4';
 import './member-detail-redesign.js?v=6';
 import './performance-table.js?v=7';
+import './war-history.js?v=1';
 
 const syncStatus = document.querySelector('#syncStatus');
 
