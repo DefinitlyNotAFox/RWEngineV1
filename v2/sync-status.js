@@ -3,7 +3,7 @@ import './admin-key-selector.js?v=1';
 import './admin-import-enable.js?v=2';
 import './sync-router.js?v=2';
 import './member-table.js?v=1';
-import './range-controls.js?v=1';
+import './range-controls.js?v=2';
 
 const syncStatus = document.querySelector('#syncStatus');
 
