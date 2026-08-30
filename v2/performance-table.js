@@ -17,6 +17,7 @@ const MODE_KEY = 'rwengine.performanceMode';
 const state = {
   members: [],
   totalWars: 0,
+  attackCoverage: 0,
   mode: readMode(),
   sortKey: 'netPerWar',
   sortDirection: 'desc',
@@ -154,13 +155,20 @@ async function loadPerformance(force = false) {
 
     state.members = (data.members || []).map(normalizeMember);
     state.totalWars = Number(data.totalWars || 0);
+    state.attackCoverage = Number(data.attackCoverage || 0);
     state.loadedKey = key;
-    setStatus(state.totalWars > 0 ? `${state.totalWars} imported war${state.totalWars === 1 ? '' : 's'} in period` : '');
+
+    if (state.totalWars > 0 && state.attackCoverage === 0) {
+      setStatus(`${state.totalWars} imported war${state.totalWars === 1 ? '' : 's'} in period · attack detail not collected; assists and respect require rebuilding the report attack pass`);
+    } else {
+      setStatus(state.totalWars > 0 ? `${state.totalWars} imported war${state.totalWars === 1 ? '' : 's'} in period` : '');
+    }
     render();
   } catch (error) {
     if (requestId !== state.requestId) return;
     state.members = [];
     state.totalWars = 0;
+    state.attackCoverage = 0;
     setStatus(error.message || 'Failed to load performance data.', true);
     render();
   } finally {
@@ -171,7 +179,7 @@ async function loadPerformance(force = false) {
 function normalizeMember(member) {
   const wars = numberOrZero(member.wars);
   const hits = numberOrZero(member.warHits);
-  const assists = numberOrZero(member.assists);
+  const assists = nullableNumber(member.assists);
   const netScore = numberOrZero(member.netScore);
 
   return {
@@ -183,10 +191,10 @@ function normalizeMember(member) {
     hits,
     hitsPerWar: nullableNumber(member.avgHitsPerWar) ?? perWar(hits, wars),
     assists,
-    assistsPerWar: perWar(assists, wars),
+    assistsPerWar: assists !== null ? perWar(assists, wars) : null,
     outsideHits: numberOrZero(member.outsideHits),
-    respectEarned: numberOrZero(member.respectEarned),
-    respectLost: numberOrZero(member.respectLost),
+    respectEarned: nullableNumber(member.respectEarned),
+    respectLost: nullableNumber(member.respectLost),
     scoreUp: numberOrZero(member.scoreUp),
     scoreDown: numberOrZero(member.scoreDown),
     netScore,
