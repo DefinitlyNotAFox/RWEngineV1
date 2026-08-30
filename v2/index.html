@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="/v2/boot-stability.css?v=1" />
   <link rel="stylesheet" href="/v2/layout-refinement.css?v=1" />
   <link rel="stylesheet" href="/v2/member-table.css?v=2" data-rwe-member-table="1" />
-  <link rel="stylesheet" href="/v2/range-controls.css?v=1" data-rwe-range-controls="1" />
+  <link rel="stylesheet" href="/v2/range-controls.css?v=2" data-rwe-range-controls="1" />
 </head>
 <body>
   <div id="loginView" class="login-view hidden">
@@ -70,7 +70,7 @@
       <section id="overviewTab" class="tab active">
         <div class="metric-grid">
           <article class="metric-card"><span>Current members</span><strong id="metricMembers">—</strong></article>
-          <article class="metric-card"><span>Wars in range</span><strong id="metricWars">—</strong></article>
+          <article class="metric-card"><span>Wars in period</span><strong id="metricWars">—</strong></article>
           <article class="metric-card"><span>Total war hits</span><strong id="metricHits">—</strong></article>
           <article class="metric-card"><span>Net score</span><strong id="metricNetScore">—</strong></article>
         </div>
@@ -86,7 +86,7 @@
 
           <article class="panel">
             <div class="panel-header">
-              <div><p class="eyebrow">Selected range</p><h2>Top contributors</h2></div>
+              <div><p class="eyebrow">Selected period</p><h2>Top contributors</h2></div>
               <button class="text-button jump-button" data-jump="members" type="button">View members</button>
             </div>
             <div id="overviewMembers" class="stack-list"></div>
@@ -164,7 +164,7 @@
   </div>
 
   <script type="module" src="/v2/app.js?v=4"></script>
-  <script type="module" src="/v2/sync-status.js?v=10"></script>
+  <script type="module" src="/v2/sync-status.js?v=11"></script>
   <script type="module" src="/v2/war-import.js?v=2"></script>
 </body>
 </html>
