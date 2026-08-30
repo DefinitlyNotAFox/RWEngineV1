@@ -1,5 +1,6 @@
 import './admin-workspace.js?v=1';
 import './admin-key-selector.js?v=1';
+import './admin-import-enable.js?v=1';
 import './sync-router.js?v=2';
 import './member-sort.js?v=1';
 import './member-empty-states.js?v=1';
