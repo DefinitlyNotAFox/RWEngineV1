@@ -1,10 +1,13 @@
 const state = {
   user: null,
-  dashboard: null,
   wars: [],
   range: null,
   syncJob: null,
-  syncRunning: false
+  syncRunning: false,
+  selectedMemberId: null,
+  memberDetailCache: new Map(),
+  memberDetailLoading: new Set(),
+  memberDetailErrors: new Map()
 };
 
 const loginView = document.querySelector('#loginView');
@@ -22,12 +25,7 @@ const intelTo = document.querySelector('#intelTo');
 const applyRangeButton = document.querySelector('#applyRangeButton');
 const syncIntelButton = document.querySelector('#syncIntelButton');
 const syncStatus = document.querySelector('#syncStatus');
-const memberModal = document.querySelector('#memberModal');
-const memberModalBackdrop = document.querySelector('#memberModalBackdrop');
-const memberModalClose = document.querySelector('#memberModalClose');
-const memberModalName = document.querySelector('#memberModalName');
-const memberModalMeta = document.querySelector('#memberModalMeta');
-const memberModalBody = document.querySelector('#memberModalBody');
+const membersBody = document.querySelector('#membersBody');
 
 const pageTitles = {
   overview: 'Overview',
@@ -58,11 +56,10 @@ loginForm.addEventListener('submit', async event => {
 logoutButton.addEventListener('click', async () => {
   try { await api('logout'); } catch (_) {}
   state.user = null;
-  state.dashboard = null;
   state.wars = [];
   state.range = null;
   state.syncJob = null;
-  closeMemberModal();
+  clearMemberDetails();
   showLogin();
 });
 
@@ -70,14 +67,15 @@ refreshButton.addEventListener('click', () => loadCoreData(true));
 memberSearch.addEventListener('input', renderMembers);
 applyRangeButton.addEventListener('click', () => loadRange(true));
 syncIntelButton.addEventListener('click', runFactionSync);
-memberModalBackdrop.addEventListener('click', closeMemberModal);
-memberModalClose.addEventListener('click', closeMemberModal);
 
-document.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && !memberModal.classList.contains('hidden')) closeMemberModal();
-});
+membersBody.addEventListener('click', event => {
+  const closeButton = event.target.closest('[data-close-member]');
+  if (closeButton) {
+    event.stopPropagation();
+    closeMemberDetails();
+    return;
+  }
 
-document.querySelector('#membersBody').addEventListener('click', event => {
   const row = event.target.closest('tr[data-member-id]');
   if (row) openMember(Number(row.dataset.memberId));
 });
@@ -132,24 +130,20 @@ async function loadCoreData(showRefreshState) {
   setGlobalError('');
 
   try {
-    const [dashboardResponse, warsResponse, rangeResponse, syncResponse] = await Promise.all([
-      api('getDashboardData', {
-        filters: { termedFilter: 'ALL', memberFilter: 'ALL', search: '' },
-        sortBy: 'ImpactScore',
-        sortDirection: 'DESC'
-      }),
+    const [warsResponse, rangeResponse, syncResponse] = await Promise.all([
       api('getImportedWars'),
       rangeApi('getRange', getRangePayload()),
       intelApi('getSyncStatus').catch(() => ({ job: null }))
     ]);
 
-    state.dashboard = dashboardResponse;
     state.wars = warsResponse.wars || [];
     state.range = rangeResponse;
     state.syncJob = syncResponse.job || null;
 
     syncRangeInputs();
     renderAll();
+
+    if (state.selectedMemberId) await loadMemberDetail(state.selectedMemberId);
   } catch (error) {
     setGlobalError(error.message);
   } finally {
@@ -167,12 +161,19 @@ async function loadRange(showBusyState = false) {
   }
 
   setGlobalError('');
+
   try {
     state.range = await rangeApi('getRange', getRangePayload());
+    state.memberDetailCache.clear();
+    state.memberDetailErrors.clear();
+    state.memberDetailLoading.clear();
+
     syncRangeInputs();
     renderOverview();
     renderMembers();
     renderWars();
+
+    if (state.selectedMemberId) await loadMemberDetail(state.selectedMemberId);
   } catch (error) {
     setGlobalError(`Date range: ${error.message}`);
   } finally {
@@ -193,10 +194,12 @@ function getRangePayload() {
 function syncRangeInputs() {
   const range = state.range?.range;
   if (!range) return;
+
   intelFrom.value = range.fromDate;
   intelTo.value = range.toDate;
   intelFrom.min = state.range?.trackingStartedAt ? toDateInput(state.range.trackingStartedAt) : '';
   intelTo.min = intelFrom.min;
+
   const today = toDateInput(Math.floor(Date.now() / 1000));
   intelFrom.max = today;
   intelTo.max = today;
@@ -229,6 +232,8 @@ async function runFactionSync() {
       if (!['completed', 'failed'].includes(job.status)) await sleep(result.busy ? 1200 : 250);
     }
 
+    state.memberDetailCache.clear();
+    state.memberDetailErrors.clear();
     await loadCoreData(false);
   } catch (error) {
     setGlobalError(`Faction sync: ${error.message}`);
@@ -304,7 +309,6 @@ function renderOverview() {
 }
 
 function renderMembers() {
-  const tbody = document.querySelector('#membersBody');
   const search = memberSearch.value.trim().toLowerCase();
   const rows = (state.range?.members || []).filter(member => {
     if (!search) return true;
@@ -312,55 +316,121 @@ function renderMembers() {
   });
 
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="empty">No matching members in the selected range.</td></tr>';
+    membersBody.innerHTML = '<tr><td colspan="9" class="empty">No matching members in the selected range.</td></tr>';
     return;
   }
 
-  tbody.innerHTML = rows.map(member => `
-    <tr data-member-id="${member.playerId}" class="member-row" title="Open member details">
-      <td>
-        <span class="member-name">${escapeHtml(member.playerName || 'Unknown')}</span>
-        <span class="member-id">${escapeHtml(String(member.playerId || ''))}${member.current ? ' · current' : ' · left'}</span>
+  membersBody.innerHTML = rows.map(member => {
+    const selected = Number(state.selectedMemberId) === Number(member.playerId);
+    return `
+      <tr data-member-id="${member.playerId}" class="member-row${selected ? ' selected' : ''}" title="${selected ? 'Collapse member details' : 'Show member details'}">
+        <td>
+          <span class="member-name">${escapeHtml(member.playerName || 'Unknown')}</span>
+          <span class="member-id">${escapeHtml(String(member.playerId || ''))}${member.current ? ' · current' : ' · left'}</span>
+        </td>
+        <td>${escapeHtml(member.position || '—')}</td>
+        <td title="${escapeHtml(formatDateTime(member.lastActionAt))}">${formatRelativeTime(member.lastActionAt)}</td>
+        <td>${formatBattleStats(member)}</td>
+        <td>${formatActivityPerDay(member.activityPerDaySeconds)}</td>
+        <td>${formatNullableDecimal(member.xanaxPerDay, 2)}</td>
+        <td>${formatNullableDecimal(member.ocsPerMonth, 1)}</td>
+        <td>${formatPercent(member.participation)}</td>
+        <td>${formatNullableDecimal(member.avgHitsPerWar, 1)}</td>
+      </tr>
+      ${selected ? renderInlineMemberDetail(member) : ''}
+    `;
+  }).join('');
+}
+
+function renderInlineMemberDetail(summaryMember) {
+  const key = memberDetailKey(summaryMember.playerId);
+  const cached = state.memberDetailCache.get(key);
+  const error = state.memberDetailErrors.get(key);
+  const loading = state.memberDetailLoading.has(key);
+
+  let body = '<div class="inline-loading">Loading member details…</div>';
+  if (error) body = `<div class="error-banner inline-error">${escapeHtml(error)}</div>`;
+  else if (cached) body = renderMemberDetailContent(cached.member, cached.wars || []);
+  else if (!loading) body = '<div class="inline-loading">Loading member details…</div>';
+
+  return `
+    <tr class="member-detail-row">
+      <td colspan="9">
+        <section class="member-inline-panel">
+          <header class="member-inline-header">
+            <div>
+              <p class="eyebrow">Member details</p>
+              <h3>${escapeHtml(summaryMember.playerName || `Player ${summaryMember.playerId}`)}</h3>
+              <p>${escapeHtml(summaryMember.position || 'Member')} · Level ${summaryMember.level ?? '—'} · [${summaryMember.playerId}]</p>
+            </div>
+            <button class="inline-close" data-close-member type="button" aria-label="Collapse member details">×</button>
+          </header>
+          <div class="member-inline-body">${body}</div>
+        </section>
       </td>
-      <td>${escapeHtml(member.position || '—')}</td>
-      <td title="${escapeHtml(formatDateTime(member.lastActionAt))}">${formatRelativeTime(member.lastActionAt)}</td>
-      <td>${formatBattleStats(member)}</td>
-      <td>${formatActivityPerDay(member.activityPerDaySeconds)}</td>
-      <td>${formatNullableDecimal(member.xanaxPerDay, 2)}</td>
-      <td>${formatNullableDecimal(member.ocsPerMonth, 1)}</td>
-      <td>${formatPercent(member.participation)}</td>
-      <td>${formatNullableDecimal(member.avgHitsPerWar, 1)}</td>
     </tr>
-  `).join('');
+  `;
 }
 
 async function openMember(playerId) {
-  const summaryMember = (state.range?.members || []).find(member => Number(member.playerId) === Number(playerId));
-  memberModalName.textContent = summaryMember?.playerName || `Player ${playerId}`;
-  memberModalMeta.textContent = summaryMember ? `${summaryMember.position || 'Member'} · [${playerId}]` : `[${playerId}]`;
-  memberModalBody.innerHTML = '<div class="modal-loading">Loading member details…</div>';
-  memberModal.classList.remove('hidden');
-  memberModal.setAttribute('aria-hidden', 'false');
-  document.body.classList.add('modal-open');
+  if (!Number.isSafeInteger(playerId) || playerId <= 0) return;
+
+  if (Number(state.selectedMemberId) === playerId) {
+    closeMemberDetails();
+    return;
+  }
+
+  state.selectedMemberId = playerId;
+  showTab('members');
+  renderMembers();
+
+  requestAnimationFrame(() => {
+    document.querySelector(`tr[data-member-id="${playerId}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
+
+  await loadMemberDetail(playerId);
+}
+
+async function loadMemberDetail(playerId) {
+  const key = memberDetailKey(playerId);
+  if (state.memberDetailCache.has(key) || state.memberDetailLoading.has(key)) return;
+
+  state.memberDetailLoading.add(key);
+  state.memberDetailErrors.delete(key);
+  if (Number(state.selectedMemberId) === Number(playerId)) renderMembers();
 
   try {
     const response = await rangeApi('getMemberDetail', { playerId, ...getRangePayload() });
-    renderMemberModal(response.member, response.wars || []);
+    state.memberDetailCache.set(key, {
+      member: response.member,
+      wars: response.wars || []
+    });
   } catch (error) {
-    memberModalBody.innerHTML = `<div class="error-banner">${escapeHtml(error.message)}</div>`;
+    state.memberDetailErrors.set(key, error.message || 'Failed to load member details.');
+  } finally {
+    state.memberDetailLoading.delete(key);
+    if (Number(state.selectedMemberId) === Number(playerId)) renderMembers();
   }
 }
 
-function closeMemberModal() {
-  memberModal.classList.add('hidden');
-  memberModal.setAttribute('aria-hidden', 'true');
-  document.body.classList.remove('modal-open');
+function closeMemberDetails() {
+  state.selectedMemberId = null;
+  renderMembers();
 }
 
-function renderMemberModal(member, wars) {
-  memberModalName.textContent = member.playerName || `Player ${member.playerId}`;
-  memberModalMeta.textContent = `${member.position || 'Member'} · Level ${member.level ?? '—'} · [${member.playerId}]`;
+function clearMemberDetails() {
+  state.selectedMemberId = null;
+  state.memberDetailCache.clear();
+  state.memberDetailLoading.clear();
+  state.memberDetailErrors.clear();
+}
 
+function memberDetailKey(playerId) {
+  const range = state.range?.range;
+  return `${playerId}:${range?.from || intelFrom.value || ''}:${range?.to || intelTo.value || ''}`;
+}
+
+function renderMemberDetailContent(member, wars) {
   const warRows = wars.length
     ? wars.map(war => `
         <tr>
@@ -376,7 +446,7 @@ function renderMemberModal(member, wars) {
       `).join('')
     : '<tr><td colspan="8" class="empty">No imported ranked wars in this range.</td></tr>';
 
-  memberModalBody.innerHTML = `
+  return `
     <div class="detail-grid">
       ${detailCard('Battle stats', formatBattleStats(member), member.battleStatsVerified ? 'Verified by member API' : member.battleStatsValue ? 'Estimate' : 'Unavailable')}
       ${detailCard('Activity / day', formatActivityPerDay(member.activityPerDaySeconds), coverageText(member.coverageDays))}
@@ -386,11 +456,10 @@ function renderMemberModal(member, wars) {
 
     <section class="member-detail-section">
       <div class="section-heading">
-        <div>
-          <p class="eyebrow">Ranked war performance</p>
-          <h3>Selected range</h3>
-        </div>
+        <p class="eyebrow">Ranked war performance</p>
+        <h4>Selected range</h4>
       </div>
+
       <div class="detail-grid compact">
         ${detailCard('Participation', formatPercent(member.participation), `${formatNumber(member.wars || 0)} wars`)}
         ${detailCard('War hits', formatNumber(member.warHits || 0), `${formatNullableDecimal(member.avgHitsPerWar, 1)} avg / war`)}
@@ -400,7 +469,7 @@ function renderMemberModal(member, wars) {
         ${detailCard('Net score', formatSigned(member.netScore || 0), 'After score lost')}
       </div>
 
-      <div class="table-wrap modal-table-wrap">
+      <div class="table-wrap detail-war-table">
         <table>
           <thead>
             <tr>
@@ -496,6 +565,7 @@ function renderWars() {
 function getWarsInRange() {
   const from = Number(state.range?.range?.from || 0);
   const to = Number(state.range?.range?.to || Number.MAX_SAFE_INTEGER);
+
   return (state.wars || []).filter(war => {
     const timestamp = Number(war.end_timestamp || war.start_timestamp || war.imported_at || 0);
     return timestamp >= from && timestamp <= to;
@@ -544,7 +614,11 @@ async function parseApiResponse(response) {
   let data;
   try { data = await response.json(); }
   catch (_) { throw new Error(`Backend returned HTTP ${response.status} without JSON.`); }
-  if (!response.ok || data.success === false) throw new Error(data.message || `Request failed with HTTP ${response.status}.`);
+
+  if (!response.ok || data.success === false) {
+    throw new Error(data.message || `Request failed with HTTP ${response.status}.`);
+  }
+
   return data;
 }
 
@@ -556,7 +630,9 @@ function formatUser(user) {
 function formatWarDate(timestamp) {
   const value = Number(timestamp || 0);
   if (!value) return '—';
-  return new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: '2-digit' }).format(new Date(value * 1000));
+  return new Intl.DateTimeFormat(undefined, {
+    year: 'numeric', month: 'short', day: '2-digit'
+  }).format(new Date(value * 1000));
 }
 
 function formatDateTime(timestamp) {
@@ -574,6 +650,7 @@ function toDateInput(timestamp) {
 function formatRelativeTime(timestamp) {
   const value = Number(timestamp || 0);
   if (!value) return '—';
+
   const seconds = Math.max(0, Math.floor(Date.now() / 1000) - value);
   if (seconds < 60) return `${seconds}s`;
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
@@ -585,6 +662,7 @@ function formatActivityPerDay(value) {
   if (value === null || value === undefined || value === '') return 'Unavailable';
   const seconds = Number(value);
   if (!Number.isFinite(seconds)) return 'Unavailable';
+
   const minutes = Math.max(0, Math.round(seconds / 60));
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
@@ -593,7 +671,10 @@ function formatActivityPerDay(value) {
 
 function formatBattleStats(member) {
   const value = member?.battleStatsValue;
-  if (value === null || value === undefined || value === '') return '<span class="unavailable">Unavailable</span>';
+  if (value === null || value === undefined || value === '') {
+    return '<span class="unavailable">Unavailable</span>';
+  }
+
   const label = member.battleStatsVerified ? 'verified' : 'estimate';
   return `<span class="stat-value">${escapeHtml(formatCompactNumber(value))}</span><small class="stat-source ${member.battleStatsVerified ? 'verified' : ''}">${label}</small>`;
 }
@@ -619,12 +700,18 @@ function formatNullableDecimal(value, digits) {
   if (value === null || value === undefined || value === '') return 'Unavailable';
   const number = Number(value);
   if (!Number.isFinite(number)) return 'Unavailable';
-  return number.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return number.toLocaleString(undefined, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits
+  });
 }
 
 function formatDecimal(value, digits) {
   const number = Number(value || 0);
-  return number.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return number.toLocaleString(undefined, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits
+  });
 }
 
 function formatChainStatus(war) {
