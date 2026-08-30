@@ -27,11 +27,12 @@ if (rankedWarGroup && rankedWarParent) {
   });
 }
 
-document.querySelectorAll('.nav-button[data-tab]').forEach(button => {
+document.querySelectorAll('.nav-button[data-tab], .jump-button[data-jump]').forEach(button => {
   button.addEventListener('click', () => window.setTimeout(syncNavigationState, 0));
 });
 
 syncNavigationState();
+[120, 400, 900].forEach(delay => window.setTimeout(syncNavigationState, delay));
 
 function syncNavigationState() {
   const activeButton = document.querySelector('.nav-button.active[data-tab]');
