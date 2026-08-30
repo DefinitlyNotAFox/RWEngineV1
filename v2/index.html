@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RWEngine</title>
+  <link rel="stylesheet" href="/v2/styles.css?v=2" />
+</head>
+<body>
+  <div id="loginView" class="login-view">
+    <form id="loginForm" class="login-card">
+      <div class="wordmark"><span>RW</span>Engine</div>
+      <p class="muted">Faction intelligence</p>
+
+      <label>
+        Torn player ID
+        <input id="playerIdInput" type="text" inputmode="numeric" autocomplete="username" required />
+      </label>
+
+      <label>
+        Password
+        <input id="passwordInput" type="password" autocomplete="current-password" required />
+      </label>
+
+      <button class="button primary" type="submit">Sign in</button>
+      <p id="loginError" class="error hidden"></p>
+    </form>
+  </div>
+
+  <div id="appView" class="app-shell hidden">
+    <aside class="sidebar">
+      <div>
+        <div class="wordmark sidebar-wordmark"><span>RW</span>Engine</div>
+        <div id="factionLabel" class="faction-label">Faction</div>
+      </div>
+
+      <nav class="nav-list" aria-label="RWEngine sections">
+        <button class="nav-button active" data-tab="overview">Overview</button>
+        <button class="nav-button" data-tab="members">Members</button>
+        <button class="nav-button" data-tab="wars">Wars</button>
+        <button class="nav-button" data-tab="current-war">Current War</button>
+        <button class="nav-button" data-tab="settings">Settings</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <span id="userLabel" class="muted"></span>
+        <button id="logoutButton" class="text-button" type="button">Log out</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Faction intelligence</p>
+          <h1 id="pageTitle">Overview</h1>
+        </div>
+        <button id="refreshButton" class="button" type="button">Refresh</button>
+      </header>
+
+      <div id="globalError" class="error-banner hidden"></div>
+
+      <section id="overviewTab" class="tab active">
+        <div class="metric-grid">
+          <article class="metric-card">
+            <span>Current members</span>
+            <strong id="metricMembers">—</strong>
+          </article>
+          <article class="metric-card">
+            <span>Imported wars</span>
+            <strong id="metricWars">—</strong>
+          </article>
+          <article class="metric-card">
+            <span>Total war hits</span>
+            <strong id="metricHits">—</strong>
+          </article>
+          <article class="metric-card">
+            <span>Net score</span>
+            <strong id="metricNetScore">—</strong>
+          </article>
+        </div>
+
+        <div class="two-column">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Recent history</p>
+                <h2>Latest wars</h2>
+              </div>
+              <button class="text-button jump-button" data-jump="wars" type="button">View all</button>
+            </div>
+            <div id="overviewWars" class="stack-list"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Historical performance</p>
+                <h2>Top contributors</h2>
+              </div>
+              <button class="text-button jump-button" data-jump="members" type="button">View members</button>
+            </div>
+            <div id="overviewMembers" class="stack-list"></div>
+          </article>
+        </div>
+
+        <article class="panel rebuild-note">
+          <p class="eyebrow">Faction intelligence</p>
+          <h2>Roster and member history</h2>
+          <p>
+            RWE keeps the detailed ranked-war archive while maintaining the live roster
+            and cumulative member snapshots independently. This is the base for activity
+            trends, Xanax usage, battle-stat estimates, membership history and later OC data.
+          </p>
+        </article>
+      </section>
+
+      <section id="membersTab" class="tab">
+        <article class="panel">
+          <div class="panel-header members-header">
+            <div>
+              <p class="eyebrow">Faction intelligence</p>
+              <h2>Members</h2>
+            </div>
+
+            <div class="member-controls">
+              <label class="compact-control">
+                <span>Period</span>
+                <select id="intelDays">
+                  <option value="7">7 days</option>
+                  <option value="30" selected>30 days</option>
+                  <option value="90">90 days</option>
+                </select>
+              </label>
+              <input id="memberSearch" class="search" type="search" placeholder="Search member…" />
+              <button id="syncIntelButton" class="button" type="button">Sync faction</button>
+            </div>
+          </div>
+
+          <div id="syncStatus" class="sync-status hidden"></div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Member</th>
+                  <th>Status</th>
+                  <th>Lvl</th>
+                  <th>Position</th>
+                  <th>Last action</th>
+                  <th>Est. BS</th>
+                  <th>Activity / day</th>
+                  <th>Xanax / day</th>
+                  <th>Wars</th>
+                  <th>War hits</th>
+                  <th>Participation</th>
+                  <th>Net score</th>
+                </tr>
+              </thead>
+              <tbody id="membersBody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section id="warsTab" class="tab">
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Ranked war archive</p>
+              <h2>Wars</h2>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Opponent</th>
+                  <th>War ID</th>
+                  <th>Started</th>
+                  <th>Ended</th>
+                  <th>Chain adjustment</th>
+                </tr>
+              </thead>
+              <tbody id="warsBody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section id="current-warTab" class="tab">
+        <article class="panel feature-placeholder">
+          <p class="eyebrow">Matchup intelligence</p>
+          <h2>Current War</h2>
+          <p>
+            This module will answer one question: <strong>who are we fighting?</strong>
+            It will compare both rosters, surface known history and estimates, and explain
+            why specific opponents are important rather than reducing the matchup to an opaque score.
+          </p>
+          <div class="placeholder-grid">
+            <div><span>Own roster</span><strong>Planned</strong></div>
+            <div><span>Opponent roster</span><strong>Planned</strong></div>
+            <div><span>Historical context</span><strong>Planned</strong></div>
+            <div><span>Explainable threats</span><strong>Planned</strong></div>
+          </div>
+        </article>
+      </section>
+
+      <section id="settingsTab" class="tab">
+        <div class="two-column">
+          <article class="panel">
+            <p class="eyebrow">Account</p>
+            <h2>Identity</h2>
+            <dl class="definition-list">
+              <div><dt>Player</dt><dd id="settingsPlayer">—</dd></div>
+              <div><dt>Faction</dt><dd id="settingsFaction">—</dd></div>
+              <div><dt>Faction ID</dt><dd id="settingsFactionId">—</dd></div>
+            </dl>
+          </article>
+
+          <article class="panel">
+            <p class="eyebrow">Application</p>
+            <h2>RWEngine</h2>
+            <p class="muted">
+              Faction intelligence, member history, ranked-war analytics and matchup information
+              in one place.
+            </p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="/v2/app.js?v=2"></script>
+</body>
+</html>
