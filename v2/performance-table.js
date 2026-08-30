@@ -67,7 +67,7 @@ function installStylesheet() {
   if (document.querySelector('link[data-rwe-performance-table]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/v2/performance-table.css?v=3';
+  link.href = '/v2/performance-table.css?v=4';
   link.dataset.rwePerformanceTable = '1';
   document.head.appendChild(link);
 }
@@ -246,12 +246,13 @@ function renderHead() {
   const columns = activeColumns();
   performanceHead.innerHTML = `<tr>${columns.map(config => {
     const active = state.sortKey === config.key;
-    const indicator = active ? (state.sortDirection === 'desc' ? '↓' : '↑') : '↕';
+    const indicator = active ? `<span class="performance-sort-indicator" aria-hidden="true">${state.sortDirection === 'desc' ? '↓' : '↑'}</span>` : '';
     const align = config.key === 'member' ? ' is-left' : '';
+    const net = config.key === 'netScore' ? ' is-net' : '';
     return `
-      <th class="performance-sort-header${align}">
+      <th class="performance-sort-header${align}${net}">
         <button type="button" data-performance-sort="${config.key}" class="performance-sort${active ? ' active' : ''}">
-          <span>${escapeHtml(config.label)}</span><span aria-hidden="true">${indicator}</span>
+          <span>${escapeHtml(config.label)}</span>${indicator}
         </button>
       </th>
     `;
@@ -282,7 +283,11 @@ function renderBody() {
 
   performanceBody.innerHTML = rows.map(member => `
     <tr>
-      ${columns.map(config => `<td class="${config.key === 'member' ? 'performance-member-cell' : 'performance-stat-cell'}">${formatCell(member, config)}</td>`).join('')}
+      ${columns.map(config => {
+        const baseClass = config.key === 'member' ? 'performance-member-cell' : 'performance-stat-cell';
+        const netClass = config.key === 'netScore' ? ' performance-net-cell' : '';
+        return `<td class="${baseClass}${netClass}">${formatCell(member, config)}</td>`;
+      }).join('')}
     </tr>
   `).join('');
 }
@@ -305,11 +310,12 @@ function compareMembers(a, b) {
 
 function formatCell(member, config) {
   if (config.key === 'member') {
+    const formerLabel = member.current ? '' : '<small>former member</small>';
     return `
       <a class="performance-member-link" href="https://www.torn.com/profiles.php?XID=${member.playerId}" target="_blank" rel="noopener noreferrer">
         ${escapeHtml(member.playerName)} [${member.playerId}]
       </a>
-      <small>${member.current ? 'current member' : 'former / report member'}</small>
+      ${formerLabel}
     `;
   }
 
