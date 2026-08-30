@@ -16,6 +16,7 @@ const MODE_KEY = 'rwengine.performanceMode';
 
 const state = {
   members: [],
+  totalWars: 0,
   mode: readMode(),
   sortKey: 'netPerWar',
   sortDirection: 'desc',
@@ -104,9 +105,9 @@ function bindEvents() {
     button.addEventListener('click', () => window.setTimeout(() => loadPerformance(false), 0));
   });
 
-  refreshButton?.addEventListener('click', () => invalidatePerformance());
-  applyRangeButton?.addEventListener('click', () => invalidatePerformance());
-  window.addEventListener('rwe:wars-changed', () => invalidatePerformance());
+  refreshButton?.addEventListener('click', invalidatePerformance);
+  applyRangeButton?.addEventListener('click', invalidatePerformance);
+  window.addEventListener('rwe:wars-changed', invalidatePerformance);
 }
 
 function invalidatePerformance() {
@@ -129,16 +130,17 @@ async function loadPerformance(force = false) {
 
   const requestId = ++state.requestId;
   state.loading = true;
-  setStatus('Loading performance…');
+  setStatus('Loading imported war reports…');
   renderBody();
 
   try {
-    const response = await fetch('/v2/range', {
+    const selectedFactionId = Number(document.querySelector('#adminFactionSelect')?.value || 0) || undefined;
+    const response = await fetch('/v2/performance', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: 'getRange',
+        ...(selectedFactionId ? { factionId: selectedFactionId } : {}),
         ...(intelFrom?.value ? { from: intelFrom.value } : {}),
         ...(intelTo?.value ? { to: intelTo.value } : {})
       })
@@ -151,12 +153,16 @@ async function loadPerformance(force = false) {
     if (requestId !== state.requestId) return;
 
     state.members = (data.members || []).map(normalizeMember);
+    state.totalWars = Number(data.totalWars || 0);
     state.loadedKey = key;
-    setStatus('');
+    setStatus(state.totalWars > 0 ? `${state.totalWars} imported war${state.totalWars === 1 ? '' : 's'} in period` : '');
     render();
   } catch (error) {
     if (requestId !== state.requestId) return;
+    state.members = [];
+    state.totalWars = 0;
     setStatus(error.message || 'Failed to load performance data.', true);
+    render();
   } finally {
     if (requestId === state.requestId) state.loading = false;
   }
@@ -223,12 +229,12 @@ function renderBody() {
   const columns = activeColumns();
 
   if (state.loading && !state.members.length) {
-    performanceBody.innerHTML = `<tr><td colspan="${columns.length}" class="empty">Loading performance…</td></tr>`;
+    performanceBody.innerHTML = `<tr><td colspan="${columns.length}" class="empty">Loading imported war reports…</td></tr>`;
     return;
   }
 
   if (!rows.length) {
-    performanceBody.innerHTML = `<tr><td colspan="${columns.length}" class="empty">No member war performance is available for this period.</td></tr>`;
+    performanceBody.innerHTML = `<tr><td colspan="${columns.length}" class="empty">No imported ranked-war performance is available for this period.</td></tr>`;
     return;
   }
 
@@ -261,7 +267,7 @@ function formatCell(member, config) {
       <a class="performance-member-link" href="https://www.torn.com/profiles.php?XID=${member.playerId}" target="_blank" rel="noopener noreferrer">
         ${escapeHtml(member.playerName)} [${member.playerId}]
       </a>
-      <small>${member.current ? 'current member' : 'former member'}</small>
+      <small>${member.current ? 'current member' : 'former / report member'}</small>
     `;
   }
 
