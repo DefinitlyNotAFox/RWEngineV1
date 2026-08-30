@@ -13,13 +13,15 @@ const intelFrom = document.querySelector('#intelFrom');
 const intelTo = document.querySelector('#intelTo');
 
 const MODE_KEY = 'rwengine.performanceMode';
+const FORMER_KEY = 'rwengine.performanceFormerMembers';
 
 const state = {
   members: [],
   totalWars: 0,
   playersWithAttackDetails: 0,
   mode: readMode(),
-  sortKey: 'netPerWar',
+  includeFormer: readFormerPreference(),
+  sortKey: 'netScore',
   sortDirection: 'desc',
   loadedKey: '',
   requestId: 0,
@@ -27,49 +29,69 @@ const state = {
 };
 
 const simplifiedColumns = [
-  column('member', 'Member', 'text'),
-  column('participation', 'Participation', 'percent'),
-  column('hitsPerWar', 'Hits / war', 'decimal'),
-  column('assistsPerWar', 'Assists / war', 'decimal'),
-  column('netPerWar', 'Net score / war', 'signedDecimal')
+  column('member', 'Member'),
+  column('wars', 'Wars'),
+  column('hits', 'Hits'),
+  column('assists', 'Assists'),
+  column('netScore', 'Net score')
 ];
 
 const detailedColumns = [
-  column('member', 'Member', 'text'),
-  column('wars', 'Wars', 'integer'),
-  column('participation', 'Participation', 'percent'),
-  column('hits', 'Hits', 'integer'),
-  column('hitsPerWar', 'Hits / war', 'decimal'),
-  column('assists', 'Assists', 'integer'),
-  column('assistsPerWar', 'Assists / war', 'decimal'),
-  column('outsideHits', 'Outside', 'integer'),
-  column('respectEarned', 'Respect +', 'decimal2'),
-  column('respectLost', 'Respect -', 'decimal2'),
-  column('scoreUp', 'Score +', 'integer'),
-  column('scoreDown', 'Score -', 'integer'),
-  column('netScore', 'Net score', 'signedInteger'),
-  column('netPerWar', 'Net / war', 'signedDecimal')
+  column('member', 'Member'),
+  column('wars', 'Wars'),
+  column('hits', 'Hits'),
+  column('assists', 'Assists'),
+  column('outsideHits', 'Outside'),
+  column('respectEarned', 'Respect +'),
+  column('respectLost', 'Respect -'),
+  column('scoreUp', 'Score +'),
+  column('scoreDown', 'Score -'),
+  column('netScore', 'Net score')
 ];
 
 if (performanceTab && performanceTable && performanceHead && performanceBody) {
   installStylesheet();
+  installFormerToggle();
   bindEvents();
   updateModeButtons();
+  updateFormerToggle();
   render();
   if (isPerformanceActive()) loadPerformance(false);
 }
 
-function column(key, label, format) {
-  return { key, label, format };
+function column(key, label) {
+  return { key, label };
 }
 
 function installStylesheet() {
   if (document.querySelector('link[data-rwe-performance-table]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/v2/performance-table.css?v=2';
+  link.href = '/v2/performance-table.css?v=3';
   link.dataset.rwePerformanceTable = '1';
   document.head.appendChild(link);
+}
+
+function installFormerToggle() {
+  const toolbar = performanceTab?.querySelector('.performance-toolbar');
+  if (!toolbar || toolbar.querySelector('[data-performance-former]')) return;
+
+  const search = toolbar.querySelector('.performance-search');
+  const controls = document.createElement('div');
+  controls.className = 'performance-toolbar-right';
+  controls.innerHTML = `
+    <label class="performance-former-toggle">
+      <input type="checkbox" data-performance-former />
+      <span>Former members</span>
+    </label>
+  `;
+
+  if (search) {
+    search.before(controls);
+    controls.appendChild(search);
+  } else {
+    toolbar.appendChild(controls);
+  }
 }
 
 function bindEvents() {
@@ -80,11 +102,18 @@ function bindEvents() {
       state.mode = mode;
       try { localStorage.setItem(MODE_KEY, mode); } catch (_) {}
       updateModeButtons();
+      ensureValidSort();
       render();
     });
   });
 
   performanceSearch?.addEventListener('input', renderBody);
+
+  performanceTab?.querySelector('[data-performance-former]')?.addEventListener('change', event => {
+    state.includeFormer = Boolean(event.currentTarget.checked);
+    try { localStorage.setItem(FORMER_KEY, state.includeFormer ? '1' : '0'); } catch (_) {}
+    renderBody();
+  });
 
   performanceTable.addEventListener('click', event => {
     const button = event.target.closest('[data-performance-sort]');
@@ -208,6 +237,7 @@ function currentDataKey() {
 }
 
 function render() {
+  ensureValidSort();
   renderHead();
   renderBody();
 }
@@ -231,6 +261,7 @@ function renderHead() {
 function renderBody() {
   const query = performanceSearch?.value.trim().toLowerCase() || '';
   const rows = state.members
+    .filter(member => state.includeFormer || member.current)
     .filter(member => !query || member.playerName.toLowerCase().includes(query) || String(member.playerId).includes(query))
     .sort(compareMembers);
 
@@ -242,13 +273,16 @@ function renderBody() {
   }
 
   if (!rows.length) {
-    performanceBody.innerHTML = `<tr><td colspan="${columns.length}" class="empty">No imported ranked-war performance is available for this period.</td></tr>`;
+    const message = !state.includeFormer && state.members.length
+      ? 'No current members have ranked-war performance in this period. Enable Former members to include report history.'
+      : 'No imported ranked-war performance is available for this period.';
+    performanceBody.innerHTML = `<tr><td colspan="${columns.length}" class="empty">${message}</td></tr>`;
     return;
   }
 
   performanceBody.innerHTML = rows.map(member => `
     <tr>
-      ${columns.map(config => `<td class="${config.key === 'member' ? 'performance-member-cell' : ''}">${formatCell(member, config)}</td>`).join('')}
+      ${columns.map(config => `<td class="${config.key === 'member' ? 'performance-member-cell' : 'performance-stat-cell'}">${formatCell(member, config)}</td>`).join('')}
     </tr>
   `).join('');
 }
@@ -279,22 +313,57 @@ function formatCell(member, config) {
     `;
   }
 
-  const value = member[config.key];
-  if (value === null || value === undefined || !Number.isFinite(Number(value))) return '<span class="performance-missing">—</span>';
-
-  switch (config.format) {
-    case 'percent': return `${Math.round(Number(value) * 100)}%`;
-    case 'integer': return formatNumber(value);
-    case 'decimal2': return formatDecimal(value, 2);
-    case 'decimal': return formatDecimal(value, 1);
-    case 'signedInteger': return formatSigned(value, 0);
-    case 'signedDecimal': return formatSigned(value, 1);
-    default: return escapeHtml(String(value));
+  if (config.key === 'wars') {
+    return stackedStat(
+      formatNumber(member.wars),
+      member.participation === null ? '— participation' : `${Math.round(member.participation * 100)}% participation`
+    );
   }
+
+  if (config.key === 'hits') {
+    return stackedStat(
+      formatNumber(member.hits),
+      member.hitsPerWar === null ? '— / war' : `${formatDecimal(member.hitsPerWar, 1)} / war`
+    );
+  }
+
+  if (config.key === 'assists') {
+    return stackedStat(
+      member.assists === null ? '—' : formatNumber(member.assists),
+      member.assistsPerWar === null ? '— / war' : `${formatDecimal(member.assistsPerWar, 1)} / war`
+    );
+  }
+
+  if (config.key === 'netScore') {
+    return stackedStat(
+      formatSigned(member.netScore, 2),
+      member.netPerWar === null ? '— / war' : `${formatSigned(member.netPerWar, 2)} / war`
+    );
+  }
+
+  const value = member[config.key];
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) {
+    return '<span class="performance-missing">—</span>';
+  }
+
+  if (config.key === 'outsideHits') return formatNumber(value);
+  if (config.key === 'respectEarned' || config.key === 'respectLost') return formatDecimal(value, 2);
+  if (config.key === 'scoreUp' || config.key === 'scoreDown') return formatDecimal(value, 2);
+  return escapeHtml(String(value));
+}
+
+function stackedStat(primary, secondary) {
+  return `<span class="performance-stat-primary">${primary}</span><small class="performance-stat-secondary">${secondary}</small>`;
 }
 
 function activeColumns() {
   return state.mode === 'detailed' ? detailedColumns : simplifiedColumns;
+}
+
+function ensureValidSort() {
+  if (activeColumns().some(column => column.key === state.sortKey)) return;
+  state.sortKey = activeColumns().some(column => column.key === 'netScore') ? 'netScore' : activeColumns()[0]?.key || 'member';
+  state.sortDirection = state.sortKey === 'member' ? 'asc' : 'desc';
 }
 
 function updateModeButtons() {
@@ -306,11 +375,24 @@ function updateModeButtons() {
   performanceTab?.classList.toggle('is-detailed', state.mode === 'detailed');
 }
 
+function updateFormerToggle() {
+  const input = performanceTab?.querySelector('[data-performance-former]');
+  if (input) input.checked = state.includeFormer;
+}
+
 function readMode() {
   try {
     return localStorage.getItem(MODE_KEY) === 'detailed' ? 'detailed' : 'simplified';
   } catch (_) {
     return 'simplified';
+  }
+}
+
+function readFormerPreference() {
+  try {
+    return localStorage.getItem(FORMER_KEY) === '1';
+  } catch (_) {
+    return false;
   }
 }
 
