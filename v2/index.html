@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="/v2/admin-workspace.css?v=1" data-rwe-admin-workspace="1" />
   <link rel="stylesheet" href="/v2/boot-stability.css?v=1" />
   <link rel="stylesheet" href="/v2/layout-refinement.css?v=2" />
-  <link rel="stylesheet" href="/v2/member-table.css?v=2" data-rwe-member-table="1" />
+  <link rel="stylesheet" href="/v2/member-table.css?v=3" data-rwe-member-table="1" />
   <link rel="stylesheet" href="/v2/range-controls.css?v=2" data-rwe-range-controls="1" />
 </head>
 <body>
@@ -51,6 +51,7 @@
             <span class="nav-caret" aria-hidden="true">›</span>
           </button>
           <div class="nav-submenu">
+            <button class="nav-button nav-subbutton" data-tab="performance" type="button">Performance</button>
             <button class="nav-button nav-subbutton" data-tab="wars" type="button">War history</button>
             <button class="nav-button nav-subbutton" data-tab="current-war" type="button">Current matchup</button>
           </div>
@@ -107,6 +108,27 @@
             </div>
             <div id="overviewMembers" class="stack-list"></div>
           </article>
+        </div>
+      </section>
+
+      <section id="performanceTab" class="tab">
+        <div class="performance-toolbar">
+          <div class="performance-mode-switch" role="group" aria-label="Performance table detail">
+            <button class="performance-mode-button" type="button" data-performance-mode="simplified" aria-pressed="true">Simplified</button>
+            <button class="performance-mode-button" type="button" data-performance-mode="detailed" aria-pressed="false">Detailed</button>
+          </div>
+          <input id="performanceSearch" class="search performance-search" type="search" placeholder="Search member…" />
+        </div>
+
+        <div id="performanceStatus" class="performance-status hidden"></div>
+
+        <div class="table-wrap performance-table-wrap">
+          <table id="performanceTable">
+            <thead id="performanceHead"></thead>
+            <tbody id="performanceBody">
+              <tr><td class="empty">Open Performance to load ranked-war data.</td></tr>
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -174,8 +196,8 @@
   </div>
 
   <script type="module" src="/v2/app.js?v=4"></script>
-  <script type="module" src="/v2/ranked-war-navigation.js?v=2"></script>
-  <script type="module" src="/v2/sync-status.js?v=15"></script>
+  <script type="module" src="/v2/ranked-war-navigation.js?v=3"></script>
+  <script type="module" src="/v2/sync-status.js?v=16"></script>
   <script type="module" src="/v2/war-import.js?v=3"></script>
 </body>
 </html>
