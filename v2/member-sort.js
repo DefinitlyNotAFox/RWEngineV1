@@ -6,6 +6,7 @@ let statsSortActive = false;
 let applyingSort = false;
 
 if (membersBody && membersTable) {
+  installSortStyles();
   installStatsSort();
 
   const observer = new MutationObserver(() => {
@@ -14,6 +15,42 @@ if (membersBody && membersTable) {
   });
 
   observer.observe(membersBody, { childList: true });
+}
+
+function installSortStyles() {
+  if (document.querySelector('style[data-rwe-member-sort]')) return;
+
+  const style = document.createElement('style');
+  style.dataset.rweMemberSort = '1';
+  style.textContent = `
+    .members-table th.sortable-header { padding: 0; }
+    .table-sort-button {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-weight: inherit;
+      letter-spacing: inherit;
+      text-transform: inherit;
+      width: 100%;
+      padding: 10px 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      text-align: left;
+    }
+    .table-sort-button:hover,
+    .table-sort-button.active { color: var(--accent, #8fe4c3); }
+    .table-sort-button:focus-visible {
+      outline: 1px solid var(--accent, #8fe4c3);
+      outline-offset: -2px;
+    }
+    .sort-indicator { opacity: .65; font-size: 11px; }
+    .table-sort-button.active .sort-indicator { opacity: 1; }
+  `;
+  document.head.appendChild(style);
 }
 
 function installStatsSort() {
@@ -77,7 +114,6 @@ function applyStatsSort() {
     const aMissing = a.value === null;
     const bMissing = b.value === null;
 
-    // Missing/estimated-unavailable data always remains at the bottom.
     if (aMissing && bMissing) return a.index - b.index;
     if (aMissing) return 1;
     if (bMissing) return -1;
