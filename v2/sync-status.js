@@ -1,4 +1,5 @@
 import './admin-workspace.js?v=1';
+import './admin-key-selector.js?v=1';
 
 const syncStatus = document.querySelector('#syncStatus');
 
