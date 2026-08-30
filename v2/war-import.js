@@ -101,12 +101,15 @@ async function handleImportSubmit(event) {
         const paginationNote = detail.paginationStopped
           ? ` · pagination ${detail.paginationStopped === 'repeated-page' ? 'stabilized' : 'stopped after no new rows'}`
           : '';
-        const chainNote = `chain bonuses removed: ours ${formatNumber(score.ownChainBonusHits || 0)}, opponent ${formatNumber(score.opponentChainBonusHits || 0)}`;
+        const verificationDelta = Number(score.outgoingDelta || 0);
+        const verificationNote = Math.abs(verificationDelta) > 0.05
+          ? ` · outgoing API check differs by ${formatDecimal(verificationDelta, 2)}`
+          : '';
         updateReportRow(
           reportId,
           'success',
           'Complete',
-          `Verified ${formatNumber(detail.storedTotal || 0)} unique attack rows via v2 · ${formatNumber(detail.assists || 0)} assists · respect +${formatDecimal(detail.respectEarned || 0, 2)} / -${formatDecimal(detail.respectLost || 0, 2)} · score +${formatNumber(score.adjustedScoreUp || 0)} / -${formatNumber(score.adjustedScoreDown || 0)} · ${chainNote} · legacy pass checked ${formatNumber(summary.checked || 0)}${paginationNote}.`
+          `Verified ${formatNumber(detail.storedTotal || 0)} unique attack rows via v2 · ${formatNumber(detail.assists || 0)} assists · respect +${formatDecimal(detail.respectEarned || 0, 2)} / -${formatDecimal(detail.respectLost || 0, 2)} · score +${formatDecimal(score.scoreUp || 0, 2)} / -${formatDecimal(score.scoreDown || 0, 2)} · chain bonuses included · legacy pass checked ${formatNumber(summary.checked || 0)}${verificationNote}${paginationNote}.`
         );
         setOverallProgress(index + 1, reportIds.length, `Report ${reportId} complete.`);
       } catch (error) {
@@ -176,7 +179,7 @@ async function applyAttackDetailSupplement(warId, reportId, reportIndex, totalRe
   const seenNextPages = new Set();
 
   const finalize = async (result, paginationStopped = null) => {
-    updateReportRow(reportId, 'active', 'Scores', 'Rebuilding Score +/- and applying chain-bonus adjustments for both factions…');
+    updateReportRow(reportId, 'active', 'Scores', 'Rebuilding official Score +/- from verified ranked-war attacks…');
     setOverallProgress(reportIndex, totalReports, `Report ${reportId}: finalizing ranked-war scores…`);
     const finalized = await attackDetailApi({ warId, finalize: true });
     return {
