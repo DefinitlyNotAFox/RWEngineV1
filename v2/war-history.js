@@ -11,11 +11,20 @@ if (warsTab && warsBody) {
   normalizeHeader();
   installRangeRenderGuard();
 
-  warsNav?.addEventListener('click', () => window.setTimeout(() => loadWars(false), 0));
+  warsNav?.addEventListener('click', () => window.setTimeout(() => {
+    syncRangeVisibility();
+    loadWars(false);
+  }, 0));
   refreshButton?.addEventListener('click', () => window.setTimeout(() => loadWars(true), 0));
   adminFactionSelect?.addEventListener('change', () => window.setTimeout(() => loadWars(true), 0));
   window.addEventListener('rwe:wars-changed', () => loadWars(true));
 
+  document.querySelectorAll('.nav-button[data-tab]').forEach(button => {
+    if (button === warsNav) return;
+    button.addEventListener('click', () => window.setTimeout(syncRangeVisibility, 0));
+  });
+
+  syncRangeVisibility();
   loadWars(false);
 }
 
@@ -23,6 +32,12 @@ function normalizeHeader() {
   const row = warsTab?.querySelector('table thead tr');
   if (!row) return;
   row.innerHTML = '<th>Opponent</th><th>War ID</th><th>Started</th><th>Ended</th>';
+}
+
+function syncRangeVisibility() {
+  const toolbar = document.querySelector('#rangeToolbar');
+  if (!toolbar) return;
+  if (warsTab?.classList.contains('active')) toolbar.classList.add('hidden');
 }
 
 function installRangeRenderGuard() {
@@ -36,7 +51,10 @@ function installRangeRenderGuard() {
 
     if (url.includes('/v2/range')) {
       window.setTimeout(() => {
-        if (warsTab?.classList.contains('active')) renderWars();
+        if (warsTab?.classList.contains('active')) {
+          syncRangeVisibility();
+          renderWars();
+        }
       }, 0);
     }
 
@@ -74,6 +92,7 @@ async function loadWars(force) {
 
 function renderWars() {
   normalizeHeader();
+  syncRangeVisibility();
 
   const ordered = [...wars].sort((a, b) => warTimestamp(b) - warTimestamp(a));
   if (!ordered.length) {
