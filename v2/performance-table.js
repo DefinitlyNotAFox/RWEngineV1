@@ -6,6 +6,7 @@ const performanceSearch = document.querySelector('#performanceSearch');
 const performanceStatus = document.querySelector('#performanceStatus');
 const performanceModeButtons = [...document.querySelectorAll('[data-performance-mode]')];
 const performanceNav = document.querySelector('.nav-button[data-tab="performance"]');
+const performanceJumps = [...document.querySelectorAll('[data-jump="performance"]')];
 const refreshButton = document.querySelector('#refreshButton');
 const applyRangeButton = document.querySelector('#applyRangeButton');
 const intelFrom = document.querySelector('#intelFrom');
@@ -53,6 +54,7 @@ if (performanceTab && performanceTable && performanceHead && performanceBody) {
   bindEvents();
   updateModeButtons();
   render();
+  if (isPerformanceActive()) loadPerformance(false);
 }
 
 function column(key, label, format) {
@@ -74,7 +76,7 @@ function bindEvents() {
       const mode = button.dataset.performanceMode;
       if (!['simplified', 'detailed'].includes(mode) || mode === state.mode) return;
       state.mode = mode;
-      localStorage.setItem(MODE_KEY, mode);
+      try { localStorage.setItem(MODE_KEY, mode); } catch (_) {}
       updateModeButtons();
       render();
     });
@@ -98,13 +100,27 @@ function bindEvents() {
   });
 
   performanceNav?.addEventListener('click', () => window.setTimeout(() => loadPerformance(false), 0));
-  refreshButton?.addEventListener('click', () => window.setTimeout(() => loadPerformance(true), 100));
-  applyRangeButton?.addEventListener('click', () => window.setTimeout(() => loadPerformance(true), 0));
+  performanceJumps.forEach(button => {
+    button.addEventListener('click', () => window.setTimeout(() => loadPerformance(false), 0));
+  });
 
-  window.addEventListener('rwe:wars-changed', () => loadPerformance(true));
+  refreshButton?.addEventListener('click', () => invalidatePerformance());
+  applyRangeButton?.addEventListener('click', () => invalidatePerformance());
+  window.addEventListener('rwe:wars-changed', () => invalidatePerformance());
+}
+
+function invalidatePerformance() {
+  state.loadedKey = '';
+  if (isPerformanceActive()) window.setTimeout(() => loadPerformance(true), 0);
+}
+
+function isPerformanceActive() {
+  return Boolean(performanceTab?.classList.contains('active'));
 }
 
 async function loadPerformance(force = false) {
+  if (!isPerformanceActive()) return;
+
   const key = currentDataKey();
   if (!force && state.loadedKey === key && state.members.length) {
     render();
@@ -114,6 +130,7 @@ async function loadPerformance(force = false) {
   const requestId = ++state.requestId;
   state.loading = true;
   setStatus('Loading performance…');
+  renderBody();
 
   try {
     const response = await fetch('/v2/range', {
