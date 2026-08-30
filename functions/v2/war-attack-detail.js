@@ -1,9 +1,6 @@
 const MANAGED_KEY_CONFIG = 'admin_managed_api_key_v1';
 const PAGE_LIMIT = 1000;
 const TIME_PADDING_SECONDS = 60;
-const CHAIN_OVERLAP_PADDING_SECONDS = 3600;
-const CHAIN_PAGE_LIMIT = 100;
-const CHAIN_PAGE_MAX = 5;
 
 export async function onRequest(context) {
   try {
@@ -21,7 +18,7 @@ export async function onRequest(context) {
     if (!warId) throw httpError(400, 'Missing war ID.');
 
     const war = await env.DB.prepare(`
-      SELECT war_id, faction_id, opponent_faction_id, start_timestamp, end_timestamp
+      SELECT war_id, report_id, faction_id, opponent_faction_id, start_timestamp, end_timestamp
       FROM wars
       WHERE war_id = ? AND faction_id = ?
     `).bind(warId, factionId).first();
@@ -31,11 +28,9 @@ export async function onRequest(context) {
       throw httpError(400, 'Imported war is missing start/end timestamps.');
     }
 
-    const apiKey = await requireFactionApiKey(env, factionId);
-
     if (body.finalize === true) {
-      const scoreAdjustment = await rebuildWarScores(env.DB, apiKey, war);
-      const totals = await getStoredTotals(env.DB, factionId, warId, Number(war.opponent_faction_id || 0));
+      const scoreAdjustment = await rebuildWarScores(env.DB, war);
+      const totals = await getStoredTotals(env.DB, factionId, warId);
       return json({
         success: true,
         done: true,
@@ -54,6 +49,7 @@ export async function onRequest(context) {
       });
     }
 
+    const apiKey = await requireFactionApiKey(env, factionId);
     const requestUrl = body.nextUrl
       ? sanitizeNextUrl(body.nextUrl)
       : buildInitialUrl(war);
@@ -65,10 +61,7 @@ export async function onRequest(context) {
     const normalized = rawAttacks
       .map(normalizeAttack)
       .filter(attack => attack.attackId)
-      .filter(attack => {
-        const at = Number(attack.timestampEnded || attack.timestampStarted || 0);
-        return !at || (at >= exactStart && at <= exactEnd);
-      });
+      .filter(attack => attackOverlapsWar(attack, exactStart, exactEnd));
 
     if (normalized.length) {
       await storeAttackBatch(env.DB, war, normalized);
@@ -76,7 +69,7 @@ export async function onRequest(context) {
 
     const nextUrl = sanitizeOptionalNextUrl(payload?._metadata?.links?.next);
     const done = !nextUrl;
-    const totals = await getStoredTotals(env.DB, factionId, warId, Number(war.opponent_faction_id || 0));
+    const totals = await getStoredTotals(env.DB, factionId, warId);
 
     return json({
       success: true,
@@ -171,8 +164,12 @@ function normalizeAttack(attack) {
     attackId: String(attack?.id || attack?.attack_id || ''),
     attackerId: nullableNumber(attacker?.id ?? attack?.attacker_id),
     defenderId: nullableNumber(defender?.id ?? attack?.defender_id),
-    attackerFactionId: nullableNumber(attacker?.faction_id ?? attack?.attacker_faction_id),
-    defenderFactionId: nullableNumber(defender?.faction_id ?? attack?.defender_faction_id),
+    attackerFactionId: factionIdFrom(
+      attacker?.faction_id ?? attacker?.faction ?? attack?.attacker_faction_id ?? attack?.attacker_faction
+    ),
+    defenderFactionId: factionIdFrom(
+      defender?.faction_id ?? defender?.faction ?? attack?.defender_faction_id ?? attack?.defender_faction
+    ),
     result: String(attack?.result || ''),
     respectGain: finiteNumber(attack?.respect_gain),
     respectLoss: finiteNumber(attack?.respect_loss),
@@ -182,6 +179,18 @@ function normalizeAttack(attack) {
     timestampEnded: nullableNumber(attack?.ended ?? attack?.timestamp_ended),
     raw: attack || {}
   };
+}
+
+function attackOverlapsWar(attack, exactStart, exactEnd) {
+  const started = Number(attack.timestampStarted || 0);
+  const ended = Number(attack.timestampEnded || 0);
+  if (!started && !ended) return true;
+
+  // Torn marks an attack as part of a ranked war based on when the attack
+  // started. The finishing action can land a few seconds after the war end.
+  const effectiveStart = started || ended;
+  const effectiveEnd = ended || started;
+  return effectiveStart <= exactEnd && effectiveEnd >= exactStart;
 }
 
 async function storeAttackBatch(db, war, attacks) {
@@ -206,7 +215,7 @@ async function storeAttackBatch(db, war, attacks) {
       respect_gain = excluded.respect_gain,
       respect_loss = excluded.respect_loss,
       chain = COALESCE(excluded.chain, attacks.chain),
-      is_ranked_war = excluded.is_ranked_war,
+      is_ranked_war = MAX(attacks.is_ranked_war, excluded.is_ranked_war),
       timestamp_started = COALESCE(excluded.timestamp_started, attacks.timestamp_started),
       timestamp_ended = COALESCE(excluded.timestamp_ended, attacks.timestamp_ended),
       raw_json = excluded.raw_json
@@ -242,16 +251,12 @@ async function storeAttackBatch(db, war, attacks) {
   }
 }
 
-async function getStoredTotals(db, factionId, warId, opponentId) {
+async function getStoredTotals(db, factionId, warId) {
   const row = await db.prepare(`
     SELECT
       COUNT(*) AS attack_rows,
       COUNT(DISTINCT CASE
         WHEN is_ranked_war = 1
-         AND (
-           (attacker_faction_id = ? AND defender_faction_id = ?) OR
-           (attacker_faction_id = ? AND defender_faction_id = ?)
-         )
          AND EXISTS (
            SELECT 1 FROM war_log wl
            WHERE wl.war_id = attacks.war_id
@@ -261,35 +266,41 @@ async function getStoredTotals(db, factionId, warId, opponentId) {
         THEN COALESCE(attacker_id, defender_id) END
       ) AS members_with_detail,
       SUM(CASE
-        WHEN attacker_faction_id = ?
-         AND defender_faction_id = ?
-         AND is_ranked_war = 1
+        WHEN is_ranked_war = 1
+         AND EXISTS (
+           SELECT 1 FROM war_log wl
+           WHERE wl.war_id = attacks.war_id
+             AND wl.faction_id = attacks.faction_id
+             AND wl.player_id = attacks.attacker_id
+         )
          AND LOWER(TRIM(COALESCE(result, ''))) LIKE '%assist%'
         THEN 1 ELSE 0 END
       ) AS assists,
       SUM(CASE
-        WHEN attacker_faction_id = ?
-         AND defender_faction_id = ?
-         AND is_ranked_war = 1
+        WHEN is_ranked_war = 1
+         AND EXISTS (
+           SELECT 1 FROM war_log wl
+           WHERE wl.war_id = attacks.war_id
+             AND wl.faction_id = attacks.faction_id
+             AND wl.player_id = attacks.attacker_id
+         )
          AND LOWER(TRIM(COALESCE(result, ''))) NOT LIKE '%assist%'
         THEN COALESCE(respect_gain, 0) ELSE 0 END
       ) AS respect_earned,
       SUM(CASE
-        WHEN attacker_faction_id = ?
-         AND defender_faction_id = ?
-         AND is_ranked_war = 1
+        WHEN is_ranked_war = 1
+         AND EXISTS (
+           SELECT 1 FROM war_log wl
+           WHERE wl.war_id = attacks.war_id
+             AND wl.faction_id = attacks.faction_id
+             AND wl.player_id = attacks.defender_id
+         )
          AND LOWER(TRIM(COALESCE(result, ''))) NOT LIKE '%assist%'
         THEN ABS(COALESCE(respect_loss, 0)) ELSE 0 END
       ) AS respect_lost
     FROM attacks
     WHERE faction_id = ? AND war_id = ?
-  `).bind(
-    factionId, opponentId, opponentId, factionId,
-    factionId, opponentId,
-    factionId, opponentId,
-    opponentId, factionId,
-    factionId, warId
-  ).first();
+  `).bind(factionId, warId).first();
 
   return {
     attackRows: Number(row?.attack_rows || 0),
@@ -300,40 +311,37 @@ async function getStoredTotals(db, factionId, warId, opponentId) {
   };
 }
 
-async function rebuildWarScores(db, apiKey, war) {
+async function rebuildWarScores(db, war) {
   const factionId = Number(war.faction_id);
-  const opponentId = Number(war.opponent_faction_id || 0);
-  if (!opponentId) {
-    throw httpError(400, 'Imported war is missing opponent faction ID.');
-  }
 
-  const rawDownResult = await db.prepare(`
+  // Score - is the ranked-war score generated by the opponent when attacking
+  // each of our members. A stealthed incoming hit may not expose the attacker's
+  // faction, so classification must use is_ranked_war + our defender roster,
+  // not attacker_faction_id.
+  const scoreDownResult = await db.prepare(`
     SELECT
-      defender_id AS player_id,
-      SUM(COALESCE(respect_gain, 0)) AS raw_score_down
-    FROM attacks
-    WHERE war_id = ?
-      AND faction_id = ?
-      AND attacker_faction_id = ?
-      AND defender_faction_id = ?
-      AND is_ranked_war = 1
-      AND COALESCE(respect_gain, 0) > 0
-      AND LOWER(TRIM(COALESCE(result, ''))) NOT LIKE '%assist%'
-    GROUP BY defender_id
-  `).bind(String(war.war_id), factionId, opponentId, factionId).all();
+      wl.player_id,
+      SUM(CASE
+        WHEN a.is_ranked_war = 1
+         AND a.defender_id = wl.player_id
+         AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
+        THEN COALESCE(a.respect_gain, 0)
+        ELSE 0
+      END) AS score_down
+    FROM war_log wl
+    LEFT JOIN attacks a
+      ON a.war_id = wl.war_id
+      AND a.faction_id = wl.faction_id
+      AND a.defender_id = wl.player_id
+    WHERE wl.war_id = ? AND wl.faction_id = ?
+    GROUP BY wl.player_id
+  `).bind(String(war.war_id), factionId).all();
 
-  const rawDownByDefender = new Map(
-    (rawDownResult.results || []).map(row => [
+  const scoreDownByDefender = new Map(
+    (scoreDownResult.results || []).map(row => [
       Number(row.player_id),
-      Number(row.raw_score_down || 0)
+      Number(row.score_down || 0)
     ])
-  );
-
-  const ownBonuses = await collectMatchedChainBonuses(
-    db, apiKey, war, factionId, opponentId, 'outgoing'
-  );
-  const opponentBonuses = await collectMatchedChainBonuses(
-    db, apiKey, war, opponentId, factionId, 'incoming'
   );
 
   const rowsResult = await db.prepare(`
@@ -350,40 +358,28 @@ async function rebuildWarScores(db, apiKey, war) {
       score_up_official = ?,
       score_up_adjusted = ?,
       score_up = ?,
-      chain_bonus_score = ?,
-      chain_bonus_hits = ?,
       score_down = ?,
       synced_at = ?
     WHERE war_id = ? AND faction_id = ? AND player_id = ?
   `);
 
   const now = unixNow();
-  let rawScoreUp = 0;
-  let adjustedScoreUp = 0;
-  let rawScoreDown = 0;
-  let adjustedScoreDown = 0;
+  let scoreUp = 0;
+  let scoreDown = 0;
 
   const statements = (rowsResult.results || []).map(row => {
     const playerId = Number(row.player_id);
     const officialUp = Number(row.official_score_up || 0);
-    const ownBonus = ownBonuses.byPlayer.get(playerId) || { hits: 0, score: 0 };
-    const opponentBonus = opponentBonuses.byPlayer.get(playerId) || { hits: 0, score: 0 };
-    const rawDown = Number(rawDownByDefender.get(playerId) || 0);
-    const adjustedUp = Math.max(0, officialUp - Number(ownBonus.score || 0));
-    const adjustedDown = Math.max(0, rawDown - Number(opponentBonus.score || 0));
+    const down = Number(scoreDownByDefender.get(playerId) || 0);
 
-    rawScoreUp += officialUp;
-    adjustedScoreUp += adjustedUp;
-    rawScoreDown += rawDown;
-    adjustedScoreDown += adjustedDown;
+    scoreUp += officialUp;
+    scoreDown += down;
 
     return update.bind(
       officialUp,
-      adjustedUp,
-      adjustedUp,
-      Number(ownBonus.score || 0),
-      Number(ownBonus.hits || 0),
-      adjustedDown,
+      officialUp,
+      officialUp,
+      down,
       now,
       String(war.war_id),
       factionId,
@@ -395,15 +391,29 @@ async function rebuildWarScores(db, apiKey, war) {
     await db.batch(statements.slice(index, index + 75));
   }
 
+  const outgoingVerification = await db.prepare(`
+    SELECT SUM(COALESCE(a.respect_gain, 0)) AS score
+    FROM attacks a
+    WHERE a.war_id = ?
+      AND a.faction_id = ?
+      AND a.is_ranked_war = 1
+      AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
+      AND EXISTS (
+        SELECT 1 FROM war_log wl
+        WHERE wl.war_id = a.war_id
+          AND wl.faction_id = a.faction_id
+          AND wl.player_id = a.attacker_id
+      )
+  `).bind(String(war.war_id), factionId).first();
+
+  const verifiedOutgoingScore = Number(outgoingVerification?.score || 0);
   const summary = {
-    rawScoreUp,
-    adjustedScoreUp,
-    ownChainBonusHits: ownBonuses.totalHits,
-    ownChainBonusScore: ownBonuses.totalScore,
-    rawScoreDown,
-    adjustedScoreDown,
-    opponentChainBonusHits: opponentBonuses.totalHits,
-    opponentChainBonusScore: opponentBonuses.totalScore
+    scoreUp,
+    scoreDown,
+    verifiedOutgoingScore,
+    outgoingDelta: scoreUp - verifiedOutgoingScore,
+    chainBonusesIncluded: true,
+    scoreSource: 'official-report-plus-incoming-ranked-war-respect'
   };
 
   await db.prepare(`
@@ -421,134 +431,12 @@ async function rebuildWarScores(db, apiKey, war) {
   return summary;
 }
 
-async function collectMatchedChainBonuses(db, apiKey, war, chainFactionId, targetFactionId, direction) {
-  const chains = await fetchCompletedChains(apiKey, chainFactionId, war);
-  const byPlayer = new Map();
-  const matchedAttackIds = new Set();
-  let totalHits = 0;
-  let totalScore = 0;
-
-  for (const chain of chains) {
-    const report = await fetchChainReport(apiKey, chain.id);
-    const bonuses = Array.isArray(report?.chainreport?.bonuses)
-      ? report.chainreport.bonuses
-      : Array.isArray(report?.bonuses)
-        ? report.bonuses
-        : [];
-
-    for (const bonus of bonuses) {
-      const attackerId = nullableNumber(bonus?.attacker_id ?? bonus?.attacker);
-      const defenderId = nullableNumber(bonus?.defender_id ?? bonus?.defender);
-      const respect = finiteNumber(bonus?.respect);
-      const chainNumber = nullableNumber(bonus?.chain);
-
-      if (!attackerId || !defenderId || respect <= 0) continue;
-
-      const match = await db.prepare(`
-        SELECT attack_id
-        FROM attacks
-        WHERE war_id = ?
-          AND faction_id = ?
-          AND attacker_id = ?
-          AND defender_id = ?
-          AND attacker_faction_id = ?
-          AND defender_faction_id = ?
-          AND is_ranked_war = 1
-          AND ABS(COALESCE(respect_gain, 0) - ?) < 0.011
-          AND (
-            chain IS NULL OR chain = 0 OR ? IS NULL OR chain = ?
-          )
-        ORDER BY timestamp_ended ASC
-        LIMIT 1
-      `).bind(
-        String(war.war_id),
-        Number(war.faction_id),
-        attackerId,
-        defenderId,
-        chainFactionId,
-        targetFactionId,
-        respect,
-        chainNumber,
-        chainNumber
-      ).first();
-
-      if (!match?.attack_id || matchedAttackIds.has(String(match.attack_id))) continue;
-      matchedAttackIds.add(String(match.attack_id));
-
-      const playerId = direction === 'outgoing' ? attackerId : defenderId;
-      const current = byPlayer.get(playerId) || { hits: 0, score: 0 };
-      current.hits += 1;
-      current.score += respect;
-      byPlayer.set(playerId, current);
-      totalHits += 1;
-      totalScore += respect;
-    }
+function factionIdFrom(value) {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'object') {
+    return nullableNumber(value.id ?? value.faction_id ?? value.factionId);
   }
-
-  return { byPlayer, totalHits, totalScore };
-}
-
-async function fetchCompletedChains(apiKey, factionId, war) {
-  const from = Number(war.start_timestamp) - CHAIN_OVERLAP_PADDING_SECONDS;
-  const to = Number(war.end_timestamp) + CHAIN_OVERLAP_PADDING_SECONDS;
-  let url = buildChainListUrl(factionId, from, to);
-  const chains = [];
-  const seenUrls = new Set();
-
-  for (let page = 0; page < CHAIN_PAGE_MAX && url; page += 1) {
-    if (seenUrls.has(url)) break;
-    seenUrls.add(url);
-
-    const payload = await fetchTornJson(url, apiKey);
-    const rows = Array.isArray(payload?.chains) ? payload.chains : [];
-    for (const chain of rows) {
-      const id = nullableNumber(chain?.id ?? chain?.chain_id);
-      const start = nullableNumber(chain?.start);
-      const end = nullableNumber(chain?.end);
-      if (!id || !start || !end) continue;
-      if (
-        start - CHAIN_OVERLAP_PADDING_SECONDS <= Number(war.end_timestamp) &&
-        end + CHAIN_OVERLAP_PADDING_SECONDS >= Number(war.start_timestamp)
-      ) {
-        chains.push({ id, start, end });
-      }
-    }
-
-    url = sanitizeChainNextUrl(payload?._metadata?.links?.next);
-  }
-
-  return chains;
-}
-
-function buildChainListUrl(factionId, from, to) {
-  const query = new URLSearchParams({
-    limit: String(CHAIN_PAGE_LIMIT),
-    sort: 'DESC',
-    from: String(from),
-    to: String(to),
-    comment: 'RWEngineWarScore'
-  });
-  return `https://api.torn.com/v2/faction/${encodeURIComponent(factionId)}/chains?${query}`;
-}
-
-function sanitizeChainNextUrl(value) {
-  if (!value) return null;
-  let url;
-  try {
-    url = new URL(String(value), 'https://api.torn.com');
-  } catch (_) {
-    return null;
-  }
-  if (url.protocol !== 'https:' || url.hostname !== 'api.torn.com') return null;
-  if (!/^\/v2\/faction\/\d+\/chains$/.test(url.pathname)) return null;
-  return url.toString();
-}
-
-async function fetchChainReport(apiKey, chainId) {
-  return fetchTornJson(
-    `https://api.torn.com/v2/faction/${encodeURIComponent(chainId)}/chainreport?comment=RWEngineWarScore`,
-    apiKey
-  );
+  return nullableNumber(value);
 }
 
 async function resolveFactionId(db, user, requestedValue) {
