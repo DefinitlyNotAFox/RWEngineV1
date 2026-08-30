@@ -26,6 +26,9 @@ const state = {
   sortKey: 'netScore',
   sortDirection: 'desc',
   loadedKey: '',
+  chainBonusKey: '',
+  chainBonusLoading: false,
+  chainBonusSummary: null,
   requestId: 0,
   loading: false
 };
@@ -121,10 +124,16 @@ function bindEvents() {
     renderBody();
   });
 
-  performanceTab?.querySelector('[data-performance-chain]')?.addEventListener('change', event => {
+  performanceTab?.querySelector('[data-performance-chain]')?.addEventListener('change', async event => {
     state.excludeChainBonuses = Boolean(event.currentTarget.checked);
     try { localStorage.setItem(EXCLUDE_CHAIN_KEY, state.excludeChainBonuses ? '1' : '0'); } catch (_) {}
-    renderBody();
+
+    if (state.excludeChainBonuses) {
+      await loadChainBonuses(false);
+    } else {
+      updatePerformanceStatus();
+      render();
+    }
   });
 
   performanceTable.addEventListener('click', event => {
@@ -154,6 +163,8 @@ function bindEvents() {
 
 function invalidatePerformance() {
   state.loadedKey = '';
+  state.chainBonusKey = '';
+  state.chainBonusSummary = null;
   if (isPerformanceActive()) window.setTimeout(() => loadPerformance(true), 0);
 }
 
@@ -166,7 +177,11 @@ async function loadPerformance(force = false) {
 
   const key = currentDataKey();
   if (!force && state.loadedKey === key && state.members.length) {
-    render();
+    if (state.excludeChainBonuses) await loadChainBonuses(false);
+    else {
+      updatePerformanceStatus();
+      render();
+    }
     return;
   }
 
@@ -198,13 +213,14 @@ async function loadPerformance(force = false) {
     state.totalWars = Number(data.totalWars || 0);
     state.playersWithAttackDetails = Number(data.playersWithAttackDetails || 0);
     state.loadedKey = key;
+    state.chainBonusKey = '';
+    state.chainBonusSummary = null;
 
-    if (state.totalWars > 0 && state.playersWithAttackDetails === 0) {
-      setStatus(`${state.totalWars} imported war${state.totalWars === 1 ? '' : 's'} in period · attack detail not collected; assists, respect and chain-bonus filtering require rebuilding the report attack pass`);
-    } else {
-      setStatus(state.totalWars > 0 ? `${state.totalWars} imported war${state.totalWars === 1 ? '' : 's'} in period` : '');
+    if (state.excludeChainBonuses) await loadChainBonuses(false);
+    else {
+      updatePerformanceStatus();
+      render();
     }
-    render();
   } catch (error) {
     if (requestId !== state.requestId) return;
     state.members = [];
@@ -214,6 +230,77 @@ async function loadPerformance(force = false) {
     render();
   } finally {
     if (requestId === state.requestId) state.loading = false;
+  }
+}
+
+async function loadChainBonuses(force = false) {
+  if (!state.excludeChainBonuses || !state.members.length) {
+    updatePerformanceStatus();
+    render();
+    return;
+  }
+
+  const key = currentDataKey();
+  if (!force && state.chainBonusKey === key && state.chainBonusSummary) {
+    updatePerformanceStatus();
+    render();
+    return;
+  }
+
+  state.chainBonusLoading = true;
+  const chainToggle = performanceTab?.querySelector('[data-performance-chain]');
+  if (chainToggle) chainToggle.disabled = true;
+  setStatus(`${state.totalWars} imported war${state.totalWars === 1 ? '' : 's'} in period · matching exact chain bonus reports…`);
+
+  try {
+    const selectedFactionId = Number(document.querySelector('#adminFactionSelect')?.value || 0) || undefined;
+    const response = await fetch('/v2/chain-bonus-performance', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...(selectedFactionId ? { factionId: selectedFactionId } : {}),
+        ...(intelFrom?.value ? { from: intelFrom.value } : {}),
+        ...(intelTo?.value ? { to: intelTo.value } : {}),
+        ...(force ? { force: true } : {})
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok || data.success === false) {
+      throw new Error(data.message || `Chain bonus lookup failed with HTTP ${response.status}.`);
+    }
+
+    const byPlayer = new Map((data.members || []).map(metric => [Number(metric.playerId), metric]));
+    state.members = state.members.map(member => {
+      const exact = byPlayer.get(member.playerId) || {};
+      return {
+        ...member,
+        chainBonusHitsOut: numberOrZero(exact.chainBonusHitsOut),
+        chainBonusScoreOut: numberOrZero(exact.chainBonusScoreOut),
+        chainBonusHitsIn: numberOrZero(exact.chainBonusHitsIn),
+        chainBonusScoreIn: numberOrZero(exact.chainBonusScoreIn),
+        chainBonusRespectLostIn: numberOrZero(exact.chainBonusRespectLostIn)
+      };
+    });
+
+    state.chainBonusKey = key;
+    state.chainBonusSummary = {
+      outgoingHits: Number(data.outgoingHits || 0),
+      incomingHits: Number(data.incomingHits || 0),
+      warnings: Array.isArray(data.warnings) ? data.warnings : [],
+      refreshedWars: Number(data.refreshedWars || 0),
+      cachedWars: Number(data.cachedWars || 0)
+    };
+  } catch (error) {
+    state.chainBonusKey = '';
+    state.chainBonusSummary = null;
+    setStatus(error.message || 'Failed to match chain bonus reports.', true);
+  } finally {
+    state.chainBonusLoading = false;
+    if (chainToggle) chainToggle.disabled = false;
+    updatePerformanceStatus();
+    render();
   }
 }
 
@@ -240,11 +327,11 @@ function normalizeMember(member) {
     scoreDown: numberOrZero(member.scoreDown),
     netScore,
     netPerWar: perWar(netScore, wars),
-    chainBonusHitsOut: numberOrZero(member.chainBonusHitsOut),
-    chainBonusScoreOut: numberOrZero(member.chainBonusScoreOut),
-    chainBonusHitsIn: numberOrZero(member.chainBonusHitsIn),
-    chainBonusScoreIn: numberOrZero(member.chainBonusScoreIn),
-    chainBonusRespectLostIn: numberOrZero(member.chainBonusRespectLostIn)
+    chainBonusHitsOut: 0,
+    chainBonusScoreOut: 0,
+    chainBonusHitsIn: 0,
+    chainBonusScoreIn: 0,
+    chainBonusRespectLostIn: 0
   };
 }
 
@@ -432,6 +519,43 @@ function updateFilterToggles() {
   if (former) former.checked = state.includeFormer;
   const chain = performanceTab?.querySelector('[data-performance-chain]');
   if (chain) chain.checked = state.excludeChainBonuses;
+}
+
+function updatePerformanceStatus() {
+  if (state.totalWars > 0 && state.playersWithAttackDetails === 0) {
+    setStatus(`${state.totalWars} imported war${state.totalWars === 1 ? '' : 's'} in period · attack detail not collected; assists, respect and chain-bonus filtering require rebuilding the report attack pass`);
+    return;
+  }
+
+  if (!state.totalWars) {
+    setStatus('');
+    return;
+  }
+
+  const base = `${state.totalWars} imported war${state.totalWars === 1 ? '' : 's'} in period`;
+  if (!state.excludeChainBonuses) {
+    setStatus(base);
+    return;
+  }
+
+  if (state.chainBonusLoading) {
+    setStatus(`${base} · matching exact chain bonus reports…`);
+    return;
+  }
+
+  if (!state.chainBonusSummary) {
+    setStatus(`${base} · chain bonus data unavailable`, true);
+    return;
+  }
+
+  const out = Number(state.chainBonusSummary.outgoingHits || 0);
+  const incoming = Number(state.chainBonusSummary.incomingHits || 0);
+  const warningCount = state.chainBonusSummary.warnings?.length || 0;
+  const matched = out + incoming;
+  const detail = matched
+    ? `excluded ${out} outgoing + ${incoming} incoming chain bonus hit${matched === 1 ? '' : 's'}`
+    : 'no ranked-war chain bonus hits matched';
+  setStatus(`${base} · ${detail}${warningCount ? ` · ${warningCount} lookup warning${warningCount === 1 ? '' : 's'}` : ''}`);
 }
 
 function readMode() {
