@@ -1,6 +1,9 @@
 const MANAGED_KEY_CONFIG = 'admin_managed_api_key_v1';
 const PAGE_LIMIT = 1000;
 const TIME_PADDING_SECONDS = 60;
+const CHAIN_OVERLAP_PADDING_SECONDS = 3600;
+const CHAIN_PAGE_LIMIT = 100;
+const CHAIN_PAGE_MAX = 5;
 
 export async function onRequest(context) {
   try {
@@ -29,11 +32,33 @@ export async function onRequest(context) {
     }
 
     const apiKey = await requireFactionApiKey(env, factionId);
+
+    if (body.finalize === true) {
+      const scoreAdjustment = await rebuildWarScores(env.DB, apiKey, war);
+      const totals = await getStoredTotals(env.DB, factionId, warId, Number(war.opponent_faction_id || 0));
+      return json({
+        success: true,
+        done: true,
+        finalized: true,
+        warId,
+        fetchedThisPage: 0,
+        storedThisPage: 0,
+        storedTotal: totals.attackRows,
+        membersWithDetail: totals.membersWithDetail,
+        assists: totals.assists,
+        respectEarned: totals.respectEarned,
+        respectLost: totals.respectLost,
+        scoreAdjustment,
+        nextUrl: null,
+        source: 'v2-faction-attacksfull'
+      });
+    }
+
     const requestUrl = body.nextUrl
       ? sanitizeNextUrl(body.nextUrl)
       : buildInitialUrl(war);
 
-    const payload = await fetchTornAttacksFull(requestUrl, apiKey);
+    const payload = await fetchTornJson(requestUrl, apiKey);
     const rawAttacks = Array.isArray(payload?.attacks) ? payload.attacks : [];
     const exactStart = Number(war.start_timestamp);
     const exactEnd = Number(war.end_timestamp);
@@ -51,11 +76,12 @@ export async function onRequest(context) {
 
     const nextUrl = sanitizeOptionalNextUrl(payload?._metadata?.links?.next);
     const done = !nextUrl;
-    const totals = await getStoredTotals(env.DB, factionId, warId);
+    const totals = await getStoredTotals(env.DB, factionId, warId, Number(war.opponent_faction_id || 0));
 
     return json({
       success: true,
       done,
+      finalized: false,
       warId,
       fetchedThisPage: rawAttacks.length,
       storedThisPage: normalized.length,
@@ -108,7 +134,7 @@ function sanitizeNextUrl(value) {
   return url.toString();
 }
 
-async function fetchTornAttacksFull(url, apiKey) {
+async function fetchTornJson(url, apiKey) {
   const response = await fetch(url, {
     headers: {
       Accept: 'application/json',
@@ -128,7 +154,7 @@ async function fetchTornAttacksFull(url, apiKey) {
     throw httpError(502, `Torn API error: ${message}`);
   }
   if (!response.ok) {
-    throw httpError(502, `Torn attack-detail request failed with HTTP ${response.status}.`);
+    throw httpError(502, `Torn request failed with HTTP ${response.status}.`);
   }
   return payload;
 }
@@ -136,6 +162,11 @@ async function fetchTornAttacksFull(url, apiKey) {
 function normalizeAttack(attack) {
   const attacker = attack?.attacker || {};
   const defender = attack?.defender || {};
+  const isRankedWar =
+    attack?.is_ranked_war === true ||
+    attack?.isRankedWar === true ||
+    Number(attack?.is_ranked_war || attack?.isRankedWar || 0) === 1;
+
   return {
     attackId: String(attack?.id || attack?.attack_id || ''),
     attackerId: nullableNumber(attacker?.id ?? attack?.attacker_id),
@@ -145,6 +176,8 @@ function normalizeAttack(attack) {
     result: String(attack?.result || ''),
     respectGain: finiteNumber(attack?.respect_gain),
     respectLoss: finiteNumber(attack?.respect_loss),
+    chain: nullableNumber(attack?.chain),
+    isRankedWar,
     timestampStarted: nullableNumber(attack?.started ?? attack?.timestamp_started),
     timestampEnded: nullableNumber(attack?.ended ?? attack?.timestamp_ended),
     raw: attack || {}
@@ -161,7 +194,7 @@ async function storeAttackBatch(db, war, attacks) {
       attacker_faction_id, defender_faction_id, result,
       respect_gain, respect_loss, chain, is_ranked_war,
       timestamp_started, timestamp_ended, raw_json, created_at
-    ) VALUES (?, ?, ?, ?, NULL, ?, NULL, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, NULL, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(attack_id) DO UPDATE SET
       war_id = excluded.war_id,
       faction_id = excluded.faction_id,
@@ -172,14 +205,11 @@ async function storeAttackBatch(db, war, attacks) {
       result = CASE WHEN excluded.result != '' THEN excluded.result ELSE attacks.result END,
       respect_gain = excluded.respect_gain,
       respect_loss = excluded.respect_loss,
-      is_ranked_war = MAX(attacks.is_ranked_war, excluded.is_ranked_war),
+      chain = COALESCE(excluded.chain, attacks.chain),
+      is_ranked_war = excluded.is_ranked_war,
       timestamp_started = COALESCE(excluded.timestamp_started, attacks.timestamp_started),
       timestamp_ended = COALESCE(excluded.timestamp_ended, attacks.timestamp_ended),
-      raw_json = CASE
-        WHEN attacks.raw_json IS NOT NULL AND attacks.raw_json != '' AND attacks.raw_json != '{}'
-          THEN attacks.raw_json
-        ELSE excluded.raw_json
-      END
+      raw_json = excluded.raw_json
   `);
 
   for (let index = 0; index < attacks.length; index += 75) {
@@ -200,7 +230,8 @@ async function storeAttackBatch(db, war, attacks) {
         attack.result,
         attack.respectGain,
         attack.respectLoss,
-        betweenWarFactions ? 1 : 0,
+        attack.chain,
+        attack.isRankedWar || betweenWarFactions ? 1 : 0,
         attack.timestampStarted,
         attack.timestampEnded,
         JSON.stringify(attack.raw || {}),
@@ -211,49 +242,54 @@ async function storeAttackBatch(db, war, attacks) {
   }
 }
 
-async function getStoredTotals(db, factionId, warId) {
+async function getStoredTotals(db, factionId, warId, opponentId) {
   const row = await db.prepare(`
     SELECT
       COUNT(*) AS attack_rows,
       COUNT(DISTINCT CASE
-        WHEN EXISTS (
-          SELECT 1 FROM war_log wl
-          WHERE wl.war_id = attacks.war_id
-            AND wl.faction_id = attacks.faction_id
-            AND (wl.player_id = attacks.attacker_id OR wl.player_id = attacks.defender_id)
-        ) THEN COALESCE(attacker_id, defender_id) END
+        WHEN is_ranked_war = 1
+         AND (
+           (attacker_faction_id = ? AND defender_faction_id = ?) OR
+           (attacker_faction_id = ? AND defender_faction_id = ?)
+         )
+         AND EXISTS (
+           SELECT 1 FROM war_log wl
+           WHERE wl.war_id = attacks.war_id
+             AND wl.faction_id = attacks.faction_id
+             AND (wl.player_id = attacks.attacker_id OR wl.player_id = attacks.defender_id)
+         )
+        THEN COALESCE(attacker_id, defender_id) END
       ) AS members_with_detail,
       SUM(CASE
-        WHEN LOWER(TRIM(COALESCE(result, ''))) LIKE '%assist%'
-          AND EXISTS (
-            SELECT 1 FROM war_log wl
-            WHERE wl.war_id = attacks.war_id
-              AND wl.faction_id = attacks.faction_id
-              AND wl.player_id = attacks.attacker_id
-          )
+        WHEN attacker_faction_id = ?
+         AND defender_faction_id = ?
+         AND is_ranked_war = 1
+         AND LOWER(TRIM(COALESCE(result, ''))) LIKE '%assist%'
         THEN 1 ELSE 0 END
       ) AS assists,
       SUM(CASE
-        WHEN EXISTS (
-          SELECT 1 FROM war_log wl
-          WHERE wl.war_id = attacks.war_id
-            AND wl.faction_id = attacks.faction_id
-            AND wl.player_id = attacks.attacker_id
-        )
+        WHEN attacker_faction_id = ?
+         AND defender_faction_id = ?
+         AND is_ranked_war = 1
+         AND LOWER(TRIM(COALESCE(result, ''))) NOT LIKE '%assist%'
         THEN COALESCE(respect_gain, 0) ELSE 0 END
       ) AS respect_earned,
       SUM(CASE
-        WHEN EXISTS (
-          SELECT 1 FROM war_log wl
-          WHERE wl.war_id = attacks.war_id
-            AND wl.faction_id = attacks.faction_id
-            AND wl.player_id = attacks.defender_id
-        )
+        WHEN attacker_faction_id = ?
+         AND defender_faction_id = ?
+         AND is_ranked_war = 1
+         AND LOWER(TRIM(COALESCE(result, ''))) NOT LIKE '%assist%'
         THEN ABS(COALESCE(respect_loss, 0)) ELSE 0 END
       ) AS respect_lost
     FROM attacks
     WHERE faction_id = ? AND war_id = ?
-  `).bind(factionId, warId).first();
+  `).bind(
+    factionId, opponentId, opponentId, factionId,
+    factionId, opponentId,
+    factionId, opponentId,
+    opponentId, factionId,
+    factionId, warId
+  ).first();
 
   return {
     attackRows: Number(row?.attack_rows || 0),
@@ -262,6 +298,257 @@ async function getStoredTotals(db, factionId, warId) {
     respectEarned: Number(row?.respect_earned || 0),
     respectLost: Number(row?.respect_lost || 0)
   };
+}
+
+async function rebuildWarScores(db, apiKey, war) {
+  const factionId = Number(war.faction_id);
+  const opponentId = Number(war.opponent_faction_id || 0);
+  if (!opponentId) {
+    throw httpError(400, 'Imported war is missing opponent faction ID.');
+  }
+
+  const rawDownResult = await db.prepare(`
+    SELECT
+      defender_id AS player_id,
+      SUM(COALESCE(respect_gain, 0)) AS raw_score_down
+    FROM attacks
+    WHERE war_id = ?
+      AND faction_id = ?
+      AND attacker_faction_id = ?
+      AND defender_faction_id = ?
+      AND is_ranked_war = 1
+      AND COALESCE(respect_gain, 0) > 0
+      AND LOWER(TRIM(COALESCE(result, ''))) NOT LIKE '%assist%'
+    GROUP BY defender_id
+  `).bind(String(war.war_id), factionId, opponentId, factionId).all();
+
+  const rawDownByDefender = new Map(
+    (rawDownResult.results || []).map(row => [
+      Number(row.player_id),
+      Number(row.raw_score_down || 0)
+    ])
+  );
+
+  const ownBonuses = await collectMatchedChainBonuses(
+    db, apiKey, war, factionId, opponentId, 'outgoing'
+  );
+  const opponentBonuses = await collectMatchedChainBonuses(
+    db, apiKey, war, opponentId, factionId, 'incoming'
+  );
+
+  const rowsResult = await db.prepare(`
+    SELECT
+      player_id,
+      COALESCE(NULLIF(score_up_official, 0), score_up, 0) AS official_score_up
+    FROM war_log
+    WHERE war_id = ? AND faction_id = ?
+  `).bind(String(war.war_id), factionId).all();
+
+  const update = db.prepare(`
+    UPDATE war_log
+    SET
+      score_up_official = ?,
+      score_up_adjusted = ?,
+      score_up = ?,
+      chain_bonus_score = ?,
+      chain_bonus_hits = ?,
+      score_down = ?,
+      synced_at = ?
+    WHERE war_id = ? AND faction_id = ? AND player_id = ?
+  `);
+
+  const now = unixNow();
+  let rawScoreUp = 0;
+  let adjustedScoreUp = 0;
+  let rawScoreDown = 0;
+  let adjustedScoreDown = 0;
+
+  const statements = (rowsResult.results || []).map(row => {
+    const playerId = Number(row.player_id);
+    const officialUp = Number(row.official_score_up || 0);
+    const ownBonus = ownBonuses.byPlayer.get(playerId) || { hits: 0, score: 0 };
+    const opponentBonus = opponentBonuses.byPlayer.get(playerId) || { hits: 0, score: 0 };
+    const rawDown = Number(rawDownByDefender.get(playerId) || 0);
+    const adjustedUp = Math.max(0, officialUp - Number(ownBonus.score || 0));
+    const adjustedDown = Math.max(0, rawDown - Number(opponentBonus.score || 0));
+
+    rawScoreUp += officialUp;
+    adjustedScoreUp += adjustedUp;
+    rawScoreDown += rawDown;
+    adjustedScoreDown += adjustedDown;
+
+    return update.bind(
+      officialUp,
+      adjustedUp,
+      adjustedUp,
+      Number(ownBonus.score || 0),
+      Number(ownBonus.hits || 0),
+      adjustedDown,
+      now,
+      String(war.war_id),
+      factionId,
+      playerId
+    );
+  });
+
+  for (let index = 0; index < statements.length; index += 75) {
+    await db.batch(statements.slice(index, index + 75));
+  }
+
+  const summary = {
+    rawScoreUp,
+    adjustedScoreUp,
+    ownChainBonusHits: ownBonuses.totalHits,
+    ownChainBonusScore: ownBonuses.totalScore,
+    rawScoreDown,
+    adjustedScoreDown,
+    opponentChainBonusHits: opponentBonuses.totalHits,
+    opponentChainBonusScore: opponentBonuses.totalScore
+  };
+
+  await db.prepare(`
+    INSERT INTO app_meta (key, value, updated_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(key) DO UPDATE SET
+      value = excluded.value,
+      updated_at = excluded.updated_at
+  `).bind(
+    `war_score_adjustment:${factionId}:${war.war_id}`,
+    JSON.stringify(summary),
+    now
+  ).run();
+
+  return summary;
+}
+
+async function collectMatchedChainBonuses(db, apiKey, war, chainFactionId, targetFactionId, direction) {
+  const chains = await fetchCompletedChains(apiKey, chainFactionId, war);
+  const byPlayer = new Map();
+  const matchedAttackIds = new Set();
+  let totalHits = 0;
+  let totalScore = 0;
+
+  for (const chain of chains) {
+    const report = await fetchChainReport(apiKey, chain.id);
+    const bonuses = Array.isArray(report?.chainreport?.bonuses)
+      ? report.chainreport.bonuses
+      : Array.isArray(report?.bonuses)
+        ? report.bonuses
+        : [];
+
+    for (const bonus of bonuses) {
+      const attackerId = nullableNumber(bonus?.attacker_id ?? bonus?.attacker);
+      const defenderId = nullableNumber(bonus?.defender_id ?? bonus?.defender);
+      const respect = finiteNumber(bonus?.respect);
+      const chainNumber = nullableNumber(bonus?.chain);
+
+      if (!attackerId || !defenderId || respect <= 0) continue;
+
+      const match = await db.prepare(`
+        SELECT attack_id
+        FROM attacks
+        WHERE war_id = ?
+          AND faction_id = ?
+          AND attacker_id = ?
+          AND defender_id = ?
+          AND attacker_faction_id = ?
+          AND defender_faction_id = ?
+          AND is_ranked_war = 1
+          AND ABS(COALESCE(respect_gain, 0) - ?) < 0.011
+          AND (
+            chain IS NULL OR chain = 0 OR ? IS NULL OR chain = ?
+          )
+        ORDER BY timestamp_ended ASC
+        LIMIT 1
+      `).bind(
+        String(war.war_id),
+        Number(war.faction_id),
+        attackerId,
+        defenderId,
+        chainFactionId,
+        targetFactionId,
+        respect,
+        chainNumber,
+        chainNumber
+      ).first();
+
+      if (!match?.attack_id || matchedAttackIds.has(String(match.attack_id))) continue;
+      matchedAttackIds.add(String(match.attack_id));
+
+      const playerId = direction === 'outgoing' ? attackerId : defenderId;
+      const current = byPlayer.get(playerId) || { hits: 0, score: 0 };
+      current.hits += 1;
+      current.score += respect;
+      byPlayer.set(playerId, current);
+      totalHits += 1;
+      totalScore += respect;
+    }
+  }
+
+  return { byPlayer, totalHits, totalScore };
+}
+
+async function fetchCompletedChains(apiKey, factionId, war) {
+  const from = Number(war.start_timestamp) - CHAIN_OVERLAP_PADDING_SECONDS;
+  const to = Number(war.end_timestamp) + CHAIN_OVERLAP_PADDING_SECONDS;
+  let url = buildChainListUrl(factionId, from, to);
+  const chains = [];
+  const seenUrls = new Set();
+
+  for (let page = 0; page < CHAIN_PAGE_MAX && url; page += 1) {
+    if (seenUrls.has(url)) break;
+    seenUrls.add(url);
+
+    const payload = await fetchTornJson(url, apiKey);
+    const rows = Array.isArray(payload?.chains) ? payload.chains : [];
+    for (const chain of rows) {
+      const id = nullableNumber(chain?.id ?? chain?.chain_id);
+      const start = nullableNumber(chain?.start);
+      const end = nullableNumber(chain?.end);
+      if (!id || !start || !end) continue;
+      if (
+        start - CHAIN_OVERLAP_PADDING_SECONDS <= Number(war.end_timestamp) &&
+        end + CHAIN_OVERLAP_PADDING_SECONDS >= Number(war.start_timestamp)
+      ) {
+        chains.push({ id, start, end });
+      }
+    }
+
+    url = sanitizeChainNextUrl(payload?._metadata?.links?.next);
+  }
+
+  return chains;
+}
+
+function buildChainListUrl(factionId, from, to) {
+  const query = new URLSearchParams({
+    limit: String(CHAIN_PAGE_LIMIT),
+    sort: 'DESC',
+    from: String(from),
+    to: String(to),
+    comment: 'RWEngineWarScore'
+  });
+  return `https://api.torn.com/v2/faction/${encodeURIComponent(factionId)}/chains?${query}`;
+}
+
+function sanitizeChainNextUrl(value) {
+  if (!value) return null;
+  let url;
+  try {
+    url = new URL(String(value), 'https://api.torn.com');
+  } catch (_) {
+    return null;
+  }
+  if (url.protocol !== 'https:' || url.hostname !== 'api.torn.com') return null;
+  if (!/^\/v2\/faction\/\d+\/chains$/.test(url.pathname)) return null;
+  return url.toString();
+}
+
+async function fetchChainReport(apiKey, chainId) {
+  return fetchTornJson(
+    `https://api.torn.com/v2/faction/${encodeURIComponent(chainId)}/chainreport?comment=RWEngineWarScore`,
+    apiKey
+  );
 }
 
 async function resolveFactionId(db, user, requestedValue) {
