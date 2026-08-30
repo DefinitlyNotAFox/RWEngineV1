@@ -4,6 +4,7 @@ const warsMetric = document.querySelector('#metricWars');
 const memberSearch = document.querySelector('#memberSearch');
 const refreshButton = document.querySelector('#refreshButton');
 const syncButton = document.querySelector('#syncIntelButton');
+const applyRangeButton = document.querySelector('#applyRangeButton');
 
 const sortState = {
   key: null,
@@ -25,12 +26,26 @@ if (membersBody && membersTable) {
 
   memberSearch?.addEventListener('input', schedulePresentation);
   membersBody.addEventListener('click', event => {
-    if (event.target.closest('tr.member-row[data-member-id]')) resetSort();
+    if (event.target.closest('tr.member-row[data-member-id]')) {
+      resetSort();
+      schedulePresentationBurst();
+      return;
+    }
     schedulePresentation();
   });
-  refreshButton?.addEventListener('click', resetSort);
-  syncButton?.addEventListener('click', resetSort);
-  window.addEventListener('rwe:member-sort-reset', resetSort);
+  refreshButton?.addEventListener('click', () => {
+    resetSort();
+    schedulePresentationBurst();
+  });
+  syncButton?.addEventListener('click', () => {
+    resetSort();
+    schedulePresentationBurst();
+  });
+  applyRangeButton?.addEventListener('click', schedulePresentationBurst);
+  window.addEventListener('rwe:member-sort-reset', () => {
+    resetSort();
+    schedulePresentationBurst();
+  });
 
   window.setTimeout(schedulePresentation, 500);
   window.setTimeout(schedulePresentation, 1400);
@@ -84,6 +99,12 @@ function installHeaders() {
 
 function schedulePresentation() {
   window.requestAnimationFrame(applyPresentation);
+}
+
+function schedulePresentationBurst() {
+  [0, 60, 180, 450, 900, 1600, 2600].forEach(delay => {
+    window.setTimeout(schedulePresentation, delay);
+  });
 }
 
 function applyPresentation() {
