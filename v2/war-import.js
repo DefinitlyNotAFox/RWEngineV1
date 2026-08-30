@@ -10,22 +10,10 @@ const progressBox = document.querySelector('#historicalWarImportProgress');
 const progressSummary = document.querySelector('#historicalWarImportSummary');
 const progressBar = document.querySelector('#historicalWarImportBar');
 const progressList = document.querySelector('#historicalWarImportList');
-const warsBody = document.querySelector('#warsBody');
-const warsNav = document.querySelector('.nav-button[data-tab="wars"]');
-const membersNav = document.querySelector('.nav-button[data-tab="members"]');
 const refreshButton = document.querySelector('#refreshButton');
-const rangeFromInput = document.querySelector('#intelFrom');
-const rangeToInput = document.querySelector('#intelTo');
 
 if (form) {
   form.addEventListener('submit', handleImportSubmit);
-  warsNav?.addEventListener('click', () => loadHistoricalArchive());
-  membersNav?.addEventListener('click', () => loadHistoricalArchive());
-  refreshButton?.addEventListener('click', () => {
-    window.setTimeout(() => loadHistoricalArchive(), 1500);
-  });
-
-  loadHistoricalArchive();
 }
 
 async function handleImportSubmit(event) {
@@ -127,7 +115,11 @@ async function handleImportSubmit(event) {
     );
 
     if (reportIdsInput && failed === 0) reportIdsInput.value = '';
-    await loadHistoricalArchive();
+
+    // The main app owns the war archive and analytics state. Ask it to refresh
+    // once after the batch instead of independently fetching and repainting the
+    // same archive from this importer module.
+    window.dispatchEvent(new CustomEvent('rwe:wars-changed'));
     refreshButton?.click();
   } finally {
     if (submitButton) {
@@ -175,46 +167,6 @@ async function cooldown(reportId, milliseconds) {
     updateReportRow(reportId, 'success', 'Complete', `Complete. Waiting ${remaining}s before the next report to respect Torn API limits.`);
     await sleep(1000);
   }
-}
-
-async function loadHistoricalArchive() {
-  if (!warsBody) return;
-
-  try {
-    const result = await api('getImportedWars');
-    const wars = result.wars || [];
-    updateHistoricalDateMinimum(wars);
-
-    if (!wars.length) {
-      warsBody.innerHTML = '<tr><td colspan="5" class="empty">No ranked-war reports imported yet.</td></tr>';
-      return;
-    }
-
-    warsBody.innerHTML = wars.map(war => `
-      <tr>
-        <td>${escapeHtml(war.opponent_faction_name || 'Unknown opponent')}</td>
-        <td>${escapeHtml(String(war.war_id || war.report_id || '—'))}</td>
-        <td>${formatWarDate(war.start_timestamp)}</td>
-        <td>${formatWarDate(war.end_timestamp)}</td>
-        <td>${escapeHtml(formatChainStatus(war))}</td>
-      </tr>
-    `).join('');
-  } catch (error) {
-    warsBody.innerHTML = `<tr><td colspan="5" class="empty">${escapeHtml(error.message || 'Failed to load war archive.')}</td></tr>`;
-  }
-}
-
-function updateHistoricalDateMinimum(wars) {
-  const timestamps = (wars || [])
-    .map(war => Number(war.start_timestamp || war.end_timestamp || 0))
-    .filter(value => Number.isFinite(value) && value > 0);
-
-  if (!timestamps.length) return;
-  const earliest = Math.min(...timestamps);
-  const date = new Date(earliest * 1000).toISOString().slice(0, 10);
-
-  if (rangeFromInput) rangeFromInput.min = date;
-  if (rangeToInput) rangeToInput.min = date;
 }
 
 function parseReportIds(value) {
@@ -285,20 +237,6 @@ async function api(action, payload = {}) {
   }
 
   return result;
-}
-
-function formatWarDate(timestamp) {
-  const value = Number(timestamp || 0);
-  if (!value) return '—';
-  return new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit'
-  }).format(new Date(value * 1000));
-}
-
-function formatChainStatus(war) {
-  return war.chain_adjustment_status || 'Not adjusted';
 }
 
 function formatNumber(value) {
