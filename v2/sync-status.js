@@ -1,3 +1,5 @@
+import './admin-workspace.js?v=1';
+
 const syncStatus = document.querySelector('#syncStatus');
 
 if (syncStatus) {
