@@ -2,8 +2,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 6px;
 }
 
 .performance-mode-switch {
@@ -17,8 +17,8 @@
 }
 
 .performance-mode-button {
-  min-height: 30px;
-  padding: 6px 11px;
+  min-height: 28px;
+  padding: 5px 10px;
   border: 0;
   border-radius: 5px;
   background: transparent;
@@ -37,40 +37,68 @@
   color: var(--text);
 }
 
+.performance-toolbar-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+}
+
+.performance-former-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.performance-former-toggle input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+
 .performance-search {
-  width: 205px;
-  padding: 8px 10px;
+  width: 190px;
+  padding: 7px 9px;
   font-size: 12px;
 }
 
 .performance-status {
-  margin-bottom: 8px;
-  padding: 7px 0;
+  margin-bottom: 5px;
+  padding: 4px 0;
   border: 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .performance-status.is-error {
   color: var(--danger);
 }
 
+#performanceTab,
 .performance-table-wrap {
-  overflow-x: auto;
+  overflow: visible;
+}
+
+.performance-table-wrap {
   border: 0;
   border-radius: 0;
   background: transparent;
 }
 
-#performanceTable {
+#performanceTable,
+#performanceTab.is-detailed #performanceTable {
   width: 100%;
-  min-width: 760px;
+  min-width: 0;
+  table-layout: fixed;
   border: 0;
   border-collapse: collapse;
-}
-
-#performanceTab.is-detailed #performanceTable {
-  min-width: 1480px;
 }
 
 #performanceTable th,
@@ -80,7 +108,7 @@
 
 .performance-sort-header {
   padding: 0;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .performance-sort-header.is-left {
@@ -93,8 +121,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 5px;
-  padding: 10px 11px;
+  gap: 4px;
+  padding: 7px 6px;
   border: 0;
   background: transparent;
   color: inherit;
@@ -103,6 +131,7 @@
   letter-spacing: inherit;
   text-transform: inherit;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .performance-sort-header.is-left .performance-sort {
@@ -115,14 +144,19 @@
 }
 
 .performance-member-cell {
+  width: 22%;
   text-align: left;
 }
 
 .performance-member-link {
+  display: block;
+  overflow: hidden;
   color: var(--text);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 730;
   text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .performance-member-link:hover {
@@ -131,11 +165,28 @@
   text-underline-offset: 2px;
 }
 
-.performance-member-cell small {
+.performance-member-cell small,
+.performance-stat-secondary {
   display: block;
-  margin-top: 2px;
+  margin-top: 1px;
   color: var(--muted-dim);
-  font-size: 10px;
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.performance-stat-cell {
+  text-align: right;
+  vertical-align: middle;
+}
+
+.performance-stat-primary {
+  display: block;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.15;
+  white-space: nowrap;
 }
 
 .performance-missing {
@@ -155,9 +206,39 @@
 }
 
 #performanceTable td {
-  padding: 10px 11px;
-  font-size: 13px;
-  line-height: 1.3;
+  padding: 6px 6px;
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+#performanceTab:not(.is-detailed) #performanceTable th:first-child,
+#performanceTab:not(.is-detailed) #performanceTable td:first-child {
+  width: 34%;
+}
+
+#performanceTab.is-detailed #performanceTable th:first-child,
+#performanceTab.is-detailed #performanceTable td:first-child {
+  width: 20%;
+}
+
+@media (max-width: 1050px) {
+  .performance-member-link,
+  .performance-stat-primary,
+  #performanceTable td {
+    font-size: 11px;
+  }
+
+  .performance-member-cell small,
+  .performance-stat-secondary,
+  .performance-sort-header {
+    font-size: 8px;
+  }
+
+  .performance-sort,
+  #performanceTable td {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
 }
 
 @media (max-width: 780px) {
@@ -166,11 +247,15 @@
     flex-direction: column;
   }
 
+  .performance-toolbar-right {
+    justify-content: space-between;
+  }
+
   .performance-mode-switch {
     width: fit-content;
   }
 
   .performance-search {
-    width: 100%;
+    width: min(190px, 55vw);
   }
 }
