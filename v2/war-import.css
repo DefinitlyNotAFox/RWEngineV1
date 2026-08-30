@@ -1,9 +1,9 @@
 .war-import {
   margin-bottom: 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-1, #10171b);
-  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
 }
 
 .war-import > summary {
@@ -11,23 +11,23 @@
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 11px 13px;
+  padding: 10px 2px;
   cursor: pointer;
   list-style: none;
   user-select: none;
 }
 
 .war-import > summary::-webkit-details-marker { display: none; }
-.war-import > summary:hover { background: rgba(255, 255, 255, .025); }
-.war-import > summary strong { display: block; font-size: 12px; }
-.war-import > summary small { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; font-weight: 400; }
+.war-import > summary:hover { background: rgba(255, 255, 255, .015); }
+.war-import > summary strong { display: block; font-size: 13px; }
+.war-import > summary small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; font-weight: 400; }
 .war-import > summary::after { content: '+'; color: var(--accent-strong); font-size: 18px; line-height: 1; }
 .war-import[open] > summary::after { content: '−'; }
 
 .war-import-body {
-  padding: 12px 13px 13px;
-  border-top: 1px solid var(--border-soft);
-  background: rgba(0, 0, 0, .08);
+  padding: 10px 2px 12px;
+  border-top: 0;
+  background: transparent;
 }
 
 .historical-import-form {
@@ -45,7 +45,7 @@
 .historical-import-input > span,
 .historical-import-options > span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: .07em;
   text-transform: uppercase;
@@ -77,7 +77,7 @@
   align-items: center;
   gap: 7px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .historical-import-options input {
@@ -87,21 +87,22 @@
 
 .historical-import-status {
   margin-top: 10px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: rgba(255, 255, 255, .025);
-  font-size: 11px;
+  padding: 5px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
-.historical-import-status.is-success { border-color: rgba(137, 218, 190, .45); color: var(--accent-strong); }
-.historical-import-status.is-warning { border-color: #705c32; color: #e6c77f; }
-.historical-import-status.is-error { border-color: #713e42; color: var(--danger); }
+.historical-import-status.is-success { color: var(--accent-strong); }
+.historical-import-status.is-warning { color: #e6c77f; }
+.historical-import-status.is-error { color: var(--danger); }
 
 .historical-import-progress {
   margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border-soft);
+  padding-top: 8px;
+  border-top: 0;
 }
 
 .historical-import-progress-head {
@@ -109,12 +110,12 @@
   justify-content: space-between;
   gap: 12px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .historical-import-progress-track {
   height: 4px;
-  margin: 7px 0 9px;
+  margin: 8px 0 10px;
   border-radius: 99px;
   background: #080d0f;
   overflow: hidden;
@@ -128,23 +129,24 @@
   transition: width .2s ease;
 }
 
-.historical-import-list { display: grid; gap: 4px; }
+.historical-import-list { display: grid; gap: 2px; }
 
 .historical-import-row {
   display: grid;
   grid-template-columns: 90px 92px minmax(0, 1fr);
   gap: 10px;
   align-items: center;
-  padding: 6px 8px;
-  border: 1px solid var(--border-soft);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, .018);
-  font-size: 10px;
+  padding: 7px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 12px;
+  line-height: 1.35;
 }
 
-.historical-import-row strong { font-size: 10px; }
+.historical-import-row strong { font-size: 12px; }
 .historical-import-row span { color: var(--accent-strong); font-weight: 700; }
-.historical-import-row small { color: var(--muted); overflow-wrap: anywhere; }
+.historical-import-row small { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 .historical-import-row.is-failed span { color: var(--danger); }
 .historical-import-row.is-skipped span { color: #e6c77f; }
 
