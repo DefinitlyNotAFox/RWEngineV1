@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="/v2/war-import.css?v=1" />
   <link rel="stylesheet" href="/v2/admin-workspace.css?v=1" data-rwe-admin-workspace="1" />
   <link rel="stylesheet" href="/v2/boot-stability.css?v=1" />
-  <link rel="stylesheet" href="/v2/layout-refinement.css?v=1" />
+  <link rel="stylesheet" href="/v2/layout-refinement.css?v=2" />
   <link rel="stylesheet" href="/v2/member-table.css?v=2" data-rwe-member-table="1" />
   <link rel="stylesheet" href="/v2/range-controls.css?v=2" data-rwe-range-controls="1" />
 </head>
@@ -42,11 +42,21 @@
       </div>
 
       <nav class="nav-list" aria-label="RWEngine sections">
-        <button class="nav-button active" data-tab="overview">Overview</button>
-        <button class="nav-button" data-tab="members">Members</button>
-        <button class="nav-button" data-tab="wars">Wars</button>
-        <button class="nav-button" data-tab="current-war">Current War</button>
-        <button class="nav-button" data-tab="settings">Settings</button>
+        <button class="nav-button active" data-tab="overview" type="button">Overview</button>
+        <button class="nav-button" data-tab="members" type="button">Members</button>
+
+        <div id="rankedWarNavGroup" class="nav-group">
+          <button class="nav-button nav-parent" data-tab="ranked-war" type="button" aria-expanded="false">
+            <span>Ranked War</span>
+            <span class="nav-caret" aria-hidden="true">›</span>
+          </button>
+          <div class="nav-submenu">
+            <button class="nav-button nav-subbutton" data-tab="wars" type="button">War history</button>
+            <button class="nav-button nav-subbutton" data-tab="current-war" type="button">Current matchup</button>
+          </div>
+        </div>
+
+        <button class="nav-button" data-tab="settings" type="button">Settings</button>
       </nav>
 
       <div class="sidebar-footer">
@@ -68,8 +78,17 @@
       <div id="syncStatus" class="sync-status hidden"></div>
 
       <section id="overviewTab" class="tab active">
-        <div class="metric-grid">
-          <article class="metric-card"><span>Current members</span><strong id="metricMembers">—</strong></article>
+        <!-- General faction overview intentionally starts clean. These hidden
+             anchors keep the existing renderer compatible until that page gets
+             its own faction-wide metrics. -->
+        <div class="hidden" aria-hidden="true">
+          <span id="metricMembers">—</span>
+          <p id="trackingText"></p>
+        </div>
+      </section>
+
+      <section id="ranked-warTab" class="tab">
+        <div class="metric-grid ranked-war-metrics">
           <article class="metric-card"><span>Wars in period</span><strong id="metricWars">—</strong></article>
           <article class="metric-card"><span>Total war hits</span><strong id="metricHits">—</strong></article>
           <article class="metric-card"><span>Net score</span><strong id="metricNetScore">—</strong></article>
@@ -92,12 +111,6 @@
             <div id="overviewMembers" class="stack-list"></div>
           </article>
         </div>
-
-        <article class="panel rebuild-note">
-          <p class="eyebrow">Tracking</p>
-          <h2>RWE records forward from faction signup</h2>
-          <p id="trackingText">Member activity and development are calculated from snapshots recorded by RWE. Historical data before tracking began is not used for faction-intelligence trends.</p>
-        </article>
       </section>
 
       <section id="membersTab" class="tab">
@@ -148,7 +161,7 @@
 
       <section id="current-warTab" class="tab">
         <article class="panel feature-placeholder">
-          <p class="eyebrow">Matchup intelligence</p><h2>Current War</h2>
+          <p class="eyebrow">Matchup intelligence</p><h2>Current matchup</h2>
           <p>This module will compare both rosters, surface known history and estimates, and explain why specific opponents are important rather than reducing the matchup to an opaque score.</p>
           <div class="placeholder-grid"><div><span>Own roster</span><strong>Planned</strong></div><div><span>Opponent roster</span><strong>Planned</strong></div><div><span>Historical context</span><strong>Planned</strong></div><div><span>Explainable threats</span><strong>Planned</strong></div></div>
         </article>
@@ -164,6 +177,7 @@
   </div>
 
   <script type="module" src="/v2/app.js?v=4"></script>
+  <script type="module" src="/v2/ranked-war-navigation.js?v=1"></script>
   <script type="module" src="/v2/sync-status.js?v=14"></script>
   <script type="module" src="/v2/war-import.js?v=3"></script>
 </body>
