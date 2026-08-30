@@ -14,6 +14,7 @@ const intelTo = document.querySelector('#intelTo');
 
 const MODE_KEY = 'rwengine.performanceMode';
 const FORMER_KEY = 'rwengine.performanceFormerMembers';
+const EXCLUDE_CHAIN_KEY = 'rwengine.performanceExcludeChainBonuses';
 
 const state = {
   members: [],
@@ -21,6 +22,7 @@ const state = {
   playersWithAttackDetails: 0,
   mode: readMode(),
   includeFormer: readFormerPreference(),
+  excludeChainBonuses: readChainPreference(),
   sortKey: 'netScore',
   sortDirection: 'desc',
   loadedKey: '',
@@ -51,10 +53,10 @@ const detailedColumns = [
 
 if (performanceTab && performanceTable && performanceHead && performanceBody) {
   installStylesheet();
-  installFormerToggle();
+  installFilters();
   bindEvents();
   updateModeButtons();
-  updateFormerToggle();
+  updateFilterToggles();
   render();
   if (isPerformanceActive()) loadPerformance(false);
 }
@@ -72,7 +74,7 @@ function installStylesheet() {
   document.head.appendChild(link);
 }
 
-function installFormerToggle() {
+function installFilters() {
   const toolbar = performanceTab?.querySelector('.performance-toolbar');
   if (!toolbar || toolbar.querySelector('[data-performance-former]')) return;
 
@@ -80,6 +82,10 @@ function installFormerToggle() {
   const controls = document.createElement('div');
   controls.className = 'performance-toolbar-right';
   controls.innerHTML = `
+    <label class="performance-former-toggle">
+      <input type="checkbox" data-performance-chain />
+      <span>Exclude chain bonuses</span>
+    </label>
     <label class="performance-former-toggle">
       <input type="checkbox" data-performance-former />
       <span>Former members</span>
@@ -112,6 +118,12 @@ function bindEvents() {
   performanceTab?.querySelector('[data-performance-former]')?.addEventListener('change', event => {
     state.includeFormer = Boolean(event.currentTarget.checked);
     try { localStorage.setItem(FORMER_KEY, state.includeFormer ? '1' : '0'); } catch (_) {}
+    renderBody();
+  });
+
+  performanceTab?.querySelector('[data-performance-chain]')?.addEventListener('change', event => {
+    state.excludeChainBonuses = Boolean(event.currentTarget.checked);
+    try { localStorage.setItem(EXCLUDE_CHAIN_KEY, state.excludeChainBonuses ? '1' : '0'); } catch (_) {}
     renderBody();
   });
 
@@ -188,7 +200,7 @@ async function loadPerformance(force = false) {
     state.loadedKey = key;
 
     if (state.totalWars > 0 && state.playersWithAttackDetails === 0) {
-      setStatus(`${state.totalWars} imported war${state.totalWars === 1 ? '' : 's'} in period · attack detail not collected; assists and respect require rebuilding the report attack pass`);
+      setStatus(`${state.totalWars} imported war${state.totalWars === 1 ? '' : 's'} in period · attack detail not collected; assists, respect and chain-bonus filtering require rebuilding the report attack pass`);
     } else {
       setStatus(state.totalWars > 0 ? `${state.totalWars} imported war${state.totalWars === 1 ? '' : 's'} in period` : '');
     }
@@ -227,7 +239,12 @@ function normalizeMember(member) {
     scoreUp: numberOrZero(member.scoreUp),
     scoreDown: numberOrZero(member.scoreDown),
     netScore,
-    netPerWar: perWar(netScore, wars)
+    netPerWar: perWar(netScore, wars),
+    chainBonusHitsOut: numberOrZero(member.chainBonusHitsOut),
+    chainBonusScoreOut: numberOrZero(member.chainBonusScoreOut),
+    chainBonusHitsIn: numberOrZero(member.chainBonusHitsIn),
+    chainBonusScoreIn: numberOrZero(member.chainBonusScoreIn),
+    chainBonusRespectLostIn: numberOrZero(member.chainBonusRespectLostIn)
   };
 }
 
@@ -300,12 +317,39 @@ function compareMembers(a, b) {
     return a.playerName.localeCompare(b.playerName, undefined, { sensitivity: 'base' }) * direction;
   }
 
-  const aValue = nullableNumber(a[key]);
-  const bValue = nullableNumber(b[key]);
+  const aValue = nullableNumber(displayMetrics(a)[key]);
+  const bValue = nullableNumber(displayMetrics(b)[key]);
   if (aValue === null && bValue === null) return a.playerName.localeCompare(b.playerName);
   if (aValue === null) return 1;
   if (bValue === null) return -1;
   return ((aValue - bValue) * direction) || a.playerName.localeCompare(b.playerName);
+}
+
+function displayMetrics(member) {
+  if (!state.excludeChainBonuses) return member;
+
+  const hits = Math.max(0, member.hits - member.chainBonusHitsOut);
+  const respectEarned = member.respectEarned === null
+    ? null
+    : Math.max(0, member.respectEarned - member.chainBonusScoreOut);
+  const respectLost = member.respectLost === null
+    ? null
+    : Math.max(0, member.respectLost - member.chainBonusRespectLostIn);
+  const scoreUp = Math.max(0, member.scoreUp - member.chainBonusScoreOut);
+  const scoreDown = Math.max(0, member.scoreDown - member.chainBonusScoreIn);
+  const netScore = scoreUp - scoreDown;
+
+  return {
+    ...member,
+    hits,
+    hitsPerWar: perWar(hits, member.wars),
+    respectEarned,
+    respectLost,
+    scoreUp,
+    scoreDown,
+    netScore,
+    netPerWar: perWar(netScore, member.wars)
+  };
 }
 
 function formatCell(member, config) {
@@ -319,35 +363,37 @@ function formatCell(member, config) {
     `;
   }
 
+  const metrics = displayMetrics(member);
+
   if (config.key === 'wars') {
     return stackedStat(
-      formatNumber(member.wars),
-      member.participation === null ? '— participation' : `${Math.round(member.participation * 100)}% participation`
+      formatNumber(metrics.wars),
+      metrics.participation === null ? '— participation' : `${Math.round(metrics.participation * 100)}% participation`
     );
   }
 
   if (config.key === 'hits') {
     return stackedStat(
-      formatNumber(member.hits),
-      member.hitsPerWar === null ? '— / war' : `${formatDecimal(member.hitsPerWar, 1)} / war`
+      formatNumber(metrics.hits),
+      metrics.hitsPerWar === null ? '— / war' : `${formatDecimal(metrics.hitsPerWar, 1)} / war`
     );
   }
 
   if (config.key === 'assists') {
     return stackedStat(
-      member.assists === null ? '—' : formatNumber(member.assists),
-      member.assistsPerWar === null ? '— / war' : `${formatDecimal(member.assistsPerWar, 1)} / war`
+      metrics.assists === null ? '—' : formatNumber(metrics.assists),
+      metrics.assistsPerWar === null ? '— / war' : `${formatDecimal(metrics.assistsPerWar, 1)} / war`
     );
   }
 
   if (config.key === 'netScore') {
     return stackedStat(
-      formatSigned(member.netScore, 2),
-      member.netPerWar === null ? '— / war' : `${formatSigned(member.netPerWar, 2)} / war`
+      formatSigned(metrics.netScore, 2),
+      metrics.netPerWar === null ? '— / war' : `${formatSigned(metrics.netPerWar, 2)} / war`
     );
   }
 
-  const value = member[config.key];
+  const value = metrics[config.key];
   if (value === null || value === undefined || !Number.isFinite(Number(value))) {
     return '<span class="performance-missing">—</span>';
   }
@@ -381,9 +427,11 @@ function updateModeButtons() {
   performanceTab?.classList.toggle('is-detailed', state.mode === 'detailed');
 }
 
-function updateFormerToggle() {
-  const input = performanceTab?.querySelector('[data-performance-former]');
-  if (input) input.checked = state.includeFormer;
+function updateFilterToggles() {
+  const former = performanceTab?.querySelector('[data-performance-former]');
+  if (former) former.checked = state.includeFormer;
+  const chain = performanceTab?.querySelector('[data-performance-chain]');
+  if (chain) chain.checked = state.excludeChainBonuses;
 }
 
 function readMode() {
@@ -397,6 +445,14 @@ function readMode() {
 function readFormerPreference() {
   try {
     return localStorage.getItem(FORMER_KEY) === '1';
+  } catch (_) {
+    return false;
+  }
+}
+
+function readChainPreference() {
+  try {
+    return localStorage.getItem(EXCLUDE_CHAIN_KEY) === '1';
   } catch (_) {
     return false;
   }
