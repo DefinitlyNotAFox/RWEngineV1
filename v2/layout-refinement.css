@@ -70,10 +70,6 @@
   justify-content: flex-end;
 }
 
-#membersTab .members-header > div:first-child {
-  display: none;
-}
-
 #membersTab .range-controls {
   max-width: none;
 }
