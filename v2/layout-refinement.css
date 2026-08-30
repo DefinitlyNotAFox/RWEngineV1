@@ -52,7 +52,60 @@
   min-height: 36px;
 }
 
-/* Members and Wars are workspaces, not cards inside a page. */
+/* Ranked War is a section with nested destinations, not three flat tabs. */
+.nav-group {
+  display: grid;
+  gap: 2px;
+}
+
+.nav-parent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.nav-parent .nav-caret {
+  color: var(--muted-dim);
+  font-size: 13px;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform 120ms ease;
+}
+
+.nav-group.open .nav-caret {
+  transform: rotate(90deg);
+}
+
+.nav-group.section-active > .nav-parent:not(.active) {
+  color: var(--text);
+  background: #0f171a;
+}
+
+.nav-submenu {
+  display: none;
+  gap: 2px;
+  margin-left: 12px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border-soft);
+}
+
+.nav-group.open .nav-submenu {
+  display: grid;
+}
+
+.nav-subbutton {
+  padding: 7px 9px;
+  font-size: 12px;
+}
+
+.nav-subbutton.active::before {
+  left: -9px;
+  top: 6px;
+  bottom: 6px;
+}
+
+/* Members and war history are workspaces, not cards inside a page. */
 #membersTab > .panel,
 #warsTab > .panel {
   padding: 0;
@@ -80,9 +133,13 @@
   background: #0b1114;
 }
 
-/* The Wars page already has a page title in the top bar. */
+/* The War history page already has a page title in the top bar. */
 #warsTab > .panel > .panel-header {
   display: none;
+}
+
+.ranked-war-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .war-import {
@@ -133,7 +190,7 @@ tbody tr:not(.member-detail-row):hover {
   box-shadow: none;
 }
 
-/* A little less empty padding on general panels without making Overview cramped. */
+/* A little less empty padding on general panels without making data views cramped. */
 .panel {
   padding: 14px;
 }
@@ -157,4 +214,5 @@ tbody tr:not(.member-detail-row):hover {
   .main { padding: 14px 14px 28px; }
   .admin-faction-switcher { height: auto; min-height: 36px; }
   .admin-faction-switcher select { min-width: 150px; }
+  .ranked-war-metrics { grid-template-columns: 1fr; }
 }
