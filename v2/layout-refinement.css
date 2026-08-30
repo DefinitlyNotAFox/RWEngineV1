@@ -1,0 +1,164 @@
+/* Page-density pass: keep data pages flatter and denser. */
+:root {
+  --content: 1280px;
+}
+
+.main {
+  padding: 18px 22px 32px;
+}
+
+.topbar {
+  min-height: 38px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+/* Top-level page title is enough; avoid repeating the product category. */
+.topbar .eyebrow {
+  display: none;
+}
+
+/* Match Admin View to the regular action buttons. */
+.admin-faction-switcher {
+  height: 36px;
+  min-height: 36px;
+  padding: 0 9px;
+  gap: 7px;
+  border-radius: 7px;
+}
+
+.admin-faction-switcher > span {
+  font-size: 10px;
+}
+
+.admin-faction-switcher select {
+  height: 34px;
+  min-height: 34px;
+  padding: 0 24px 0 4px;
+  line-height: 34px;
+}
+
+.topbar .member-controls {
+  min-height: 36px;
+  align-items: center;
+}
+
+.topbar .button {
+  min-height: 36px;
+}
+
+/* Members and Wars are workspaces, not cards inside a page. */
+#membersTab > .panel,
+#warsTab > .panel {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#membersTab .members-header {
+  min-height: 42px;
+  margin: 0 0 8px;
+  padding: 0;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+#membersTab .members-header > div:first-child {
+  display: none;
+}
+
+#membersTab .range-controls {
+  max-width: none;
+}
+
+#membersTab .table-wrap,
+#warsTab .table-wrap {
+  border-color: var(--border);
+  background: #0b1114;
+}
+
+/* The Wars page already has a page title in the top bar. */
+#warsTab > .panel > .panel-header {
+  display: none;
+}
+
+.war-import {
+  margin-bottom: 10px;
+  border-color: var(--border);
+  background: #0c1215;
+}
+
+.war-import > summary {
+  padding: 9px 11px;
+}
+
+.war-import-body {
+  padding: 10px 11px 11px;
+  background: transparent;
+}
+
+.historical-import-input textarea {
+  min-height: 56px;
+}
+
+.historical-import-actions {
+  gap: 7px;
+}
+
+.historical-import-progress {
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+.historical-import-row {
+  padding: 5px 7px;
+  background: transparent;
+}
+
+/* Reduce decorative surface changes where rows already provide structure. */
+tbody tr:not(.member-detail-row),
+tbody tr:not(.member-detail-row):nth-child(even) {
+  background: #0d1417;
+}
+
+tbody tr:not(.member-detail-row):hover {
+  background: #151f23;
+}
+
+.metric-card,
+.panel {
+  box-shadow: none;
+}
+
+/* A little less empty padding on general panels without making Overview cramped. */
+.panel {
+  padding: 14px;
+}
+
+.two-column {
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.metric-grid {
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.metric-card {
+  padding: 12px 14px;
+}
+
+@media (max-width: 900px) {
+  :root { --content: 100%; }
+  .main { padding: 14px 14px 28px; }
+  .admin-faction-switcher { height: auto; min-height: 36px; }
+  .admin-faction-switcher select { min-width: 150px; }
+}
