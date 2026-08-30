@@ -2,9 +2,10 @@ import './admin-workspace.js?v=1';
 import './admin-key-selector.js?v=1';
 import './admin-import-enable.js?v=2';
 import './sync-router.js?v=2';
-import './member-table.js?v=3';
+import './member-table.js?v=4';
 import './range-controls.js?v=4';
-import './member-detail-redesign.js?v=4';
+import './member-detail-redesign.js?v=5';
+import './performance-table.js?v=1';
 
 const syncStatus = document.querySelector('#syncStatus');
 
