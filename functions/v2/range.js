@@ -341,8 +341,14 @@ async function getTrackingStartedAt(db, factionId, fallback) {
 function normalizeRange(body, trackingStartedAt, now) {
   const requestedFrom = parseDateStart(body.from);
   const requestedTo = parseDateEnd(body.to);
-  const from = Math.max(trackingStartedAt, requestedFrom || trackingStartedAt);
+
+  // War reports may legitimately predate RWE faction tracking. Keep the
+  // default range anchored at tracking start, but honor an explicitly chosen
+  // earlier date. Snapshot-derived metrics will simply have no coverage before
+  // trackingStartedAt because snapshots are queried from that point onward.
+  const from = requestedFrom || trackingStartedAt;
   const to = Math.min(now, requestedTo || now);
+
   if (from > to) throw httpError(400, 'The selected start date must not be after the end date.');
   return { from, to, fromDate: utcDate(from), toDate: utcDate(to) };
 }
