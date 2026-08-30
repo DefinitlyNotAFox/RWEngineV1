@@ -27,7 +27,7 @@ export async function onRequest(context) {
         COUNT(DISTINCT wl.war_id) AS wars,
         SUM(COALESCE(wl.war_hits, 0)) AS hits,
         SUM(COALESCE(wl.outside_hits, 0)) AS outside_hits,
-        SUM(COALESCE(wl.assists, 0)) AS assists,
+        SUM(COALESCE(wl.assists, 0)) AS stored_assists,
         SUM(COALESCE(wl.score_up, 0)) AS score_up,
         SUM(COALESCE(wl.score_down, 0)) AS score_down
       FROM war_log wl
@@ -41,93 +41,72 @@ export async function onRequest(context) {
       ORDER BY MAX(wl.player_name) COLLATE NOCASE
     `).bind(factionId, range.from, range.to).all();
 
-    // Attack details are authoritative for assists and respect. Filter by the
-    // selected wars rather than the individual attack timestamps so a war that
-    // crosses a date boundary is still counted consistently as one report.
-    const attackCoverageRow = await env.DB.prepare(`
-      SELECT COUNT(*) AS count
-      FROM attacks a
-      JOIN wars w ON w.war_id = a.war_id AND w.faction_id = a.faction_id
-      WHERE a.faction_id = ?
-        AND COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) BETWEEN ? AND ?
-    `).bind(factionId, range.from, range.to).first();
-
-    const assistResult = await env.DB.prepare(`
+    // The imported war roster is the authoritative source for which player is
+    // ours. Do not depend on attacker_faction_id/defender_faction_id being
+    // present in Torn's attack payload; older v1 rows can omit those fields.
+    // Likewise, assists are often represented by modifiers rather than a
+    // literal result="Assist" value, so inspect the stored raw attack JSON.
+    const attackMetricsResult = await env.DB.prepare(`
       SELECT
-        a.attacker_id AS player_id,
-        COUNT(*) AS assists
-      FROM attacks a
-      JOIN wars w ON w.war_id = a.war_id AND w.faction_id = a.faction_id
-      WHERE a.faction_id = ?
-        AND a.attacker_id IS NOT NULL
-        AND (a.attacker_faction_id = ? OR a.attacker_faction_id IS NULL)
-        AND LOWER(TRIM(COALESCE(a.result, ''))) = 'assist'
+        own.player_id,
+        SUM(CASE
+          WHEN a.attacker_id = own.player_id AND (
+            LOWER(TRIM(COALESCE(a.result, ''))) LIKE '%assist%'
+            OR COALESCE(CAST(json_extract(a.raw_json, '$.is_assist') AS INTEGER), 0) = 1
+            OR COALESCE(CAST(json_extract(a.raw_json, '$.assist') AS INTEGER), 0) = 1
+            OR COALESCE(CAST(json_extract(a.raw_json, '$.modifiers.assist') AS REAL), 0) != 0
+          ) THEN 1 ELSE 0 END
+        ) AS assists,
+        SUM(CASE
+          WHEN a.attacker_id = own.player_id AND NOT (
+            LOWER(TRIM(COALESCE(a.result, ''))) LIKE '%assist%'
+            OR COALESCE(CAST(json_extract(a.raw_json, '$.is_assist') AS INTEGER), 0) = 1
+            OR COALESCE(CAST(json_extract(a.raw_json, '$.assist') AS INTEGER), 0) = 1
+            OR COALESCE(CAST(json_extract(a.raw_json, '$.modifiers.assist') AS REAL), 0) != 0
+          ) THEN COALESCE(
+            CASE WHEN json_valid(a.raw_json) THEN CAST(json_extract(a.raw_json, '$.respect_gain') AS REAL) END,
+            CASE WHEN json_valid(a.raw_json) THEN CAST(json_extract(a.raw_json, '$.respect') AS REAL) END,
+            NULLIF(a.respect_gain, 0),
+            0
+          ) ELSE 0 END
+        ) AS respect_earned,
+        SUM(CASE
+          WHEN a.defender_id = own.player_id AND NOT (
+            LOWER(TRIM(COALESCE(a.result, ''))) LIKE '%assist%'
+            OR COALESCE(CAST(json_extract(a.raw_json, '$.is_assist') AS INTEGER), 0) = 1
+            OR COALESCE(CAST(json_extract(a.raw_json, '$.assist') AS INTEGER), 0) = 1
+            OR COALESCE(CAST(json_extract(a.raw_json, '$.modifiers.assist') AS REAL), 0) != 0
+          ) THEN ABS(COALESCE(
+            CASE WHEN json_valid(a.raw_json) THEN CAST(json_extract(a.raw_json, '$.respect_loss') AS REAL) END,
+            NULLIF(a.respect_loss, 0),
+            0
+          )) ELSE 0 END
+        ) AS respect_lost,
+        SUM(CASE
+          WHEN a.attacker_id = own.player_id OR a.defender_id = own.player_id
+          THEN 1 ELSE 0 END
+        ) AS attack_rows
+      FROM war_log own
+      JOIN wars w
+        ON w.war_id = own.war_id
+        AND w.faction_id = own.faction_id
+      LEFT JOIN attacks a
+        ON a.war_id = own.war_id
+        AND a.faction_id = own.faction_id
+        AND (a.attacker_id = own.player_id OR a.defender_id = own.player_id)
+      WHERE own.faction_id = ?
         AND COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) BETWEEN ? AND ?
-      GROUP BY a.attacker_id
-    `).bind(factionId, factionId, range.from, range.to).all();
-
-    const respectEarnedResult = await env.DB.prepare(`
-      SELECT
-        a.attacker_id AS player_id,
-        SUM(
-          CASE
-            WHEN COALESCE(a.respect_gain, 0) != 0 THEN a.respect_gain
-            WHEN json_valid(a.raw_json) THEN COALESCE(
-              CAST(json_extract(a.raw_json, '$.respect_gain') AS REAL),
-              CAST(json_extract(a.raw_json, '$.respect') AS REAL),
-              0
-            )
-            ELSE 0
-          END
-        ) AS respect_earned
-      FROM attacks a
-      JOIN wars w ON w.war_id = a.war_id AND w.faction_id = a.faction_id
-      WHERE a.faction_id = ?
-        AND a.attacker_id IS NOT NULL
-        AND (a.attacker_faction_id = ? OR a.attacker_faction_id IS NULL)
-        AND LOWER(TRIM(COALESCE(a.result, ''))) != 'assist'
-        AND COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) BETWEEN ? AND ?
-      GROUP BY a.attacker_id
-    `).bind(factionId, factionId, range.from, range.to).all();
-
-    const respectLostResult = await env.DB.prepare(`
-      SELECT
-        a.defender_id AS player_id,
-        SUM(
-          CASE
-            WHEN json_valid(a.raw_json) THEN COALESCE(
-              CAST(json_extract(a.raw_json, '$.respect_loss') AS REAL),
-              CASE WHEN COALESCE(a.respect_loss, 0) != 0 THEN a.respect_loss ELSE NULL END,
-              0
-            )
-            ELSE COALESCE(a.respect_loss, 0)
-          END
-        ) AS respect_lost
-      FROM attacks a
-      JOIN wars w ON w.war_id = a.war_id AND w.faction_id = a.faction_id
-      WHERE a.faction_id = ?
-        AND a.defender_id IS NOT NULL
-        AND LOWER(TRIM(COALESCE(a.result, ''))) != 'assist'
-        AND (
-          a.attacker_faction_id = w.opponent_faction_id
-          OR (a.attacker_faction_id IS NULL AND a.is_ranked_war = 1)
-        )
-        AND COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) BETWEEN ? AND ?
-      GROUP BY a.defender_id
+      GROUP BY own.player_id
     `).bind(factionId, range.from, range.to).all();
 
-    const attackCoverage = Number(attackCoverageRow?.count || 0);
-    const assistsByPlayer = new Map((assistResult.results || []).map(row => [
+    const attackMetricsByPlayer = new Map((attackMetricsResult.results || []).map(row => [
       Number(row.player_id),
-      Number(row.assists || 0)
-    ]));
-    const respectEarned = new Map((respectEarnedResult.results || []).map(row => [
-      Number(row.player_id),
-      Number(row.respect_earned || 0)
-    ]));
-    const respectLost = new Map((respectLostResult.results || []).map(row => [
-      Number(row.player_id),
-      Number(row.respect_lost || 0)
+      {
+        assists: Number(row.assists || 0),
+        respectEarned: Number(row.respect_earned || 0),
+        respectLost: Number(row.respect_lost || 0),
+        attackRows: Number(row.attack_rows || 0)
+      }
     ]));
     const totalWars = Number(totalWarsRow?.count || 0);
 
@@ -137,6 +116,8 @@ export async function onRequest(context) {
       const hits = Number(row.hits || 0);
       const scoreUp = Number(row.score_up || 0);
       const scoreDown = Number(row.score_down || 0);
+      const attackMetrics = attackMetricsByPlayer.get(playerId);
+      const hasAttackDetails = Number(attackMetrics?.attackRows || 0) > 0;
 
       return {
         playerId,
@@ -147,20 +128,19 @@ export async function onRequest(context) {
         warHits: hits,
         avgHitsPerWar: wars > 0 ? hits / wars : null,
         outsideHits: Number(row.outside_hits || 0),
-        assists: attackCoverage > 0
-          ? (assistsByPlayer.get(playerId) || 0)
-          : Number(row.assists || 0),
-        respectEarned: attackCoverage > 0
-          ? (respectEarned.get(playerId) || 0)
-          : null,
-        respectLost: attackCoverage > 0
-          ? (respectLost.get(playerId) || 0)
-          : null,
+        assists: hasAttackDetails
+          ? attackMetrics.assists
+          : Number(row.stored_assists || 0),
+        respectEarned: hasAttackDetails ? attackMetrics.respectEarned : null,
+        respectLost: hasAttackDetails ? attackMetrics.respectLost : null,
+        attackDetailsAvailable: hasAttackDetails,
         scoreUp,
         scoreDown,
         netScore: scoreUp - scoreDown
       };
     });
+
+    const playersWithAttackDetails = members.filter(member => member.attackDetailsAvailable).length;
 
     return json({
       success: true,
@@ -168,7 +148,7 @@ export async function onRequest(context) {
       factionId,
       range,
       totalWars,
-      attackCoverage,
+      playersWithAttackDetails,
       source: 'imported-war-reports',
       members
     });
