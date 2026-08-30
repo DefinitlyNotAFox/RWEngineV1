@@ -17,7 +17,7 @@ const MODE_KEY = 'rwengine.performanceMode';
 const state = {
   members: [],
   totalWars: 0,
-  attackCoverage: 0,
+  playersWithAttackDetails: 0,
   mode: readMode(),
   sortKey: 'netPerWar',
   sortDirection: 'desc',
@@ -155,10 +155,10 @@ async function loadPerformance(force = false) {
 
     state.members = (data.members || []).map(normalizeMember);
     state.totalWars = Number(data.totalWars || 0);
-    state.attackCoverage = Number(data.attackCoverage || 0);
+    state.playersWithAttackDetails = Number(data.playersWithAttackDetails || 0);
     state.loadedKey = key;
 
-    if (state.totalWars > 0 && state.attackCoverage === 0) {
+    if (state.totalWars > 0 && state.playersWithAttackDetails === 0) {
       setStatus(`${state.totalWars} imported war${state.totalWars === 1 ? '' : 's'} in period · attack detail not collected; assists and respect require rebuilding the report attack pass`);
     } else {
       setStatus(state.totalWars > 0 ? `${state.totalWars} imported war${state.totalWars === 1 ? '' : 's'} in period` : '');
@@ -168,7 +168,7 @@ async function loadPerformance(force = false) {
     if (requestId !== state.requestId) return;
     state.members = [];
     state.totalWars = 0;
-    state.attackCoverage = 0;
+    state.playersWithAttackDetails = 0;
     setStatus(error.message || 'Failed to load performance data.', true);
     render();
   } finally {
