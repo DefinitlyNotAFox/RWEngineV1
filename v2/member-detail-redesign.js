@@ -4,75 +4,194 @@ const refreshButton = document.querySelector('#refreshButton');
 const applyRangeButton = document.querySelector('#applyRangeButton');
 const syncButton = document.querySelector('#syncIntelButton');
 const membersNav = document.querySelector('.nav-button[data-tab="members"]');
+const intelFrom = document.querySelector('#intelFrom');
+const intelTo = document.querySelector('#intelTo');
+
+const memberLevels = new Map();
+let metadataKey = '';
+let metadataPromise = null;
 
 if (membersBody) {
   installStylesheet();
 
   membersBody.addEventListener('click', event => {
-    if (event.target.closest('tr.member-row[data-member-id]')) scheduleDetailRedesign();
+    if (event.target.closest('tr.member-row[data-member-id]')) {
+      scheduleDetailRedesign();
+      scheduleRosterFormatting();
+    }
   });
 
-  memberSearch?.addEventListener('input', scheduleDetailRedesign);
-  refreshButton?.addEventListener('click', scheduleDetailRedesign);
-  applyRangeButton?.addEventListener('click', scheduleDetailRedesign);
-  syncButton?.addEventListener('click', scheduleDetailRedesign);
-  membersNav?.addEventListener('click', scheduleDetailRedesign);
-  window.addEventListener('rwe:member-sort-reset', scheduleDetailRedesign);
+  memberSearch?.addEventListener('input', scheduleRosterFormatting);
+  membersNav?.addEventListener('click', () => {
+    scheduleRosterFormatting();
+    scheduleDetailRedesign();
+  });
+
+  refreshButton?.addEventListener('click', () => scheduleMetadataRefresh(true));
+  applyRangeButton?.addEventListener('click', () => scheduleMetadataRefresh(true));
+  syncButton?.addEventListener('click', () => scheduleMetadataRefresh(true));
+  window.addEventListener('rwe:member-sort-reset', () => {
+    scheduleRosterFormatting();
+    scheduleDetailRedesign();
+  });
+
+  scheduleMetadataRefresh(false);
+  scheduleDetailRedesign();
 }
 
 function installStylesheet() {
   if (document.querySelector('link[data-rwe-member-detail-redesign]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/v2/member-detail-redesign.css?v=2';
+  link.href = '/v2/member-detail-redesign.css?v=3';
   link.dataset.rweMemberDetailRedesign = '1';
   document.head.appendChild(link);
 }
 
 function scheduleDetailRedesign() {
-  // The detail row renders once as loading and again after the lazy API call.
-  // Bounded checks cover both renders without a continuous observer.
+  // The detail row renders as loading, then once again after the lazy API call.
+  // Bounded checks handle both states without continuously observing the DOM.
   [0, 60, 180, 450, 900, 1600, 2600].forEach(delay => {
-    window.setTimeout(redesignVisibleMemberDetail, delay);
+    window.setTimeout(() => {
+      redesignVisibleMemberDetail();
+      formatRosterRows();
+    }, delay);
   });
+}
+
+function scheduleRosterFormatting() {
+  [0, 40, 140, 400, 900].forEach(delay => window.setTimeout(formatRosterRows, delay));
+}
+
+function scheduleMetadataRefresh(force) {
+  [250, 700, 1500].forEach((delay, index) => {
+    window.setTimeout(() => refreshRosterMetadata(force && index === 0), delay);
+  });
+}
+
+async function refreshRosterMetadata(force = false) {
+  const from = intelFrom?.value || '';
+  const to = intelTo?.value || '';
+  const factionId = document.querySelector('#adminFactionSelect')?.value || '';
+  const key = `${factionId}:${from}:${to}`;
+
+  if (!force && metadataKey === key && memberLevels.size) {
+    formatRosterRows();
+    return;
+  }
+  if (metadataPromise) return metadataPromise;
+
+  metadataPromise = (async () => {
+    try {
+      const response = await fetch('/v2/range', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'getRange',
+          ...(from ? { from } : {}),
+          ...(to ? { to } : {})
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok || data.success === false) return;
+
+      memberLevels.clear();
+      for (const member of data.members || []) {
+        const playerId = Number(member.playerId || 0);
+        if (playerId > 0) memberLevels.set(playerId, member.level ?? null);
+      }
+      metadataKey = key;
+      formatRosterRows();
+    } catch (_) {
+      // Presentational metadata only; the main app remains authoritative.
+    } finally {
+      metadataPromise = null;
+    }
+  })();
+
+  return metadataPromise;
+}
+
+function formatRosterRows() {
+  for (const row of membersBody.querySelectorAll('tr.member-row[data-member-id]')) {
+    const playerId = Number(row.dataset.memberId || 0);
+    const cell = row.cells?.[0];
+    if (!playerId || !cell) continue;
+
+    const existingLink = cell.querySelector('.member-profile-link');
+    const originalName = cell.querySelector('.member-name')?.textContent?.trim();
+    const name = originalName || existingLink?.dataset.playerName || `Player ${playerId}`;
+    const originalMeta = cell.querySelector('.member-id')?.textContent || '';
+
+    if (!row.dataset.memberStatus) {
+      row.dataset.memberStatus = /\bcurrent\b/i.test(originalMeta) ? 'current' : 'former';
+    }
+
+    let level = memberLevels.get(playerId);
+    if (level === undefined || level === null) level = levelFromExpandedRow(row);
+
+    const link = document.createElement('a');
+    link.className = 'member-profile-link';
+    link.href = `https://www.torn.com/profiles.php?XID=${playerId}`;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.dataset.playerName = name;
+    link.textContent = `${name} [${playerId}]`;
+    link.title = `Open ${name}'s Torn profile`;
+    link.addEventListener('click', event => event.stopPropagation());
+
+    const meta = document.createElement('span');
+    meta.className = 'member-id member-roster-meta';
+    meta.textContent = `Level ${level ?? '—'} · ${row.dataset.memberStatus === 'current' ? 'current member' : 'former member'}`;
+
+    cell.replaceChildren(link, meta);
+  }
+}
+
+function levelFromExpandedRow(row) {
+  const detail = row.nextElementSibling;
+  if (!detail?.classList.contains('member-detail-row')) return null;
+  const text = detail.querySelector('.member-inline-header p:last-child')?.textContent || '';
+  const match = text.match(/Level\s+(\d+)/i);
+  return match ? Number(match[1]) : null;
 }
 
 function redesignVisibleMemberDetail() {
   const panel = membersBody.querySelector('.member-inline-panel');
   const body = panel?.querySelector('.member-inline-body');
-  if (!panel || !body || body.classList.contains('member-detail-redesigned')) return;
+  if (!panel || !body) return;
+
+  stripRepeatedHeader(panel);
+  if (body.classList.contains('member-detail-redesigned')) return;
 
   const summaryGrid = directChild(body, '.detail-grid:not(.compact)') || body.querySelector(':scope > .detail-grid');
   const performanceSection = body.querySelector(':scope > .member-detail-section');
   const performanceGrid = performanceSection?.querySelector('.detail-grid.compact');
   const warTable = performanceSection?.querySelector('.detail-war-table');
 
+  // Still waiting for the lazy member-detail response.
   if (!summaryGrid || !performanceSection || !performanceGrid) return;
-
-  compactHeader(panel);
 
   const summaryCards = [...summaryGrid.children];
   const performanceCards = [...performanceGrid.children];
   const warCount = countWarRows(warTable);
 
-  const warDetails = document.createElement('details');
-  warDetails.className = 'member-disclosure';
-  warDetails.open = true;
-  warDetails.innerHTML = '<summary><span>War performance</span></summary>';
+  const performance = document.createElement('section');
+  performance.className = 'member-performance-strip';
 
-  const warBody = document.createElement('div');
-  warBody.className = 'member-disclosure-body';
+  const performanceLabel = document.createElement('span');
+  performanceLabel.className = 'member-performance-label';
+  performanceLabel.textContent = 'War performance';
+
   const warMetrics = document.createElement('div');
   warMetrics.className = 'member-compact-metrics';
-
-  // Participation is already visible in the roster row. Keep only values that
-  // add new information when the member is expanded.
   performanceCards
     .filter(card => cardLabel(card) !== 'participation')
     .forEach(card => warMetrics.appendChild(toMetricLine(card)));
 
-  warBody.appendChild(warMetrics);
-  warDetails.appendChild(warBody);
+  performance.append(performanceLabel, warMetrics);
 
   const historyDetails = document.createElement('details');
   historyDetails.className = 'member-disclosure';
@@ -95,16 +214,22 @@ function redesignVisibleMemberDetail() {
   trackingBody.innerHTML = `<p class="member-tracking-summary">${escapeHtml(buildTrackingSummary(summaryCards, warCount))}</p>`;
   trackingDetails.appendChild(trackingBody);
 
-  body.replaceChildren(warDetails, historyDetails, trackingDetails);
+  body.replaceChildren(performance, historyDetails, trackingDetails);
   body.classList.add('member-detail-redesigned');
   panel.classList.add('compact-member-panel');
 }
 
-function compactHeader(panel) {
+function stripRepeatedHeader(panel) {
   const header = panel.querySelector('.member-inline-header');
   if (!header) return;
-  header.classList.add('compact-member-header');
-  header.querySelector('.eyebrow')?.remove();
+
+  const close = header.querySelector('[data-close-member]');
+  if (close) {
+    close.classList.add('member-floating-close');
+    panel.appendChild(close);
+  }
+  header.remove();
+  panel.classList.add('compact-member-panel');
 }
 
 function directChild(parent, selector) {
