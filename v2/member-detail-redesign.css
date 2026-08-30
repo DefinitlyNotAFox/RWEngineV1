@@ -27,55 +27,6 @@
   gap: 7px;
 }
 
-.member-summary-strip {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.member-summary-pill,
-.member-metric-tile {
-  min-width: 0;
-  padding: 7px 8px;
-  border: 1px solid var(--border-soft);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.018);
-}
-
-.member-summary-pill > span,
-.member-metric-tile > span {
-  display: block;
-  margin-bottom: 3px;
-  color: var(--muted-dim);
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: .055em;
-  line-height: 1.15;
-  text-transform: uppercase;
-}
-
-.member-summary-pill > strong,
-.member-metric-tile > strong {
-  display: block;
-  overflow: hidden;
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.25;
-  text-overflow: ellipsis;
-}
-
-.member-summary-pill .stat-source {
-  display: block;
-  margin-top: 2px;
-  font-size: 8px;
-}
-
-.member-muted-value {
-  color: var(--muted-dim) !important;
-  font-weight: 500 !important;
-}
-
 .member-disclosure {
   overflow: hidden;
   border: 1px solid var(--border-soft);
@@ -136,8 +87,46 @@
 
 .member-compact-metrics {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+}
+
+.member-metric-line {
+  min-width: 0;
+  padding: 5px 10px;
+  border-left: 1px solid var(--border-soft);
+}
+
+.member-metric-line:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.member-metric-line > span {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--muted-dim);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .055em;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.member-metric-line > div > strong {
+  display: block;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.member-metric-line > div > small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted-dim);
+  font-size: 8px;
+  line-height: 1.25;
 }
 
 .member-history-body {
@@ -168,15 +157,24 @@
 }
 
 @media (max-width: 1100px) {
-  .member-summary-strip,
   .member-compact-metrics {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    row-gap: 8px;
+  }
+
+  .member-metric-line:nth-child(4) {
+    border-left: 0;
+    padding-left: 0;
   }
 }
 
 @media (max-width: 720px) {
-  .member-summary-strip,
   .member-compact-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .member-metric-line {
+    border-left: 0;
+    padding-left: 0;
   }
 }
