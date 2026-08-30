@@ -17,32 +17,14 @@
   font-size: 9px;
 }
 
-.compact-member-panel {
-  position: relative;
-  padding: 0;
+.members-table .member-row {
+  cursor: default;
 }
 
-.compact-member-panel .member-inline-body {
-  padding: 6px 34px 6px 10px;
+.members-table .member-row:hover .member-profile-link {
+  color: var(--accent-strong);
 }
 
-.member-floating-close {
-  position: absolute;
-  top: 5px;
-  right: 7px;
-  z-index: 2;
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
-  font-size: 13px;
-}
-
-.member-detail-redesigned {
-  min-height: 22px;
-}
-
-.member-tracking-inline {
-  color: var(--muted);
-  font-size: 9px;
-  line-height: 1.35;
+.members-table .member-detail-row {
+  display: none !important;
 }
