@@ -41,49 +41,47 @@ export async function onRequest(context) {
       ORDER BY MAX(wl.player_name) COLLATE NOCASE
     `).bind(factionId, range.from, range.to).all();
 
-    // The imported war roster is the authoritative source for which player is
-    // ours. Do not depend on attacker_faction_id/defender_faction_id being
-    // present in Torn's attack payload; older v1 rows can omit those fields.
-    // Likewise, assists are often represented by modifiers rather than a
-    // literal result="Assist" value, so inspect the stored raw attack JSON.
+    // Only attacks between the two ranked-war factions belong in the detailed
+    // war comparison. Outside attacks remain stored for other analytics but do
+    // not contribute to assists or respect +/- here.
     const attackMetricsResult = await env.DB.prepare(`
       SELECT
         own.player_id,
         SUM(CASE
-          WHEN a.attacker_id = own.player_id AND (
-            LOWER(TRIM(COALESCE(a.result, ''))) LIKE '%assist%'
-            OR COALESCE(CAST(json_extract(a.raw_json, '$.is_assist') AS INTEGER), 0) = 1
-            OR COALESCE(CAST(json_extract(a.raw_json, '$.assist') AS INTEGER), 0) = 1
-            OR COALESCE(CAST(json_extract(a.raw_json, '$.modifiers.assist') AS REAL), 0) != 0
-          ) THEN 1 ELSE 0 END
+          WHEN a.attacker_id = own.player_id
+           AND a.attacker_faction_id = own.faction_id
+           AND a.defender_faction_id = w.opponent_faction_id
+           AND a.is_ranked_war = 1
+           AND LOWER(TRIM(COALESCE(a.result, ''))) LIKE '%assist%'
+          THEN 1 ELSE 0 END
         ) AS assists,
         SUM(CASE
-          WHEN a.attacker_id = own.player_id AND NOT (
-            LOWER(TRIM(COALESCE(a.result, ''))) LIKE '%assist%'
-            OR COALESCE(CAST(json_extract(a.raw_json, '$.is_assist') AS INTEGER), 0) = 1
-            OR COALESCE(CAST(json_extract(a.raw_json, '$.assist') AS INTEGER), 0) = 1
-            OR COALESCE(CAST(json_extract(a.raw_json, '$.modifiers.assist') AS REAL), 0) != 0
-          ) THEN COALESCE(
-            CASE WHEN json_valid(a.raw_json) THEN CAST(json_extract(a.raw_json, '$.respect_gain') AS REAL) END,
-            CASE WHEN json_valid(a.raw_json) THEN CAST(json_extract(a.raw_json, '$.respect') AS REAL) END,
-            NULLIF(a.respect_gain, 0),
-            0
-          ) ELSE 0 END
+          WHEN a.attacker_id = own.player_id
+           AND a.attacker_faction_id = own.faction_id
+           AND a.defender_faction_id = w.opponent_faction_id
+           AND a.is_ranked_war = 1
+           AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
+          THEN COALESCE(a.respect_gain, 0) ELSE 0 END
         ) AS respect_earned,
         SUM(CASE
-          WHEN a.defender_id = own.player_id AND NOT (
-            LOWER(TRIM(COALESCE(a.result, ''))) LIKE '%assist%'
-            OR COALESCE(CAST(json_extract(a.raw_json, '$.is_assist') AS INTEGER), 0) = 1
-            OR COALESCE(CAST(json_extract(a.raw_json, '$.assist') AS INTEGER), 0) = 1
-            OR COALESCE(CAST(json_extract(a.raw_json, '$.modifiers.assist') AS REAL), 0) != 0
-          ) THEN ABS(COALESCE(
-            CASE WHEN json_valid(a.raw_json) THEN CAST(json_extract(a.raw_json, '$.respect_loss') AS REAL) END,
-            NULLIF(a.respect_loss, 0),
-            0
-          )) ELSE 0 END
+          WHEN a.defender_id = own.player_id
+           AND a.attacker_faction_id = w.opponent_faction_id
+           AND a.defender_faction_id = own.faction_id
+           AND a.is_ranked_war = 1
+           AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
+          THEN ABS(COALESCE(a.respect_loss, 0)) ELSE 0 END
         ) AS respect_lost,
         SUM(CASE
-          WHEN a.attacker_id = own.player_id OR a.defender_id = own.player_id
+          WHEN a.is_ranked_war = 1
+           AND (
+             (a.attacker_id = own.player_id
+              AND a.attacker_faction_id = own.faction_id
+              AND a.defender_faction_id = w.opponent_faction_id)
+             OR
+             (a.defender_id = own.player_id
+              AND a.attacker_faction_id = w.opponent_faction_id
+              AND a.defender_faction_id = own.faction_id)
+           )
           THEN 1 ELSE 0 END
         ) AS attack_rows
       FROM war_log own
