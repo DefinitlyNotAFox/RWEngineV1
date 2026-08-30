@@ -97,16 +97,16 @@ async function handleImportSubmit(event) {
 
         successful += 1;
 
-        const chain = imported.chainAdjustment;
-        const chainNote = chain?.status || chain?.message || 'checked';
+        const score = detail.scoreAdjustment || {};
         const paginationNote = detail.paginationStopped
           ? ` · pagination ${detail.paginationStopped === 'repeated-page' ? 'stabilized' : 'stopped after no new rows'}`
           : '';
+        const chainNote = `chain bonuses removed: ours ${formatNumber(score.ownChainBonusHits || 0)}, opponent ${formatNumber(score.opponentChainBonusHits || 0)}`;
         updateReportRow(
           reportId,
           'success',
           'Complete',
-          `Verified ${formatNumber(detail.storedTotal || 0)} unique attack rows via v2 · ${formatNumber(detail.assists || 0)} assists · respect +${formatDecimal(detail.respectEarned || 0, 2)} / -${formatDecimal(detail.respectLost || 0, 2)} · score pass checked ${formatNumber(summary.checked || 0)} · chain adjustment ${chainNote}${paginationNote}.`
+          `Verified ${formatNumber(detail.storedTotal || 0)} unique attack rows via v2 · ${formatNumber(detail.assists || 0)} assists · respect +${formatDecimal(detail.respectEarned || 0, 2)} / -${formatDecimal(detail.respectLost || 0, 2)} · score +${formatNumber(score.adjustedScoreUp || 0)} / -${formatNumber(score.adjustedScoreDown || 0)} · ${chainNote} · legacy pass checked ${formatNumber(summary.checked || 0)}${paginationNote}.`
         );
         setOverallProgress(index + 1, reportIds.length, `Report ${reportId} complete.`);
       } catch (error) {
@@ -175,6 +175,17 @@ async function applyAttackDetailSupplement(warId, reportId, reportIndex, totalRe
   let previousStoredTotal = -1;
   const seenNextPages = new Set();
 
+  const finalize = async (result, paginationStopped = null) => {
+    updateReportRow(reportId, 'active', 'Scores', 'Rebuilding Score +/- and applying chain-bonus adjustments for both factions…');
+    setOverallProgress(reportIndex, totalReports, `Report ${reportId}: finalizing ranked-war scores…`);
+    const finalized = await attackDetailApi({ warId, finalize: true });
+    return {
+      ...result,
+      ...finalized,
+      ...(paginationStopped ? { paginationStopped } : {})
+    };
+  };
+
   for (let step = 0; step < ATTACK_DETAIL_STEP_LIMIT; step += 1) {
     const result = await attackDetailApi({
       warId,
@@ -195,7 +206,7 @@ async function applyAttackDetailSupplement(warId, reportId, reportIndex, totalRe
       `Report ${reportId}: verified ${formatNumber(storedTotal)} unique attack rows…`
     );
 
-    if (result.done) return result;
+    if (result.done) return finalize(result);
 
     const candidateNextUrl = String(result.nextUrl || '').trim();
     if (!candidateNextUrl) {
@@ -204,11 +215,11 @@ async function applyAttackDetailSupplement(warId, reportId, reportIndex, totalRe
 
     const pageKey = canonicalPageKey(candidateNextUrl);
     if (seenNextPages.has(pageKey)) {
-      return { ...result, done: true, nextUrl: null, paginationStopped: 'repeated-page' };
+      return finalize(result, 'repeated-page');
     }
 
     if (step > 0 && storedTotal <= previousStoredTotal) {
-      return { ...result, done: true, nextUrl: null, paginationStopped: 'no-new-rows' };
+      return finalize(result, 'no-new-rows');
     }
 
     seenNextPages.add(pageKey);
