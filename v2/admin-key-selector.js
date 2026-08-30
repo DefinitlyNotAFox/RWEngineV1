@@ -1,11 +1,32 @@
-const adminPanel = document.querySelector('#adminFactionPanel');
+let adminPanel = null;
 let keyTargetFactionId = null;
+let installed = false;
 
-if (adminPanel) {
-  installKeyManagementSelection();
+waitForAdminPanel();
+
+function waitForAdminPanel() {
+  const existing = document.querySelector('#adminFactionPanel');
+  if (existing) {
+    adminPanel = existing;
+    installKeyManagementSelection();
+    return;
+  }
+
+  const observer = new MutationObserver(() => {
+    const panel = document.querySelector('#adminFactionPanel');
+    if (!panel) return;
+    observer.disconnect();
+    adminPanel = panel;
+    installKeyManagementSelection();
+  });
+
+  observer.observe(document.documentElement, { childList: true, subtree: true });
 }
 
 function installKeyManagementSelection() {
+  if (!adminPanel || installed) return;
+  installed = true;
+
   const eyebrow = adminPanel.querySelector('.admin-key-card .section-heading .eyebrow');
   if (eyebrow) eyebrow.textContent = 'API key target';
 
@@ -148,19 +169,21 @@ async function removeKeyForTarget(button) {
 function resolveKeyTargetFactionId() {
   if (keyTargetFactionId) return Number(keyTargetFactionId);
 
-  const selectedRowId = Number(adminPanel.querySelector('.admin-faction-row.selected')?.dataset.adminFactionId || 0);
+  const selectedRowId = Number(adminPanel?.querySelector('.admin-faction-row.selected')?.dataset.adminFactionId || 0);
   const workspaceFactionId = Number(document.querySelector('#adminFactionSelect')?.value || 0);
   keyTargetFactionId = selectedRowId || workspaceFactionId || null;
   return keyTargetFactionId;
 }
 
 function selectFactionRow(factionId) {
+  if (!adminPanel) return;
   adminPanel.querySelectorAll('.admin-faction-row[data-admin-faction-id]').forEach(row => {
     row.classList.toggle('selected', Number(row.dataset.adminFactionId) === Number(factionId));
   });
 }
 
 function updateFactionRowMeta(faction) {
+  if (!adminPanel) return;
   const row = adminPanel.querySelector(`.admin-faction-row[data-admin-faction-id="${faction.factionId}"]`);
   const keyMeta = row?.querySelector('.admin-faction-row-meta small:first-child');
   if (keyMeta) {
