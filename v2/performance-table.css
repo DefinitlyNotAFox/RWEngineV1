@@ -143,6 +143,11 @@
   color: var(--accent-strong);
 }
 
+.performance-sort-indicator {
+  flex: 0 0 auto;
+  font-size: 10px;
+}
+
 .performance-member-cell {
   width: 22%;
   text-align: left;
@@ -165,13 +170,22 @@
   text-underline-offset: 2px;
 }
 
-.performance-member-cell small,
+.performance-member-cell small {
+  display: block;
+  margin-top: 1px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
 .performance-stat-secondary {
   display: block;
   margin-top: 1px;
-  color: var(--muted-dim);
-  font-size: 9px;
-  font-weight: 500;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 520;
   line-height: 1.15;
   white-space: nowrap;
 }
@@ -187,6 +201,20 @@
   font-weight: 650;
   line-height: 1.15;
   white-space: nowrap;
+}
+
+.performance-sort-header.is-net,
+.performance-net-cell {
+  box-shadow: inset 1px 0 rgba(255, 255, 255, .07);
+}
+
+.performance-net-cell .performance-stat-primary {
+  font-weight: 780;
+}
+
+.performance-net-cell .performance-stat-secondary {
+  color: var(--muted);
+  font-weight: 600;
 }
 
 .performance-missing {
@@ -231,7 +259,7 @@
   .performance-member-cell small,
   .performance-stat-secondary,
   .performance-sort-header {
-    font-size: 8px;
+    font-size: 9px;
   }
 
   .performance-sort,
