@@ -41,12 +41,11 @@ export async function onRequest(context) {
       ORDER BY MAX(wl.player_name) COLLATE NOCASE
     `).bind(factionId, range.from, range.to).all();
 
-    // is_ranked_war is authoritative for war membership. Incoming stealthed
-    // attacks may hide attacker identity/faction, so do not require the
-    // opponent faction ID when the imported member is the defender.
-    // Chain bonus hits are derived directly from the stored chain position,
-    // which keeps the official report totals untouched and makes exclusion a
-    // reversible presentation choice in Performance.
+    // The top-level chain value may be hidden/zeroed by Torn depending on the
+    // attack direction. The raw attack modifier remains useful: ordinary chain
+    // scaling stays below 2x, while a milestone bonus hit uses the special bonus
+    // multiplier. Use either signal so existing verified attack rows can be
+    // filtered without re-importing them.
     const attackMetricsResult = await env.DB.prepare(`
       SELECT
         own.player_id,
@@ -76,35 +75,50 @@ export async function onRequest(context) {
         SUM(CASE
           WHEN a.attacker_id = own.player_id
            AND a.is_ranked_war = 1
-           AND a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+           AND (
+             a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+             OR COALESCE(CAST(json_extract(a.raw_json, '$.modifiers.chain') AS REAL), 0) >= 2
+           )
            AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
           THEN 1 ELSE 0 END
         ) AS chain_bonus_hits_out,
         SUM(CASE
           WHEN a.attacker_id = own.player_id
            AND a.is_ranked_war = 1
-           AND a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+           AND (
+             a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+             OR COALESCE(CAST(json_extract(a.raw_json, '$.modifiers.chain') AS REAL), 0) >= 2
+           )
            AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
           THEN COALESCE(a.respect_gain, 0) ELSE 0 END
         ) AS chain_bonus_score_out,
         SUM(CASE
           WHEN a.defender_id = own.player_id
            AND a.is_ranked_war = 1
-           AND a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+           AND (
+             a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+             OR COALESCE(CAST(json_extract(a.raw_json, '$.modifiers.chain') AS REAL), 0) >= 2
+           )
            AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
           THEN 1 ELSE 0 END
         ) AS chain_bonus_hits_in,
         SUM(CASE
           WHEN a.defender_id = own.player_id
            AND a.is_ranked_war = 1
-           AND a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+           AND (
+             a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+             OR COALESCE(CAST(json_extract(a.raw_json, '$.modifiers.chain') AS REAL), 0) >= 2
+           )
            AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
           THEN COALESCE(a.respect_gain, 0) ELSE 0 END
         ) AS chain_bonus_score_in,
         SUM(CASE
           WHEN a.defender_id = own.player_id
            AND a.is_ranked_war = 1
-           AND a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+           AND (
+             a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+             OR COALESCE(CAST(json_extract(a.raw_json, '$.modifiers.chain') AS REAL), 0) >= 2
+           )
            AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
           THEN ABS(COALESCE(a.respect_loss, 0)) ELSE 0 END
         ) AS chain_bonus_respect_lost_in
@@ -173,6 +187,10 @@ export async function onRequest(context) {
     });
 
     const playersWithAttackDetails = members.filter(member => member.attackDetailsAvailable).length;
+    const chainBonusHitsDetected = members.reduce(
+      (sum, member) => sum + Number(member.chainBonusHitsOut || 0) + Number(member.chainBonusHitsIn || 0),
+      0
+    );
 
     return json({
       success: true,
@@ -181,6 +199,7 @@ export async function onRequest(context) {
       range,
       totalWars,
       playersWithAttackDetails,
+      chainBonusHitsDetected,
       source: 'imported-war-reports',
       members
     });
