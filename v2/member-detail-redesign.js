@@ -24,15 +24,14 @@ function installStylesheet() {
   if (document.querySelector('link[data-rwe-member-detail-redesign]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/v2/member-detail-redesign.css?v=1';
+  link.href = '/v2/member-detail-redesign.css?v=2';
   link.dataset.rweMemberDetailRedesign = '1';
   document.head.appendChild(link);
 }
 
 function scheduleDetailRedesign() {
-  // Member details render once immediately in a loading state and again after
-  // their lazy API request completes. A few bounded checks cover both renders
-  // without continuously observing or rewriting the DOM.
+  // The detail row renders once as loading and again after the lazy API call.
+  // Bounded checks cover both renders without a continuous observer.
   [0, 60, 180, 450, 900, 1600, 2600].forEach(delay => {
     window.setTimeout(redesignVisibleMemberDetail, delay);
   });
@@ -48,39 +47,35 @@ function redesignVisibleMemberDetail() {
   const performanceGrid = performanceSection?.querySelector('.detail-grid.compact');
   const warTable = performanceSection?.querySelector('.detail-war-table');
 
-  // Still waiting for the member-detail API response.
   if (!summaryGrid || !performanceSection || !performanceGrid) return;
 
   compactHeader(panel);
 
   const summaryCards = [...summaryGrid.children];
   const performanceCards = [...performanceGrid.children];
-  const participation = findCard(performanceCards, 'Participation');
-  const warHits = findCard(performanceCards, 'War hits');
-
-  const summaryStrip = document.createElement('section');
-  summaryStrip.className = 'member-summary-strip';
-  [
-    ...summaryCards,
-    participation,
-    warHits
-  ].filter(Boolean).forEach(card => summaryStrip.appendChild(toSummaryPill(card)));
+  const warCount = countWarRows(warTable);
 
   const warDetails = document.createElement('details');
   warDetails.className = 'member-disclosure';
   warDetails.open = true;
   warDetails.innerHTML = '<summary><span>War performance</span></summary>';
+
   const warBody = document.createElement('div');
   warBody.className = 'member-disclosure-body';
   const warMetrics = document.createElement('div');
   warMetrics.className = 'member-compact-metrics';
-  performanceCards.forEach(card => warMetrics.appendChild(toMetricTile(card)));
+
+  // Participation is already visible in the roster row. Keep only values that
+  // add new information when the member is expanded.
+  performanceCards
+    .filter(card => cardLabel(card) !== 'participation')
+    .forEach(card => warMetrics.appendChild(toMetricLine(card)));
+
   warBody.appendChild(warMetrics);
   warDetails.appendChild(warBody);
 
   const historyDetails = document.createElement('details');
   historyDetails.className = 'member-disclosure';
-  const warCount = countWarRows(warTable);
   historyDetails.innerHTML = `
     <summary>
       <span>Historical wars</span>
@@ -100,7 +95,7 @@ function redesignVisibleMemberDetail() {
   trackingBody.innerHTML = `<p class="member-tracking-summary">${escapeHtml(buildTrackingSummary(summaryCards, warCount))}</p>`;
   trackingDetails.appendChild(trackingBody);
 
-  body.replaceChildren(summaryStrip, warDetails, historyDetails, trackingDetails);
+  body.replaceChildren(warDetails, historyDetails, trackingDetails);
   body.classList.add('member-detail-redesigned');
   panel.classList.add('compact-member-panel');
 }
@@ -116,42 +111,34 @@ function directChild(parent, selector) {
   return [...parent.children].find(child => child.matches(selector)) || null;
 }
 
-function findCard(cards, label) {
-  const target = label.toLowerCase();
-  return cards.find(card => card.querySelector('span')?.textContent?.trim().toLowerCase() === target) || null;
+function cardLabel(card) {
+  return card.querySelector('span')?.textContent?.trim().toLowerCase() || '';
 }
 
-function toSummaryPill(card) {
-  const pill = document.createElement('article');
-  pill.className = 'member-summary-pill';
-  copyCardContent(card, pill, true);
-  return pill;
-}
+function toMetricLine(card) {
+  const line = document.createElement('article');
+  line.className = 'member-metric-line';
 
-function toMetricTile(card) {
-  const tile = document.createElement('article');
-  tile.className = 'member-metric-tile';
-  copyCardContent(card, tile, false);
-  return tile;
-}
-
-function copyCardContent(source, target, quietUnavailable) {
-  const label = source.querySelector('span')?.textContent?.trim() || '';
-  const strong = source.querySelector('strong');
-  const note = source.querySelector('small')?.textContent?.trim() || '';
-  const rawValue = strong?.textContent?.trim() || '—';
-  const unavailable = /unavailable|needs at least|tracking will|no stat source/i.test(`${rawValue} ${note}`);
+  const label = card.querySelector('span')?.textContent?.trim() || '';
+  const strong = card.querySelector('strong');
+  const note = card.querySelector('small')?.textContent?.trim() || '';
 
   const labelNode = document.createElement('span');
   labelNode.textContent = label;
+
+  const valueWrap = document.createElement('div');
   const valueNode = document.createElement('strong');
   valueNode.innerHTML = strong?.innerHTML || '—';
-  if (quietUnavailable && unavailable) {
-    valueNode.textContent = '—';
-    valueNode.classList.add('member-muted-value');
+  valueWrap.appendChild(valueNode);
+
+  if (note) {
+    const noteNode = document.createElement('small');
+    noteNode.textContent = note;
+    valueWrap.appendChild(noteNode);
   }
 
-  target.append(labelNode, valueNode);
+  line.append(labelNode, valueWrap);
+  return line;
 }
 
 function buildTrackingSummary(summaryCards, warCount) {
