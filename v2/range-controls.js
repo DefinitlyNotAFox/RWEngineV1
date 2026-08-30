@@ -83,7 +83,7 @@ function installObservers() {
     const candidate = intelFrom.min;
 
     if (!restoringMin && candidate && candidate !== availableMinDate) {
-      if (!trackingStartDate || candidate > availableMinDate) trackingStartDate = candidate;
+      if (!trackingStartDate || !availableMinDate || candidate > availableMinDate) trackingStartDate = candidate;
     }
 
     restoreAvailableBounds();
@@ -108,6 +108,12 @@ async function refreshBounds() {
     importedWars = [];
   }
 
+  updateAvailableMinFromWars();
+  syncCustomInputs();
+  updateCoverageNote();
+}
+
+function updateAvailableMinFromWars() {
   const earliestWar = importedWars
     .map(warTimestamp)
     .filter(Boolean)
@@ -116,8 +122,6 @@ async function refreshBounds() {
   const earliestWarDate = earliestWar ? toDateInput(earliestWar) : null;
   availableMinDate = minDate(earliestWarDate, trackingStartDate) || trackingStartDate || earliestWarDate;
   restoreAvailableBounds();
-  syncCustomInputs();
-  updateCoverageNote();
 }
 
 function captureTrackingStart() {
@@ -151,6 +155,7 @@ function restoreAvailableBounds() {
 
 async function selectPreset(preset) {
   if (preset === 'custom') {
+    await refreshBounds();
     activePreset = 'custom';
     updatePresetButtons();
     document.querySelector('#customRangeControls')?.classList.remove('hidden');
@@ -161,9 +166,10 @@ async function selectPreset(preset) {
 
   document.querySelector('#customRangeControls')?.classList.add('hidden');
 
-  if (!importedWars.length) {
-    try { importedWars = await fetchImportedWars(); } catch (_) {}
-  }
+  try {
+    importedWars = await fetchImportedWars();
+    updateAvailableMinFromWars();
+  } catch (_) {}
 
   const today = new Date();
   let fromDate;
@@ -185,8 +191,10 @@ async function selectPreset(preset) {
     toDate = toDateInput(Math.max(...latestFour.map(item => item.timestamp)));
   } else if (preset === 'month') {
     fromDate = localDateInput(new Date(today.getFullYear(), today.getMonth(), 1));
+    if (availableMinDate && fromDate < availableMinDate) fromDate = availableMinDate;
   } else if (preset === 'year') {
     fromDate = localDateInput(new Date(today.getFullYear(), 0, 1));
+    if (availableMinDate && fromDate < availableMinDate) fromDate = availableMinDate;
   } else if (preset === 'all') {
     const earliest = importedWars.map(warTimestamp).filter(Boolean).sort((a, b) => a - b)[0];
     fromDate = earliest ? toDateInput(earliest) : (trackingStartDate || availableMinDate || toDate);
