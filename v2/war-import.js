@@ -12,11 +12,15 @@ const progressBar = document.querySelector('#historicalWarImportBar');
 const progressList = document.querySelector('#historicalWarImportList');
 const warsBody = document.querySelector('#warsBody');
 const warsNav = document.querySelector('.nav-button[data-tab="wars"]');
+const membersNav = document.querySelector('.nav-button[data-tab="members"]');
 const refreshButton = document.querySelector('#refreshButton');
+const rangeFromInput = document.querySelector('#intelFrom');
+const rangeToInput = document.querySelector('#intelTo');
 
 if (form) {
   form.addEventListener('submit', handleImportSubmit);
   warsNav?.addEventListener('click', () => loadHistoricalArchive());
+  membersNav?.addEventListener('click', () => loadHistoricalArchive());
   refreshButton?.addEventListener('click', () => {
     window.setTimeout(() => loadHistoricalArchive(), 1500);
   });
@@ -178,6 +182,7 @@ async function loadHistoricalArchive() {
   try {
     const result = await api('getImportedWars');
     const wars = result.wars || [];
+    updateHistoricalDateMinimum(wars);
 
     if (!wars.length) {
       warsBody.innerHTML = '<tr><td colspan="5" class="empty">No ranked-war reports imported yet.</td></tr>';
@@ -196,6 +201,19 @@ async function loadHistoricalArchive() {
   } catch (error) {
     warsBody.innerHTML = `<tr><td colspan="5" class="empty">${escapeHtml(error.message || 'Failed to load war archive.')}</td></tr>`;
   }
+}
+
+function updateHistoricalDateMinimum(wars) {
+  const timestamps = (wars || [])
+    .map(war => Number(war.start_timestamp || war.end_timestamp || 0))
+    .filter(value => Number.isFinite(value) && value > 0);
+
+  if (!timestamps.length) return;
+  const earliest = Math.min(...timestamps);
+  const date = new Date(earliest * 1000).toISOString().slice(0, 10);
+
+  if (rangeFromInput) rangeFromInput.min = date;
+  if (rangeToInput) rangeToInput.min = date;
 }
 
 function parseReportIds(value) {
