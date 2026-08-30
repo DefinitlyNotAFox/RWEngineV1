@@ -1,0 +1,102 @@
+.range-toolbar {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: #0b1114;
+}
+
+.range-preset-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.range-label {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.range-presets {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.range-preset {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 6px 9px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.range-preset:hover {
+  color: var(--text);
+  background: #11191d;
+}
+
+.range-preset.active {
+  color: var(--text);
+  border-color: var(--border);
+  background: var(--panel-raised);
+}
+
+.custom-range-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.custom-range-controls input {
+  width: 136px;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+
+.custom-range-controls > span {
+  color: var(--muted-dim);
+  font-size: 10px;
+}
+
+.custom-range-controls .button {
+  min-height: 31px;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+
+.range-coverage-note {
+  padding-top: 7px;
+  border-top: 1px solid var(--border-soft);
+  color: #d9bd7d;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+#membersTab .members-header {
+  min-height: 34px;
+}
+
+#membersTab .member-search-only {
+  margin-left: auto;
+}
+
+@media (max-width: 760px) {
+  .custom-range-controls {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .custom-range-controls input {
+    flex: 1 1 130px;
+  }
+}
