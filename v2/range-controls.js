@@ -9,7 +9,7 @@ let trackingStartDate = null;
 let availableMinDate = null;
 let importedWars = [];
 let activePreset = null;
-let restoringMin = false;
+let restoringBounds = false;
 
 if (intelFrom && intelTo && applyRangeButton && syncStatus) {
   installStylesheet();
@@ -17,7 +17,6 @@ if (intelFrom && intelTo && applyRangeButton && syncStatus) {
   installToolbar();
   installObservers();
   updateVisibility();
-
   window.setTimeout(refreshBounds, 750);
 }
 
@@ -25,7 +24,7 @@ function installStylesheet() {
   if (document.querySelector('link[data-rwe-range-controls]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/v2/range-controls.css?v=1';
+  link.href = '/v2/range-controls.css?v=2';
   link.dataset.rweRangeControls = '1';
   document.head.appendChild(link);
 }
@@ -42,25 +41,34 @@ function installToolbar() {
 
   const toolbar = document.createElement('section');
   toolbar.id = 'rangeToolbar';
-  toolbar.className = 'range-toolbar';
+  toolbar.className = 'period-toolbar';
   toolbar.innerHTML = `
-    <div class="range-preset-row">
-      <span class="range-label">Range</span>
-      <div class="range-presets" role="group" aria-label="Analytics range">
-        <button class="range-preset" type="button" data-range-preset="last4">Last 4</button>
-        <button class="range-preset" type="button" data-range-preset="month">This month</button>
-        <button class="range-preset" type="button" data-range-preset="year">This year</button>
-        <button class="range-preset" type="button" data-range-preset="all">All wars</button>
-        <button class="range-preset" type="button" data-range-preset="custom">Custom</button>
-      </div>
-      <div id="customRangeControls" class="custom-range-controls hidden">
-        <input id="customRangeFrom" type="date" aria-label="Custom range start" />
-        <span>to</span>
-        <input id="customRangeTo" type="date" aria-label="Custom range end" />
-        <button id="customRangeApply" class="button" type="button">Apply</button>
+    <div class="period-main-row">
+      <span class="period-label">Period</span>
+      <div class="period-presets" role="group" aria-label="Analytics period">
+        <button class="period-preset" type="button" data-range-preset="last4">Last 4 wars</button>
+        <button class="period-preset" type="button" data-range-preset="month">This month</button>
+        <button class="period-preset" type="button" data-range-preset="year">This year</button>
+        <button class="period-preset" type="button" data-range-preset="wars">All wars</button>
+        <button class="period-preset" type="button" data-range-preset="available">All available</button>
+        <button class="period-preset" type="button" data-range-preset="custom">Custom</button>
       </div>
     </div>
-    <div id="rangeCoverageNote" class="range-coverage-note hidden"></div>
+
+    <div id="customRangeControls" class="period-custom-row hidden">
+      <label>
+        <span>From</span>
+        <input id="customRangeFrom" type="date" aria-label="Custom period start" />
+      </label>
+      <span class="period-to">to</span>
+      <label>
+        <span>To</span>
+        <input id="customRangeTo" type="date" aria-label="Custom period end" />
+      </label>
+      <button id="customRangeApply" class="button" type="button">Apply</button>
+    </div>
+
+    <div id="rangeCoverageNote" class="period-note hidden"></div>
   `;
 
   syncStatus.insertAdjacentElement('afterend', toolbar);
@@ -82,7 +90,7 @@ function installObservers() {
   const minObserver = new MutationObserver(() => {
     const candidate = intelFrom.min;
 
-    if (!restoringMin && candidate && candidate !== availableMinDate) {
+    if (!restoringBounds && candidate && candidate !== availableMinDate) {
       if (!trackingStartDate || !availableMinDate || candidate > availableMinDate) trackingStartDate = candidate;
     }
 
@@ -114,12 +122,12 @@ async function refreshBounds() {
 }
 
 function updateAvailableMinFromWars() {
-  const earliestWar = importedWars
-    .map(warTimestamp)
+  const earliestWarStart = importedWars
+    .map(warStartTimestamp)
     .filter(Boolean)
     .sort((a, b) => a - b)[0];
 
-  const earliestWarDate = earliestWar ? toDateInput(earliestWar) : null;
+  const earliestWarDate = earliestWarStart ? toDateInput(earliestWarStart) : null;
   availableMinDate = minDate(earliestWarDate, trackingStartDate) || trackingStartDate || earliestWarDate;
   restoreAvailableBounds();
 }
@@ -137,19 +145,26 @@ function restoreAvailableBounds() {
   if (!availableMinDate) return;
 
   const today = toDateInput(Math.floor(Date.now() / 1000));
-  restoringMin = true;
+  restoringBounds = true;
+
   try {
-    if (intelFrom.min !== availableMinDate) intelFrom.min = availableMinDate;
-    if (intelTo.min !== availableMinDate) intelTo.min = availableMinDate;
-    if (intelFrom.max !== today) intelFrom.max = today;
-    if (intelTo.max !== today) intelTo.max = today;
+    intelFrom.min = availableMinDate;
+    intelTo.min = availableMinDate;
+    intelFrom.max = today;
+    intelTo.max = today;
 
     const displayFrom = document.querySelector('#customRangeFrom');
     const displayTo = document.querySelector('#customRangeTo');
-    if (displayFrom) { displayFrom.min = availableMinDate; displayFrom.max = today; }
-    if (displayTo) { displayTo.min = availableMinDate; displayTo.max = today; }
+    if (displayFrom) {
+      displayFrom.min = availableMinDate;
+      displayFrom.max = today;
+    }
+    if (displayTo) {
+      displayTo.min = availableMinDate;
+      displayTo.max = today;
+    }
   } finally {
-    queueMicrotask(() => { restoringMin = false; });
+    queueMicrotask(() => { restoringBounds = false; });
   }
 }
 
@@ -171,15 +186,20 @@ async function selectPreset(preset) {
     updateAvailableMinFromWars();
   } catch (_) {}
 
-  const today = new Date();
-  let fromDate;
-  let toDate = toDateInput(Math.floor(Date.now() / 1000));
+  const now = new Date();
+  const today = toDateInput(Math.floor(Date.now() / 1000));
+  let fromDate = null;
+  let toDate = today;
 
   if (preset === 'last4') {
     const latestFour = importedWars
-      .map(war => ({ war, timestamp: warTimestamp(war) }))
-      .filter(item => item.timestamp)
-      .sort((a, b) => b.timestamp - a.timestamp)
+      .map(war => ({
+        war,
+        start: warStartTimestamp(war),
+        end: warEndTimestamp(war)
+      }))
+      .filter(item => item.start || item.end)
+      .sort((a, b) => (b.end || b.start) - (a.end || a.start))
       .slice(0, 4);
 
     if (!latestFour.length) {
@@ -187,17 +207,30 @@ async function selectPreset(preset) {
       return;
     }
 
-    fromDate = toDateInput(Math.min(...latestFour.map(item => item.timestamp)));
-    toDate = toDateInput(Math.max(...latestFour.map(item => item.timestamp)));
+    fromDate = toDateInput(Math.min(...latestFour.map(item => item.start || item.end)));
+    toDate = toDateInput(Math.max(...latestFour.map(item => item.end || item.start)));
   } else if (preset === 'month') {
-    fromDate = localDateInput(new Date(today.getFullYear(), today.getMonth(), 1));
+    fromDate = localDateInput(new Date(now.getFullYear(), now.getMonth(), 1));
     if (availableMinDate && fromDate < availableMinDate) fromDate = availableMinDate;
   } else if (preset === 'year') {
-    fromDate = localDateInput(new Date(today.getFullYear(), 0, 1));
+    fromDate = localDateInput(new Date(now.getFullYear(), 0, 1));
     if (availableMinDate && fromDate < availableMinDate) fromDate = availableMinDate;
-  } else if (preset === 'all') {
-    const earliest = importedWars.map(warTimestamp).filter(Boolean).sort((a, b) => a - b)[0];
-    fromDate = earliest ? toDateInput(earliest) : (trackingStartDate || availableMinDate || toDate);
+  } else if (preset === 'wars') {
+    const starts = importedWars.map(warStartTimestamp).filter(Boolean);
+    const ends = importedWars.map(warEndTimestamp).filter(Boolean);
+
+    if (!starts.length && !ends.length) {
+      showToolbarMessage('No imported wars are available for this faction yet.');
+      return;
+    }
+
+    const earliest = Math.min(...(starts.length ? starts : ends));
+    const latest = Math.max(...(ends.length ? ends : starts));
+    fromDate = toDateInput(earliest);
+    toDate = toDateInput(latest);
+  } else if (preset === 'available') {
+    fromDate = availableMinDate || trackingStartDate || today;
+    toDate = today;
   } else {
     return;
   }
@@ -243,8 +276,7 @@ function syncCustomInputs() {
 }
 
 function updateCoverageNoteFromDisplay() {
-  const displayFrom = document.querySelector('#customRangeFrom');
-  const selected = displayFrom?.value || intelFrom.value;
+  const selected = document.querySelector('#customRangeFrom')?.value || intelFrom.value;
   updateCoverageNote(selected);
 }
 
@@ -253,7 +285,10 @@ function updateCoverageNote(selectedFrom = intelFrom.value) {
   if (!note) return;
 
   if (trackingStartDate && selectedFrom && selectedFrom < trackingStartDate) {
-    note.textContent = `Historical war data is available for this range. Daily member-stat tracking starts ${formatDate(trackingStartDate)}, so activity, Xanax, OC and stat-change data before that date is unavailable.`;
+    note.innerHTML = `
+      <strong>Historical coverage</strong>
+      <span>Daily member tracking starts ${formatDate(trackingStartDate)}. Earlier dates can show imported war data, but activity, Xanax, OC and stat-change history is unavailable.</span>
+    `;
     note.classList.remove('hidden');
   } else {
     note.textContent = '';
@@ -264,7 +299,7 @@ function updateCoverageNote(selectedFrom = intelFrom.value) {
 function showToolbarMessage(message) {
   const note = document.querySelector('#rangeCoverageNote');
   if (!note) return;
-  note.textContent = message;
+  note.innerHTML = `<strong>Period unavailable</strong><span>${escapeHtml(message)}</span>`;
   note.classList.remove('hidden');
 }
 
@@ -296,7 +331,11 @@ async function fetchImportedWars() {
   return data.wars || [];
 }
 
-function warTimestamp(war) {
+function warStartTimestamp(war) {
+  return Number(war?.start_timestamp || war?.end_timestamp || war?.imported_at || 0);
+}
+
+function warEndTimestamp(war) {
   return Number(war?.end_timestamp || war?.start_timestamp || war?.imported_at || 0);
 }
 
@@ -323,4 +362,13 @@ function toDateInput(timestamp) {
 function formatDate(value) {
   const date = new Date(`${value}T00:00:00`);
   return new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: '2-digit' }).format(date);
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 }
