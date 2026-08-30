@@ -162,6 +162,111 @@ CREATE TABLE IF NOT EXISTS attacks (
   FOREIGN KEY (faction_id) REFERENCES factions(faction_id)
 );
 
+/* =========================
+   FACTION INTELLIGENCE CORE
+========================= */
+
+CREATE TABLE IF NOT EXISTS faction_members (
+  faction_id INTEGER NOT NULL,
+  player_id INTEGER NOT NULL,
+
+  player_name TEXT NOT NULL,
+  level INTEGER,
+  position_name TEXT,
+  days_in_faction INTEGER,
+  status_json TEXT,
+
+  is_current INTEGER NOT NULL DEFAULT 1,
+
+  first_seen_at INTEGER NOT NULL,
+  last_seen_at INTEGER NOT NULL,
+  left_at INTEGER,
+  updated_at INTEGER NOT NULL,
+
+  PRIMARY KEY (faction_id, player_id),
+  FOREIGN KEY (faction_id) REFERENCES factions(faction_id)
+);
+
+CREATE TABLE IF NOT EXISTS member_snapshots (
+  snapshot_id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+  faction_id INTEGER NOT NULL,
+  player_id INTEGER NOT NULL,
+  snapshot_date TEXT NOT NULL,
+  snapshot_at INTEGER NOT NULL,
+
+  player_name TEXT NOT NULL,
+  level INTEGER,
+  position_name TEXT,
+
+  last_action_at INTEGER,
+  last_action_status TEXT,
+  status_state TEXT,
+  status_until INTEGER,
+
+  activity_total_seconds INTEGER,
+  xanax_taken_total INTEGER,
+
+  battle_stats_estimate REAL,
+  battle_stats_source TEXT,
+  battle_stats_observed_at INTEGER,
+
+  error_text TEXT,
+  raw_json TEXT,
+  created_at INTEGER NOT NULL,
+
+  UNIQUE(faction_id, player_id, snapshot_date),
+  FOREIGN KEY (faction_id) REFERENCES factions(faction_id)
+);
+
+CREATE TABLE IF NOT EXISTS faction_sync_jobs (
+  job_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  faction_id INTEGER NOT NULL,
+  requested_by_user_id INTEGER NOT NULL,
+  trigger_type TEXT NOT NULL DEFAULT 'manual',
+
+  status TEXT NOT NULL DEFAULT 'queued',
+  phase TEXT NOT NULL DEFAULT 'initializing',
+  seed_history INTEGER NOT NULL DEFAULT 0,
+
+  members_total INTEGER NOT NULL DEFAULT 0,
+  tasks_total INTEGER NOT NULL DEFAULT 0,
+  tasks_completed INTEGER NOT NULL DEFAULT 0,
+  tasks_failed INTEGER NOT NULL DEFAULT 0,
+  api_requests INTEGER NOT NULL DEFAULT 0,
+
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  finished_at INTEGER,
+  lease_until INTEGER,
+  error_text TEXT,
+
+  FOREIGN KEY (faction_id) REFERENCES factions(faction_id),
+  FOREIGN KEY (requested_by_user_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE IF NOT EXISTS faction_sync_tasks (
+  task_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  job_id INTEGER NOT NULL,
+  task_key TEXT NOT NULL,
+  player_id INTEGER NOT NULL,
+  snapshot_date TEXT NOT NULL,
+  snapshot_at INTEGER NOT NULL,
+  historical_timestamp INTEGER,
+
+  status TEXT NOT NULL DEFAULT 'pending',
+  attempts INTEGER NOT NULL DEFAULT 0,
+  error_text TEXT,
+  updated_at INTEGER NOT NULL,
+
+  UNIQUE(job_id, task_key),
+  FOREIGN KEY (job_id) REFERENCES faction_sync_jobs(job_id) ON DELETE CASCADE
+);
+
+/* =========================
+   INDEXES
+========================= */
+
 CREATE INDEX IF NOT EXISTS idx_users_player_id
 ON users(player_id);
 
@@ -206,3 +311,25 @@ ON attacks(defender_id);
 
 CREATE INDEX IF NOT EXISTS idx_attacks_timestamp_started
 ON attacks(timestamp_started);
+
+CREATE INDEX IF NOT EXISTS idx_faction_members_faction_current
+ON faction_members(faction_id, is_current);
+
+CREATE INDEX IF NOT EXISTS idx_faction_members_player
+ON faction_members(player_id);
+
+CREATE INDEX IF NOT EXISTS idx_member_snapshots_faction_time
+ON member_snapshots(faction_id, snapshot_at);
+
+CREATE INDEX IF NOT EXISTS idx_member_snapshots_player_time
+ON member_snapshots(player_id, snapshot_at);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_faction_sync_jobs_active
+ON faction_sync_jobs(faction_id)
+WHERE status IN ('queued', 'running');
+
+CREATE INDEX IF NOT EXISTS idx_faction_sync_jobs_recent
+ON faction_sync_jobs(faction_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_faction_sync_tasks_pending
+ON faction_sync_tasks(job_id, status, task_id);
