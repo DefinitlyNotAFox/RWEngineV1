@@ -5,7 +5,7 @@ import './sync-router.js?v=2';
 import './member-table.js?v=4';
 import './range-controls.js?v=4';
 import './member-detail-redesign.js?v=6';
-import './performance-table.js?v=4';
+import './performance-table.js?v=5';
 
 const syncStatus = document.querySelector('#syncStatus');
 
