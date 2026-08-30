@@ -99,11 +99,14 @@ async function handleImportSubmit(event) {
 
         const chain = imported.chainAdjustment;
         const chainNote = chain?.status || chain?.message || 'checked';
+        const paginationNote = detail.paginationStopped
+          ? ` · pagination ${detail.paginationStopped === 'repeated-page' ? 'stabilized' : 'stopped after no new rows'}`
+          : '';
         updateReportRow(
           reportId,
           'success',
           'Complete',
-          `Verified ${formatNumber(detail.storedTotal || 0)} attack rows via v2 · ${formatNumber(detail.assists || 0)} assists · respect +${formatDecimal(detail.respectEarned || 0, 2)} / -${formatDecimal(detail.respectLost || 0, 2)} · score pass checked ${formatNumber(summary.checked || 0)} · chain adjustment ${chainNote}.`
+          `Verified ${formatNumber(detail.storedTotal || 0)} unique attack rows via v2 · ${formatNumber(detail.assists || 0)} assists · respect +${formatDecimal(detail.respectEarned || 0, 2)} / -${formatDecimal(detail.respectLost || 0, 2)} · score pass checked ${formatNumber(summary.checked || 0)} · chain adjustment ${chainNote}${paginationNote}.`
         );
         setOverallProgress(index + 1, reportIds.length, `Report ${reportId} complete.`);
       } catch (error) {
@@ -169,6 +172,8 @@ async function applyAttackSummary(warId, reportId, reportIndex, totalReports) {
 async function applyAttackDetailSupplement(warId, reportId, reportIndex, totalReports) {
   let nextUrl = null;
   let latest = null;
+  let previousStoredTotal = -1;
+  const seenNextPages = new Set();
 
   for (let step = 0; step < ATTACK_DETAIL_STEP_LIMIT; step += 1) {
     const result = await attackDetailApi({
@@ -177,25 +182,56 @@ async function applyAttackDetailSupplement(warId, reportId, reportIndex, totalRe
     });
     latest = result;
 
+    const storedTotal = Number(result.storedTotal || 0);
     updateReportRow(
       reportId,
       'active',
       'Verify',
-      `v2 coverage: ${formatNumber(result.storedTotal || 0)} attack rows · ${formatNumber(result.assists || 0)} assists · ${formatNumber(result.membersWithDetail || 0)} members with detail.`
+      `v2 coverage: ${formatNumber(storedTotal)} unique attack rows · ${formatNumber(result.assists || 0)} assists · ${formatNumber(result.membersWithDetail || 0)} members with detail.`
     );
     setOverallProgress(
       reportIndex,
       totalReports,
-      `Report ${reportId}: verified ${formatNumber(result.storedTotal || 0)} attack rows…`
+      `Report ${reportId}: verified ${formatNumber(storedTotal)} unique attack rows…`
     );
 
     if (result.done) return result;
-    nextUrl = result.nextUrl;
-    if (!nextUrl) throw new Error('Torn reported more attack pages but did not provide a next page URL.');
+
+    const candidateNextUrl = String(result.nextUrl || '').trim();
+    if (!candidateNextUrl) {
+      throw new Error('Torn reported more attack pages but did not provide a next page URL.');
+    }
+
+    const pageKey = canonicalPageKey(candidateNextUrl);
+    if (seenNextPages.has(pageKey)) {
+      return { ...result, done: true, nextUrl: null, paginationStopped: 'repeated-page' };
+    }
+
+    if (step > 0 && storedTotal <= previousStoredTotal) {
+      return { ...result, done: true, nextUrl: null, paginationStopped: 'no-new-rows' };
+    }
+
+    seenNextPages.add(pageKey);
+    previousStoredTotal = storedTotal;
+    nextUrl = candidateNextUrl;
     await sleep(ATTACK_DETAIL_STEP_DELAY_MS);
   }
 
-  throw new Error(`Attack-detail verification exceeded ${ATTACK_DETAIL_STEP_LIMIT} v2 pages${latest ? ` after ${formatNumber(latest.storedTotal || 0)} rows` : ''}.`);
+  throw new Error(`Attack-detail verification exceeded ${ATTACK_DETAIL_STEP_LIMIT} v2 pages${latest ? ` after ${formatNumber(latest.storedTotal || 0)} unique rows` : ''}.`);
+}
+
+function canonicalPageKey(value) {
+  try {
+    const url = new URL(String(value), window.location.origin);
+    url.searchParams.delete('key');
+    url.searchParams.delete('comment');
+    return `${url.origin}${url.pathname}?${[...url.searchParams.entries()]
+      .sort(([aKey, aValue], [bKey, bValue]) => `${aKey}=${aValue}`.localeCompare(`${bKey}=${bValue}`))
+      .map(([key, val]) => `${encodeURIComponent(key)}=${encodeURIComponent(val)}`)
+      .join('&')}`;
+  } catch (_) {
+    return String(value);
+  }
 }
 
 async function attackDetailApi(payload = {}) {
