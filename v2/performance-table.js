@@ -67,7 +67,7 @@ function installStylesheet() {
   if (document.querySelector('link[data-rwe-performance-table]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/v2/performance-table.css?v=1';
+  link.href = '/v2/performance-table.css?v=2';
   link.dataset.rwePerformanceTable = '1';
   document.head.appendChild(link);
 }
