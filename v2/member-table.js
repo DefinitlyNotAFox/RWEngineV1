@@ -1,6 +1,5 @@
 const membersBody = document.querySelector('#membersBody');
 const membersTable = document.querySelector('.members-table');
-const warsMetric = document.querySelector('#metricWars');
 const memberSearch = document.querySelector('#memberSearch');
 const refreshButton = document.querySelector('#refreshButton');
 const syncButton = document.querySelector('#syncIntelButton');
@@ -15,9 +14,7 @@ const sortColumns = {
   stats: { index: 3, label: 'Stats', parse: parseScaledNumber },
   activity: { index: 4, label: 'Activity / day', parse: parseDuration },
   xanax: { index: 5, label: 'Xanax / day', parse: parseNumber },
-  ocs: { index: 6, label: 'OCs / month', parse: parseNumber },
-  participation: { index: 7, label: 'RW participation', parse: parseNumber },
-  hits: { index: 8, label: 'Avg hits / war', parse: parseNumber }
+  ocs: { index: 6, label: 'OCs / month', parse: parseNumber }
 };
 
 if (membersBody && membersTable) {
@@ -55,7 +52,7 @@ function installStylesheet() {
   if (document.querySelector('link[data-rwe-member-table]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/v2/member-table.css?v=2';
+  link.href = '/v2/member-table.css?v=3';
   link.dataset.rweMemberTable = '1';
   document.head.appendChild(link);
 }
@@ -121,20 +118,14 @@ function resetSort() {
 }
 
 function applyEmptyStates() {
-  const hasWars = Number(String(warsMetric?.textContent || '0').replace(/[^0-9.-]/g, '')) > 0;
-
   for (const row of membersBody.querySelectorAll('tr.member-row[data-member-id]')) {
     const cells = row.cells;
-    if (cells.length < 9) continue;
+    if (cells.length < 7) continue;
 
     replaceUnavailable(cells[3], 'No stat source');
     replaceUnavailable(cells[4], 'Needs 2 snapshots');
     replaceUnavailable(cells[5], 'Needs 2 snapshots');
     replaceUnavailable(cells[6], 'Not tracked yet');
-    if (!hasWars) {
-      replaceUnavailable(cells[7], 'No wars');
-      replaceUnavailable(cells[8], 'No wars');
-    }
   }
 }
 
@@ -191,7 +182,7 @@ function readSortValue(row, config) {
   const cell = row.cells[config.index];
   if (!cell) return null;
   const text = cell.querySelector('.stat-value')?.textContent?.trim() || cell.textContent.trim();
-  if (!text || /unavailable|no stat source|needs 2 snapshots|not tracked|no wars/i.test(text)) return null;
+  if (!text || /unavailable|no stat source|needs 2 snapshots|not tracked/i.test(text)) return null;
   return config.parse(text);
 }
 
