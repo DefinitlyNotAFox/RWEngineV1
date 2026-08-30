@@ -158,9 +158,7 @@ async function loadCoreData(showRefreshState) {
 }
 
 async function loadIntel(showBusyState = false) {
-  if (showBusyState) {
-    intelDays.disabled = true;
-  }
+  if (showBusyState) intelDays.disabled = true;
 
   try {
     state.intel = await intelApi('getIntel', { days: state.intelDays });
@@ -203,6 +201,11 @@ async function runFactionSync() {
     await loadIntel(false);
   } catch (error) {
     setGlobalError(`Faction sync: ${error.message}`);
+    try {
+      await loadIntel(false);
+    } catch (_) {
+      // Keep the original sync error visible.
+    }
   } finally {
     state.syncRunning = false;
     syncIntelButton.disabled = false;
@@ -472,18 +475,20 @@ function formatRelativeTime(timestamp) {
   return `${Math.floor(seconds / 86400)}d`;
 }
 
-function formatActivityPerDay(secondsPerDay) {
-  const seconds = Number(secondsPerDay);
-  if (!Number.isFinite(seconds)) return '—';
-  const minutes = Math.round(seconds / 60);
+function formatActivityPerDay(value) {
+  if (value === null || value === undefined || value === '') return 'Unavailable';
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds)) return 'Unavailable';
+  const minutes = Math.max(0, Math.round(seconds / 60));
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
   return hours > 0 ? `${hours}h ${remainder}m` : `${remainder}m`;
 }
 
 function formatCompactNumber(value) {
+  if (value === null || value === undefined || value === '') return 'Unavailable';
   const number = Number(value);
-  if (!Number.isFinite(number) || number <= 0) return '—';
+  if (!Number.isFinite(number) || number <= 0) return 'Unavailable';
   if (number >= 1e9) return `${(number / 1e9).toFixed(number >= 10e9 ? 1 : 2)}b`;
   if (number >= 1e6) return `${(number / 1e6).toFixed(number >= 10e6 ? 1 : 2)}m`;
   if (number >= 1e3) return `${(number / 1e3).toFixed(number >= 10e3 ? 1 : 2)}k`;
@@ -491,14 +496,16 @@ function formatCompactNumber(value) {
 }
 
 function formatPercent(value) {
+  if (value === null || value === undefined || value === '') return 'Unavailable';
   const number = Number(value);
-  if (!Number.isFinite(number)) return '—';
+  if (!Number.isFinite(number)) return 'Unavailable';
   return `${Math.round(number * 100)}%`;
 }
 
 function formatNullableDecimal(value, digits) {
+  if (value === null || value === undefined || value === '') return 'Unavailable';
   const number = Number(value);
-  if (!Number.isFinite(number)) return '—';
+  if (!Number.isFinite(number)) return 'Unavailable';
   return number.toLocaleString(undefined, {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits
