@@ -32,7 +32,18 @@ document.querySelectorAll('.nav-button[data-tab], .jump-button[data-jump]').forE
 });
 
 syncNavigationState();
-[120, 400, 900].forEach(delay => window.setTimeout(syncNavigationState, delay));
+
+// range-controls.js inserts the Period bar shortly after boot. Poll only until
+// that element exists, then stop; this prevents a startup flash without a
+// permanent MutationObserver.
+let startupChecks = 0;
+const startupTimer = window.setInterval(() => {
+  startupChecks += 1;
+  syncNavigationState();
+  if (document.querySelector('#rangeToolbar') || startupChecks >= 24) {
+    window.clearInterval(startupTimer);
+  }
+}, 50);
 
 function syncNavigationState() {
   const activeButton = document.querySelector('.nav-button.active[data-tab]');
@@ -47,8 +58,6 @@ function syncNavigationState() {
 
   if (pageTitle) pageTitle.textContent = titles[active] || 'RWEngine';
 
-  // The Period selector belongs to analytical/history views, not the blank
-  // general overview, current matchup or settings.
   const toolbar = document.querySelector('#rangeToolbar');
   if (toolbar) {
     toolbar.classList.toggle('hidden', ['overview', 'current-war', 'settings'].includes(active));
