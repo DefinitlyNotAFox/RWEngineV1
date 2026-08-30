@@ -64,7 +64,7 @@ function scheduleRosterFormatting() {
 }
 
 function scheduleMetadataRefresh(force) {
-  [250, 700, 1500].forEach((delay, index) => {
+  [0, 350, 900].forEach((delay, index) => {
     window.setTimeout(() => refreshRosterMetadata(force && index === 0), delay);
   });
 }
@@ -130,7 +130,8 @@ function formatRosterRows() {
     }
 
     let level = memberLevels.get(playerId);
-    if (level === undefined || level === null) level = levelFromExpandedRow(row);
+    if (level === undefined || level === null) level = row.dataset.memberLevel || levelFromExpandedRow(row);
+    if (level === undefined || level === null || level === '') continue;
 
     const link = document.createElement('a');
     link.className = 'member-profile-link';
@@ -144,7 +145,7 @@ function formatRosterRows() {
 
     const meta = document.createElement('span');
     meta.className = 'member-id member-roster-meta';
-    meta.textContent = `Level ${level ?? '—'} · ${row.dataset.memberStatus === 'current' ? 'current member' : 'former member'}`;
+    meta.textContent = `Level ${level} · ${row.dataset.memberStatus === 'current' ? 'current member' : 'former member'}`;
 
     cell.replaceChildren(link, meta);
   }
@@ -155,7 +156,9 @@ function levelFromExpandedRow(row) {
   if (!detail?.classList.contains('member-detail-row')) return null;
   const text = detail.querySelector('.member-inline-header p:last-child')?.textContent || '';
   const match = text.match(/Level\s+(\d+)/i);
-  return match ? Number(match[1]) : null;
+  if (!match) return null;
+  row.dataset.memberLevel = match[1];
+  return match[1];
 }
 
 function redesignVisibleMemberDetail() {
@@ -163,6 +166,7 @@ function redesignVisibleMemberDetail() {
   const body = panel?.querySelector('.member-inline-body');
   if (!panel || !body) return;
 
+  preserveExpandedLevel(panel);
   stripRepeatedHeader(panel);
   if (body.classList.contains('member-detail-redesigned')) return;
 
@@ -217,6 +221,15 @@ function redesignVisibleMemberDetail() {
   body.replaceChildren(performance, historyDetails, trackingDetails);
   body.classList.add('member-detail-redesigned');
   panel.classList.add('compact-member-panel');
+}
+
+function preserveExpandedLevel(panel) {
+  const detailRow = panel.closest('tr.member-detail-row');
+  const memberRow = detailRow?.previousElementSibling;
+  if (!memberRow?.matches('tr.member-row[data-member-id]')) return;
+  const text = panel.querySelector('.member-inline-header p:last-child')?.textContent || '';
+  const match = text.match(/Level\s+(\d+)/i);
+  if (match) memberRow.dataset.memberLevel = match[1];
 }
 
 function stripRepeatedHeader(panel) {
