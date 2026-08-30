@@ -2,8 +2,8 @@ import './admin-workspace.js?v=1';
 import './admin-key-selector.js?v=1';
 import './admin-import-enable.js?v=2';
 import './sync-router.js?v=2';
-import './member-sort.js?v=1';
-import './member-empty-states.js?v=1';
+import './member-table.js?v=1';
+import './range-controls.js?v=1';
 
 const syncStatus = document.querySelector('#syncStatus');
 
@@ -32,7 +32,7 @@ if (syncStatus) {
       let description = 'Preparing the next faction API request.';
 
       if (/Reading the current faction roster/i.test(text)) {
-        description = 'Pulling faction roster: members, positions, last action and current status.';
+        description = 'Pulling the current roster and member status data.';
       } else if (/Collecting member snapshots/i.test(text)) {
         description = 'Pulling daily member totals: time played, Xanax taken and OC count; verified battle stats are added where a member has their own RWE API key.';
       } else if (/Sync failed/i.test(text)) {
