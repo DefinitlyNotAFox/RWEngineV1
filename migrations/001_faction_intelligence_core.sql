@@ -13,7 +13,10 @@ CREATE TABLE IF NOT EXISTS faction_members (
   player_id INTEGER NOT NULL,
 
   player_name TEXT NOT NULL,
+  level INTEGER,
   position_name TEXT,
+  days_in_faction INTEGER,
+  status_json TEXT,
 
   is_current INTEGER NOT NULL DEFAULT 1,
 
@@ -28,14 +31,20 @@ CREATE TABLE IF NOT EXISTS faction_members (
 
 /*
   Daily/cadenced snapshots store raw cumulative member values where possible.
-  Deltas such as Xanax/day and activity/day should be calculated from snapshots
-  rather than permanently storing a derived value that can become inconsistent.
+  Deltas such as Xanax/day and activity/day are calculated from snapshots rather
+  than permanently storing a derived value that can become inconsistent.
+
+  snapshot_date is the logical UTC day represented by the observation. This
+  lets a same-day refresh replace stale data instead of creating duplicate rows.
+  snapshot_at is the timestamp represented by the Torn personal-stat response;
+  created_at is when RWE actually captured/stored the row.
 */
 CREATE TABLE IF NOT EXISTS member_snapshots (
   snapshot_id INTEGER PRIMARY KEY AUTOINCREMENT,
 
   faction_id INTEGER NOT NULL,
   player_id INTEGER NOT NULL,
+  snapshot_date TEXT NOT NULL,
   snapshot_at INTEGER NOT NULL,
 
   player_name TEXT NOT NULL,
@@ -54,10 +63,11 @@ CREATE TABLE IF NOT EXISTS member_snapshots (
   battle_stats_source TEXT,
   battle_stats_observed_at INTEGER,
 
+  error_text TEXT,
   raw_json TEXT,
   created_at INTEGER NOT NULL,
 
-  UNIQUE(faction_id, player_id, snapshot_at),
+  UNIQUE(faction_id, player_id, snapshot_date),
   FOREIGN KEY (faction_id) REFERENCES factions(faction_id)
 );
 
