@@ -10,6 +10,8 @@
   <link rel="stylesheet" href="/v2/admin-workspace.css?v=1" data-rwe-admin-workspace="1" />
   <link rel="stylesheet" href="/v2/boot-stability.css?v=1" />
   <link rel="stylesheet" href="/v2/layout-refinement.css?v=1" />
+  <link rel="stylesheet" href="/v2/member-table.css?v=1" data-rwe-member-table="1" />
+  <link rel="stylesheet" href="/v2/range-controls.css?v=1" data-rwe-range-controls="1" />
 </head>
 <body>
   <div id="loginView" class="login-view hidden">
@@ -102,9 +104,9 @@
         <article class="panel">
           <div class="panel-header members-header">
             <div class="member-controls range-controls">
-              <label class="compact-control"><span>From</span><input id="intelFrom" type="date" /></label>
-              <label class="compact-control"><span>To</span><input id="intelTo" type="date" /></label>
-              <button id="applyRangeButton" class="button" type="button">Apply</button>
+              <label class="compact-control hidden"><span>From</span><input id="intelFrom" type="date" /></label>
+              <label class="compact-control hidden"><span>To</span><input id="intelTo" type="date" /></label>
+              <button id="applyRangeButton" class="button hidden" type="button">Apply</button>
               <input id="memberSearch" class="search" type="search" placeholder="Search member…" />
             </div>
           </div>
@@ -162,7 +164,7 @@
   </div>
 
   <script type="module" src="/v2/app.js?v=4"></script>
-  <script type="module" src="/v2/sync-status.js?v=8"></script>
+  <script type="module" src="/v2/sync-status.js?v=9"></script>
   <script type="module" src="/v2/war-import.js?v=2"></script>
 </body>
 </html>
