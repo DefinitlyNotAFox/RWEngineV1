@@ -54,10 +54,14 @@
           <p class="eyebrow">Faction intelligence</p>
           <h1 id="pageTitle">Overview</h1>
         </div>
-        <button id="refreshButton" class="button" type="button">Refresh</button>
+        <div class="member-controls">
+          <button id="syncIntelButton" class="button primary" type="button">Sync faction</button>
+          <button id="refreshButton" class="button" type="button">Refresh</button>
+        </div>
       </header>
 
       <div id="globalError" class="error-banner hidden"></div>
+      <div id="syncStatus" class="sync-status hidden"></div>
 
       <section id="overviewTab" class="tab active">
         <div class="metric-grid">
@@ -132,11 +136,8 @@
                 </select>
               </label>
               <input id="memberSearch" class="search" type="search" placeholder="Search member…" />
-              <button id="syncIntelButton" class="button" type="button">Sync faction</button>
             </div>
           </div>
-
-          <div id="syncStatus" class="sync-status hidden"></div>
 
           <div class="table-wrap">
             <table>
