@@ -122,7 +122,7 @@ function applyEmptyStates() {
     const cells = row.cells;
     if (cells.length < 7) continue;
 
-    replaceUnavailable(cells[3], 'Verified key only');
+    replaceUnavailable(cells[3], 'Unavailable');
     replaceUnavailable(cells[4], 'Needs 2 snapshots');
     replaceUnavailable(cells[5], 'Needs 2 snapshots');
     replaceUnavailable(cells[6], 'Not tracked yet');
@@ -135,9 +135,7 @@ function replaceUnavailable(cell, replacement) {
   if (marker) marker.textContent = replacement;
   else cell.textContent = replacement;
   cell.classList.add('metric-not-ready');
-  cell.title = replacement === 'Verified key only'
-    ? 'Exact battle stats are available when this member has their own RWE API key. No estimate provider is configured yet.'
-    : replacement;
+  cell.title = replacement;
 }
 
 function applySort() {
