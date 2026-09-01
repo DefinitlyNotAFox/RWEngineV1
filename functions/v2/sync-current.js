@@ -1,5 +1,5 @@
 const TASK_BATCH_SIZE = 6;
-const REQUEST_INTERVAL_MS = 1250;
+const REQUEST_INTERVAL_MS = 750;
 const LEASE_SECONDS = 180;
 const MANAGED_KEY_CONFIG = 'admin_managed_api_key_v1';
 
@@ -182,19 +182,8 @@ async function collectSnapshot(env, client, job, task) {
     .bind(factionId, playerId).first();
   if (!member) throw new Error(`Unknown faction member ${playerId}.`);
 
-  let payload = await client.personalStats(playerId).catch(() => null);
-  let stats = extractPersonalStats(payload);
-
-  if (!Number.isFinite(stats.activityTotalSeconds)) {
-    const other = await client.personalStatsCategory(playerId, 'other').catch(() => null);
-    stats = mergeStats(stats, extractPersonalStats(other));
-    if (!payload && other) payload = other;
-  }
-  if (!Number.isFinite(stats.xanaxTakenTotal)) {
-    const drugs = await client.personalStatsCategory(playerId, 'drugs').catch(() => null);
-    stats = mergeStats(stats, extractPersonalStats(drugs));
-    if (!payload && drugs) payload = drugs;
-  }
+  const payload = await client.personalStats(playerId).catch(() => null);
+  const stats = extractPersonalStats(payload);
 
   const warnings = [];
   if (!Number.isFinite(stats.activityTotalSeconds)) warnings.push('time played');
@@ -470,6 +459,18 @@ function mergeStats(a,b) {
 function findStat(value, aliases) {
   if (!value || typeof value !== 'object') return null;
   const wanted = aliases.map(norm);
+
+  // Specific-stat requests can be returned as records such as
+  // [{ name: 'timeplayed', value: 123, timestamp: ... }].
+  // Match the stat name to its value before recursively scanning category-shaped responses.
+  if (Array.isArray(value)) {
+    for (const record of value) {
+      if (record && typeof record === 'object' && wanted.includes(norm(record.name ?? record.stat ?? record.key))) {
+        return record.value ?? record.amount ?? record.total ?? record.current ?? null;
+      }
+    }
+  }
+
   for (const [key,child] of Object.entries(value)) {
     if (wanted.includes(norm(key))) return child;
     const nested = findStat(child,wanted);
