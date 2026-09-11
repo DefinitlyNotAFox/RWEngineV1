@@ -4234,7 +4234,7 @@ body {
 .faction-control-row {
   display: flex;
   align-items: flex-end;
-  gap: 26px;
+  gap: 34px;
   min-width: 0;
   padding: 5px 0 8px;
 }
@@ -4275,7 +4275,7 @@ body {
 @media (max-width: 1050px) {
   .faction-control-row {
     flex-wrap: wrap;
-    gap: 10px 20px;
+    gap: 12px 24px;
   }
 
   .faction-control-row .intel-filter-block {
