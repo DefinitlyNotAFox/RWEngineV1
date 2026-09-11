@@ -5062,3 +5062,14 @@ body {
 #intelTable.faction-grid .faction-grid-aggregate {
   border-top: 2px solid #b9825d;
 }
+
+
+/* Keep Faction total inside the header block; accent separates summary from members. */
+#intelTable.faction-grid .faction-grid-aggregate {
+  border-top: 0 !important;
+  border-bottom: 2px solid #b9825d;
+}
+
+#intelTable.faction-grid .faction-total-row {
+  border-bottom: 0;
+}
