@@ -260,3 +260,135 @@ tbody tr:hover { background: rgba(255,255,255,.015); }
   .summary-item:nth-child(2) { border-right: 0; }
   .summary-item:nth-child(-n+2) { border-bottom: 1px solid var(--line-soft); }
 }
+
+
+/* public Player Analysis snapshot */
+
+#playerPublicBody .summary-grid {
+  grid-template-columns: repeat(6, minmax(0,1fr));
+}
+
+.public-context {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  min-height: 42px;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--dim);
+  font-size: 9px;
+}
+
+.public-context b {
+  margin-left: 3px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.public-sources {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--dim);
+  font-size: 8px;
+}
+
+.public-sources span {
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.public-sources b {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.public-war-history {
+  margin-top: 18px;
+}
+
+.public-war-history > header {
+  margin-bottom: 5px;
+  color: var(--dim);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.public-war-row {
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) repeat(3,90px);
+  gap: 12px;
+  align-items: center;
+  border-top: 1px solid var(--line-soft);
+  font-size: 9px;
+}
+
+.public-war-row strong {
+  font-size: 10px;
+  font-weight: 620;
+}
+
+.public-war-row small {
+  display: block;
+  margin-top: 1px;
+  color: var(--dim);
+  font-size: 8px;
+}
+
+.public-war-row span {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.public-war-row.empty {
+  display: block;
+  padding: 12px 0;
+  color: var(--muted);
+}
+
+@media (max-width: 820px) {
+  #playerPublicBody .summary-grid {
+    grid-template-columns: repeat(3, minmax(0,1fr));
+  }
+
+  #playerPublicBody .summary-item:nth-child(3) {
+    border-right: 0;
+  }
+
+  #playerPublicBody .summary-item:nth-child(-n+3) {
+    border-bottom: 1px solid var(--line-soft);
+  }
+}
+
+@media (max-width: 600px) {
+  #playerPublicBody .summary-grid {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+
+  #playerPublicBody .summary-item:nth-child(3) {
+    border-right: 1px solid var(--line-soft);
+  }
+
+  #playerPublicBody .summary-item:nth-child(2n) {
+    border-right: 0;
+  }
+
+  #playerPublicBody .summary-item:nth-child(-n+4) {
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .public-war-row {
+    grid-template-columns: minmax(0,1fr) 80px;
+  }
+
+  .public-war-row span:nth-last-child(-n+2) {
+    display: none;
+  }
+}
