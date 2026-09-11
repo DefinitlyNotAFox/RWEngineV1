@@ -3945,3 +3945,19 @@ body {
   visibility: hidden;
   display: inline;
 }
+
+
+/* Faction totals belong to the table, not the page header. */
+.faction-table-summary {
+  margin: 0;
+  border-bottom: 0;
+}
+
+.faction-table-summary + .faction-table-wrap {
+  border-top: 1px solid var(--line);
+}
+
+.faction-table-summary .metric {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
