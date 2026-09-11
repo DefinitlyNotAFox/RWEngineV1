@@ -414,7 +414,7 @@ function sparkline(series){
     const y=48-((point.value-min)/spread)*42;
     return [x,y];
   });
-  const d=points.map(([x,y],index)=>index===0?`M ${x.toFixed(2)} ${y.toFixed(2)}`:`L ${x.toFixed(2)} ${y.toFixed(2)}`)).join(' ');
+  const d=points.map(([x,y],index)=>index===0?`M ${x.toFixed(2)} ${y.toFixed(2)}`:`L ${x.toFixed(2)} ${y.toFixed(2)}`).join(' ');
   return `<svg class="sparkline" viewBox="0 0 100 54" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="50" x2="100" y2="50"></line><path d="${d}"></path></svg>`;
 }
 
