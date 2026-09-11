@@ -2726,3 +2726,255 @@ body {
     grid-template-columns: 105px minmax(0,1fr);
   }
 }
+
+
+/* Intel detail: context, not duplicated profile */
+
+.intel2-table tbody tr.selected {
+  background: #0f1112;
+}
+
+.intel2-detail-row td {
+  padding: 0 !important;
+  background: #101213 !important;
+}
+
+.intel2-detail {
+  padding: 0;
+  border: 0;
+  background: #101213;
+}
+
+.intel2-detail-inner {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.intel2-detail-tools {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 14px;
+  color: var(--dim);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .055em;
+}
+
+.intel2-detail-tools a {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0;
+  text-transform: none;
+  text-decoration: none;
+}
+
+.intel2-detail-tools a:hover {
+  color: var(--accent-2);
+}
+
+.intel2-detail .intel2-insights {
+  margin: 0;
+  padding: 4px 14px 7px;
+  border: 0;
+  background: #0e1011;
+}
+
+.intel2-detail .intel2-insight {
+  grid-template-columns: 132px minmax(0,1fr);
+  min-height: 31px;
+  padding: 6px 0;
+  border: 0;
+  font-size: 11px;
+}
+
+.intel2-detail .intel2-insight + .intel2-insight {
+  border-top: 1px solid #1b1e20;
+}
+
+.intel2-detail .intel2-insight b {
+  font-size: 9px;
+}
+
+/* History returns to a broad, simple flow. Tonal depth replaces hard framing. */
+
+.intel2-detail .intel2-history {
+  margin: 0;
+  padding: 15px 14px 12px;
+  border: 0;
+  background: #121415;
+}
+
+.intel2-detail .intel2-history-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 14px;
+}
+
+.intel2-detail .intel2-history-kicker {
+  font-size: 11px;
+}
+
+.intel2-detail .intel2-history-head p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.intel2-detail .intel2-history-window {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.intel2-detail .intel2-history-window button {
+  padding: 2px 0 3px;
+  font-size: 10px;
+}
+
+.intel2-detail .intel2-history-grid,
+.intel2-detail .intel2-trend-pane,
+.intel2-detail .intel2-subsection-head {
+  display: contents;
+}
+
+.intel2-detail .intel2-trends {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.intel2-detail .intel2-trend,
+.intel2-detail .intel2-trend + .intel2-trend {
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  padding: 10px 12px 9px;
+  border: 0;
+  background: #0f1112;
+}
+
+.intel2-detail .intel2-trend header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+
+.intel2-detail .intel2-trend header strong,
+.intel2-detail .intel2-trend header span {
+  display: block;
+}
+
+.intel2-detail .intel2-trend header strong {
+  font-size: 11px;
+}
+
+.intel2-detail .intel2-trend header span {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.intel2-detail .sparkline,
+.intel2-detail .intel2-trend-empty {
+  height: 54px;
+}
+
+.intel2-detail .intel2-trend-empty {
+  align-items: center;
+  justify-content: center;
+}
+
+.intel2-detail .intel2-wars {
+  margin: 18px 0 0;
+}
+
+.intel2-detail .intel2-wars > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 0;
+  margin: 0 0 4px;
+  padding: 0;
+}
+
+.intel2-detail .intel2-wars > header strong {
+  font-size: 11px;
+}
+
+.intel2-detail .intel2-wars > header span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.intel2-detail .intel2-war {
+  min-height: 38px;
+  grid-template-columns: minmax(0,1fr) repeat(4,76px);
+  gap: 10px;
+  border-top: 1px solid #1b1e20;
+  font-size: 10px;
+}
+
+.intel2-detail .intel2-war:first-of-type {
+  border-top: 0;
+}
+
+.intel2-detail .intel2-war strong {
+  font-size: 11px;
+}
+
+.intel2-detail .intel2-war small {
+  font-size: 9px;
+}
+
+.intel2-detail .intel2-coverage {
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  gap: 14px;
+  color: var(--dim);
+}
+
+.intel2-detail .intel2-coverage span,
+.intel2-detail .intel2-coverage b {
+  font-size: 9px;
+}
+
+@media (max-width: 900px) {
+  .intel2-detail .intel2-trends {
+    grid-template-columns: 1fr;
+  }
+
+  .intel2-detail .intel2-trend,
+  .intel2-detail .intel2-trend + .intel2-trend {
+    padding: 9px 10px;
+  }
+}
+
+@media (max-width: 620px) {
+  .intel2-detail .intel2-history-head {
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .intel2-detail .intel2-war {
+    grid-template-columns: minmax(0,1fr) repeat(2,70px);
+  }
+
+  .intel2-detail .intel2-war span:nth-last-child(-n+2) {
+    display: none;
+  }
+}
