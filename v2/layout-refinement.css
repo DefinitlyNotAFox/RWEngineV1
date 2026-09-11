@@ -15,7 +15,8 @@
 
 .topbar h1 {
   margin: 0;
-  font-size: 22px;
+  font-size: 20px;
+  font-weight: 650;
 }
 
 /* Top-level page title is enough; avoid repeating the product category. */
@@ -139,7 +140,7 @@
 }
 
 .ranked-war-metrics {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .war-import {
@@ -206,7 +207,7 @@ tbody tr:not(.member-detail-row):hover {
 }
 
 .metric-card {
-  padding: 12px 14px;
+  padding: 10px 12px;
 }
 
 @media (max-width: 900px) {
