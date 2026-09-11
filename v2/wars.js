@@ -82,8 +82,6 @@ export function initWarViews() {
   on('period', () => {
     performance.loadedKey = '';
     performance.chain.clear();
-    renderWarOverview();
-    if (state.route === 'performance') loadPerformance(true);
   });
 
   on('faction', () => {
@@ -210,7 +208,13 @@ export async function loadPerformance(force = false) {
     performance.warnings = [];
 
     if (document.querySelector('#excludeChain')?.checked && performance.members.length) {
-      await loadChainBonuses();
+      try {
+        await loadChainBonuses();
+      } catch (error) {
+        performance.error = `Chain bonus filtering unavailable: ${error.message || 'lookup failed'}`;
+        document.querySelector('#excludeChain').checked = false;
+        performance.chain.clear();
+      }
     }
   } catch (error) {
     performance.members = [];
@@ -394,10 +398,18 @@ async function openWar(warId, force = false) {
   setDetailLoading();
 
   try {
-    const payload = await warDetailApi({
-      warId: detail.warId,
-      excludeChainBonuses: Boolean(document.querySelector('#warDetailChain')?.checked)
-    });
+    const excludeChainBonuses = Boolean(document.querySelector('#warDetailChain')?.checked);
+    let payload;
+
+    try {
+      payload = await warDetailApi({ warId: detail.warId, excludeChainBonuses });
+    } catch (error) {
+      if (!excludeChainBonuses) throw error;
+      document.querySelector('#warDetailChain').checked = false;
+      payload = await warDetailApi({ warId: detail.warId, excludeChainBonuses:false });
+      payload.chainFilterWarning = error.message || 'Chain bonus filtering was unavailable.';
+    }
+
     detail.payload = payload;
     resetSharePanel(true);
     renderWarDetail();
@@ -459,6 +471,11 @@ function renderWarDetail() {
     metric('Assists', formatNumber(summary.assists)),
     metric('Net score', formatSigned(summary.displayNetScore, 2))
   ].join('');
+
+  if (payload.chainFilterWarning) {
+    const status = document.querySelector('#shareStatus');
+    if (status) status.textContent = payload.chainFilterWarning;
+  }
 
   const detailed = document.querySelector('#warDetailMode')?.value === 'detail';
   const columns = detailed
