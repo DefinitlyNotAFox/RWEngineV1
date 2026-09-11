@@ -66,15 +66,15 @@
 }
 
 @media (max-width: 1120px) {
-  .members-table > thead > tr > th:nth-child(7),
-  .members-table > tbody > tr.member-row > td:nth-child(7) {
+  .members-table > thead > tr > th:nth-child(8),
+  .members-table > tbody > tr.member-row > td:nth-child(8) {
     display: none;
   }
 }
 
 @media (max-width: 930px) {
-  .members-table > thead > tr > th:nth-child(9),
-  .members-table > tbody > tr.member-row > td:nth-child(9) {
+  .members-table > thead > tr > th:nth-child(7),
+  .members-table > tbody > tr.member-row > td:nth-child(7) {
     display: none;
   }
 }
