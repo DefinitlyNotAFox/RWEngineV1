@@ -4575,3 +4575,272 @@ body {
 #intelTable #intelBody > .faction-total-row:hover td {
   background: #0b0d0e !important;
 }
+
+
+/* ========================================================================
+   Faction grid rebuild
+   One column definition is shared by groups, headers, aggregates and rows.
+   ======================================================================== */
+.faction-grid-wrap {
+  width: 100%;
+  margin-top: 8px;
+  overflow: hidden;
+  border: 0;
+}
+
+.faction-grid {
+  --faction-columns:
+    minmax(0,16fr)
+    minmax(0,7fr)
+    minmax(0,6fr)
+    minmax(0,7fr)
+    minmax(0,5fr)
+    minmax(0,10fr)
+    minmax(0,7fr)
+    minmax(0,6fr)
+    minmax(0,7fr)
+    minmax(0,8fr)
+    minmax(0,8fr)
+    minmax(0,6fr)
+    minmax(0,7fr);
+  width: 100%;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.faction-grid-row {
+  display: grid;
+  grid-template-columns: var(--faction-columns);
+  width: 100%;
+  min-width: 0;
+}
+
+.faction-grid-head {
+  width: 100%;
+}
+
+.faction-grid .faction-group-row {
+  min-height: 20px;
+  border-bottom: 0;
+}
+
+.faction-grid-group {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 2px 8px;
+  color: var(--dim);
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  border-left: 1px solid var(--line);
+}
+
+.faction-grid-group:first-child {
+  border-left: 0;
+}
+
+.faction-grid-group.group-roster { background: var(--bg); }
+.faction-grid-group.group-training { background: #0d0f10; }
+.faction-grid-group.group-war { background: #101213; }
+.faction-grid-group.group-context { background: #0d0f10; }
+
+.faction-grid .faction-column-row {
+  min-height: 47px;
+  background: var(--bg);
+}
+
+.faction-grid-header-cell,
+.faction-grid-cell {
+  min-width: 0;
+  padding: 7px 9px;
+  border-bottom: 1px solid var(--line-soft);
+  text-align: right;
+  overflow: hidden;
+}
+
+.faction-grid-header-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
+.faction-grid-header-cell button {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  padding: 0 10px 0 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: right;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.faction-grid-header-cell .sort-label {
+  display: block;
+  min-width: 0;
+  line-height: 1.05;
+}
+
+.faction-grid-header-cell .sort-indicator {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  color: var(--accent);
+}
+
+.faction-grid-header-cell.sorted {
+  color: var(--accent-2);
+}
+
+.faction-grid :is(.col-member) {
+  text-align: left;
+  justify-content: flex-start;
+}
+
+.faction-grid .col-ocs {
+  text-align: center;
+  justify-content: center;
+}
+
+.faction-grid :is(.col-stats,.col-participation,.col-attention) {
+  border-left: 1px solid var(--line);
+}
+
+.faction-grid-body .faction-member-row {
+  min-height: 46px;
+}
+
+.faction-grid-body .faction-member-row:hover .faction-grid-cell {
+  background-color: rgba(255,255,255,.018);
+}
+
+.faction-grid-body .faction-member-row.selected .faction-grid-cell {
+  background-color: #0f1112;
+}
+
+.faction-grid-body .faction-member-row.clickable {
+  cursor: pointer;
+}
+
+.faction-grid-cell {
+  display: block;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.faction-grid-cell .member-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.faction-grid-cell .member-meta,
+.faction-grid-cell .trend {
+  display: block;
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.faction-grid-aggregate {
+  width: 100%;
+}
+
+.faction-grid-aggregate:empty {
+  display: none;
+}
+
+.faction-grid .faction-total-row {
+  min-height: 52px;
+  background: #0b0d0e;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.faction-grid .faction-total-row .faction-grid-cell {
+  display: block;
+  min-width: 0;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  background: #0b0d0e;
+  border-bottom: 0;
+}
+
+.faction-grid .faction-total-row strong,
+.faction-grid .faction-total-row .member-name {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.faction-grid .faction-total-row .member-meta {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.faction-grid-empty {
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  padding: 0 9px;
+  color: var(--muted);
+  font-size: 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.faction-grid-detail {
+  display: block;
+  width: 100%;
+}
+
+.faction-grid-detail-cell {
+  width: 100%;
+  background: #101213;
+}
+
+.faction-grid-detail .intel2-detail {
+  width: 100%;
+}
+
+/* Keep group boundaries identical through every row. */
+.faction-grid-row > :nth-child(2),
+.faction-grid-row > :nth-child(6),
+.faction-grid-row > :nth-child(13) {
+  border-left: 1px solid var(--line);
+}
+
+/* No horizontal scrolling. Compress cleanly at smaller desktop widths. */
+@media (max-width: 1150px) {
+  .faction-grid-header-cell,
+  .faction-grid-cell {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+
+  .faction-grid-cell {
+    font-size: 12px;
+  }
+
+  .faction-grid-cell .member-meta,
+  .faction-grid-cell .trend {
+    font-size: 8px;
+  }
+}
