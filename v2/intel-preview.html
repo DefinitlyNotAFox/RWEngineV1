@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <title>RWEngine · Intel 2.0 Preview</title>
+  <link rel="stylesheet" href="/v2/app.css?v=5" />
+  <link rel="stylesheet" href="/v2/intel-v2-preview.css?v=1" />
+</head>
+<body>
+  <header class="appbar">
+    <div class="appbar-inner">
+      <a class="brand" href="/v2/">RWEngine</a>
+      <nav class="primary-nav"><button class="active" type="button">Intel 2.0 preview</button></nav>
+      <div class="app-context"><span class="context-button">Fixture data · no D1</span></div>
+    </div>
+  </header>
+
+  <main class="workspace intel-v2-preview">
+    <header class="view-head intel2-head">
+      <div>
+        <p class="kicker">Faction Intel</p>
+        <h1>Intel 2.0</h1>
+        <p id="intel2Freshness" class="freshness"></p>
+      </div>
+      <div class="view-actions">
+        <span class="preview-flag">Preview</span>
+      </div>
+    </header>
+
+    <div id="intel2Summary" class="metric-line"></div>
+
+    <div class="intel2-toolbar">
+      <div id="intel2Filters" class="intel2-filters"></div>
+      <input id="intel2Search" class="search" type="search" placeholder="Search member or ID" />
+    </div>
+
+    <div class="data-table-wrap">
+      <table class="data-table intel2-table">
+        <thead>
+          <tr>
+            <th>Member</th>
+            <th>Last action</th>
+            <th>Battle stats</th>
+            <th>Activity / day <small>30d</small></th>
+            <th>Xanax / day <small>30d</small></th>
+            <th>RW participation <small>last 4</small></th>
+            <th>Hits / war <small>last 4</small></th>
+            <th>Signal</th>
+          </tr>
+        </thead>
+        <tbody id="intel2Body"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script type="module" src="/v2/intel-v2-preview.js?v=1"></script>
+</body>
+</html>
