@@ -344,9 +344,8 @@ function renderFactionControls() {
 
   const allButton = document.querySelector('#factionScopeAll');
   if (allButton) {
-    allButton.classList.toggle('active', filterMode === 'timeline'
-      ? isAllTimelineSelected()
-      : areAllWarsSelected());
+    allButton.classList.toggle('hidden', filterMode !== 'timeline');
+    allButton.classList.toggle('active', filterMode === 'timeline' && isAllTimelineSelected());
   }
 
   const table = document.querySelector('#intelTable');
@@ -360,6 +359,7 @@ function renderFilterPanel() {
   const panel = document.querySelector('#factionFilterPanel');
   if (!panel) return;
 
+  panel.dataset.mode = filterMode;
   panel.classList.toggle('hidden', !filterPanelOpen);
   if (!filterPanelOpen) {
     panel.innerHTML = '';
@@ -578,7 +578,7 @@ function renderFactionCell(member, key) {
   const signal = topSignal(member);
 
   if (key === 'member') {
-    return `<td class="col-member"><span class="member-name">${escapeHtml(member.playerName || 'Unknown')}</span><span class="member-meta">${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(member.level ?? '—')} · [${escapeHtml(member.playerId)}]${member.current ? '' : ' · former'}</span></td>`;
+    return `<td class="col-member"><span class="member-name">${escapeHtml(member.playerName || 'Unknown')}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span><span class="member-meta">${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(member.level ?? '—')}${member.current ? '' : ' · former'}</span></td>`;
   }
 
   if (key === 'stats') {
@@ -1002,15 +1002,14 @@ function renderWarPicker() {
             <label class="war-picker-row">
               <input type="checkbox" data-war-check="${id}"${checked ? ' checked' : ''}>
               <span>
-                <strong>${escapeHtml(warOpponent(war))}</strong>
-                <small>#${escapeHtml(id)} · ${escapeHtml(formatWarDate(war))}</small>
+                <strong>${escapeHtml(warOpponent(war))}<small class="entity-id">#${escapeHtml(id)}</small></strong>
+                <small>${escapeHtml(formatWarDate(war))}</small>
               </span>
             </label>
           `;
         }).join('') : '<p class="status-line">No imported ranked wars.</p>'}
       </div>
       <footer class="filter-panel-foot">
-        <span>${escapeHtml(formatRangeLabel(rangeForWarIds(draftWarIds)))}</span>
         <span class="filter-spacer"></span>
         <button type="button" class="text-action" data-filter-action="cancel">Cancel</button>
         <button id="warSelectionApply" type="button" class="action primary" data-filter-action="wars-apply"${draftWarIds.size ? '' : ' disabled'}>Apply wars</button>
