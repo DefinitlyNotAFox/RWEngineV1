@@ -4386,3 +4386,48 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+
+/* Final aggregate structure: a third THEAD row with normal TD cells.
+   This keeps it inside the table without inheriting sticky TH behavior. */
+#intelTable thead .faction-total-row td {
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  z-index: auto !important;
+  height: 50px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  background: #0b0d0e !important;
+  color: var(--text);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  box-shadow: none !important;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+#intelTable thead .faction-total-row .member-name,
+#intelTable thead .faction-total-row strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+#intelTable thead .faction-total-row .member-meta {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+#intelTable thead .faction-total-row .col-member {
+  position: static !important;
+  left: auto !important;
+  z-index: auto !important;
+}
