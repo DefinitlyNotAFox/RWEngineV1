@@ -453,21 +453,27 @@ function renderIntelV2() {
 }
 
 function renderFactionTotalRow() {
-  const summary = overview?.summary;
-  if (!summary) return '';
+  const current = (overview?.members || []).filter(member => member.current !== false);
+  if (!current.length && !factionPerformance.members.size) return '';
 
-  const current = (overview.members || []).filter(member => member.current !== false);
   const currentPerformance = current.map(member => performanceMember(member)).filter(Boolean);
   const allPerformance = [...factionPerformance.members.values()];
   const totalWars = Number(factionPerformance.totalWars || 0);
   const warLoading = factionPerformance.loading;
 
+  const knownStats = current.map(member => nullable(member.battleStats?.value)).filter(value => value !== null);
+  const medianStats = medianNullable(knownStats);
+  const avgXanax = averageNullable(current.map(member => member.xanax?.perDay30d));
+  const avgActivity = averageNullable(current.map(member => member.activity?.perDay30d));
   const participation = averageNullable(currentPerformance.map(row => row.participation));
+  const notes = current.filter(member => Boolean(topSignal(member))).length;
+
   const totalHits = sumNullable(allPerformance, 'warHits');
   const hitsPerWar = totalWars > 0 && totalHits !== null ? totalHits / totalWars : null;
   const assists = sumNullable(allPerformance, 'assists');
   const assistsPerWar = totalWars > 0 && assists !== null ? assists / totalWars : null;
   const outsideHits = sumNullable(allPerformance, 'outsideHits');
+  const outsidePerWar = totalWars > 0 && outsideHits !== null ? outsideHits / totalWars : null;
   const respectEarned = sumNullable(allPerformance, 'respectEarned');
   const respectLost = sumNullable(allPerformance, 'respectLost');
   const scoreUp = sumNullable(allPerformance, 'scoreUp');
@@ -482,21 +488,24 @@ function renderFactionTotalRow() {
     <tr class="faction-total-row">
       <td class="col-member">
         <span class="member-name">Faction total</span>
-        <span class="member-meta">${formatNumber(summary.currentMembers)} current members</span>
+        <span class="member-meta">${formatNumber(current.length)} members</span>
       </td>
       <td class="col-stats">
-        <strong>${formatCompact(summary.medianBattleStats)}</strong>
-        <span class="member-meta">median · ${formatNumber(summary.knownBattleStats)} known</span>
+        <strong>${formatCompact(medianStats)}</strong>
+        <span class="member-meta">median · ${formatNumber(knownStats.length)} known</span>
       </td>
       <td class="col-xanax">
-        <strong>${formatDecimal(summary.avgXanaxPerDay30d, 2)}</strong>
-        <span class="member-meta">average / day</span>
+        <strong>${formatDecimal(avgXanax, 2)}</strong>
+        <span class="member-meta">avg / day</span>
       </td>
       <td class="col-activity">
-        <strong>${formatDuration(summary.avgActivityPerDay30d)}</strong>
-        <span class="member-meta">average / day</span>
+        <strong>${formatDuration(avgActivity)}</strong>
+        <span class="member-meta">avg / day</span>
       </td>
-      <td class="col-ocs">—</td>
+      <td class="col-ocs">
+        <strong>—</strong>
+        <span class="member-meta">placeholder</span>
+      </td>
       <td class="col-participation">
         <strong>${warLoading ? '…' : formatPercent(participation)}</strong>
         <span class="member-meta">${escapeHtml(warScope)}</span>
@@ -509,7 +518,10 @@ function renderFactionTotalRow() {
         <strong>${warLoading ? '…' : formatNumber(assists)}</strong>
         <span class="member-meta">${warLoading ? '…' : `${formatDecimal(assistsPerWar, 1)} / war`}</span>
       </td>
-      <td class="col-outsideHits">${warLoading ? '…' : formatNumber(outsideHits)}</td>
+      <td class="col-outsideHits">
+        <strong>${warLoading ? '…' : formatNumber(outsideHits)}</strong>
+        <span class="member-meta">${warLoading ? '…' : `${formatDecimal(outsidePerWar, 1)} / war`}</span>
+      </td>
       <td class="col-respect">
         <strong>${warLoading ? '…' : (respectEarned === null ? '—' : `+${formatDecimal(respectEarned, 2)}`)}</strong>
         <span class="member-meta">${warLoading ? '…' : (respectLost === null ? '—' : `−${formatDecimal(respectLost, 2)}`)}</span>
@@ -522,7 +534,10 @@ function renderFactionTotalRow() {
         <strong>${warLoading ? '…' : formatSigned(netScore, 2)}</strong>
         <span class="member-meta">${warLoading ? '…' : `${formatSigned(netPerWar, 2)} / war`}</span>
       </td>
-      <td class="col-attention"></td>
+      <td class="col-attention">
+        <strong>${formatNumber(notes)}</strong>
+        <span class="member-meta">with notes</span>
+      </td>
     </tr>
   `;
 }
@@ -1152,6 +1167,13 @@ function averageNullable(values) {
   const valid = values.map(nullable).filter(value => value !== null);
   if (!valid.length) return null;
   return valid.reduce((sum,value) => sum + value, 0) / valid.length;
+}
+
+function medianNullable(values) {
+  const valid = values.map(nullable).filter(value => value !== null).sort((a,b) => a - b);
+  if (!valid.length) return null;
+  const middle = Math.floor(valid.length / 2);
+  return valid.length % 2 ? valid[middle] : (valid[middle - 1] + valid[middle]) / 2;
 }
 
 function tableTrendLabel(value) {
