@@ -309,6 +309,7 @@ function renderAdminContext() {
 
   const isAdmin = Boolean(state.user?.isAdmin);
   wrap?.classList.toggle('hidden', !isAdmin);
+  document.querySelector('#factionButton')?.classList.toggle('hidden', isAdmin);
   section?.classList.toggle('hidden', !isAdmin);
   if (!isAdmin || !select) return;
 
