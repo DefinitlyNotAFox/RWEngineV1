@@ -7,7 +7,7 @@ import {
   formatNumber, formatDate, formatDateTime, formatAge, escapeHtml
 } from './core.js';
 
-import { initIntel, renderIntel, refreshSyncStatus } from './intel.js';
+import { initIntelV2 } from './intel-v2.js';
 import { initWarViews, renderWarOverview, renderArchive } from './wars.js';
 
 let loading = false;
@@ -18,7 +18,7 @@ init();
 function init() {
   bindAuth();
   bindApplication();
-  initIntel();
+  initIntelV2();
   initWarViews();
   boot();
 }
@@ -220,11 +220,9 @@ async function refreshAll(userInitiated = false) {
     renderPeriodControls();
     renderIdentity();
     renderHome();
-    renderIntel();
     renderWarOverview();
     renderArchive();
     renderFreshness();
-    await refreshSyncStatus();
 
     emit('data');
     if (state.route === 'settings') loadAccessList();
@@ -247,7 +245,6 @@ async function loadRangeOnly() {
     state.range = await rangeApi('getRange', periodPayload());
     renderPeriodControls();
     renderHome();
-    renderIntel();
     renderWarOverview();
     emit('data');
   } catch (error) {
