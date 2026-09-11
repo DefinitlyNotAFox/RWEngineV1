@@ -4886,3 +4886,62 @@ body {
 #intelTable.faction-grid .faction-total-row .faction-grid-cell {
   background: #0e1011 !important;
 }
+
+
+/* Strengthen faction table header hierarchy without adding visual noise. */
+#intelTable.faction-grid .faction-group-row {
+  min-height: 24px;
+}
+
+#intelTable.faction-grid .faction-grid-group {
+  padding-top: 5px;
+  padding-bottom: 5px;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .09em;
+  border-bottom: 1px solid rgba(255,255,255,.025);
+}
+
+#intelTable.faction-grid .faction-grid-group.group-roster {
+  background: #0d0f10;
+}
+
+#intelTable.faction-grid .faction-grid-group.group-training {
+  background: #101213;
+}
+
+#intelTable.faction-grid .faction-grid-group.group-war {
+  background: #121415;
+}
+
+#intelTable.faction-grid .faction-grid-group.group-context {
+  background: #0f1112;
+}
+
+#intelTable.faction-grid .faction-column-row {
+  min-height: 52px;
+  background: #0c0e0f;
+  border-bottom: 2px solid var(--line);
+}
+
+#intelTable.faction-grid .faction-grid-header-cell {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  color: #d2d6d9;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .035em;
+}
+
+#intelTable.faction-grid .faction-grid-header-cell.sorted {
+  color: var(--accent-2);
+}
+
+#intelTable.faction-grid .faction-grid-header-cell button:hover {
+  color: #eef0f1;
+}
+
+#intelTable.faction-grid .faction-grid-header-cell .sort-indicator {
+  color: var(--accent);
+}
