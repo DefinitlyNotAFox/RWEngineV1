@@ -248,9 +248,12 @@ export async function loadIntelV2(force = false) {
   const factionId = Number(state.selectedFactionId || state.user?.factionId || 0);
   if (!factionId) return;
 
-  if (!force && overview && Number(loadedFactionId) === factionId) {
+  ensureFilterState();
+  const key = analysisKey();
+
+  if (!force && overview && Number(loadedFactionId) === factionId && loadedAnalysisKey === key) {
     renderIntelV2();
-    if (needsPerformance()) await loadFactionPerformance(false);
+    await loadFactionPerformance(false);
     return;
   }
 
@@ -258,14 +261,14 @@ export async function loadIntelV2(force = false) {
   setIntelStatus('Loading faction data…');
 
   try {
-    overview = await intelV2Api('overview');
+    overview = await intelV2Api('overview', analysisPayload());
     loadedFactionId = factionId;
+    loadedAnalysisKey = key;
     setIntelStatus('');
     renderIntelV2();
     renderIntelFreshness();
     await refreshSyncStatus();
-
-    if (needsPerformance()) await loadFactionPerformance(force);
+    await loadFactionPerformance(force);
   } catch (error) {
     overview = null;
     setIntelStatus(error.message || 'Failed to load faction data.', true);
@@ -276,7 +279,7 @@ export async function loadIntelV2(force = false) {
 }
 
 async function loadFactionPerformance(force = false) {
-  if (!needsPerformance() || factionPerformance.loading) return;
+  if (factionPerformance.loading) return;
 
   const key = performanceKey();
   if (!force && factionPerformance.loadedKey === key) {
@@ -290,7 +293,7 @@ async function loadFactionPerformance(force = false) {
   renderIntelV2();
 
   try {
-    const data = await performanceApi(periodPayload());
+    const data = await performanceApi(performancePayload());
     factionPerformance.members = new Map(
       (data.members || []).map(member => [Number(member.playerId), member])
     );
