@@ -17,6 +17,7 @@ const performance = {
   totalWars: 0,
   playersWithAttackDetails: 0,
   warnings: [],
+  error: '',
   loadedKey: '',
   loading: false,
   sortKey: 'netScore',
@@ -97,7 +98,8 @@ export function initWarViews() {
   on('data', () => {
     renderWarOverview();
     renderArchive();
-    if (state.route === 'performance') loadPerformance(false);
+    performance.loadedKey = '';
+    if (state.route === 'performance' && !performance.loading) loadPerformance(true);
   });
 }
 
@@ -185,7 +187,7 @@ export function renderArchive() {
 }
 
 export async function loadPerformance(force = false) {
-  if (state.route !== 'performance') return;
+  if (state.route !== 'performance' || performance.loading) return;
 
   const key = performanceKey();
   if (!force && performance.loadedKey === key && performance.members.length) {
@@ -194,6 +196,7 @@ export async function loadPerformance(force = false) {
   }
 
   performance.loading = true;
+  performance.error = '';
   setPerformanceStatus('Loading performance…');
   renderPerformance();
 
@@ -212,7 +215,7 @@ export async function loadPerformance(force = false) {
   } catch (error) {
     performance.members = [];
     performance.loadedKey = '';
-    setPerformanceStatus(error.message || 'Failed to load performance.', true);
+    performance.error = error.message || 'Failed to load performance.';
   } finally {
     performance.loading = false;
     renderPerformance();
@@ -285,7 +288,8 @@ export function renderPerformance() {
     : '';
   const warning = performance.warnings.length ? ` · ${performance.warnings.length} chain-report warning${performance.warnings.length === 1 ? '' : 's'}` : '';
   if (!performance.loading) {
-    setPerformanceStatus(`${formatNumber(performance.totalWars)} imported war${performance.totalWars === 1 ? '' : 's'} in period${coverage ? ` · ${coverage}` : ''}${warning}`);
+    if (performance.error) setPerformanceStatus(performance.error, true);
+    else setPerformanceStatus(`${formatNumber(performance.totalWars)} imported war${performance.totalWars === 1 ? '' : 's'} in period${coverage ? ` · ${coverage}` : ''}${warning}`);
   }
 }
 
@@ -395,7 +399,7 @@ async function openWar(warId, force = false) {
       excludeChainBonuses: Boolean(document.querySelector('#warDetailChain')?.checked)
     });
     detail.payload = payload;
-    resetSharePanel();
+    resetSharePanel(true);
     renderWarDetail();
   } catch (error) {
     detail.payload = { error: error.message || 'Failed to load war report.' };
