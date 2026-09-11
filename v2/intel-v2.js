@@ -97,7 +97,7 @@ export function initIntelV2() {
 
   document.querySelector('#intelSearch')?.addEventListener('input', renderIntelV2);
 
-  document.querySelector('#intelTable thead')?.addEventListener('click', event => {
+  document.querySelector('#intelHead')?.addEventListener('click', event => {
     const header = event.target.closest('[data-intel2-sort]');
     if (!header) return;
     const key = header.dataset.intel2Sort;
@@ -235,7 +235,7 @@ export function initIntelV2() {
 
     if (event.target.closest('a')) return;
 
-    const row = event.target.closest('tr[data-member-id]');
+    const row = event.target.closest('[data-member-id]');
     if (!row) return;
     const playerId = Number(row.dataset.memberId || 0);
     if (!playerId) return;
@@ -438,13 +438,13 @@ function renderIntelV2() {
   renderFactionControls();
   renderHeaders();
 
+  const aggregate = document.querySelector('#intelAggregate');
   const body = document.querySelector('#intelBody');
-  if (!body) return;
-
-  const colspan = factionColumns.length;
+  if (!aggregate || !body) return;
 
   if (loading && !overview) {
-    body.innerHTML = `<tr class="empty-row"><td colspan="${colspan}">Loading faction data…</td></tr>`;
+    aggregate.innerHTML = '';
+    body.innerHTML = '<div class="faction-grid-empty">Loading faction data…</div>';
     return;
   }
 
@@ -460,26 +460,25 @@ function renderIntelV2() {
     )
     .sort(compareMembers);
 
-  let aggregateRow = '';
   try {
-    aggregateRow = renderFactionTotalRow();
+    aggregate.innerHTML = renderFactionTotalRow();
   } catch (error) {
     console.error('Faction aggregate render failed', error);
-    aggregateRow = renderFactionTotalFallback();
+    aggregate.innerHTML = renderFactionTotalFallback();
   }
 
   if (!rows.length) {
-    body.innerHTML = aggregateRow + `<tr class="empty-row"><td colspan="${colspan}">No members match this view.</td></tr>`;
+    body.innerHTML = '<div class="faction-grid-empty">No members match this view.</div>';
     return;
   }
 
-  body.innerHTML = aggregateRow + rows.map(member => {
+  body.innerHTML = rows.map(member => {
     const selected = Number(selectedMemberId) === Number(member.playerId);
 
     return `
-      <tr class="clickable${selected ? ' selected' : ''}" data-member-id="${member.playerId}">
+      <div class="faction-grid-row faction-member-row clickable${selected ? ' selected' : ''}" role="row" data-member-id="${member.playerId}">
         ${factionColumns.map(key => renderFactionCell(member, key)).join('')}
-      </tr>
+      </div>
       ${selected ? renderDetailRow(member) : ''}
     `;
   }).join('');
@@ -518,60 +517,60 @@ function renderFactionTotalRow() {
     : `${selectedWarIds.size} selected war${selectedWarIds.size === 1 ? '' : 's'}`;
 
   return `
-    <tr class="faction-total-row">
-      <td class="col-member">
+    <div class="faction-grid-row faction-total-row" role="row">
+      <div role="cell" class="faction-grid-cell col-member">
         <span class="member-name">Faction total</span>
         <span class="member-meta">${formatNumber(current.length)} members</span>
-      </td>
-      <td class="col-stats">
+      </div>
+      <div role="cell" class="faction-grid-cell col-stats">
         <strong>${formatCompact(medianStats)}</strong>
         <span class="member-meta">median · ${formatNumber(knownStats.length)} known</span>
-      </td>
-      <td class="col-xanax">
+      </div>
+      <div role="cell" class="faction-grid-cell col-xanax">
         <strong>${formatDecimal(avgXanax, 2)}</strong>
         <span class="member-meta">avg / day</span>
-      </td>
-      <td class="col-activity">
+      </div>
+      <div role="cell" class="faction-grid-cell col-activity">
         <strong>${formatDuration(avgActivity)}</strong>
         <span class="member-meta">avg / day</span>
-      </td>
-      <td class="col-ocs">
+      </div>
+      <div role="cell" class="faction-grid-cell col-ocs">
         <strong>—</strong>
         <span class="member-meta">placeholder</span>
-      </td>
-      <td class="col-participation">
+      </div>
+      <div role="cell" class="faction-grid-cell col-participation">
         <strong>${warLoading ? '…' : formatPercent(participation)}</strong>
         <span class="member-meta">${escapeHtml(warScope)}</span>
-      </td>
-      <td class="col-hits">
+      </div>
+      <div role="cell" class="faction-grid-cell col-hits">
         <strong>${warLoading ? '…' : formatDecimal(hitsPerWar, 1)}</strong>
         <span class="member-meta">${warLoading ? '…' : `${formatNumber(totalHits)} total`}</span>
-      </td>
-      <td class="col-assists">
+      </div>
+      <div role="cell" class="faction-grid-cell col-assists">
         <strong>${warLoading ? '…' : formatNumber(assists)}</strong>
         <span class="member-meta">${warLoading ? '…' : `${formatDecimal(assistsPerWar, 1)} / war`}</span>
-      </td>
-      <td class="col-outsideHits">
+      </div>
+      <div role="cell" class="faction-grid-cell col-outsideHits">
         <strong>${warLoading ? '…' : formatNumber(outsideHits)}</strong>
         <span class="member-meta">${warLoading ? '…' : `${formatDecimal(outsidePerWar, 1)} / war`}</span>
-      </td>
-      <td class="col-respect">
+      </div>
+      <div role="cell" class="faction-grid-cell col-respect">
         <strong>${warLoading ? '…' : (respectEarned === null ? '—' : `+${formatDecimal(respectEarned, 2)}`)}</strong>
         <span class="member-meta">${warLoading ? '…' : (respectLost === null ? '—' : `−${formatDecimal(respectLost, 2)}`)}</span>
-      </td>
-      <td class="col-score">
+      </div>
+      <div role="cell" class="faction-grid-cell col-score">
         <strong>${warLoading ? '…' : (scoreUp === null ? '—' : `+${formatDecimal(scoreUp, 2)}`)}</strong>
         <span class="member-meta">${warLoading ? '…' : (scoreDown === null ? '—' : `−${formatDecimal(scoreDown, 2)}`)}</span>
-      </td>
-      <td class="col-netScore">
+      </div>
+      <div role="cell" class="faction-grid-cell col-netScore">
         <strong>${warLoading ? '…' : formatSigned(netScore, 2)}</strong>
         <span class="member-meta">${warLoading ? '…' : `${formatSigned(netPerWar, 2)} / war`}</span>
-      </td>
-      <td class="col-attention">
+      </div>
+      <div role="cell" class="faction-grid-cell col-attention">
         <strong>${formatNumber(notes)}</strong>
         <span class="member-meta">with notes</span>
-      </td>
-    </tr>
+      </div>
+    </div>
   `;
 }
 
@@ -580,12 +579,12 @@ function renderFactionTotalFallback() {
   const count = current.length;
   const cells = factionColumns.map((key,index) => {
     if (index === 0) {
-      return `<td class="col-member"><span class="member-name">Faction total</span><span class="member-meta">${formatNumber(count)} members</span></td>`;
+      return `<div role="cell" class="faction-grid-cell col-member"><span class="member-name">Faction total</span><span class="member-meta">${formatNumber(count)} members</span></div>`;
     }
-    return `<td class="col-${key}"><strong>—</strong><span class="member-meta">aggregate unavailable</span></td>`;
+    return `<div role="cell" class="faction-grid-cell col-${key}"><strong>—</strong><span class="member-meta">aggregate unavailable</span></div>`;
   }).join('');
 
-  return `<tr class="faction-total-row faction-total-fallback">${cells}</tr>`;
+  return `<div class="faction-grid-row faction-total-row faction-total-fallback" role="row">${cells}</div>`;
 }
 
 function sumNullable(rows, key) {
@@ -617,29 +616,34 @@ function renderHeaders() {
   const head = document.querySelector('#intelHead');
   if (!head) return;
 
-  const groupRow = factionGroups.map(([key,label,count]) => `
-    <th class="faction-group group-${key}" colspan="${count}">${escapeHtml(label)}</th>
-  `).join('');
+  let cursor = 1;
+  const groupRow = factionGroups.map(([key,label,count]) => {
+    const start = cursor;
+    cursor += Number(count);
+    return `<div class="faction-grid-group group-${key}" style="grid-column:${start} / span ${count}">${escapeHtml(label)}</div>`;
+  }).join('');
 
   const columnRow = factionColumns.map(key => {
     const [label, detail] = columnLabels[key] || [key,''];
     const active = key === sortKey;
+
     if (key === 'ocs') {
-      return `<th class="col-ocs"><span>${escapeHtml(label)}</span></th>`;
+      return `<div role="columnheader" class="faction-grid-header-cell col-ocs"><span class="sort-label">${escapeHtml(label)}</span></div>`;
     }
+
     return `
-      <th class="col-${key}${active ? ' sorted' : ''}">
+      <div role="columnheader" class="faction-grid-header-cell col-${key}${active ? ' sorted' : ''}">
         <button type="button" data-intel2-sort="${key}">
           <span class="sort-label">${escapeHtml(label)}${detail ? ` <small>${escapeHtml(detail)}</small>` : ''}</span>
           <span class="sort-indicator" aria-hidden="true">${active ? (sortDirection === 'desc' ? '↓' : '↑') : ''}</span>
         </button>
-      </th>
+      </div>
     `;
   }).join('');
 
   head.innerHTML = `
-    <tr class="faction-group-row">${groupRow}</tr>
-    <tr class="faction-column-row">${columnRow}</tr>
+    <div class="faction-grid-row faction-group-row" role="row">${groupRow}</div>
+    <div class="faction-grid-row faction-column-row" role="row">${columnRow}</div>
   `;
 }
 
@@ -648,69 +652,69 @@ function renderFactionCell(member, key) {
   const signal = topSignal(member);
 
   if (key === 'member') {
-    return `<td class="col-member"><span class="member-name">${escapeHtml(member.playerName || 'Unknown')}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span><span class="member-meta">${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(member.level ?? '—')}${member.current ? '' : ' · former'}</span></td>`;
+    return `<div role="cell" class="faction-grid-cell col-member"><span class="member-name">${escapeHtml(member.playerName || 'Unknown')}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span><span class="member-meta">${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(member.level ?? '—')}${member.current ? '' : ' · former'}</span></div>`;
   }
 
   if (key === 'stats') {
-    return `<td class="col-stats">${member.battleStats?.value == null ? '—' : escapeHtml(formatCompact(member.battleStats.value))}<span class="trend ${trendClass(member.battleStats?.changePct30d)}">${tableBattleStatsTrend(member)}</span></td>`;
+    return `<div role="cell" class="faction-grid-cell col-stats">${member.battleStats?.value == null ? '—' : escapeHtml(formatCompact(member.battleStats.value))}<span class="trend ${trendClass(member.battleStats?.changePct30d)}">${tableBattleStatsTrend(member)}</span></div>`;
   }
 
   if (key === 'activity') {
-    return `<td class="col-activity">${escapeHtml(formatDuration(member.activity?.perDay30d))}<span class="trend ${trendClass(member.activity?.changePct)}">${escapeHtml(tableTrendLabel(member.activity?.changePct))}</span></td>`;
+    return `<div role="cell" class="faction-grid-cell col-activity">${escapeHtml(formatDuration(member.activity?.perDay30d))}<span class="trend ${trendClass(member.activity?.changePct)}">${escapeHtml(tableTrendLabel(member.activity?.changePct))}</span></div>`;
   }
 
   if (key === 'xanax') {
-    return `<td class="col-xanax">${escapeHtml(formatDecimal(member.xanax?.perDay30d, 2))}<span class="trend ${trendClass(member.xanax?.changePct)}">${escapeHtml(tableTrendLabel(member.xanax?.changePct))}</span></td>`;
+    return `<div role="cell" class="faction-grid-cell col-xanax">${escapeHtml(formatDecimal(member.xanax?.perDay30d, 2))}<span class="trend ${trendClass(member.xanax?.changePct)}">${escapeHtml(tableTrendLabel(member.xanax?.changePct))}</span></div>`;
   }
 
   if (key === 'ocs') {
-    return '<td class="col-ocs">—</td>';
+    return '<div role="cell" class="faction-grid-cell col-ocs">—</div>';
   }
 
   if (key === 'participation4') {
-    return `<td class="col-participation4">${escapeHtml(formatPercent(member.war?.last4?.participation))}<span class="member-meta">${formatNumber(member.war?.last4?.warsParticipated)}/${formatNumber(member.war?.last4?.warsAvailable)} wars</span></td>`;
+    return `<div role="cell" class="faction-grid-cell col-participation4">${escapeHtml(formatPercent(member.war?.last4?.participation))}<span class="member-meta">${formatNumber(member.war?.last4?.warsParticipated)}/${formatNumber(member.war?.last4?.warsAvailable)} wars</span></div>`;
   }
 
   if (key === 'hits4') {
-    return `<td class="col-hits4">${escapeHtml(formatDecimal(member.war?.last4?.hitsPerWar, 1))}</td>`;
+    return `<div role="cell" class="faction-grid-cell col-hits4">${escapeHtml(formatDecimal(member.war?.last4?.hitsPerWar, 1))}</div>`;
   }
 
   if (key === 'attention') {
-    return `<td class="col-attention">${signal ? `<span class="signal ${signal.kind}">${escapeHtml(tableSignalLabel(signal, member))}</span>` : '—'}</td>`;
+    return `<div role="cell" class="faction-grid-cell col-attention">${signal ? `<span class="signal ${signal.kind}">${escapeHtml(tableSignalLabel(signal, member))}</span>` : '—'}</div>`;
   }
 
   if (!performance) {
-    return `<td class="col-${key}">${factionPerformance.loading ? '…' : '—'}</td>`;
+    return `<div role="cell" class="faction-grid-cell col-${key}">${factionPerformance.loading ? '…' : '—'}</div>`;
   }
 
   if (key === 'participation') {
-    return `<td class="col-participation"><strong>${formatNumber(performance.wars)} / ${formatNumber(factionPerformance.totalWars)}</strong><span class="member-meta">${formatPercent(performance.participation)} participation</span></td>`;
+    return `<div role="cell" class="faction-grid-cell col-participation"><strong>${formatNumber(performance.wars)} / ${formatNumber(factionPerformance.totalWars)}</strong><span class="member-meta">${formatPercent(performance.participation)} participation</span></div>`;
   }
 
   if (key === 'hits') {
-    return `<td class="col-hits"><strong>${formatDecimal(performance.avgHitsPerWar, 1)}</strong><span class="member-meta">${formatNumber(performance.warHits)} total</span></td>`;
+    return `<div role="cell" class="faction-grid-cell col-hits"><strong>${formatDecimal(performance.avgHitsPerWar, 1)}</strong><span class="member-meta">${formatNumber(performance.warHits)} total</span></div>`;
   }
 
   if (key === 'assists') {
     const perWar = Number(performance.wars) > 0 ? Number(performance.assists || 0) / Number(performance.wars) : null;
-    return `<td class="col-assists"><strong>${formatNumber(performance.assists)}</strong><span class="member-meta">${formatDecimal(perWar, 1)} / war</span></td>`;
+    return `<div role="cell" class="faction-grid-cell col-assists"><strong>${formatNumber(performance.assists)}</strong><span class="member-meta">${formatDecimal(perWar, 1)} / war</span></div>`;
   }
 
-  if (key === 'outsideHits') return `<td class="col-outsideHits">${formatNumber(performance.outsideHits)}</td>`;
+  if (key === 'outsideHits') return `<div role="cell" class="faction-grid-cell col-outsideHits">${formatNumber(performance.outsideHits)}</div>`;
   if (key === 'respect') {
-    return `<td class="col-respect"><strong>+${formatDecimal(performance.respectEarned, 2)}</strong><span class="member-meta">−${formatDecimal(performance.respectLost, 2)}</span></td>`;
+    return `<div role="cell" class="faction-grid-cell col-respect"><strong>+${formatDecimal(performance.respectEarned, 2)}</strong><span class="member-meta">−${formatDecimal(performance.respectLost, 2)}</span></div>`;
   }
 
   if (key === 'score') {
-    return `<td class="col-score"><strong>+${formatDecimal(performance.scoreUp, 2)}</strong><span class="member-meta">−${formatDecimal(performance.scoreDown, 2)}</span></td>`;
+    return `<div role="cell" class="faction-grid-cell col-score"><strong>+${formatDecimal(performance.scoreUp, 2)}</strong><span class="member-meta">−${formatDecimal(performance.scoreDown, 2)}</span></div>`;
   }
 
   if (key === 'netScore') {
     const perWar = Number(performance.wars) > 0 ? Number(performance.netScore || 0) / Number(performance.wars) : null;
-    return `<td class="col-netScore"><strong>${formatSigned(performance.netScore, 2)}</strong><span class="member-meta">${formatSigned(perWar, 2)} / war</span></td>`;
+    return `<div role="cell" class="faction-grid-cell col-netScore"><strong>${formatSigned(performance.netScore, 2)}</strong><span class="member-meta">${formatSigned(perWar, 2)} / war</span></div>`;
   }
 
-  return `<td class="col-${key}">—</td>`;
+  return `<div role="cell" class="faction-grid-cell col-${key}">—</div>`;
 }
 
 function matchesFilter(member) {
@@ -1386,15 +1390,15 @@ function renderDetailRow(member) {
   const payload = detailCache.get(key);
 
   if (detailLoading.has(key)) {
-    return `<tr class="intel2-detail-row"><td colspan="${factionColumns.length}"><section class="intel2-detail"><p class="status-line">Loading member history…</p></section></td></tr>`;
+    return `<div class="intel2-detail-row faction-grid-detail" role="row"><div class="faction-grid-detail-cell" role="cell"><section class="intel2-detail"><p class="status-line">Loading member history…</p></section></div></div>`;
   }
 
   if (payload?.error) {
-    return `<tr class="intel2-detail-row"><td colspan="${factionColumns.length}"><section class="intel2-detail"><p class="status-line error">${escapeHtml(payload.error)}</p></section></td></tr>`;
+    return `<div class="intel2-detail-row faction-grid-detail" role="row"><div class="faction-grid-detail-cell" role="cell"><section class="intel2-detail"><p class="status-line error">${escapeHtml(payload.error)}</p></section></div></div>`;
   }
 
   if (!payload?.member) {
-    return `<tr class="intel2-detail-row"><td colspan="${factionColumns.length}"><section class="intel2-detail"><p class="status-line">Loading member history…</p></section></td></tr>`;
+    return `<div class="intel2-detail-row faction-grid-detail" role="row"><div class="faction-grid-detail-cell" role="cell"><section class="intel2-detail"><p class="status-line">Loading member history…</p></section></div></div>`;
   }
 
   const detailMember = payload.member;
@@ -1402,8 +1406,8 @@ function renderDetailRow(member) {
   const insights = renderInsights(detailMember);
 
   return `
-    <tr class="intel2-detail-row">
-      <td colspan="${factionColumns.length}">
+    <div class="intel2-detail-row faction-grid-detail" role="row">
+      <div class="faction-grid-detail-cell" role="cell">
         <section class="intel2-detail">
           <div class="intel2-detail-tools">
             <span>Member context</span>
@@ -1439,8 +1443,8 @@ function renderDetailRow(member) {
 
           </section>
         </section>
-      </td>
-    </tr>
+      </div>
+    </div>
   `;
 }
 
