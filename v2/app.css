@@ -5073,3 +5073,24 @@ body {
 #intelTable.faction-grid .faction-total-row {
   border-bottom: 0;
 }
+
+
+/* Center faction group labels on black and balance their subtle accent underline. */
+#intelTable.faction-grid .faction-grid-group,
+#intelTable.faction-grid .faction-grid-group.group-roster,
+#intelTable.faction-grid .faction-grid-group.group-training,
+#intelTable.faction-grid .faction-grid-group.group-war,
+#intelTable.faction-grid .faction-grid-group.group-context {
+  background: #000 !important;
+}
+
+#intelTable.faction-grid .faction-grid-group {
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+#intelTable.faction-grid .faction-grid-group::after {
+  left: 18%;
+  right: 18%;
+  background: rgba(185,130,93,.16);
+}
