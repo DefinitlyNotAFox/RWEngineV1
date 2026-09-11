@@ -304,8 +304,12 @@ function renderOverview() {
   const netScore = members.reduce((sum, member) => sum + Number(member.netScore || 0), 0);
 
   document.querySelector('#metricMembers').textContent = formatNumber(summary.currentMembers || 0);
-  document.querySelector('#metricWars').textContent = formatNumber(summary.warsInPeriod || 0);
+  const warsInPeriod = Number(summary.warsInPeriod || 0);
+  document.querySelector('#metricWars').textContent = formatNumber(warsInPeriod);
   document.querySelector('#metricHits').textContent = formatNumber(totalHits);
+  document.querySelector('#metricHitsPerWar').textContent = warsInPeriod > 0
+    ? formatNullableDecimal(totalHits / warsInPeriod, 1)
+    : '—';
   document.querySelector('#metricNetScore').textContent = formatSigned(netScore);
 
   const warsContainer = document.querySelector('#overviewWars');
@@ -350,8 +354,11 @@ function renderOverview() {
 }
 
 function renderMembers() {
+  const allMembers = state.range?.members || [];
+  renderIntelSummary(allMembers);
+
   const search = memberSearch.value.trim().toLowerCase();
-  const rows = (state.range?.members || []).filter(member => {
+  const rows = allMembers.filter(member => {
     if (!search) return true;
     return String(member.playerName || '').toLowerCase().includes(search) || String(member.playerId || '').includes(search);
   });
@@ -381,6 +388,47 @@ function renderMembers() {
       ${selected ? renderInlineMemberDetail(member) : ''}
     `;
   }).join('');
+}
+
+function renderIntelSummary(members) {
+  const current = members.filter(member => member.current !== false);
+  const statValues = current
+    .map(member => Number(member.battleStatsValue))
+    .filter(value => Number.isFinite(value) && value > 0)
+    .sort((a, b) => a - b);
+  const activityValues = current
+    .map(member => Number(member.activityPerDaySeconds))
+    .filter(value => Number.isFinite(value) && value >= 0);
+  const xanaxValues = current
+    .map(member => Number(member.xanaxPerDay))
+    .filter(value => Number.isFinite(value) && value >= 0);
+  const participationValues = current
+    .map(member => Number(member.participation))
+    .filter(value => Number.isFinite(value) && value >= 0);
+
+  setText('#intelCurrentMembers', formatNumber(current.length));
+  setText('#intelMedianStats', statValues.length ? formatCompactNumber(median(statValues)) : 'Unavailable');
+  setText('#intelAvgActivity', activityValues.length ? formatActivityPerDay(average(activityValues)) : 'Unavailable');
+  setText('#intelAvgXanax', xanaxValues.length ? formatNullableDecimal(average(xanaxValues), 2) : 'Unavailable');
+  setText('#intelAvgParticipation', participationValues.length ? formatPercent(average(participationValues)) : 'Unavailable');
+}
+
+function average(values) {
+  if (!values.length) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function median(values) {
+  if (!values.length) return null;
+  const midpoint = Math.floor(values.length / 2);
+  return values.length % 2
+    ? values[midpoint]
+    : (values[midpoint - 1] + values[midpoint]) / 2;
+}
+
+function setText(selector, value) {
+  const element = document.querySelector(selector);
+  if (element) element.textContent = value;
 }
 
 function renderInlineMemberDetail(summaryMember) {
