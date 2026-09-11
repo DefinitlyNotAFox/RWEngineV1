@@ -385,7 +385,7 @@ function renderFactionControls() {
   }
 
   const table = document.querySelector('#intelTable');
-  if (table) table.dataset.preset = 'all';
+  if (table) table.removeAttribute('data-preset');
 
   renderFilterPanel();
   renderFactionStatus();
