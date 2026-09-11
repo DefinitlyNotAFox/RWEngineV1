@@ -14,6 +14,11 @@ Current modules:
 - Performance
 - War Archive
 
+Sharing:
+- ranked-war detail can generate revocable public read-only links
+- public tokens are stored only as SHA-256 hashes
+- generating a replacement link invalidates the previous URL
+
 Module URLs are deep-linkable through hashes such as `/v2/#members`, `/v2/#performance` and `/v2/#wars`.
 
 ## Architecture
