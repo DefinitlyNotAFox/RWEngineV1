@@ -23,7 +23,7 @@ export function initIntel() {
     if (sort.key === key) sort.direction = sort.direction === 'desc' ? 'asc' : 'desc';
     else {
       sort.key = key;
-      sort.direction = key === 'lastAction' ? 'asc' : 'desc';
+      sort.direction = 'desc';
     }
     renderIntel();
   });
@@ -119,9 +119,18 @@ export async function refreshSyncStatus() {
 function renderSummary(members) {
   const current = members.filter(member => member.current !== false);
   const stats = current.map(member => Number(member.battleStatsValue)).filter(value => Number.isFinite(value) && value > 0);
-  const activity = current.map(member => Number(member.activityPerDaySeconds)).filter(Number.isFinite);
-  const xanax = current.map(member => Number(member.xanaxPerDay)).filter(Number.isFinite);
-  const participation = current.map(member => Number(member.participation)).filter(Number.isFinite);
+  const activity = current
+    .filter(member => member.activityPerDaySeconds !== null && member.activityPerDaySeconds !== undefined)
+    .map(member => Number(member.activityPerDaySeconds))
+    .filter(Number.isFinite);
+  const xanax = current
+    .filter(member => member.xanaxPerDay !== null && member.xanaxPerDay !== undefined)
+    .map(member => Number(member.xanaxPerDay))
+    .filter(Number.isFinite);
+  const participation = current
+    .filter(member => member.participation !== null && member.participation !== undefined)
+    .map(member => Number(member.participation))
+    .filter(Number.isFinite);
 
   const el = document.querySelector('#intelSummary');
   if (!el) return;
@@ -166,6 +175,7 @@ function compareMembers(a, b) {
 }
 
 function nullable(value) {
+  if (value === null || value === undefined || value === '') return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 }
@@ -251,7 +261,7 @@ function renderDetail(detail) {
       ${metric('Xanax / day', formatDecimal(member.xanaxPerDay, 2), member.xanaxTaken == null ? '' : `${formatNumber(member.xanaxTaken)} in period`)}
       ${metric('Wars', formatNumber(member.wars), formatPercent(member.participation))}
       ${metric('Hits / war', formatDecimal(member.avgHitsPerWar, 1), `${formatNumber(member.warHits)} hits`)}
-      ${metric('Net score', formatDecimal(member.netScore, 2), member.avgScorePerHit == null ? '' : `${formatDecimal(member.avgScorePerHit, 2)} score / hit`)}
+      ${metric('Net score', formatDecimal(member.netScore, 2), Number(member.warHits || 0) > 0 ? `${formatDecimal(Number(member.scoreUp || 0) / Number(member.warHits), 2)} score / hit` : '')}
     </div>
     <div class="detail-war-list">
       <header>War history</header>
