@@ -465,11 +465,11 @@ function renderSummary() {
     const participation = averageNullable(rows.map(row => row.participation));
 
     element.innerHTML = [
-      metric('Wars', factionPerformance.loading ? '…' : formatNumber(factionPerformance.totalWars), 'selected range'),
+      metric('Wars', factionPerformance.loading ? '…' : formatNumber(factionPerformance.totalWars), periodLabel()),
       metric('Participation', factionPerformance.loading ? '…' : formatPercent(participation), 'roster average'),
       metric('War hits', factionPerformance.loading ? '…' : formatNumber(totalHits), 'all members'),
       metric('Hits per war', factionPerformance.loading || !factionPerformance.totalWars ? '—' : formatDecimal(totalHits / factionPerformance.totalWars, 1), 'faction average'),
-      metric('Assists', factionPerformance.loading ? '…' : formatNumber(totalAssists), 'selected range'),
+      metric('Assists', factionPerformance.loading ? '…' : formatNumber(totalAssists), periodLabel()),
       metric('Net score', factionPerformance.loading ? '…' : formatSigned(totalNet, 2), 'score gained − lost')
     ].join('');
     return;
@@ -484,7 +484,7 @@ function renderSummary() {
       metric('Median stats', formatCompact(summary.medianBattleStats), `${formatNumber(summary.knownBattleStats)} estimates known`),
       metric('Activity / day', formatDuration(summary.avgActivityPerDay30d), '30d average'),
       metric('Xanax / day', formatDecimal(summary.avgXanaxPerDay30d, 2), '30d average'),
-      metric('War participation', factionPerformance.loading ? '…' : formatPercent(participation), 'selected range'),
+      metric('War participation', factionPerformance.loading ? '…' : formatPercent(participation), periodLabel()),
       metric('Attention', formatNumber(summary.membersNeedingAttention), 'actionable signals')
     ].join('');
     return;
