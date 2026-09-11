@@ -4,31 +4,34 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex,nofollow" />
+  <meta name="color-scheme" content="dark" />
   <title>RWEngine · Shared report</title>
-  <link rel="stylesheet" href="/share/share.css?v=2" />
+  <link rel="stylesheet" href="/share/share.css?v=3" />
 </head>
 <body>
-  <main class="share-shell">
-    <header class="share-header">
-      <a class="wordmark" href="/"><span>RW</span>Engine</a>
-      <span>Shared report</span>
-    </header>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a href="/" class="brand">RWEngine</a>
+      <span>Public report</span>
+    </div>
+  </header>
 
-    <section id="loadingState" class="state">Loading report…</section>
-    <section id="errorState" class="state error hidden"></section>
+  <main class="report-shell">
+    <div id="loadingState" class="state">Loading report…</div>
+    <div id="errorState" class="state error hidden"></div>
 
     <article id="reportView" class="hidden">
-      <header class="report-heading">
+      <header class="report-head">
         <div>
-          <p id="reportMeta" class="meta">Ranked war</p>
+          <p id="reportMeta" class="kicker">Ranked war</p>
           <h1 id="reportTitle">War report</h1>
-          <p id="reportDate" class="muted"></p>
+          <p id="reportDate"></p>
         </div>
         <span class="read-only">Read only</span>
       </header>
 
-      <section id="scoreLine" class="score-line"></section>
-      <section id="summaryGrid" class="summary-grid"></section>
+      <div id="scoreLine" class="score-line"></div>
+      <div id="summaryGrid" class="summary-grid"></div>
 
       <div class="table-wrap">
         <table>
@@ -47,13 +50,13 @@
         </table>
       </div>
 
-      <footer class="report-footer">
-        <span>Public RWEngine link</span>
+      <footer class="report-foot">
+        <span>RWEngine public link</span>
         <span id="sharedAt"></span>
       </footer>
     </article>
   </main>
 
-  <script type="module" src="/share/share.js?v=1"></script>
+  <script type="module" src="/share/share.js?v=2"></script>
 </body>
 </html>
