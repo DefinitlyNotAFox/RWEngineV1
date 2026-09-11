@@ -141,7 +141,7 @@ async function enterApp() {
   document.querySelector('#settingsFaction').textContent = state.user?.factionName || '—';
   document.querySelector('#settingsFactionId').textContent = state.user?.factionId ?? '—';
 
-  showTab('overview');
+  showTab('overview', { notify: false });
   await loadCoreData(false);
 }
 
@@ -658,7 +658,7 @@ function getWarsInRange() {
   });
 }
 
-function showTab(tabName) {
+function showTab(tabName, options = {}) {
   const target = document.querySelector(`#${CSS.escape(tabName)}Tab`);
   if (!target) return;
 
@@ -667,7 +667,9 @@ function showTab(tabName) {
   target.classList.add('active');
   document.querySelector(`.nav-button[data-tab="${CSS.escape(tabName)}"]`)?.classList.add('active');
   document.querySelector('#pageTitle').textContent = pageTitles[tabName] || 'RWEngine';
-  window.dispatchEvent(new CustomEvent('rwe:tab-changed', { detail: { tab: tabName } }));
+  if (options.notify !== false) {
+    window.dispatchEvent(new CustomEvent('rwe:tab-changed', { detail: { tab: tabName } }));
+  }
 }
 
 async function api(action, payload = {}) {
