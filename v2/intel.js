@@ -324,9 +324,9 @@ function renderSync() {
     return;
   }
 
-  const done = Number(syncJob.completed_tasks || syncJob.completedTasks || 0);
-  const total = Number(syncJob.total_tasks || syncJob.totalTasks || 0);
-  const stage = syncJob.current_stage || syncJob.currentStage || syncJob.status || 'syncing';
+  const done = Number(syncJob.tasksCompleted || 0);
+  const total = Number(syncJob.tasksTotal || 0);
+  const stage = syncJob.phase || syncJob.status || 'syncing';
   el.textContent = total > 0
     ? `Syncing faction · ${stage} · ${done}/${total}`
     : `Syncing faction · ${stage}`;
