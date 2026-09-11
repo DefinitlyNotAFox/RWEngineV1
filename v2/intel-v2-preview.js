@@ -201,10 +201,20 @@ async function loadLiveMember(playerId){
     ...payload,
     history:{
       stats:snapshots
-        .filter(point=>Number.isFinite(Number(point.battleStatsValue)))
+        .filter(point=>hasNumber(point.battleStatsValue))
         .map(point=>({at:point.at,value:Number(point.battleStatsValue)})),
-      activity:deriveRateSeries(snapshots,'activityTotalSeconds'),
-      xanax:deriveRateSeries(snapshots,'xanaxTakenTotal'),
+      activity:preferredHistorySeries(
+        snapshots,
+        'activityPerDaySeconds',
+        'activityTotalSeconds',
+        86400
+      ),
+      xanax:preferredHistorySeries(
+        snapshots,
+        'xanaxPerDay',
+        'xanaxTakenTotal',
+        10
+      ),
       wars:Array.isArray(history.wars)?history.wars.map(war=>({
         opponent:war.opponentFactionName||'Unknown opponent',
         warId:war.warId,
@@ -218,9 +228,27 @@ async function loadLiveMember(playerId){
   };
 }
 
+function preferredHistorySeries(snapshots,dailyKey,totalKey,maxPerDay){
+  const stored=snapshots
+    .filter(point=>
+      hasNumber(point.at)&&
+      hasNumber(point[dailyKey])&&
+      Number(point[dailyKey])>=0&&
+      Number(point[dailyKey])<=maxPerDay
+    )
+    .map(point=>({at:Number(point.at),value:Number(point[dailyKey])}));
+
+  return stored.length>=2?stored:deriveRateSeries(snapshots,totalKey);
+}
+
+function hasNumber(value){
+  if(value===null||value===undefined||value==='')return false;
+  return Number.isFinite(Number(value));
+}
+
 function deriveRateSeries(snapshots,key){
   const rows=snapshots
-    .filter(point=>Number.isFinite(Number(point.at))&&Number.isFinite(Number(point[key])))
+    .filter(point=>hasNumber(point.at)&&hasNumber(point[key]))
     .sort((a,b)=>Number(a.at)-Number(b.at));
 
   const maxPerDay = key === 'activityTotalSeconds'
@@ -433,7 +461,7 @@ function detailRow(member){
 
 function trendBlock(title,series,formatter){
   const filtered=filterSeries(series,trendDays);
-  const valid=filtered.filter(point=>Number.isFinite(Number(point.value)));
+  const valid=filtered.filter(point=>hasNumber(point.value));
   const latest=valid.length?valid[valid.length-1].value:null;
   const availableDays=valid.length>1
     ? Math.max(1,Math.round((Number(valid[valid.length-1].at)-Number(valid[0].at))/86400))
@@ -453,7 +481,9 @@ function filterSeries(series,days){
 }
 
 function sparkline(series){
-  const valid=series.map((point,index)=>({index,value:Number(point.value)})).filter(point=>Number.isFinite(point.value));
+  const valid=series
+    .filter(point=>hasNumber(point.value))
+    .map((point,index)=>({index,value:Number(point.value)}));
   if(valid.length<2)return '<div class="sparkline"></div>';
   const min=Math.min(...valid.map(point=>point.value));
   const max=Math.max(...valid.map(point=>point.value));
