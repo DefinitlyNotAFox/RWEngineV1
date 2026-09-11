@@ -1524,12 +1524,21 @@ function detailKey(playerId) {
 function resetIntelState() {
   overview = null;
   loadedFactionId = null;
+  loadedAnalysisKey = '';
   selectedMemberId = null;
   detailCache.clear();
   detailLoading.clear();
   syncJob = null;
   activeFilter = 'all';
   trendDays = 90;
+
+  timelineRange = { from:null, to:null };
+  draftTimelineRange = null;
+  selectedWarIds = new Set();
+  draftWarIds = new Set();
+  calendarCursor = null;
+  calendarAnchor = null;
+  filterPanelOpen = false;
 
   factionPerformance.members.clear();
   factionPerformance.totalWars = 0;
@@ -1542,6 +1551,6 @@ function resetIntelState() {
   if (search) search.value = '';
 
   renderFilters();
-  renderPresetControls();
+  renderFactionControls();
   renderSync();
 }
