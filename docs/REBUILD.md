@@ -44,11 +44,17 @@ Cross-war member performance with sortable simplified and detailed views.
 ### War Archive
 Imported ranked-war reports with search, individual war drill-down, chain-bonus controls and historical importing.
 
+## Sharing model
+
+RWEngine now supports revocable public read-only links for ranked-war reports. Share tokens are opaque, only their hashes are stored, and generating a replacement link rotates the token.
+
+The same share-link model should be reused for future public resources rather than implementing module-specific public authentication.
+
 ## Platform roadmap
 
 Near-term work should improve the shared platform rather than multiply features:
 
-- stable share/report model
+- extend the share/report model to other useful resources
 - clearer permissions for private, faction and public views
 - reusable player/faction selectors
 - common data freshness indicators
