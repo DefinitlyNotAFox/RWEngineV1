@@ -4026,3 +4026,33 @@ body {
   white-space: nowrap;
   word-break: keep-all;
 }
+
+
+/* Compact identity IDs stay beside names site-wide. */
+.entity-id {
+  display: inline !important;
+  margin-left: 5px;
+  color: var(--dim);
+  font-size: 9px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+/* Ranked-war selection is intentionally narrower and visually quieter. */
+.faction-filter-panel[data-mode="wars"] {
+  width: min(520px, 100%);
+}
+
+.faction-filter-panel[data-mode="wars"] .war-picker-list {
+  border-top: 0;
+  border-bottom: 0;
+}
+
+.faction-filter-panel[data-mode="wars"] .war-picker-row {
+  border-top: 0;
+}
+
+.faction-filter-panel[data-mode="wars"] .filter-panel-foot {
+  border-top: 0;
+}
