@@ -4500,3 +4500,45 @@ body {
 #intelAggregateBody:not(:empty) {
   display: table-row-group;
 }
+
+
+/* Aggregate row lives in THEAD for alignment, but is deliberately non-sticky and non-sortable. */
+#intelTable thead .faction-total-head-row th {
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  z-index: 1 !important;
+  height: 50px !important;
+  padding: 8px 11px !important;
+  background: #0b0d0e !important;
+  color: var(--text) !important;
+  border-top: 1px solid var(--line) !important;
+  border-bottom: 1px solid var(--line) !important;
+  box-shadow: none !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  white-space: nowrap;
+  cursor: default !important;
+}
+
+#intelTable thead .faction-total-head-row .member-name,
+#intelTable thead .faction-total-head-row strong {
+  color: var(--text) !important;
+  font-weight: 700 !important;
+}
+
+#intelTable thead .faction-total-head-row .member-meta {
+  display: block !important;
+  margin-top: 2px;
+  color: var(--muted) !important;
+  font-size: 9px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+#intelTable thead .faction-total-head-row button {
+  pointer-events: none;
+}
