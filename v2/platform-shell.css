@@ -343,3 +343,39 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+
+.war-archive-toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.war-archive-toolbar strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 14px;
+}
+
+.war-archive-toolbar .search {
+  width: min(280px, 42vw);
+}
+
+#warsTab .war-import {
+  margin-bottom: 10px;
+}
+
+@media (max-width: 650px) {
+  .war-archive-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .war-archive-toolbar .search {
+    width: 100%;
+  }
+}
