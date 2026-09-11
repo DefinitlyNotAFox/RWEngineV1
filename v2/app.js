@@ -361,7 +361,7 @@ function renderMembers() {
   });
 
   if (!rows.length) {
-    membersBody.innerHTML = '<tr><td colspan="8" class="empty">No matching members in the selected range.</td></tr>';
+    membersBody.innerHTML = '<tr><td colspan="7" class="empty">No matching members in the selected range.</td></tr>';
     return;
   }
 
@@ -371,10 +371,12 @@ function renderMembers() {
       <tr data-member-id="${member.playerId}" class="member-row${selected ? ' selected' : ''}" title="${selected ? 'Collapse member details' : 'Show member details'}">
         <td>
           <span class="member-name">${escapeHtml(member.playerName || 'Unknown')}</span>
-          <span class="member-id">${escapeHtml(String(member.playerId || ''))}${member.current ? ' · current' : ' · left'}</span>
+          <span class="member-meta">${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(String(member.level ?? '—'))} · [${escapeHtml(String(member.playerId || ''))}]${member.current ? '' : ' · left'}</span>
         </td>
-        <td>${escapeHtml(member.position || '—')}</td>
-        <td title="${escapeHtml(formatDateTime(member.lastActionAt))}">${formatRelativeTime(member.lastActionAt)}</td>
+        <td title="${escapeHtml(formatDateTime(member.lastActionAt))}">
+          <span class="last-action-value">${formatRelativeTime(member.lastActionAt)}</span>
+          ${member.lastActionStatus ? `<small class="last-action-status">${escapeHtml(member.lastActionStatus)}</small>` : ''}
+        </td>
         <td>${formatBattleStats(member)}</td>
         <td>${formatActivityPerDay(member.activityPerDaySeconds)}</td>
         <td>${formatNullableDecimal(member.xanaxPerDay, 2)}</td>
@@ -440,7 +442,7 @@ function renderInlineMemberDetail(summaryMember) {
 
   return `
     <tr class="member-detail-row">
-      <td colspan="8">
+      <td colspan="7">
         <section class="member-inline-panel">
           <header class="member-inline-header">
             <div>
