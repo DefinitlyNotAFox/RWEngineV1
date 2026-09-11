@@ -23,12 +23,12 @@ const priority = [
   'participation_down',
   'activity_down',
   'xanax_down',
-  'missing_battle_stats',
-  'stale_battle_stats',
   'strong_war_output',
   'activity_up',
   'xanax_up',
-  'battle_stats_growth'
+  'battle_stats_growth',
+  'missing_battle_stats',
+  'stale_battle_stats'
 ];
 
 let activeFilter='all';
@@ -54,8 +54,9 @@ async function init(){
       data = intelFixture;
     }
   }
-  document.querySelector('#intel2Freshness').textContent =
-    `Fixture contract · generated ${formatRelative(data.generatedAt)} relative to preview clock`;
+  document.querySelector('#intel2Freshness').textContent = liveMode
+    ? `Live data · snapshots updated ${formatRelative(data.freshness?.observedAt || data.generatedAt)}`
+    : `Fixture contract · generated ${formatRelative(data.generatedAt)} relative to preview clock`;
 
   document.querySelector('#intel2Filters').innerHTML = filters.map(([key,label]) =>
     `<button class="intel2-filter${key===activeFilter?' active':''}" type="button" data-filter="${key}">${label}</button>`
@@ -222,14 +223,27 @@ function deriveRateSeries(snapshots,key){
     .filter(point=>Number.isFinite(Number(point.at))&&Number.isFinite(Number(point[key])))
     .sort((a,b)=>Number(a.at)-Number(b.at));
 
+  const maxPerDay = key === 'activityTotalSeconds'
+    ? 86400
+    : key === 'xanaxTakenTotal'
+      ? 10
+      : Infinity;
+
   const series=[];
   for(let index=1;index<rows.length;index++){
     const previous=rows[index-1];
     const current=rows[index];
     const elapsed=(Number(current.at)-Number(previous.at))/86400;
     const delta=Number(current[key])-Number(previous[key]);
-    if(elapsed>0&&delta>=0){
-      series.push({at:Number(current.at),value:delta/elapsed});
+    const perDay=elapsed>0?delta/elapsed:null;
+
+    if(
+      elapsed>=0.5 &&
+      delta>=0 &&
+      Number.isFinite(perDay) &&
+      perDay<=maxPerDay
+    ){
+      series.push({at:Number(current.at),value:perDay});
     }
   }
   return series;
@@ -267,7 +281,7 @@ function render(){
         <td>${formatDecimal(member.xanax.perDay30d,2)}<span class="trend ${trendClass(member.xanax.changePct)}">${trendLabel(member.xanax.changePct,'vs prev 30d')}</span></td>
         <td>${formatPercent(member.war.last4.participation)}<span class="member-meta">${member.war.last4.warsParticipated}/${member.war.last4.warsAvailable} wars</span></td>
         <td>${formatDecimal(member.war.last4.hitsPerWar,1)}</td>
-        <td>${signal?`<span class="signal ${signal.kind}">${escapeHtml(signal.label||signal.code)}</span>`:'—'}</td>
+        <td>${signal?`<span class="signal ${signal.kind}">${escapeHtml(signalLabel(signal,member))}</span>`:'—'}</td>
       </tr>
       ${selected?detailRow(member):''}
     `;
@@ -275,13 +289,15 @@ function render(){
 }
 
 function matchesFilter(member){
-  if(activeFilter==='all')return true;
-  const codes=new Set(member.insights.map(item=>item.code));
-  if(activeFilter==='attention')return member.insights.some(item=>item.kind==='attention');
-  if(activeFilter==='inactive')return codes.has('inactive');
-  if(activeFilter==='war')return codes.has('low_war_participation')||codes.has('participation_down');
-  if(activeFilter==='decline')return codes.has('activity_down')||codes.has('xanax_down')||codes.has('participation_down');
-  if(activeFilter==='stats')return codes.has('missing_battle_stats')||codes.has('stale_battle_stats');
+  const insights=Array.isArray(member.insights)?member.insights:[];
+  const codes=new Set(insights.map(item=>item.code));
+
+  if(activeFilter==='all')return member.current!==false;
+  if(activeFilter==='attention')return member.current!==false&&insights.some(item=>item.kind==='attention');
+  if(activeFilter==='inactive')return member.current!==false&&codes.has('inactive');
+  if(activeFilter==='war')return member.current!==false&&(codes.has('low_war_participation')||codes.has('participation_down'));
+  if(activeFilter==='decline')return member.current!==false&&(codes.has('activity_down')||codes.has('xanax_down')||codes.has('participation_down'));
+  if(activeFilter==='stats')return member.current!==false&&(codes.has('missing_battle_stats')||codes.has('stale_battle_stats'));
   if(activeFilter==='former')return member.current===false;
   return true;
 }
@@ -318,6 +334,32 @@ function topSignal(member){
     const ai=priority.indexOf(a.code), bi=priority.indexOf(b.code);
     return (ai<0?999:ai)-(bi<0?999:bi);
   })[0];
+}
+
+function signalLabel(signal,member){
+  if(signal?.label)return signal.label;
+  if(signal?.code==='inactive'){
+    const days=Math.max(1,Math.floor(Number(signal.value||0)/86400));
+    return `inactive ${days}d`;
+  }
+  if(signal?.code==='low_war_participation'){
+    return `${member.war?.last4?.warsParticipated??0}/${member.war?.last4?.warsAvailable??0} wars`;
+  }
+  if(signal?.code==='participation_down')return 'participation ↓';
+  if(signal?.code==='activity_down'||signal?.code==='activity_up')return `activity ${signedPct(member.activity?.changePct)}`;
+  if(signal?.code==='xanax_down'||signal?.code==='xanax_up')return `xanax ${signedPct(member.xanax?.changePct)}`;
+  if(signal?.code==='strong_war_output')return 'war output +';
+  if(signal?.code==='battle_stats_growth')return `stats ${signedPct(member.battleStats?.changePct30d)}`;
+  if(signal?.code==='missing_battle_stats')return 'stats missing';
+  if(signal?.code==='stale_battle_stats')return 'stats stale';
+  return String(signal?.code||'').replaceAll('_',' ');
+}
+
+function signedPct(value){
+  const number=Number(value);
+  if(!Number.isFinite(number))return '—';
+  const pct=Math.round(number*100);
+  return `${pct>0?'+':''}${pct}%`;
 }
 
 function detailRow(member){
@@ -365,7 +407,7 @@ function detailRow(member){
           </div>
 
           <div class="intel2-wars">
-            <header>Last 8 wars</header>
+            <header>Recent wars · ${member.history.wars.length} available</header>
             ${member.history.wars.map(war=>`
               <div class="intel2-war">
                 <div><strong>${escapeHtml(war.opponent)}</strong><small>#${war.warId}</small></div>
@@ -393,7 +435,13 @@ function trendBlock(title,series,formatter){
   const filtered=filterSeries(series,trendDays);
   const valid=filtered.filter(point=>Number.isFinite(Number(point.value)));
   const latest=valid.length?valid[valid.length-1].value:null;
-  return `<section class="intel2-trend"><header><strong>${title}</strong><span>${trendDays}d · ${formatter(latest)}</span></header>${sparkline(filtered)}</section>`;
+  const availableDays=valid.length>1
+    ? Math.max(1,Math.round((Number(valid[valid.length-1].at)-Number(valid[0].at))/86400))
+    : 0;
+  const windowLabel=availableDays>0&&availableDays<trendDays
+    ? `${availableDays}d available`
+    : `${trendDays}d`;
+  return `<section class="intel2-trend"><header><strong>${title}</strong><span>${windowLabel} · ${formatter(latest)}</span></header>${sparkline(filtered)}</section>`;
 }
 
 function filterSeries(series,days){

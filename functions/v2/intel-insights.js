@@ -173,7 +173,7 @@ function addBattleStats(insights, member, now) {
   if (value === null) {
     insights.push({
       code: 'missing_battle_stats',
-      kind: 'attention',
+      kind: 'note',
       metric: 'battleStats',
       value: null,
       comparisonValue: null,

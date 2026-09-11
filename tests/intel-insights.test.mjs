@@ -19,7 +19,9 @@ function codes(member, context = {}) {
   }, {}, NOW);
 
   assert(result.some(item => item.code === 'inactive'));
-  assert(result.some(item => item.code === 'missing_battle_stats'));
+  const missingStats = result.find(item => item.code === 'missing_battle_stats');
+  assert(missingStats);
+  assert.equal(missingStats.kind, 'note');
 }
 
 {

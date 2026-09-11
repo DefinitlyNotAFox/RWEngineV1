@@ -179,7 +179,9 @@ function buildMemberOverview({ row, snapshots, warRows, wars, now }) {
     activity:{
       perDay30d:current30.activityPerDay,
       perDayPrevious30d:previous30.activityPerDay,
-      changePct:percentChange(current30.activityPerDay, previous30.activityPerDay),
+      changePct:hasComparisonCoverage(current30, previous30)
+        ? percentChange(current30.activityPerDay, previous30.activityPerDay)
+        : null,
       coverageDays:current30.coverageDays,
       previousCoverageDays:previous30.coverageDays
     },
@@ -187,7 +189,9 @@ function buildMemberOverview({ row, snapshots, warRows, wars, now }) {
     xanax:{
       perDay30d:current30.xanaxPerDay,
       perDayPrevious30d:previous30.xanaxPerDay,
-      changePct:percentChange(current30.xanaxPerDay, previous30.xanaxPerDay),
+      changePct:hasComparisonCoverage(current30, previous30)
+        ? percentChange(current30.xanaxPerDay, previous30.xanaxPerDay)
+        : null,
       coverageDays:current30.coverageDays,
       previousCoverageDays:previous30.coverageDays
     },
@@ -469,6 +473,11 @@ function monotonicDelta(current, previous) {
   const b = numberOrNull(previous);
   if (a === null || b === null || a < b) return null;
   return a - b;
+}
+
+function hasComparisonCoverage(current, previous) {
+  return Number(current?.coverageDays || 0) >= 21 &&
+    Number(previous?.coverageDays || 0) >= 21;
 }
 
 function percentChange(current, previous) {
