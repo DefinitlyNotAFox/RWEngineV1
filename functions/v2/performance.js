@@ -47,93 +47,114 @@ export async function onRequest(context) {
     // multiplier. Use either signal so existing verified attack rows can be
     // filtered without re-importing them.
     const attackMetricsResult = await env.DB.prepare(`
+      WITH selected_wars AS (
+        SELECT war_id
+        FROM wars
+        WHERE faction_id = ?
+          AND COALESCE(end_timestamp, start_timestamp, imported_at, 0) BETWEEN ? AND ?
+      ),
+      own_players AS (
+        SELECT DISTINCT wl.player_id
+        FROM war_log wl
+        JOIN selected_wars sw ON sw.war_id = wl.war_id
+        WHERE wl.faction_id = ?
+      ),
+      outgoing AS (
+        SELECT
+          a.attacker_id AS player_id,
+          SUM(CASE
+            WHEN LOWER(TRIM(COALESCE(a.result, ''))) LIKE '%assist%'
+            THEN 1 ELSE 0 END
+          ) AS assists,
+          SUM(CASE
+            WHEN LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
+            THEN COALESCE(a.respect_gain, 0) ELSE 0 END
+          ) AS respect_earned,
+          COUNT(*) AS outgoing_rows,
+          SUM(CASE
+            WHEN (
+              a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+              OR COALESCE(CAST(json_extract(a.raw_json, '$.modifiers.chain') AS REAL), 0) >= 2
+            )
+            AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
+            THEN 1 ELSE 0 END
+          ) AS chain_bonus_hits_out,
+          SUM(CASE
+            WHEN (
+              a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+              OR COALESCE(CAST(json_extract(a.raw_json, '$.modifiers.chain') AS REAL), 0) >= 2
+            )
+            AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
+            THEN COALESCE(a.respect_gain, 0) ELSE 0 END
+          ) AS chain_bonus_score_out
+        FROM attacks a
+        JOIN selected_wars sw ON sw.war_id = a.war_id
+        WHERE a.faction_id = ?
+          AND a.is_ranked_war = 1
+          AND a.attacker_id IS NOT NULL
+        GROUP BY a.attacker_id
+      ),
+      incoming AS (
+        SELECT
+          a.defender_id AS player_id,
+          SUM(CASE
+            WHEN LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
+            THEN ABS(COALESCE(a.respect_loss, 0)) ELSE 0 END
+          ) AS respect_lost,
+          COUNT(*) AS incoming_rows,
+          SUM(CASE
+            WHEN (
+              a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+              OR COALESCE(CAST(json_extract(a.raw_json, '$.modifiers.chain') AS REAL), 0) >= 2
+            )
+            AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
+            THEN 1 ELSE 0 END
+          ) AS chain_bonus_hits_in,
+          SUM(CASE
+            WHEN (
+              a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+              OR COALESCE(CAST(json_extract(a.raw_json, '$.modifiers.chain') AS REAL), 0) >= 2
+            )
+            AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
+            THEN COALESCE(a.respect_gain, 0) ELSE 0 END
+          ) AS chain_bonus_score_in,
+          SUM(CASE
+            WHEN (
+              a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+              OR COALESCE(CAST(json_extract(a.raw_json, '$.modifiers.chain') AS REAL), 0) >= 2
+            )
+            AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
+            THEN ABS(COALESCE(a.respect_loss, 0)) ELSE 0 END
+          ) AS chain_bonus_respect_lost_in
+        FROM attacks a
+        JOIN selected_wars sw ON sw.war_id = a.war_id
+        WHERE a.faction_id = ?
+          AND a.is_ranked_war = 1
+          AND a.defender_id IS NOT NULL
+        GROUP BY a.defender_id
+      )
       SELECT
-        own.player_id,
-        SUM(CASE
-          WHEN a.attacker_id = own.player_id
-           AND a.is_ranked_war = 1
-           AND LOWER(TRIM(COALESCE(a.result, ''))) LIKE '%assist%'
-          THEN 1 ELSE 0 END
-        ) AS assists,
-        SUM(CASE
-          WHEN a.attacker_id = own.player_id
-           AND a.is_ranked_war = 1
-           AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
-          THEN COALESCE(a.respect_gain, 0) ELSE 0 END
-        ) AS respect_earned,
-        SUM(CASE
-          WHEN a.defender_id = own.player_id
-           AND a.is_ranked_war = 1
-           AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
-          THEN ABS(COALESCE(a.respect_loss, 0)) ELSE 0 END
-        ) AS respect_lost,
-        SUM(CASE
-          WHEN a.is_ranked_war = 1
-           AND (a.attacker_id = own.player_id OR a.defender_id = own.player_id)
-          THEN 1 ELSE 0 END
-        ) AS attack_rows,
-        SUM(CASE
-          WHEN a.attacker_id = own.player_id
-           AND a.is_ranked_war = 1
-           AND (
-             a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
-             OR COALESCE(CAST(json_extract(a.raw_json, '$.modifiers.chain') AS REAL), 0) >= 2
-           )
-           AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
-          THEN 1 ELSE 0 END
-        ) AS chain_bonus_hits_out,
-        SUM(CASE
-          WHEN a.attacker_id = own.player_id
-           AND a.is_ranked_war = 1
-           AND (
-             a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
-             OR COALESCE(CAST(json_extract(a.raw_json, '$.modifiers.chain') AS REAL), 0) >= 2
-           )
-           AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
-          THEN COALESCE(a.respect_gain, 0) ELSE 0 END
-        ) AS chain_bonus_score_out,
-        SUM(CASE
-          WHEN a.defender_id = own.player_id
-           AND a.is_ranked_war = 1
-           AND (
-             a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
-             OR COALESCE(CAST(json_extract(a.raw_json, '$.modifiers.chain') AS REAL), 0) >= 2
-           )
-           AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
-          THEN 1 ELSE 0 END
-        ) AS chain_bonus_hits_in,
-        SUM(CASE
-          WHEN a.defender_id = own.player_id
-           AND a.is_ranked_war = 1
-           AND (
-             a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
-             OR COALESCE(CAST(json_extract(a.raw_json, '$.modifiers.chain') AS REAL), 0) >= 2
-           )
-           AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
-          THEN COALESCE(a.respect_gain, 0) ELSE 0 END
-        ) AS chain_bonus_score_in,
-        SUM(CASE
-          WHEN a.defender_id = own.player_id
-           AND a.is_ranked_war = 1
-           AND (
-             a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
-             OR COALESCE(CAST(json_extract(a.raw_json, '$.modifiers.chain') AS REAL), 0) >= 2
-           )
-           AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
-          THEN ABS(COALESCE(a.respect_loss, 0)) ELSE 0 END
-        ) AS chain_bonus_respect_lost_in
-      FROM war_log own
-      JOIN wars w
-        ON w.war_id = own.war_id
-        AND w.faction_id = own.faction_id
-      LEFT JOIN attacks a
-        ON a.war_id = own.war_id
-        AND a.faction_id = own.faction_id
-        AND (a.attacker_id = own.player_id OR a.defender_id = own.player_id)
-      WHERE own.faction_id = ?
-        AND COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) BETWEEN ? AND ?
-      GROUP BY own.player_id
-    `).bind(factionId, range.from, range.to).all();
+        p.player_id,
+        COALESCE(o.assists, 0) AS assists,
+        COALESCE(o.respect_earned, 0) AS respect_earned,
+        COALESCE(i.respect_lost, 0) AS respect_lost,
+        COALESCE(o.outgoing_rows, 0) + COALESCE(i.incoming_rows, 0) AS attack_rows,
+        COALESCE(o.chain_bonus_hits_out, 0) AS chain_bonus_hits_out,
+        COALESCE(o.chain_bonus_score_out, 0) AS chain_bonus_score_out,
+        COALESCE(i.chain_bonus_hits_in, 0) AS chain_bonus_hits_in,
+        COALESCE(i.chain_bonus_score_in, 0) AS chain_bonus_score_in,
+        COALESCE(i.chain_bonus_respect_lost_in, 0) AS chain_bonus_respect_lost_in
+      FROM own_players p
+      LEFT JOIN outgoing o ON o.player_id = p.player_id
+      LEFT JOIN incoming i ON i.player_id = p.player_id
+    `).bind(
+      factionId,
+      range.from,
+      range.to,
+      factionId,
+      factionId,
+      factionId
+    ).all();
 
     const attackMetricsByPlayer = new Map((attackMetricsResult.results || []).map(row => [
       Number(row.player_id),

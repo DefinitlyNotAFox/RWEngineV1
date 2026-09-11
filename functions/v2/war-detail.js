@@ -45,39 +45,59 @@ export async function onRequest(context) {
     `).bind(factionId, warId).all();
 
     const attackMetricsResult = await env.DB.prepare(`
+      WITH outgoing AS (
+        SELECT
+          attacker_id AS player_id,
+          SUM(CASE
+            WHEN LOWER(TRIM(COALESCE(result, ''))) LIKE '%assist%'
+            THEN 1 ELSE 0 END
+          ) AS assists,
+          SUM(CASE
+            WHEN LOWER(TRIM(COALESCE(result, ''))) NOT LIKE '%assist%'
+            THEN COALESCE(respect_gain, 0) ELSE 0 END
+          ) AS respect_earned,
+          COUNT(*) AS outgoing_rows
+        FROM attacks
+        WHERE faction_id = ?
+          AND war_id = ?
+          AND is_ranked_war = 1
+          AND attacker_id IS NOT NULL
+        GROUP BY attacker_id
+      ),
+      incoming AS (
+        SELECT
+          defender_id AS player_id,
+          SUM(CASE
+            WHEN LOWER(TRIM(COALESCE(result, ''))) NOT LIKE '%assist%'
+            THEN ABS(COALESCE(respect_loss, 0)) ELSE 0 END
+          ) AS respect_lost,
+          COUNT(*) AS incoming_rows
+        FROM attacks
+        WHERE faction_id = ?
+          AND war_id = ?
+          AND is_ranked_war = 1
+          AND defender_id IS NOT NULL
+        GROUP BY defender_id
+      )
       SELECT
         own.player_id,
-        SUM(CASE
-          WHEN a.attacker_id = own.player_id
-           AND a.is_ranked_war = 1
-           AND LOWER(TRIM(COALESCE(a.result, ''))) LIKE '%assist%'
-          THEN 1 ELSE 0 END
-        ) AS assists,
-        SUM(CASE
-          WHEN a.attacker_id = own.player_id
-           AND a.is_ranked_war = 1
-           AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
-          THEN COALESCE(a.respect_gain, 0) ELSE 0 END
-        ) AS respect_earned,
-        SUM(CASE
-          WHEN a.defender_id = own.player_id
-           AND a.is_ranked_war = 1
-           AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
-          THEN ABS(COALESCE(a.respect_loss, 0)) ELSE 0 END
-        ) AS respect_lost,
-        SUM(CASE
-          WHEN a.is_ranked_war = 1
-           AND (a.attacker_id = own.player_id OR a.defender_id = own.player_id)
-          THEN 1 ELSE 0 END
-        ) AS attack_rows
+        COALESCE(o.assists, 0) AS assists,
+        COALESCE(o.respect_earned, 0) AS respect_earned,
+        COALESCE(i.respect_lost, 0) AS respect_lost,
+        COALESCE(o.outgoing_rows, 0) + COALESCE(i.incoming_rows, 0) AS attack_rows
       FROM war_log own
-      LEFT JOIN attacks a
-        ON a.war_id = own.war_id
-        AND a.faction_id = own.faction_id
-        AND (a.attacker_id = own.player_id OR a.defender_id = own.player_id)
+      LEFT JOIN outgoing o ON o.player_id = own.player_id
+      LEFT JOIN incoming i ON i.player_id = own.player_id
       WHERE own.faction_id = ? AND own.war_id = ?
       GROUP BY own.player_id
-    `).bind(factionId, warId).all();
+    `).bind(
+      factionId,
+      warId,
+      factionId,
+      warId,
+      factionId,
+      warId
+    ).all();
 
     const attackMetricsByPlayer = new Map((attackMetricsResult.results || []).map(row => [
       Number(row.player_id),
