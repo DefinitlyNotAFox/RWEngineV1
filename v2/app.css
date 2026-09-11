@@ -4365,3 +4365,24 @@ body {
 .faction-control-row .intel-filter-label {
   margin-bottom: 7px;
 }
+
+
+/* Reserve a stable status row so loading/error messages never shift the table. */
+.faction-status-stack,
+.faction-status-stack:not(:has(.faction-status-item:not(.hidden))),
+.faction-status-stack:has(.faction-status-item:not(.hidden)) {
+  display: flex;
+  min-height: 22px;
+  height: 22px;
+  margin: 3px 0 3px;
+  align-items: center;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  column-gap: 18px;
+}
+
+.faction-status-item {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
