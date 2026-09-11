@@ -10,14 +10,21 @@ export async function onRequest(context) {
     const user = await getCurrentUser(env, request);
     const factionId = await resolveFactionId(env.DB, user, body.factionId);
     const now = unixNow();
-    const range = await resolveWarRange(env.DB, factionId, body, now);
+    const selection = await resolveWarSelection(env.DB, factionId, body, now);
+    const range = selection.range;
+    const warFilter = selection.warIds.length
+      ? `w.war_id IN (${selection.warIds.map(() => '?').join(',')})`
+      : 'COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) BETWEEN ? AND ?';
+    const warFilterParams = selection.warIds.length
+      ? selection.warIds
+      : [range.from, range.to];
 
     const totalWarsRow = await env.DB.prepare(`
       SELECT COUNT(*) AS count
-      FROM wars
-      WHERE faction_id = ?
-        AND COALESCE(end_timestamp, start_timestamp, imported_at, 0) BETWEEN ? AND ?
-    `).bind(factionId, range.from, range.to).first();
+      FROM wars w
+      WHERE w.faction_id = ?
+        AND ${warFilter}
+    `).bind(factionId, ...warFilterParams).first();
 
     const performanceResult = await env.DB.prepare(`
       SELECT
@@ -36,10 +43,10 @@ export async function onRequest(context) {
         ON fm.faction_id = wl.faction_id
         AND fm.player_id = wl.player_id
       WHERE wl.faction_id = ?
-        AND COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) BETWEEN ? AND ?
+        AND ${warFilter}
       GROUP BY wl.player_id
       ORDER BY MAX(wl.player_name) COLLATE NOCASE
-    `).bind(factionId, range.from, range.to).all();
+    `).bind(factionId, ...warFilterParams).all();
 
     // The top-level chain value may be hidden/zeroed by Torn depending on the
     // attack direction. The raw attack modifier remains useful: ordinary chain
@@ -48,10 +55,10 @@ export async function onRequest(context) {
     // filtered without re-importing them.
     const attackMetricsResult = await env.DB.prepare(`
       WITH selected_wars AS (
-        SELECT war_id
-        FROM wars
-        WHERE faction_id = ?
-          AND COALESCE(end_timestamp, start_timestamp, imported_at, 0) BETWEEN ? AND ?
+        SELECT w.war_id
+        FROM wars w
+        WHERE w.faction_id = ?
+          AND ${warFilter}
       ),
       own_players AS (
         SELECT DISTINCT wl.player_id
@@ -149,8 +156,7 @@ export async function onRequest(context) {
       LEFT JOIN incoming i ON i.player_id = p.player_id
     `).bind(
       factionId,
-      range.from,
-      range.to,
+      ...warFilterParams,
       factionId,
       factionId,
       factionId
@@ -218,6 +224,7 @@ export async function onRequest(context) {
       generatedAt: now,
       factionId,
       range,
+      selectedWarIds:selection.warIds,
       totalWars,
       playersWithAttackDetails,
       chainBonusHitsDetected,
@@ -230,6 +237,45 @@ export async function onRequest(context) {
       message: error?.message || 'Unexpected performance analytics error.'
     }, error?.status || 500);
   }
+}
+
+async function resolveWarSelection(db, factionId, body, now) {
+  const explicit = Array.isArray(body?.warIds);
+  const warIds = explicit
+    ? [...new Set(body.warIds.map(Number).filter(id => Number.isSafeInteger(id) && id > 0))].slice(0, 100)
+    : [];
+
+  if (explicit && !warIds.length) {
+    throw httpError(400, 'Select at least one ranked war.');
+  }
+
+  if (warIds.length) {
+    const placeholders = warIds.map(() => '?').join(',');
+    const bounds = await db.prepare(`
+      SELECT
+        COUNT(*) AS count,
+        MIN(COALESCE(start_timestamp, end_timestamp, imported_at, 0)) AS earliest,
+        MAX(COALESCE(end_timestamp, start_timestamp, imported_at, 0)) AS latest
+      FROM wars
+      WHERE faction_id = ?
+        AND war_id IN (${placeholders})
+    `).bind(factionId, ...warIds).first();
+
+    if (Number(bounds?.count || 0) !== warIds.length) {
+      throw httpError(400, 'One or more selected ranked wars are not available for this faction.');
+    }
+
+    const from = Number(bounds?.earliest || 0) || now;
+    const to = Math.min(now, Number(bounds?.latest || 0) || now);
+
+    return {
+      warIds,
+      range:{ from, to, fromDate:utcDate(from), toDate:utcDate(to) }
+    };
+  }
+
+  const range = await resolveWarRange(db, factionId, body, now);
+  return { warIds:[], range };
 }
 
 async function resolveWarRange(db, factionId, body, now) {
