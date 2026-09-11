@@ -1,0 +1,15 @@
+/v2/
+  Cache-Control: no-store, no-cache, must-revalidate
+  Pragma: no-cache
+  Expires: 0
+
+/v2/index.html
+  Cache-Control: no-store, no-cache, must-revalidate
+  Pragma: no-cache
+  Expires: 0
+
+/v2/*.js
+  Cache-Control: no-cache, must-revalidate
+
+/v2/*.css
+  Cache-Control: no-cache, must-revalidate
