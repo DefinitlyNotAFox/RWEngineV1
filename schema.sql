@@ -312,6 +312,12 @@ ON attacks(defender_id);
 CREATE INDEX IF NOT EXISTS idx_attacks_timestamp_started
 ON attacks(timestamp_started);
 
+CREATE INDEX IF NOT EXISTS idx_attacks_faction_war_attacker
+ON attacks(faction_id, war_id, attacker_id);
+
+CREATE INDEX IF NOT EXISTS idx_attacks_faction_war_defender
+ON attacks(faction_id, war_id, defender_id);
+
 CREATE INDEX IF NOT EXISTS idx_faction_members_faction_current
 ON faction_members(faction_id, is_current);
 
@@ -323,6 +329,12 @@ ON member_snapshots(faction_id, snapshot_at);
 
 CREATE INDEX IF NOT EXISTS idx_member_snapshots_player_time
 ON member_snapshots(player_id, snapshot_at);
+
+CREATE INDEX IF NOT EXISTS idx_member_snapshots_faction_player_time
+ON member_snapshots(faction_id, player_id, snapshot_at);
+
+CREATE INDEX IF NOT EXISTS idx_war_log_faction_war_player
+ON war_log(faction_id, war_id, player_id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_faction_sync_jobs_active
 ON faction_sync_jobs(faction_id)
