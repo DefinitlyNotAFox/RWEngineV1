@@ -237,7 +237,7 @@ async function refreshAll(userInitiated = false) {
   loading = true;
   setRefreshBusy(true);
 
-  if (userInitiated) setNotice('Refreshing data…');
+  if (userInitiated) setRefreshStatus('Refreshing data…');
 
   try {
     const [warsResult, freshnessResult] = await Promise.all([
@@ -267,9 +267,9 @@ async function refreshAll(userInitiated = false) {
     emit('data');
     if (state.route === 'settings') loadAccessList();
 
-    if (userInitiated) setNotice('');
+    if (userInitiated) setRefreshStatus('');
   } catch (error) {
-    setNotice(error.message || 'Failed to refresh RWEngine data.', 'error');
+    setRefreshStatus(error.message || 'Failed to refresh RWEngine data.', true);
   } finally {
     loading = false;
     setRefreshBusy(false);
@@ -600,6 +600,23 @@ function renderIdentity() {
   document.querySelector('#settingsPlayer').textContent = `${userName} [${playerId}]`;
   document.querySelector('#settingsFaction').textContent = factionName || '—';
   document.querySelector('#settingsFactionId').textContent = factionId || '—';
+}
+
+function setRefreshStatus(message = '', error = false) {
+  const factionLine = document.querySelector('#refreshLine');
+  const onFaction = state.route === 'intel';
+
+  if (factionLine) {
+    factionLine.textContent = onFaction ? (message || '') : '';
+    factionLine.classList.toggle('hidden', !onFaction || !message);
+    factionLine.classList.toggle('error', onFaction && error);
+  }
+
+  if (onFaction) {
+    setNotice('');
+  } else {
+    setNotice(message || '', error ? 'error' : '');
+  }
 }
 
 function setRefreshBusy(busy) {
