@@ -3,289 +3,297 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/styles.css?v=7" />
-  <link rel="stylesheet" href="/v2/compact.css?v=3" />
-  <link rel="stylesheet" href="/v2/war-import.css?v=3" />
-  <link rel="stylesheet" href="/v2/admin-workspace.css?v=3" data-rwe-admin-workspace="1" />
-  <link rel="stylesheet" href="/v2/boot-stability.css?v=1" />
-  <link rel="stylesheet" href="/v2/layout-refinement.css?v=4" />
-  <link rel="stylesheet" href="/v2/member-table.css?v=4" data-rwe-member-table="1" />
-  <link rel="stylesheet" href="/v2/range-controls.css?v=4" data-rwe-range-controls="1" />
-  <link rel="stylesheet" href="/v2/performance-table.css?v=6" data-rwe-performance-table="1" />
-  <link rel="stylesheet" href="/v2/war-drilldown.css?v=3" data-rwe-war-drilldown="1" />
-  <link rel="stylesheet" href="/v2/war-detail-controls.css?v=1" data-rwe-war-detail-controls="1" />
-  <link rel="stylesheet" href="/v2/platform-shell.css?v=4" />
+  <link rel="stylesheet" href="/v2/app.css?v=1" />
 </head>
 <body>
-  <div id="loginView" class="login-view hidden">
-    <div class="login-card">
-      <div>
-        <div class="wordmark"><span>RW</span>Engine</div>
-        <p class="muted auth-intro">Torn tools and faction intelligence.</p>
-      </div>
+  <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
+    <div class="auth-panel">
+      <header class="auth-brand">
+        <div class="brand">RWEngine</div>
+        <p>Torn data tools.</p>
+      </header>
 
-      <div class="auth-mode-switch" role="tablist" aria-label="Account access">
-        <button id="showLoginButton" class="auth-mode-button active" type="button">Sign in</button>
-        <button id="showRegisterButton" class="auth-mode-button" type="button">Create account</button>
+      <div class="auth-tabs" role="tablist" aria-label="Account access">
+        <button type="button" class="auth-tab active" data-auth-mode="login">Sign in</button>
+        <button type="button" class="auth-tab" data-auth-mode="register">Create account</button>
       </div>
 
       <form id="loginForm" class="auth-form">
         <label>
-          Torn player ID
-          <input id="playerIdInput" type="text" inputmode="numeric" autocomplete="username" required />
+          <span>Player ID</span>
+          <input id="loginPlayerId" inputmode="numeric" autocomplete="username" required />
         </label>
-
         <label>
-          Password
-          <input id="passwordInput" type="password" autocomplete="current-password" required />
+          <span>Password</span>
+          <input id="loginPassword" type="password" autocomplete="current-password" required />
         </label>
-
-        <button class="button primary" type="submit">Sign in</button>
+        <button class="action primary" type="submit">Sign in</button>
       </form>
 
       <form id="registerForm" class="auth-form hidden">
         <label>
-          Limited Torn API key
-          <input id="registerApiKeyInput" type="password" autocomplete="off" required />
-          <small>Used to verify your Torn identity and connect your faction data.</small>
+          <span>Limited Torn API key</span>
+          <input id="registerApiKey" type="password" autocomplete="off" required />
+          <small>Used to verify your account and faction.</small>
         </label>
-
         <label>
-          Password
-          <input id="registerPasswordInput" type="password" autocomplete="new-password" minlength="8" required />
+          <span>Password</span>
+          <input id="registerPassword" type="password" minlength="8" autocomplete="new-password" required />
         </label>
-
         <label>
-          Confirm password
-          <input id="registerConfirmInput" type="password" autocomplete="new-password" minlength="8" required />
+          <span>Confirm password</span>
+          <input id="registerConfirm" type="password" minlength="8" autocomplete="new-password" required />
         </label>
-
-        <button class="button primary" type="submit">Create account</button>
+        <button class="action primary" type="submit">Create account</button>
       </form>
 
-      <p id="loginError" class="error hidden"></p>
+      <p id="authError" class="message error hidden"></p>
     </div>
-  </div>
+  </section>
 
-  <div id="appView" class="app-shell hidden">
-    <aside class="sidebar">
-      <div class="sidebar-brand">
-        <div class="wordmark sidebar-wordmark"><span>RW</span>Engine</div>
-        <div id="factionLabel" class="faction-label">Faction</div>
-      </div>
+  <div id="appView" class="app hidden">
+    <header class="appbar">
+      <div class="appbar-inner">
+        <button class="brand brand-button" type="button" data-route="home">RWEngine</button>
 
-      <nav class="nav-list" aria-label="RWEngine sections">
-        <div class="nav-section-label">General</div>
-        <button class="nav-button active" data-tab="overview" type="button">Home</button>
-        <button class="nav-button" data-tab="members" type="button">Faction Intel</button>
+        <nav class="primary-nav" aria-label="Primary">
+          <button type="button" data-route="intel">Intel</button>
+          <button type="button" data-route="war">War</button>
+          <button type="button" data-route="performance">Performance</button>
+          <button type="button" data-route="archive">Archive</button>
+        </nav>
 
-        <div class="nav-section-label">Ranked War</div>
-        <button class="nav-button" data-tab="ranked-war" type="button">Overview</button>
-        <button class="nav-button" data-tab="performance" type="button">Performance</button>
-        <button class="nav-button" data-tab="wars" type="button">Archive</button>
-
-        <div class="nav-section-label nav-section-bottom">Account</div>
-        <button class="nav-button" data-tab="settings" type="button">Settings</button>
-      </nav>
-
-      <div class="sidebar-footer">
-        <span id="userLabel" class="muted"></span>
-        <button id="logoutButton" class="text-button" type="button">Log out</button>
-      </div>
-    </aside>
-
-    <main class="main">
-      <header class="topbar">
-        <div>
-          <p id="pageContext" class="page-context">Workspace</p>
-          <h1 id="pageTitle">Home</h1>
+        <div class="app-context">
+          <label id="adminFactionWrap" class="context-select hidden">
+            <span>Faction</span>
+            <select id="adminFactionSelect"></select>
+          </label>
+          <button id="factionButton" class="context-button" type="button" data-route="intel">Faction</button>
+          <button id="accountButton" class="context-button" type="button" data-route="settings">Account</button>
         </div>
-        <div class="member-controls">
-          <button id="syncIntelButton" class="button" type="button">Sync faction</button>
-          <button id="refreshButton" class="button" type="button">Refresh</button>
-        </div>
-      </header>
+      </div>
+    </header>
 
-      <div id="globalError" class="error-banner hidden"></div>
-      <div id="syncStatus" class="sync-status hidden"></div>
+    <div id="notice" class="notice hidden"></div>
 
-      <section id="overviewTab" class="tab active">
-        <div class="home-status">
+    <main class="workspace">
+      <section id="homeView" class="view active" data-view="home">
+        <header class="home-head">
           <div>
-            <span>Faction members</span>
-            <strong id="metricMembers">—</strong>
+            <p id="homeFaction" class="kicker">Faction</p>
+            <h1>RWEngine</h1>
           </div>
-          <p id="trackingText">Loading faction coverage…</p>
-        </div>
+          <p id="homeCoverage" class="home-copy">Loading data coverage…</p>
+        </header>
 
-        <div class="tool-index" aria-label="Available RWEngine tools">
-          <button class="tool-row" data-open-module="members" type="button">
-            <span class="tool-type">Faction</span>
-            <span class="tool-copy">
-              <strong>Faction Intel</strong>
-              <small>Members, activity, stats and participation.</small>
-            </span>
-            <span class="tool-open" aria-hidden="true">→</span>
+        <nav class="index-list" aria-label="RWEngine tools">
+          <button type="button" data-route="intel">
+            <span>01</span><strong>Faction Intel</strong><small>Roster, activity, training and participation.</small><b>→</b>
           </button>
-
-          <button class="tool-row" data-open-module="ranked-war" type="button">
-            <span class="tool-type">War</span>
-            <span class="tool-copy">
-              <strong>Ranked War Overview</strong>
-              <small>Current period totals, recent wars and leading contributors.</small>
-            </span>
-            <span class="tool-open" aria-hidden="true">→</span>
+          <button type="button" data-route="war">
+            <span>02</span><strong>Ranked War</strong><small>Period totals, recent wars and contributors.</small><b>→</b>
           </button>
-
-          <button class="tool-row" data-open-module="performance" type="button">
-            <span class="tool-type">War</span>
-            <span class="tool-copy">
-              <strong>Performance</strong>
-              <small>Member contribution across imported wars.</small>
-            </span>
-            <span class="tool-open" aria-hidden="true">→</span>
+          <button type="button" data-route="performance">
+            <span>03</span><strong>Performance</strong><small>Cross-war member comparison.</small><b>→</b>
           </button>
-
-          <button class="tool-row" data-open-module="wars" type="button">
-            <span class="tool-type">War</span>
-            <span class="tool-copy">
-              <strong>Archive</strong>
-              <small>Historical reports, detail views and sharing.</small>
-            </span>
-            <span class="tool-open" aria-hidden="true">→</span>
+          <button type="button" data-route="archive">
+            <span>04</span><strong>Archive</strong><small>Imported reports, detail and public sharing.</small><b>→</b>
           </button>
-        </div>
+        </nav>
       </section>
 
-      <section id="ranked-warTab" class="tab">
-        <div class="metric-grid ranked-war-metrics">
-          <article class="metric-card"><span>Wars in period</span><strong id="metricWars">—</strong></article>
-          <article class="metric-card"><span>Total war hits</span><strong id="metricHits">—</strong></article>
-          <article class="metric-card"><span>Avg hits / war</span><strong id="metricHitsPerWar">—</strong></article>
-          <article class="metric-card"><span>Net score</span><strong id="metricNetScore">—</strong></article>
-        </div>
-
-        <div class="two-column">
-          <article class="panel">
-            <div class="panel-header">
-              <div><p class="eyebrow">Recent history</p><h2>Latest wars</h2></div>
-              <button class="text-button jump-button" data-jump="wars" type="button">View archive</button>
-            </div>
-            <div id="overviewWars" class="stack-list"></div>
-          </article>
-
-          <article class="panel">
-            <div class="panel-header">
-              <div><p class="eyebrow">Selected period</p><h2>Top contributors</h2></div>
-              <button class="text-button jump-button" data-jump="performance" type="button">View performance</button>
-            </div>
-            <div id="overviewMembers" class="stack-list"></div>
-          </article>
-        </div>
-      </section>
-
-      <section id="performanceTab" class="tab">
-        <div class="performance-toolbar">
-          <div class="performance-mode-switch" role="group" aria-label="Performance table detail">
-            <button class="performance-mode-button" type="button" data-performance-mode="simplified" aria-pressed="true">Simplified</button>
-            <button class="performance-mode-button" type="button" data-performance-mode="detailed" aria-pressed="false">Detailed</button>
+      <section id="intelView" class="view" data-view="intel">
+        <header class="view-head">
+          <div><p class="kicker">Faction</p><h1>Intel</h1></div>
+          <div class="view-actions">
+            <button id="syncButton" class="action" type="button">Sync faction</button>
+            <button class="action" type="button" data-refresh>Refresh</button>
           </div>
-          <input id="performanceSearch" class="search performance-search" type="search" placeholder="Search member…" />
+        </header>
+
+        <div id="intelSummary" class="metric-line"></div>
+        <div id="syncLine" class="status-line hidden"></div>
+        <div class="control-line">
+          <div id="periodControl" class="period-control"></div>
+          <input id="intelSearch" class="search" type="search" placeholder="Search member or ID" />
         </div>
 
-        <div id="performanceStatus" class="performance-status hidden"></div>
-
-        <div class="table-wrap performance-table-wrap">
-          <table id="performanceTable">
-            <thead id="performanceHead"></thead>
-            <tbody id="performanceBody">
-              <tr><td class="empty">Open Performance to load ranked-war data.</td></tr>
-            </tbody>
+        <div class="data-table-wrap">
+          <table class="data-table intel-table">
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th data-intel-sort="lastAction">Last action</th>
+                <th data-intel-sort="stats">Stats</th>
+                <th data-intel-sort="activity">Activity / day</th>
+                <th data-intel-sort="xanax">Xanax / day</th>
+                <th data-intel-sort="participation">RW participation</th>
+                <th data-intel-sort="hits">Hits / war</th>
+              </tr>
+            </thead>
+            <tbody id="intelBody"></tbody>
           </table>
         </div>
       </section>
 
-      <section id="membersTab" class="tab">
-        <div class="intel-summary-grid" aria-label="Faction intel summary">
-          <article><span>Current members</span><strong id="intelCurrentMembers">—</strong></article>
-          <article><span>Median stats</span><strong id="intelMedianStats">—</strong><small>Known estimates</small></article>
-          <article><span>Avg activity / day</span><strong id="intelAvgActivity">—</strong><small>Tracked coverage</small></article>
-          <article><span>Avg Xanax / day</span><strong id="intelAvgXanax">—</strong><small>Tracked coverage</small></article>
-          <article><span>RW participation</span><strong id="intelAvgParticipation">—</strong><small>Selected period</small></article>
+      <section id="warView" class="view" data-view="war">
+        <header class="view-head">
+          <div><p class="kicker">Ranked War</p><h1>Overview</h1></div>
+          <button class="action" type="button" data-refresh>Refresh</button>
+        </header>
+
+        <div id="warSummary" class="metric-line"></div>
+        <div id="warPeriodControl" class="period-control period-standalone"></div>
+
+        <div class="split-list">
+          <section>
+            <header><h2>Recent wars</h2><button type="button" class="text-action" data-route="archive">Archive →</button></header>
+            <div id="recentWars" class="line-list"></div>
+          </section>
+          <section>
+            <header><h2>Contributors</h2><button type="button" class="text-action" data-route="performance">Performance →</button></header>
+            <div id="topContributors" class="line-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="performanceView" class="view" data-view="performance">
+        <header class="view-head">
+          <div><p class="kicker">Ranked War</p><h1>Performance</h1></div>
+          <button class="action" type="button" data-refresh>Refresh</button>
+        </header>
+
+        <div class="control-line performance-controls">
+          <div id="performancePeriodControl" class="period-control"></div>
+          <div class="control-cluster">
+            <label class="check"><input id="excludeChain" type="checkbox" /> Exclude chain bonuses</label>
+            <label class="check"><input id="includeFormer" type="checkbox" /> Former members</label>
+            <select id="performanceMode" class="small-select" aria-label="Performance detail">
+              <option value="summary">Summary</option>
+              <option value="detail">Detail</option>
+            </select>
+            <input id="performanceSearch" class="search" type="search" placeholder="Search member or ID" />
+          </div>
         </div>
 
-        <article class="panel intel-roster-panel">
-          <div class="panel-header members-header">
-            <div class="member-controls range-controls">
-              <label class="compact-control hidden"><span>From</span><input id="intelFrom" type="date" /></label>
-              <label class="compact-control hidden"><span>To</span><input id="intelTo" type="date" /></label>
-              <button id="applyRangeButton" class="button hidden" type="button">Apply</button>
-              <input id="memberSearch" class="search" type="search" placeholder="Search member…" />
+        <p id="performanceStatus" class="status-line hidden"></p>
+        <div class="data-table-wrap">
+          <table id="performanceTable" class="data-table performance-table">
+            <thead id="performanceHead"></thead>
+            <tbody id="performanceBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="archiveView" class="view" data-view="archive">
+        <header class="view-head">
+          <div><p class="kicker">Ranked War</p><h1>Archive</h1></div>
+          <button class="action" type="button" data-refresh>Refresh</button>
+        </header>
+
+        <div id="archiveListView">
+          <div class="control-line">
+            <div class="archive-count"><strong id="archiveCount">0</strong><span> imported wars</span></div>
+            <div class="control-cluster">
+              <button id="importToggle" class="text-action" type="button">Import reports</button>
+              <input id="archiveSearch" class="search" type="search" placeholder="Opponent or war ID" />
             </div>
           </div>
 
-          <div class="table-wrap members-table-wrap">
-            <table class="members-table">
-              <thead><tr><th>Member</th><th>Last action</th><th>Stats</th><th>Activity / day</th><th>Xanax / day</th><th>RW participation</th><th>Avg hits / war</th></tr></thead>
-              <tbody id="membersBody"></tbody>
+          <section id="importPanel" class="import-panel hidden">
+            <form id="importForm">
+              <label>
+                <span>Ranked war report IDs</span>
+                <textarea id="importIds" rows="3" placeholder="One or more IDs, separated by spaces, commas or lines"></textarea>
+              </label>
+              <div class="import-actions">
+                <label class="check"><input id="importOverwrite" type="checkbox" /> Overwrite existing</label>
+                <button class="action primary" type="submit">Import</button>
+              </div>
+            </form>
+            <div id="importProgress" class="import-progress hidden"></div>
+          </section>
+
+          <div class="data-table-wrap">
+            <table class="data-table archive-table">
+              <thead><tr><th>Opponent</th><th>War ID</th><th>Started</th><th>Ended</th></tr></thead>
+              <tbody id="archiveBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <article id="warDetailView" class="war-detail hidden">
+          <header class="detail-head">
+            <button id="warDetailBack" class="text-action" type="button">← Archive</button>
+            <div class="detail-title">
+              <p id="warDetailMeta" class="kicker">Ranked war</p>
+              <h2 id="warDetailTitle">War report</h2>
+              <span id="warDetailDate"></span>
+            </div>
+            <button id="shareToggle" class="action" type="button">Share</button>
+          </header>
+
+          <section id="sharePanel" class="share-panel hidden">
+            <div><strong>Public read-only link</strong><small>Anyone with the URL can view this report.</small></div>
+            <input id="shareUrl" readonly placeholder="No public link generated" />
+            <button id="shareGenerate" class="action primary" type="button">Generate</button>
+            <button id="shareCopy" class="action hidden" type="button">Copy</button>
+            <button id="shareRevoke" class="text-action" type="button">Revoke</button>
+            <span id="shareStatus"></span>
+          </section>
+
+          <div id="warDetailScore" class="score-line"></div>
+          <div id="warDetailSummary" class="metric-line"></div>
+
+          <div class="control-line">
+            <div class="control-cluster">
+              <label class="check"><input id="warDetailChain" type="checkbox" /> Exclude chain bonuses</label>
+              <select id="warDetailMode" class="small-select">
+                <option value="summary">Summary</option>
+                <option value="detail">Detail</option>
+              </select>
+            </div>
+            <input id="warDetailSearch" class="search" type="search" placeholder="Search member or ID" />
+          </div>
+
+          <div class="data-table-wrap">
+            <table id="warDetailTable" class="data-table performance-table">
+              <thead id="warDetailHead"></thead>
+              <tbody id="warDetailBody"></tbody>
+              <tfoot id="warDetailFoot"></tfoot>
             </table>
           </div>
         </article>
       </section>
 
-      <section id="warsTab" class="tab">
-        <article class="panel">
-          <div class="war-archive-toolbar">
-            <div>
-              <p class="eyebrow">Imported reports</p>
-              <strong id="warArchiveCount">— wars</strong>
-            </div>
-            <input id="warArchiveSearch" class="search" type="search" placeholder="Search opponent or war ID…" />
-          </div>
+      <section id="settingsView" class="view" data-view="settings">
+        <header class="view-head">
+          <div><p class="kicker">Account</p><h1>Settings</h1></div>
+          <button id="logoutButton" class="action" type="button">Log out</button>
+        </header>
 
-          <details class="war-import">
-            <summary><span><strong>Import historical war reports</strong><small>Add finished ranked wars from before RWEngine started tracking this faction.</small></span></summary>
-            <div class="war-import-body">
-              <form id="historicalWarImportForm" class="historical-import-form">
-                <label class="historical-import-input"><span>Ranked war report IDs</span><textarea id="historicalWarReportIds" rows="3" placeholder="One or more report IDs, separated by spaces, commas or new lines" required></textarea></label>
-                <div class="historical-import-actions">
-                  <label class="historical-import-options"><input id="historicalWarOverwrite" type="checkbox" />Overwrite existing reports</label>
-                  <button class="button primary" type="submit">Import reports</button>
-                </div>
-              </form>
-              <div id="historicalWarImportStatus" class="historical-import-status hidden"></div>
-              <div id="historicalWarImportProgress" class="historical-import-progress hidden">
-                <div class="historical-import-progress-head"><span id="historicalWarImportSummary">Preparing import…</span></div>
-                <div class="historical-import-progress-track"><span id="historicalWarImportBar"></span></div>
-                <div id="historicalWarImportList" class="historical-import-list"></div>
-              </div>
-            </div>
-          </details>
-          <div class="table-wrap">
-            <table><thead><tr><th>Opponent</th><th>War ID</th><th>Started</th><th>Ended</th></tr></thead><tbody id="warsBody"></tbody></table>
-          </div>
-        </article>
-      </section>
+        <dl class="settings-list">
+          <div><dt>Player</dt><dd id="settingsPlayer">—</dd></div>
+          <div><dt>Faction</dt><dd id="settingsFaction">—</dd></div>
+          <div><dt>Faction ID</dt><dd id="settingsFactionId">—</dd></div>
+        </dl>
 
-      <section id="settingsTab" class="tab">
-        <article class="settings-sheet">
-          <h2>Account</h2>
-          <dl class="definition-list">
-            <div><dt>Player</dt><dd id="settingsPlayer">—</dd></div>
-            <div><dt>Faction</dt><dd id="settingsFaction">—</dd></div>
-            <div><dt>Faction ID</dt><dd id="settingsFactionId">—</dd></div>
-          </dl>
-        </article>
+        <section id="adminSection" class="admin-section hidden">
+          <header><p class="kicker">Admin</p><h2>Tracked factions</h2></header>
+          <div id="adminFactionList" class="admin-faction-list"></div>
+          <form id="adminKeyForm" class="admin-key-form hidden">
+            <p id="adminKeyHeading"></p>
+            <label><span>Managed Torn API key</span><input id="adminApiKey" type="password" autocomplete="off" /></label>
+            <div><button class="action primary" type="submit">Save key</button><button id="adminClearKey" class="text-action" type="button">Remove managed key</button></div>
+            <small id="adminKeyStatus"></small>
+          </form>
+        </section>
       </section>
     </main>
   </div>
 
-  <script src="/v2/admin-boot-router.js?v=1"></script>
-  <script type="module" src="/v2/app.js?v=4"></script>
-  <script type="module" src="/v2/sync-status.js?v=27"></script>
-  <script type="module" src="/v2/war-import.js?v=6"></script>
-  <script type="module" src="/v2/war-sharing.js?v=1"></script>
-  <script type="module" src="/v2/platform-shell.js?v=1"></script>
+  <script type="module" src="/v2/app.js?v=1"></script>
 </body>
 </html>
