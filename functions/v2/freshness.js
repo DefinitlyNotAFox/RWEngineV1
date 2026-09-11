@@ -18,7 +18,7 @@ export async function onRequest(context) {
     ).bind(factionId).first();
 
     const snapshots = await env.DB.prepare(
-      'SELECT MAX(snapshot_at) AS observed_at FROM member_snapshots WHERE faction_id = ?'
+      'SELECT MIN(snapshot_at) AS first_at, MAX(snapshot_at) AS observed_at FROM member_snapshots WHERE faction_id = ?'
     ).bind(factionId).first();
 
     const completedSync = await env.DB.prepare(
@@ -63,6 +63,7 @@ export async function onRequest(context) {
           ageSeconds: intelAge,
           staleAfterSeconds: INTEL_STALE_AFTER,
           rosterObservedAt: rosterAt,
+          snapshotFirstAt: nullableNumber(snapshots?.first_at),
           snapshotObservedAt: snapshotAt,
           lastSuccessfulSyncAt,
           memberCount: Number(roster?.member_count || 0),

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=15" />
+  <link rel="stylesheet" href="/v2/app.css?v=16" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -114,13 +114,15 @@
         <div id="intelSummary" class="metric-line"></div>
         <div id="syncLine" class="status-line hidden"></div>
 
-        <div class="faction-viewbar" data-intel2-only>
-          <div id="factionPresets" class="faction-presets" aria-label="Faction table columns"></div>
-          <div id="factionWarPeriodWrap" class="faction-period hidden">
-            <span>War range</span>
-            <div id="factionPeriodControl" class="period-control"></div>
+        <div class="faction-modebar" data-intel2-only>
+          <div class="faction-modes" aria-label="Faction analysis mode">
+            <button type="button" data-faction-mode="timeline">Timeline</button>
+            <button type="button" data-faction-mode="wars">Ranked wars</button>
           </div>
+          <button id="factionFilterToggle" class="faction-filter-toggle" type="button"></button>
         </div>
+
+        <section id="factionFilterPanel" class="faction-filter-panel hidden" data-intel2-only></section>
 
         <div class="intel2-toolbar">
           <div id="intelFilters" class="intel2-filters"></div>
@@ -129,7 +131,6 @@
         </div>
 
         <div id="factionTableContext" class="faction-table-context" data-intel2-only>
-          <span id="factionTableGuide"></span>
           <span id="factionTableStatus" class="hidden"></span>
         </div>
 
@@ -277,6 +278,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=6"></script>
+  <script type="module" src="/v2/app.js?v=7"></script>
 </body>
 </html>

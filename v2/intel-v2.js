@@ -1,5 +1,5 @@
 import {
-  state, on, emit, intelV2Api, syncApi, performanceApi, periodPayload,
+  state, on, emit, intelV2Api, syncApi, performanceApi,
   metric, formatNumber, formatCompact, formatDecimal, formatPercent, formatSigned,
   formatDuration, formatRelative, escapeHtml, sleep
 } from './core.js';
@@ -14,33 +14,17 @@ const filters = [
   ['former','Former members']
 ];
 
-const factionPresets = [
-  ['overview','Overview'],
-  ['activity','Activity'],
-  ['training','Training'],
-  ['war','War'],
-  ['all','All']
+const factionColumns = [
+  'member','stats','activity','xanax',
+  'participation','hits','assists','outsideHits',
+  'respect','score','netScore','attention'
 ];
-
-const presetColumns = {
-  overview:['member','stats','activity','xanax','participation4','hits4','attention'],
-  activity:['member','activity','xanax','attention'],
-  training:['member','stats','xanax','attention'],
-  war:['member','participation','hits','assists','outsideHits','netScore','attention'],
-  all:[
-    'member','stats','activity','xanax',
-    'participation','hits','assists','outsideHits',
-    'respect','score','netScore','attention'
-  ]
-};
 
 const columnLabels = {
   member:['Member',''],
   stats:['Battle stats',''],
-  activity:['Activity / day','30d'],
-  xanax:['Xanax / day','30d'],
-  participation4:['War participation','last 4'],
-  hits4:['Hits per war','last 4'],
+  activity:['Activity / day',''],
+  xanax:['Xanax / day',''],
   participation:['Wars / participation',''],
   hits:['Hits per war',''],
   assists:['Assists',''],
@@ -51,43 +35,12 @@ const columnLabels = {
   attention:['Signal','']
 };
 
-const presetGroups = {
-  overview:[
-    ['roster','Roster',1],
-    ['training','Activity & training',3],
-    ['war','War',2],
-    ['context','Context',1]
-  ],
-  activity:[
-    ['roster','Roster',1],
-    ['activity','Activity',2],
-    ['context','Context',1]
-  ],
-  training:[
-    ['roster','Roster',1],
-    ['training','Training',2],
-    ['context','Context',1]
-  ],
-  war:[
-    ['roster','Roster',1],
-    ['war','War performance',5],
-    ['context','Context',1]
-  ],
-  all:[
-    ['roster','Roster',1],
-    ['training','Training',3],
-    ['war','War performance',7],
-    ['context','Context',1]
-  ]
-};
-
-const presetGuides = {
-  overview:'Roster, training and recent war performance.',
-  activity:'Activity, Xanax use and current attention signals.',
-  training:'Battle-stat estimates and Xanax usage.',
-  war:'',
-  all:''
-};
+const factionGroups = [
+  ['roster','Roster',1],
+  ['training','Activity & training',3],
+  ['war','War performance',7],
+  ['context','Context',1]
+];
 
 const priority = [
   'inactive',
@@ -105,7 +58,6 @@ const priority = [
 
 let overview = null;
 let loadedFactionId = null;
-let activePreset = restoreFactionPreset();
 let activeFilter = 'all';
 let selectedMemberId = null;
 let sortKey = 'attention';
@@ -114,6 +66,15 @@ let trendDays = 90;
 let loading = false;
 let syncJob = null;
 let syncing = false;
+let filterMode = restoreFactionMode();
+let timelineRange = { from:null, to:null };
+let draftTimelineRange = null;
+let selectedWarIds = new Set();
+let draftWarIds = new Set();
+let calendarCursor = null;
+let calendarAnchor = null;
+let filterPanelOpen = false;
+let loadedAnalysisKey = '';
 
 const factionPerformance = {
   members:new Map(),
@@ -129,7 +90,7 @@ const detailLoading = new Set();
 
 export function initIntelV2() {
   renderFilters();
-  renderPresetControls();
+  renderFactionControls();
 
   document.querySelector('#intelSearch')?.addEventListener('input', renderIntelV2);
 
@@ -145,20 +106,82 @@ export function initIntelV2() {
     renderIntelV2();
   });
 
-  document.querySelector('#factionPresets')?.addEventListener('click', async event => {
-    const button = event.target.closest('[data-faction-preset]');
+  document.querySelector('.faction-modes')?.addEventListener('click', async event => {
+    const button = event.target.closest('[data-faction-mode]');
     if (!button) return;
+    const next = button.dataset.factionMode;
+    if (!['timeline','wars'].includes(next) || next === filterMode) return;
 
-    const next = button.dataset.factionPreset;
-    if (!presetColumns[next]) return;
+    filterMode = next;
+    try { localStorage.setItem('rwengine.factionMode', filterMode); } catch (_) {}
+    filterPanelOpen = false;
+    loadedAnalysisKey = '';
+    factionPerformance.loadedKey = '';
+    factionPerformance.members.clear();
+    ensureFilterState();
+    renderFactionControls();
+    await loadIntelV2(true);
+  });
 
-    activePreset = next;
-    try { localStorage.setItem('rwengine.factionPreset', activePreset); } catch (_) {}
-    ensureSortKey();
-    renderPresetControls();
-    renderIntelV2();
+  document.querySelector('#factionFilterToggle')?.addEventListener('click', () => {
+    filterPanelOpen = !filterPanelOpen;
+    if (filterPanelOpen) prepareFilterDraft();
+    renderFactionControls();
+  });
 
-    if (needsPerformance()) await loadFactionPerformance(false);
+  document.querySelector('#factionFilterPanel')?.addEventListener('click', async event => {
+    const nav = event.target.closest('[data-calendar-nav]');
+    if (nav) {
+      moveCalendar(Number(nav.dataset.calendarNav || 0));
+      renderFilterPanel();
+      return;
+    }
+
+    const day = event.target.closest('[data-calendar-day]');
+    if (day && !day.disabled) {
+      selectCalendarDay(day.dataset.calendarDay);
+      renderFilterPanel();
+      return;
+    }
+
+    const action = event.target.closest('[data-filter-action]');
+    if (!action) return;
+
+    const type = action.dataset.filterAction;
+    if (type === 'cancel') {
+      filterPanelOpen = false;
+      renderFactionControls();
+      return;
+    }
+
+    if (type === 'calendar-apply') {
+      await applyTimelineDraft();
+      return;
+    }
+
+    if (type === 'wars-all') {
+      draftWarIds = new Set(sortedWars().map(war => Number(warId(war))));
+      renderFilterPanel();
+      return;
+    }
+
+    if (type === 'wars-none') {
+      draftWarIds.clear();
+      renderFilterPanel();
+      return;
+    }
+
+    if (type === 'wars-apply') await applyWarDraft();
+  });
+
+  document.querySelector('#factionFilterPanel')?.addEventListener('change', event => {
+    const checkbox = event.target.closest('[data-war-check]');
+    if (!checkbox) return;
+    const id = Number(checkbox.dataset.warCheck || 0);
+    if (!id) return;
+    if (checkbox.checked) draftWarIds.add(id);
+    else draftWarIds.delete(id);
+    updateWarApplyState();
   });
 
   document.querySelector('#intelFilters')?.addEventListener('click', event => {
@@ -197,25 +220,20 @@ export function initIntelV2() {
 
   on('route', route => {
     if (route !== 'intel') return;
-    activePreset = restoreFactionPreset();
+    filterMode = restoreFactionMode();
+    ensureFilterState();
     ensureSortKey();
-    renderPresetControls();
+    renderFactionControls();
     loadIntelV2(false);
   });
 
-  on('period', () => {
-    factionPerformance.loadedKey = '';
-    factionPerformance.members.clear();
-    renderPresetControls();
-    if (state.route === 'intel' && needsPerformance()) loadFactionPerformance(true);
-  });
-
-  on('faction', () => {
-    resetIntelState();
-  });
+  on('faction', () => resetIntelState());
 
   on('data', () => {
-    if (state.route === 'intel') loadIntelV2(true);
+    if (state.route !== 'intel') return;
+    ensureFilterState();
+    renderFactionControls();
+    loadIntelV2(true);
   });
 
   on('open-member', playerId => {
@@ -231,9 +249,12 @@ export async function loadIntelV2(force = false) {
   const factionId = Number(state.selectedFactionId || state.user?.factionId || 0);
   if (!factionId) return;
 
-  if (!force && overview && Number(loadedFactionId) === factionId) {
+  ensureFilterState();
+  const key = analysisKey();
+
+  if (!force && overview && Number(loadedFactionId) === factionId && loadedAnalysisKey === key) {
     renderIntelV2();
-    if (needsPerformance()) await loadFactionPerformance(false);
+    await loadFactionPerformance(false);
     return;
   }
 
@@ -241,14 +262,14 @@ export async function loadIntelV2(force = false) {
   setIntelStatus('Loading faction data…');
 
   try {
-    overview = await intelV2Api('overview');
+    overview = await intelV2Api('overview', analysisPayload());
     loadedFactionId = factionId;
+    loadedAnalysisKey = key;
     setIntelStatus('');
     renderIntelV2();
     renderIntelFreshness();
     await refreshSyncStatus();
-
-    if (needsPerformance()) await loadFactionPerformance(force);
+    await loadFactionPerformance(force);
   } catch (error) {
     overview = null;
     setIntelStatus(error.message || 'Failed to load faction data.', true);
@@ -259,7 +280,7 @@ export async function loadIntelV2(force = false) {
 }
 
 async function loadFactionPerformance(force = false) {
-  if (!needsPerformance() || factionPerformance.loading) return;
+  if (factionPerformance.loading) return;
 
   const key = performanceKey();
   if (!force && factionPerformance.loadedKey === key) {
@@ -273,7 +294,7 @@ async function loadFactionPerformance(force = false) {
   renderIntelV2();
 
   try {
-    const data = await performanceApi(periodPayload());
+    const data = await performanceApi(performancePayload());
     factionPerformance.members = new Map(
       (data.members || []).map(member => [Number(member.playerId), member])
     );
@@ -301,39 +322,56 @@ function renderFilters() {
   ).join('');
 }
 
-function renderPresetControls() {
-  const container = document.querySelector('#factionPresets');
-  if (container) {
-    container.innerHTML = factionPresets.map(([key,label]) =>
-      `<button type="button" data-faction-preset="${key}" class="${activePreset === key ? 'active' : ''}">${label}</button>`
-    ).join('');
+function renderFactionControls() {
+  ensureFilterState();
+
+  document.querySelectorAll('[data-faction-mode]').forEach(button => {
+    button.classList.toggle('active', button.dataset.factionMode === filterMode);
+  });
+
+  const toggle = document.querySelector('#factionFilterToggle');
+  if (toggle) {
+    toggle.textContent = filterMode === 'timeline'
+      ? `Timeline · ${formatRangeLabel(timelineRange)}`
+      : `${selectedWarIds.size} ranked war${selectedWarIds.size === 1 ? '' : 's'} selected`;
+    toggle.classList.toggle('active', filterPanelOpen);
   }
 
-  document.querySelector('#factionWarPeriodWrap')?.classList.toggle('hidden', !needsPerformance());
-
-  const guide = document.querySelector('#factionTableGuide');
-  if (guide) guide.textContent = presetGuides[activePreset] || '';
-
   const table = document.querySelector('#intelTable');
-  if (table) table.dataset.preset = activePreset;
+  if (table) table.dataset.preset = 'all';
 
+  renderFilterPanel();
   renderFactionStatus();
+}
+
+function renderFilterPanel() {
+  const panel = document.querySelector('#factionFilterPanel');
+  if (!panel) return;
+
+  panel.classList.toggle('hidden', !filterPanelOpen);
+  if (!filterPanelOpen) {
+    panel.innerHTML = '';
+    return;
+  }
+
+  panel.innerHTML = filterMode === 'timeline'
+    ? renderCalendarPicker()
+    : renderWarPicker();
+
+  updateWarApplyState();
 }
 
 function renderFactionStatus() {
   const element = document.querySelector('#factionTableStatus');
+  const wrap = document.querySelector('#factionTableContext');
   if (!element) return;
 
-  if (!needsPerformance()) {
-    element.textContent = '';
-    element.classList.add('hidden');
-    element.classList.remove('error');
-    return;
-  }
-
   if (factionPerformance.loading) {
-    element.textContent = `War data: ${periodLabel()} · loading…`;
+    element.textContent = filterMode === 'timeline'
+      ? `Loading war data for ${formatRangeLabel(timelineRange)}…`
+      : `Loading ${selectedWarIds.size} selected ranked wars…`;
     element.classList.remove('hidden','error');
+    wrap?.classList.remove('hidden');
     return;
   }
 
@@ -341,30 +379,26 @@ function renderFactionStatus() {
     element.textContent = factionPerformance.error;
     element.classList.remove('hidden');
     element.classList.add('error');
-    return;
-  }
-
-  if (factionPerformance.loadedKey) {
-    element.textContent = `War data: ${periodLabel()} · ${formatNumber(factionPerformance.totalWars)} imported war${factionPerformance.totalWars === 1 ? '' : 's'}`;
-    element.classList.remove('hidden','error');
+    wrap?.classList.remove('hidden');
     return;
   }
 
   element.textContent = '';
   element.classList.add('hidden');
+  element.classList.remove('error');
+  wrap?.classList.add('hidden');
 }
 
 function renderIntelV2() {
   ensureSortKey();
-  renderPresetControls();
+  renderFactionControls();
   renderSummary();
   renderHeaders();
 
   const body = document.querySelector('#intelBody');
   if (!body) return;
 
-  const columns = activeColumns();
-  const colspan = columns.length;
+  const colspan = factionColumns.length;
 
   if (loading && !overview) {
     body.innerHTML = `<tr class="empty-row"><td colspan="${colspan}">Loading faction data…</td></tr>`;
@@ -393,7 +427,7 @@ function renderIntelV2() {
 
     return `
       <tr class="clickable${selected ? ' selected' : ''}" data-member-id="${member.playerId}">
-        ${columns.map(key => renderFactionCell(member, key)).join('')}
+        ${factionColumns.map(key => renderFactionCell(member, key)).join('')}
       </tr>
       ${selected ? renderDetailRow(member) : ''}
     `;
@@ -411,87 +445,19 @@ function renderSummary() {
   }
 
   const current = (overview.members || []).filter(member => member.current !== false);
-
-  if (activePreset === 'activity') {
-    const inactive = current.filter(member =>
-      (member.insights || []).some(item => item.code === 'inactive')
-    ).length;
-    const improving = current.filter(member =>
-      (member.insights || []).some(item => item.code === 'activity_up')
-    ).length;
-    const declining = current.filter(member =>
-      (member.insights || []).some(item => item.code === 'activity_down')
-    ).length;
-
-    element.innerHTML = [
-      metric('Members', formatNumber(summary.currentMembers), 'current roster'),
-      metric('Activity / day', formatDuration(summary.avgActivityPerDay30d), '30d roster average'),
-      metric('Xanax / day', formatDecimal(summary.avgXanaxPerDay30d, 2), '30d roster average'),
-      metric('Inactive 48h+', formatNumber(inactive), 'members'),
-      metric('Activity improving', formatNumber(improving), 'members'),
-      metric('Activity declining', formatNumber(declining), 'members')
-    ].join('');
-    return;
-  }
-
-  if (activePreset === 'training') {
-    const growth = current.filter(member =>
-      (member.insights || []).some(item => item.code === 'battle_stats_growth')
-    ).length;
-    const unavailable = current.filter(member =>
-      (member.insights || []).some(item => ['missing_battle_stats','stale_battle_stats'].includes(item.code))
-    ).length;
-
-    element.innerHTML = [
-      metric('Members', formatNumber(summary.currentMembers), 'current roster'),
-      metric('Median stats', formatCompact(summary.medianBattleStats), `${formatNumber(summary.knownBattleStats)} estimates known`),
-      metric('Stats growing', formatNumber(growth), 'members'),
-      metric('Xanax / day', formatDecimal(summary.avgXanaxPerDay30d, 2), '30d roster average'),
-      metric('Stats unavailable', formatNumber(unavailable), 'missing or stale'),
-      metric('Attention', formatNumber(summary.membersNeedingAttention), 'actionable signals')
-    ].join('');
-    return;
-  }
-
-  if (activePreset === 'war') {
-    const rows = current.map(member => performanceMember(member)).filter(Boolean);
-    const totalHits = rows.reduce((sum,row) => sum + Number(row.warHits || 0), 0);
-    const totalAssists = rows.reduce((sum,row) => sum + Number(row.assists || 0), 0);
-    const totalNet = rows.reduce((sum,row) => sum + Number(row.netScore || 0), 0);
-    const participation = averageNullable(rows.map(row => row.participation));
-
-    element.innerHTML = [
-      metric('Wars', factionPerformance.loading ? '…' : formatNumber(factionPerformance.totalWars), periodLabel()),
-      metric('Participation', factionPerformance.loading ? '…' : formatPercent(participation), 'roster average'),
-      metric('War hits', factionPerformance.loading ? '…' : formatNumber(totalHits), 'all members'),
-      metric('Hits per war', factionPerformance.loading || !factionPerformance.totalWars ? '—' : formatDecimal(totalHits / factionPerformance.totalWars, 1), 'faction average'),
-      metric('Assists', factionPerformance.loading ? '…' : formatNumber(totalAssists), periodLabel()),
-      metric('Net score', factionPerformance.loading ? '…' : formatSigned(totalNet, 2), 'score gained − lost')
-    ].join('');
-    return;
-  }
-
-  if (activePreset === 'all') {
-    const rows = current.map(member => performanceMember(member)).filter(Boolean);
-    const participation = averageNullable(rows.map(row => row.participation));
-
-    element.innerHTML = [
-      metric('Members', formatNumber(summary.currentMembers), 'current roster'),
-      metric('Median stats', formatCompact(summary.medianBattleStats), `${formatNumber(summary.knownBattleStats)} estimates known`),
-      metric('Activity / day', formatDuration(summary.avgActivityPerDay30d), '30d average'),
-      metric('Xanax / day', formatDecimal(summary.avgXanaxPerDay30d, 2), '30d average'),
-      metric('War participation', factionPerformance.loading ? '…' : formatPercent(participation), periodLabel()),
-      metric('Attention', formatNumber(summary.membersNeedingAttention), 'actionable signals')
-    ].join('');
-    return;
-  }
+  const rows = current.map(member => performanceMember(member)).filter(Boolean);
+  const participation = averageNullable(rows.map(row => row.participation));
+  const activityScope = filterMode === 'timeline' ? 'selected period' : 'selected war span';
+  const warScope = filterMode === 'timeline'
+    ? `${formatNumber(factionPerformance.totalWars)} wars in range`
+    : `${selectedWarIds.size} selected war${selectedWarIds.size === 1 ? '' : 's'}`;
 
   element.innerHTML = [
     metric('Members', formatNumber(summary.currentMembers), 'current roster'),
     metric('Median stats', formatCompact(summary.medianBattleStats), `${formatNumber(summary.knownBattleStats)} estimates known`),
-    metric('Activity / day', formatDuration(summary.avgActivityPerDay30d), '30d roster average'),
-    metric('Xanax / day', formatDecimal(summary.avgXanaxPerDay30d, 2), '30d roster average'),
-    metric('War participation', formatPercent(summary.avgParticipationLast4), 'last 4 imported wars'),
+    metric('Activity / day', formatDuration(summary.avgActivityPerDay30d), activityScope),
+    metric('Xanax / day', formatDecimal(summary.avgXanaxPerDay30d, 2), activityScope),
+    metric('War participation', factionPerformance.loading ? '…' : formatPercent(participation), warScope),
     metric('Attention', formatNumber(summary.membersNeedingAttention), 'actionable signals')
   ].join('');
 }
@@ -517,11 +483,11 @@ function renderHeaders() {
   const head = document.querySelector('#intelHead');
   if (!head) return;
 
-  const groupRow = (presetGroups[activePreset] || []).map(([key,label,count]) => `
+  const groupRow = factionGroups.map(([key,label,count]) => `
     <th class="faction-group group-${key}" colspan="${count}">${escapeHtml(label)}</th>
   `).join('');
 
-  const columnRow = activeColumns().map(key => {
+  const columnRow = factionColumns.map(key => {
     const [label, detail] = columnLabels[key] || [key,''];
     const active = key === sortKey;
     return `
@@ -613,7 +579,7 @@ function matchesFilter(member) {
   if (activeFilter === 'attention') return member.current !== false && insights.some(item => item.kind === 'attention');
   if (activeFilter === 'inactive') return member.current !== false && codes.has('inactive');
   if (activeFilter === 'war') {
-    if (needsPerformance() && factionPerformance.loadedKey) {
+    if (factionPerformance.loadedKey) {
       const performance = performanceMember(member);
       return member.current !== false && Number(performance?.participation ?? 1) < 0.5;
     }
@@ -672,52 +638,390 @@ function sortValue(member, key) {
   return 0;
 }
 
-function activeColumns() {
-  return presetColumns[activePreset] || presetColumns.overview;
-}
-
-function needsPerformance() {
-  return activePreset === 'war' || activePreset === 'all';
-}
-
 function performanceMember(member) {
   return factionPerformance.members.get(Number(member?.playerId)) || null;
 }
 
+function analysisPayload() {
+  const range = effectiveRange();
+  return range?.from && range?.to ? { from:range.from, to:range.to } : {};
+}
+
+function performancePayload() {
+  if (filterMode === 'wars') {
+    return { warIds:[...selectedWarIds].sort((a,b) => a-b) };
+  }
+  return analysisPayload();
+}
+
+function analysisKey() {
+  const factionId = Number(state.selectedFactionId || state.user?.factionId || 0);
+  const range = effectiveRange();
+  return `${factionId}:${range?.from || ''}:${range?.to || ''}`;
+}
+
 function performanceKey() {
   const factionId = Number(state.selectedFactionId || state.user?.factionId || 0);
-  const period = periodPayload();
-  return `${factionId}:${period.from || ''}:${period.to || ''}`;
+  if (filterMode === 'wars') {
+    return `${factionId}:wars:${[...selectedWarIds].sort((a,b) => a-b).join(',')}`;
+  }
+  const range = effectiveRange();
+  return `${factionId}:timeline:${range?.from || ''}:${range?.to || ''}`;
 }
 
 function ensureSortKey() {
-  const columns = activeColumns();
-  if (columns.includes(sortKey)) return;
-
-  if (activePreset === 'war') sortKey = 'netScore';
-  else if (activePreset === 'activity') sortKey = 'activity';
-  else if (activePreset === 'training') sortKey = 'stats';
-  else sortKey = 'attention';
-
-  sortDirection = sortKey === 'member' ? 'asc' : 'desc';
+  if (factionColumns.includes(sortKey)) return;
+  sortKey = 'attention';
+  sortDirection = 'desc';
 }
 
-function restoreFactionPreset() {
+function restoreFactionMode() {
   try {
-    const stored = localStorage.getItem('rwengine.factionPreset');
-    if (presetColumns[stored]) return stored;
+    const stored = localStorage.getItem('rwengine.factionMode');
+    if (stored === 'timeline' || stored === 'wars') return stored;
   } catch (_) {}
-  return 'overview';
+  return 'timeline';
 }
 
-function periodLabel() {
-  const labels = {
-    last4:'Last 4 wars',
-    '30d':'30 days',
-    year:'This year',
-    all:'All imported wars'
+function ensureFilterState() {
+  const bounds = availabilityBounds();
+
+  if (!timelineRange.from || !timelineRange.to) {
+    timelineRange = restoreTimelineRange(bounds) || defaultTimelineRange(bounds);
+  }
+
+  if (bounds.from && timelineRange.from < bounds.from) timelineRange.from = bounds.from;
+  if (bounds.to && timelineRange.to > bounds.to) timelineRange.to = bounds.to;
+  if (timelineRange.from > timelineRange.to) timelineRange = defaultTimelineRange(bounds);
+
+  const validWarIds = new Set(sortedWars().map(war => Number(warId(war))));
+  selectedWarIds = new Set([...selectedWarIds].filter(id => validWarIds.has(id)));
+
+  if (!selectedWarIds.size) {
+    const restored = restoreWarSelection(validWarIds);
+    selectedWarIds = restored.size
+      ? restored
+      : new Set(sortedWars().slice(0,4).map(war => Number(warId(war))));
+  }
+
+  if (!calendarCursor) {
+    calendarCursor = monthStart(timelineRange.from || bounds.from || isoToday());
+  }
+}
+
+function availabilityBounds() {
+  const intel = state.freshness?.datasets?.intel;
+  return {
+    from:intel?.snapshotFirstAt ? isoDate(intel.snapshotFirstAt) : null,
+    to:intel?.snapshotObservedAt ? isoDate(intel.snapshotObservedAt) : null
   };
-  return labels[state.period?.preset] || 'Selected range';
+}
+
+function defaultTimelineRange(bounds) {
+  if (!bounds?.to) {
+    const to = isoToday();
+    return { from:addDays(to,-29), to };
+  }
+  const candidate = addDays(bounds.to,-29);
+  return {
+    from:bounds.from && candidate < bounds.from ? bounds.from : candidate,
+    to:bounds.to
+  };
+}
+
+function restoreTimelineRange(bounds) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem('rwengine.timelineRange') || 'null');
+    if (!parsed?.from || !parsed?.to) return null;
+    if (bounds?.from && parsed.from < bounds.from) return null;
+    if (bounds?.to && parsed.to > bounds.to) return null;
+    return { from:parsed.from, to:parsed.to };
+  } catch (_) {
+    return null;
+  }
+}
+
+function restoreWarSelection(validIds) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem('rwengine.selectedWarIds') || '[]');
+    return new Set(
+      (Array.isArray(parsed) ? parsed : [])
+        .map(Number)
+        .filter(id => validIds.has(id))
+    );
+  } catch (_) {
+    return new Set();
+  }
+}
+
+function effectiveRange() {
+  ensureFilterState();
+  if (filterMode === 'timeline') return timelineRange;
+  return rangeForWarIds(selectedWarIds);
+}
+
+function prepareFilterDraft() {
+  ensureFilterState();
+  if (filterMode === 'timeline') {
+    draftTimelineRange = { ...timelineRange };
+    calendarAnchor = null;
+    calendarCursor = monthStart(draftTimelineRange.from || timelineRange.from);
+  } else {
+    draftWarIds = new Set(selectedWarIds);
+  }
+}
+
+async function applyTimelineDraft() {
+  if (!draftTimelineRange?.from || !draftTimelineRange?.to) return;
+  timelineRange = { ...draftTimelineRange };
+  try { localStorage.setItem('rwengine.timelineRange', JSON.stringify(timelineRange)); } catch (_) {}
+  filterPanelOpen = false;
+  loadedAnalysisKey = '';
+  factionPerformance.loadedKey = '';
+  factionPerformance.members.clear();
+  renderFactionControls();
+  await loadIntelV2(true);
+}
+
+async function applyWarDraft() {
+  if (!draftWarIds.size) return;
+  selectedWarIds = new Set(draftWarIds);
+  try { localStorage.setItem('rwengine.selectedWarIds', JSON.stringify([...selectedWarIds])); } catch (_) {}
+  filterPanelOpen = false;
+  loadedAnalysisKey = '';
+  factionPerformance.loadedKey = '';
+  factionPerformance.members.clear();
+  renderFactionControls();
+  await loadIntelV2(true);
+}
+
+function renderCalendarPicker() {
+  const bounds = availabilityBounds();
+  const first = calendarCursor || monthStart(timelineRange.from || bounds.from || isoToday());
+  const second = addMonths(first, 1);
+  const range = draftTimelineRange || timelineRange;
+
+  return `
+    <div class="calendar-picker">
+      <header class="filter-panel-head">
+        <div>
+          <strong>Timeline</strong>
+          <span>${escapeHtml(formatRangeLabel(range))}</span>
+        </div>
+        <div class="calendar-nav">
+          <button type="button" data-calendar-nav="-1" aria-label="Previous month">←</button>
+          <button type="button" data-calendar-nav="1" aria-label="Next month">→</button>
+        </div>
+      </header>
+      <div class="calendar-months">
+        ${renderCalendarMonth(first, bounds, range)}
+        ${renderCalendarMonth(second, bounds, range)}
+      </div>
+      <footer class="filter-panel-foot">
+        <span><i class="calendar-legend-war"></i> Imported ranked war</span>
+        <span class="filter-spacer"></span>
+        <button type="button" class="text-action" data-filter-action="cancel">Cancel</button>
+        <button type="button" class="action primary" data-filter-action="calendar-apply">Apply range</button>
+      </footer>
+    </div>
+  `;
+}
+
+function renderCalendarMonth(month, bounds, range) {
+  const year = month.getUTCFullYear();
+  const monthIndex = month.getUTCMonth();
+  const title = month.toLocaleString(undefined, { month:'long', year:'numeric', timeZone:'UTC' });
+  const firstWeekday = (new Date(Date.UTC(year, monthIndex, 1)).getUTCDay() + 6) % 7;
+  const days = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+  const cells = [];
+
+  for (let i = 0; i < firstWeekday; i++) cells.push('<span class="calendar-day empty"></span>');
+
+  for (let day = 1; day <= days; day++) {
+    const date = `${year}-${String(monthIndex + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const available = (!bounds.from || date >= bounds.from) && (!bounds.to || date <= bounds.to);
+    const warNames = warsOnDate(date);
+    const selected = range?.from && range?.to && date >= range.from && date <= range.to;
+    const edge = date === range?.from || date === range?.to;
+    const classes = [
+      'calendar-day',
+      available ? '' : 'unavailable',
+      warNames.length ? 'has-war' : '',
+      selected ? 'selected' : '',
+      edge ? 'edge' : ''
+    ].filter(Boolean).join(' ');
+
+    cells.push(`<button type="button" class="${classes}" data-calendar-day="${date}"${available ? '' : ' disabled'} title="${escapeHtml(warNames.join(' · '))}"><span>${day}</span>${warNames.length ? '<i></i>' : ''}</button>`);
+  }
+
+  return `
+    <section class="calendar-month">
+      <header>${escapeHtml(title)}</header>
+      <div class="calendar-weekdays">${['M','T','W','T','F','S','S'].map(day => `<span>${day}</span>`).join('')}</div>
+      <div class="calendar-grid">${cells.join('')}</div>
+    </section>
+  `;
+}
+
+function renderWarPicker() {
+  const wars = sortedWars();
+
+  return `
+    <div class="war-picker">
+      <header class="filter-panel-head">
+        <div>
+          <strong>Ranked wars</strong>
+          <span>${draftWarIds.size} selected</span>
+        </div>
+        <div class="war-picker-actions">
+          <button type="button" class="text-action" data-filter-action="wars-all">All</button>
+          <button type="button" class="text-action" data-filter-action="wars-none">None</button>
+        </div>
+      </header>
+      <div class="war-picker-list">
+        ${wars.length ? wars.map(war => {
+          const id = Number(warId(war));
+          const checked = draftWarIds.has(id);
+          return `
+            <label class="war-picker-row">
+              <input type="checkbox" data-war-check="${id}"${checked ? ' checked' : ''}>
+              <span>
+                <strong>${escapeHtml(warOpponent(war))}</strong>
+                <small>#${escapeHtml(id)} · ${escapeHtml(formatWarDate(war))}</small>
+              </span>
+            </label>
+          `;
+        }).join('') : '<p class="status-line">No imported ranked wars.</p>'}
+      </div>
+      <footer class="filter-panel-foot">
+        <span>${escapeHtml(formatRangeLabel(rangeForWarIds(draftWarIds)))}</span>
+        <span class="filter-spacer"></span>
+        <button type="button" class="text-action" data-filter-action="cancel">Cancel</button>
+        <button id="warSelectionApply" type="button" class="action primary" data-filter-action="wars-apply"${draftWarIds.size ? '' : ' disabled'}>Apply wars</button>
+      </footer>
+    </div>
+  `;
+}
+
+function updateWarApplyState() {
+  const button = document.querySelector('#warSelectionApply');
+  if (button) button.disabled = !draftWarIds.size;
+}
+
+function selectCalendarDay(date) {
+  if (!calendarAnchor) {
+    calendarAnchor = date;
+    draftTimelineRange = { from:date, to:date };
+    return;
+  }
+
+  draftTimelineRange = date < calendarAnchor
+    ? { from:date, to:calendarAnchor }
+    : { from:calendarAnchor, to:date };
+  calendarAnchor = null;
+}
+
+function moveCalendar(offset) {
+  calendarCursor = addMonths(calendarCursor || monthStart(isoToday()), offset);
+}
+
+function rangeForWarIds(ids) {
+  const selected = sortedWars().filter(war => ids.has(Number(warId(war))));
+  if (!selected.length) return timelineRange;
+
+  const starts = selected.map(war => warStartDate(war)).filter(Boolean).sort();
+  const ends = selected.map(war => warEndDate(war)).filter(Boolean).sort();
+
+  return {
+    from:starts[0] || ends[0] || timelineRange.from,
+    to:ends[ends.length - 1] || starts[starts.length - 1] || timelineRange.to
+  };
+}
+
+function sortedWars() {
+  return [...(state.wars || [])].sort((a,b) => warStamp(b) - warStamp(a));
+}
+
+function warStamp(war) {
+  return Number(war?.endTimestamp || war?.end_timestamp || war?.startTimestamp || war?.start_timestamp || war?.importedAt || war?.imported_at || 0);
+}
+
+function warId(war) {
+  return war?.warId ?? war?.war_id ?? war?.id ?? 0;
+}
+
+function warOpponent(war) {
+  return war?.opponentFactionName || war?.opponent_faction_name || war?.opponentName || war?.opponent_name || 'Unknown opponent';
+}
+
+function warStartDate(war) {
+  const stamp = Number(war?.startTimestamp || war?.start_timestamp || war?.endTimestamp || war?.end_timestamp || war?.importedAt || war?.imported_at || 0);
+  return stamp ? isoDate(stamp) : null;
+}
+
+function warEndDate(war) {
+  const stamp = Number(war?.endTimestamp || war?.end_timestamp || war?.startTimestamp || war?.start_timestamp || war?.importedAt || war?.imported_at || 0);
+  return stamp ? isoDate(stamp) : null;
+}
+
+function formatWarDate(war) {
+  const start = warStartDate(war);
+  const end = warEndDate(war);
+  if (!start && !end) return 'Date unavailable';
+  if (!start || start === end) return humanDate(end || start);
+  return `${humanDate(start)} – ${humanDate(end)}`;
+}
+
+function warsOnDate(date) {
+  return sortedWars()
+    .filter(war => {
+      const start = warStartDate(war);
+      const end = warEndDate(war);
+      if (!start && !end) return false;
+      return date >= (start || end) && date <= (end || start);
+    })
+    .map(war => warOpponent(war));
+}
+
+function formatRangeLabel(range) {
+  if (!range?.from || !range?.to) return 'No available range';
+  if (range.from === range.to) return humanDate(range.from);
+  return `${humanDate(range.from)} – ${humanDate(range.to)}`;
+}
+
+function humanDate(value) {
+  if (!value) return '—';
+  const date = new Date(value + 'T00:00:00Z');
+  return date.toLocaleDateString(undefined, {
+    day:'2-digit',
+    month:'short',
+    year:date.getUTCFullYear() === new Date().getUTCFullYear() ? undefined : 'numeric',
+    timeZone:'UTC'
+  });
+}
+
+function isoDate(timestamp) {
+  return new Date(Number(timestamp) * 1000).toISOString().slice(0,10);
+}
+
+function isoToday() {
+  return new Date().toISOString().slice(0,10);
+}
+
+function addDays(value, days) {
+  const date = new Date(value + 'T00:00:00Z');
+  date.setUTCDate(date.getUTCDate() + Number(days || 0));
+  return date.toISOString().slice(0,10);
+}
+
+function monthStart(value) {
+  const date = value instanceof Date ? value : new Date(String(value) + 'T00:00:00Z');
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+}
+
+function addMonths(value, months) {
+  const date = value instanceof Date ? value : monthStart(value);
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + Number(months || 0), 1));
 }
 
 function averageNullable(values) {
@@ -742,7 +1046,7 @@ function tableBattleStatsTrend(member) {
   const number = Number(value);
   if (!Number.isFinite(number)) return '—';
   const pct = Math.round(number * 100);
-  return `${pct > 0 ? '+' : ''}${pct}% · 30d`;
+  return `${pct > 0 ? '+' : ''}${pct}%`;
 }
 
 function tableSignalLabel(signal, member) {
@@ -761,9 +1065,25 @@ function tableSignalLabel(signal, member) {
 }
 
 function topSignal(member) {
-  const insights = Array.isArray(member.insights) ? member.insights : [];
+  const insights = Array.isArray(member.insights) ? [...member.insights] : [];
+  const performance = performanceMember(member);
+
+  if (
+    performance &&
+    factionPerformance.totalWars > 0 &&
+    Number.isFinite(Number(performance.participation)) &&
+    Number(performance.participation) < 0.5 &&
+    !insights.some(item => item.code === 'low_war_participation')
+  ) {
+    insights.push({
+      code:'low_war_participation',
+      kind:'attention',
+      text:`Participated in ${formatNumber(performance.wars)} of ${formatNumber(factionPerformance.totalWars)} selected wars.`
+    });
+  }
+
   if (!insights.length) return null;
-  return [...insights].sort((a,b) => priorityIndex(a.code) - priorityIndex(b.code))[0];
+  return insights.sort((a,b) => priorityIndex(a.code) - priorityIndex(b.code))[0];
 }
 
 function priorityIndex(code) {
@@ -821,15 +1141,15 @@ function renderDetailRow(member) {
   const payload = detailCache.get(key);
 
   if (detailLoading.has(key)) {
-    return `<tr class="intel2-detail-row"><td colspan="${activeColumns().length}"><section class="intel2-detail"><p class="status-line">Loading member history…</p></section></td></tr>`;
+    return `<tr class="intel2-detail-row"><td colspan="${factionColumns.length}"><section class="intel2-detail"><p class="status-line">Loading member history…</p></section></td></tr>`;
   }
 
   if (payload?.error) {
-    return `<tr class="intel2-detail-row"><td colspan="${activeColumns().length}"><section class="intel2-detail"><p class="status-line error">${escapeHtml(payload.error)}</p></section></td></tr>`;
+    return `<tr class="intel2-detail-row"><td colspan="${factionColumns.length}"><section class="intel2-detail"><p class="status-line error">${escapeHtml(payload.error)}</p></section></td></tr>`;
   }
 
   if (!payload?.member) {
-    return `<tr class="intel2-detail-row"><td colspan="${activeColumns().length}"><section class="intel2-detail"><p class="status-line">Loading member history…</p></section></td></tr>`;
+    return `<tr class="intel2-detail-row"><td colspan="${factionColumns.length}"><section class="intel2-detail"><p class="status-line">Loading member history…</p></section></td></tr>`;
   }
 
   const detailMember = payload.member;
@@ -838,7 +1158,7 @@ function renderDetailRow(member) {
 
   return `
     <tr class="intel2-detail-row">
-      <td colspan="${activeColumns().length}">
+      <td colspan="${factionColumns.length}">
         <section class="intel2-detail">
           <div class="intel2-detail-tools">
             <span>Member context</span>
@@ -1230,12 +1550,21 @@ function detailKey(playerId) {
 function resetIntelState() {
   overview = null;
   loadedFactionId = null;
+  loadedAnalysisKey = '';
   selectedMemberId = null;
   detailCache.clear();
   detailLoading.clear();
   syncJob = null;
   activeFilter = 'all';
   trendDays = 90;
+
+  timelineRange = { from:null, to:null };
+  draftTimelineRange = null;
+  selectedWarIds = new Set();
+  draftWarIds = new Set();
+  calendarCursor = null;
+  calendarAnchor = null;
+  filterPanelOpen = false;
 
   factionPerformance.members.clear();
   factionPerformance.totalWars = 0;
@@ -1248,6 +1577,6 @@ function resetIntelState() {
   if (search) search.value = '';
 
   renderFilters();
-  renderPresetControls();
+  renderFactionControls();
   renderSync();
 }

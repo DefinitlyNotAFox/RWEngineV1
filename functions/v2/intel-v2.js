@@ -18,7 +18,7 @@ export async function onRequest(context) {
     const action = String(body.action || 'overview');
 
     if (action === 'overview') {
-      return json(await buildOverview(env.DB, factionId));
+      return json(await buildOverview(env.DB, factionId, body));
     }
 
     if (action === 'member') {
@@ -35,10 +35,18 @@ export async function onRequest(context) {
   }
 }
 
-async function buildOverview(db, factionId) {
+async function buildOverview(db, factionId, body = {}) {
   const now = unixNow();
+  const range = resolveAnalysisRange(body, now);
+  const span = Math.max(DAY, range.to - range.from);
   const members = await loadMembers(db, factionId);
-  const snapshots = await loadSnapshots(db, factionId, now - SNAPSHOT_LOOKBACK_DAYS * DAY);
+  const snapshotBounds = await loadSnapshotBounds(db, factionId);
+  const snapshots = await loadSnapshots(
+    db,
+    factionId,
+    Math.max(0, range.from - span - 7 * DAY),
+    Math.min(now, range.to + DAY)
+  );
   const wars = await loadRecentWars(db, factionId, 8);
   const warMetrics = await loadWarMetrics(db, factionId, wars.map(war => war.warId));
 
@@ -50,7 +58,8 @@ async function buildOverview(db, factionId) {
     snapshots: snapshotsByPlayer.get(Number(row.player_id)) || [],
     warRows: warByPlayer.get(Number(row.player_id)) || [],
     wars,
-    now
+    now,
+    range
   }));
 
   const medianHits = median(
@@ -75,7 +84,18 @@ async function buildOverview(db, factionId) {
     success:true,
     generatedAt:now,
     faction:await loadFaction(db, factionId),
-    freshness:buildFreshness(snapshots, now),
+    freshness:buildFreshnessFromBounds(snapshotBounds, now),
+    availability:{
+      from:snapshotBounds.firstAt ? utcDate(snapshotBounds.firstAt) : null,
+      to:snapshotBounds.lastAt ? utcDate(snapshotBounds.lastAt) : null
+    },
+    range:{
+      from:range.from,
+      to:range.to,
+      fromDate:utcDate(range.from),
+      toDate:utcDate(range.to),
+      days:Math.max(1, Math.round((range.to - range.from) / DAY))
+    },
     summary:{
       currentMembers:current.length,
       knownBattleStats:knownStats.length,
@@ -147,17 +167,24 @@ async function buildOverviewContextForInsights(db, factionId, now, targetMember)
   };
 }
 
-function buildMemberOverview({ row, snapshots, warRows, wars, now }) {
-  const latest = latestSnapshot(snapshots);
-  const current30 = buildCumulativeWindow(snapshots, now - 30 * DAY, now);
-  const previous30 = buildCumulativeWindow(snapshots, now - 60 * DAY, now - 30 * DAY);
+function buildMemberOverview({ row, snapshots, warRows, wars, now, range = null }) {
+  const effectiveTo = Number(range?.to || now);
+  const effectiveFrom = Number(range?.from || (effectiveTo - 30 * DAY));
+  const span = Math.max(DAY, effectiveTo - effectiveFrom);
+  const previousFrom = Math.max(0, effectiveFrom - span);
+  const previousTo = effectiveFrom;
+  const requiredCoverage = Math.min(21, Math.max(1, (span / DAY) * 0.7));
+
+  const latest = latestSnapshot(snapshots.filter(row => Number(row.snapshot_at || 0) <= effectiveTo + DAY));
+  const currentWindow = buildCumulativeWindow(snapshots, effectiveFrom, effectiveTo);
+  const previousWindow = buildCumulativeWindow(snapshots, previousFrom, previousTo);
 
   const last4Wars = wars.slice(0, 4);
   const previous4Wars = wars.slice(4, 8);
   const last4 = summarizeWarWindow(warRows, last4Wars);
   const previous4 = summarizeWarWindow(warRows, previous4Wars);
 
-  const stats = buildBattleStats(snapshots, latest, now);
+  const stats = buildBattleStats(snapshots, latest, effectiveTo, effectiveFrom);
 
   return {
     playerId:Number(row.player_id),
@@ -177,23 +204,23 @@ function buildMemberOverview({ row, snapshots, warRows, wars, now }) {
     battleStats:stats,
 
     activity:{
-      perDay30d:current30.activityPerDay,
-      perDayPrevious30d:previous30.activityPerDay,
-      changePct:hasComparisonCoverage(current30, previous30)
-        ? percentChange(current30.activityPerDay, previous30.activityPerDay)
+      perDay30d:currentWindow.activityPerDay,
+      perDayPrevious30d:previousWindow.activityPerDay,
+      changePct:hasComparisonCoverage(currentWindow, previousWindow, requiredCoverage)
+        ? percentChange(currentWindow.activityPerDay, previousWindow.activityPerDay)
         : null,
-      coverageDays:current30.coverageDays,
-      previousCoverageDays:previous30.coverageDays
+      coverageDays:currentWindow.coverageDays,
+      previousCoverageDays:previousWindow.coverageDays
     },
 
     xanax:{
-      perDay30d:current30.xanaxPerDay,
-      perDayPrevious30d:previous30.xanaxPerDay,
-      changePct:hasComparisonCoverage(current30, previous30)
-        ? percentChange(current30.xanaxPerDay, previous30.xanaxPerDay)
+      perDay30d:currentWindow.xanaxPerDay,
+      perDayPrevious30d:previousWindow.xanaxPerDay,
+      changePct:hasComparisonCoverage(currentWindow, previousWindow, requiredCoverage)
+        ? percentChange(currentWindow.xanaxPerDay, previousWindow.xanaxPerDay)
         : null,
-      coverageDays:current30.coverageDays,
-      previousCoverageDays:previous30.coverageDays
+      coverageDays:currentWindow.coverageDays,
+      previousCoverageDays:previousWindow.coverageDays
     },
 
     war:{
@@ -202,7 +229,7 @@ function buildMemberOverview({ row, snapshots, warRows, wars, now }) {
     },
 
     coverage:{
-      snapshotDays60d:coverageAcross(snapshots, now - 60 * DAY, now),
+      snapshotDays60d:coverageAcross(snapshots, effectiveFrom, effectiveTo),
       battleStatsKnown:Number.isFinite(stats.value),
       warHistoryAvailable:wars.length
     },
@@ -211,7 +238,7 @@ function buildMemberOverview({ row, snapshots, warRows, wars, now }) {
   };
 }
 
-function buildBattleStats(snapshots, latest, now) {
+function buildBattleStats(snapshots, latest, now, comparisonFrom = null) {
   const observations = snapshots
     .filter(row => Number.isFinite(numberOrNull(row.battle_stats_estimate)))
     .sort((a,b) => Number(a.snapshot_at) - Number(b.snapshot_at));
@@ -227,7 +254,7 @@ function buildBattleStats(snapshots, latest, now) {
     };
   }
 
-  const target = Number(current.battle_stats_observed_at || current.snapshot_at || now) - 30 * DAY;
+  const target = comparisonFrom || (Number(current.battle_stats_observed_at || current.snapshot_at || now) - 30 * DAY);
   const previous = nearestObservation(observations, target, current);
   const previousValue = numberOrNull(previous?.battle_stats_estimate);
   const sameSource = String(previous?.battle_stats_source || '') === String(current?.battle_stats_source || '');
@@ -321,10 +348,25 @@ async function loadMembers(db, factionId) {
   return result.results || [];
 }
 
-async function loadSnapshots(db, factionId, cutoff) {
-  const result = await db.prepare(
-    'SELECT * FROM member_snapshots WHERE faction_id = ? AND snapshot_at >= ? ORDER BY player_id, snapshot_at'
-  ).bind(factionId, cutoff).all();
+async function loadSnapshotBounds(db, factionId) {
+  const row = await db.prepare(
+    'SELECT MIN(snapshot_at) AS first_at, MAX(snapshot_at) AS last_at FROM member_snapshots WHERE faction_id = ?'
+  ).bind(factionId).first();
+
+  return {
+    firstAt:nullableNumber(row?.first_at),
+    lastAt:nullableNumber(row?.last_at)
+  };
+}
+
+async function loadSnapshots(db, factionId, cutoff, upper = null) {
+  const result = upper
+    ? await db.prepare(
+        'SELECT * FROM member_snapshots WHERE faction_id = ? AND snapshot_at >= ? AND snapshot_at <= ? ORDER BY player_id, snapshot_at'
+      ).bind(factionId, cutoff, upper).all()
+    : await db.prepare(
+        'SELECT * FROM member_snapshots WHERE faction_id = ? AND snapshot_at >= ? ORDER BY player_id, snapshot_at'
+      ).bind(factionId, cutoff).all();
   return result.results || [];
 }
 
@@ -435,6 +477,16 @@ async function loadFaction(db, factionId) {
   };
 }
 
+function buildFreshnessFromBounds(bounds, now) {
+  const observedAt = nullableNumber(bounds?.lastAt);
+  const ageSeconds = observedAt ? Math.max(0, now - observedAt) : null;
+  return {
+    state:!observedAt ? 'empty' : ageSeconds > 36 * 3600 ? 'stale' : 'fresh',
+    observedAt,
+    ageSeconds
+  };
+}
+
 function buildFreshness(snapshots, now) {
   const observedAt = snapshots.reduce((latest,row) =>
     Math.max(latest, Number(row.snapshot_at || 0)), 0
@@ -477,9 +529,37 @@ function monotonicDelta(current, previous) {
   return a - b;
 }
 
-function hasComparisonCoverage(current, previous) {
-  return Number(current?.coverageDays || 0) >= 21 &&
-    Number(previous?.coverageDays || 0) >= 21;
+function hasComparisonCoverage(current, previous, requiredDays = 21) {
+  return Number(current?.coverageDays || 0) >= requiredDays &&
+    Number(previous?.coverageDays || 0) >= requiredDays;
+}
+
+function resolveAnalysisRange(body, now) {
+  const requestedFrom = parseDateStart(body?.from);
+  const requestedTo = parseDateEnd(body?.to);
+  const fallbackTo = now;
+  const fallbackFrom = now - 30 * DAY;
+  const from = requestedFrom || fallbackFrom;
+  const to = Math.min(now, requestedTo || fallbackTo);
+
+  if (from > to) throw httpError(400, 'The selected start date must not be after the end date.');
+  return { from, to };
+}
+
+function parseDateStart(value) {
+  if (!value) return null;
+  const timestamp = Date.parse(String(value).slice(0, 10) + 'T00:00:00Z');
+  return Number.isFinite(timestamp) ? Math.floor(timestamp / 1000) : null;
+}
+
+function parseDateEnd(value) {
+  if (!value) return null;
+  const timestamp = Date.parse(String(value).slice(0, 10) + 'T23:59:59Z');
+  return Number.isFinite(timestamp) ? Math.floor(timestamp / 1000) : null;
+}
+
+function utcDate(timestamp) {
+  return new Date(Number(timestamp) * 1000).toISOString().slice(0, 10);
 }
 
 function percentChange(current, previous) {

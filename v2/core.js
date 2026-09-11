@@ -225,7 +225,7 @@ export function setNotice(message = '', kind = '') {
 
 export function routeTo(route, options = {}) {
   if (route === 'war' || route === 'performance') {
-    try { localStorage.setItem('rwengine.factionPreset', 'war'); } catch (_) {}
+    try { localStorage.setItem('rwengine.factionMode', 'wars'); } catch (_) {}
     route = 'intel';
   }
 
