@@ -130,6 +130,10 @@ export function initIntelV2() {
     renderFactionControls();
   });
 
+  document.querySelector('#factionScopeAll')?.addEventListener('click', async () => {
+    await applyAllScope();
+  });
+
   document.querySelector('#factionFilterPanel')?.addEventListener('click', async event => {
     const nav = event.target.closest('[data-calendar-nav]');
     if (nav) {
@@ -333,9 +337,16 @@ function renderFactionControls() {
   const toggle = document.querySelector('#factionFilterToggle');
   if (toggle) {
     toggle.textContent = filterMode === 'timeline'
-      ? `Timeline · ${formatRangeLabel(timelineRange)}`
-      : `${selectedWarIds.size} ranked war${selectedWarIds.size === 1 ? '' : 's'} selected`;
+      ? formatRangeLabel(timelineRange)
+      : `${selectedWarIds.size} war${selectedWarIds.size === 1 ? '' : 's'} selected`;
     toggle.classList.toggle('active', filterPanelOpen);
+  }
+
+  const allButton = document.querySelector('#factionScopeAll');
+  if (allButton) {
+    allButton.classList.toggle('active', filterMode === 'timeline'
+      ? isAllTimelineSelected()
+      : areAllWarsSelected());
   }
 
   const table = document.querySelector('#intelTable');
@@ -832,6 +843,48 @@ function prepareFilterDraft() {
   } else {
     draftWarIds = new Set(selectedWarIds);
   }
+}
+
+async function applyAllScope() {
+  filterPanelOpen = false;
+
+  if (filterMode === 'timeline') {
+    const bounds = availabilityBounds();
+    if (!bounds.from || !bounds.to) return;
+
+    timelineRange = { from:bounds.from, to:bounds.to };
+    draftTimelineRange = { ...timelineRange };
+    calendarAnchor = null;
+    calendarCursor = monthStart(bounds.from);
+    try { localStorage.setItem('rwengine.timelineRange', JSON.stringify(timelineRange)); } catch (_) {}
+  } else {
+    const ids = sortedWars().map(war => String(warId(war))).filter(Boolean);
+    if (!ids.length) return;
+
+    selectedWarIds = new Set(ids);
+    draftWarIds = new Set(ids);
+    try { localStorage.setItem('rwengine.selectedWarIds', JSON.stringify(ids)); } catch (_) {}
+  }
+
+  loadedAnalysisKey = '';
+  factionPerformance.loadedKey = '';
+  factionPerformance.members.clear();
+  renderFactionControls();
+  await loadIntelV2(true);
+}
+
+function isAllTimelineSelected() {
+  const bounds = availabilityBounds();
+  return Boolean(
+    bounds.from && bounds.to &&
+    timelineRange.from === bounds.from &&
+    timelineRange.to === bounds.to
+  );
+}
+
+function areAllWarsSelected() {
+  const ids = sortedWars().map(war => String(warId(war))).filter(Boolean);
+  return Boolean(ids.length) && ids.every(id => selectedWarIds.has(id)) && selectedWarIds.size === ids.length;
 }
 
 async function applyTimelineDraft() {
