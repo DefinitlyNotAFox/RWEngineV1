@@ -4945,3 +4945,96 @@ body {
 #intelTable.faction-grid .faction-grid-header-cell .sort-indicator {
   color: var(--accent);
 }
+
+
+/* Refine faction header hierarchy: clear bands above a distinct title bar. */
+#intelTable.faction-grid .faction-group-row {
+  min-height: 26px;
+  background: transparent;
+}
+
+#intelTable.faction-grid .faction-grid-group {
+  position: relative !important;
+  padding: 6px 10px 5px;
+  color: #8f979d;
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: .085em;
+  text-transform: uppercase;
+  border-bottom: 1px solid #24282b;
+}
+
+#intelTable.faction-grid .faction-grid-group.group-roster {
+  background: #101213;
+}
+
+#intelTable.faction-grid .faction-grid-group.group-training {
+  background: #121416;
+}
+
+#intelTable.faction-grid .faction-grid-group.group-war {
+  background: #141719;
+}
+
+#intelTable.faction-grid .faction-grid-group.group-context {
+  background: #111315;
+}
+
+#intelTable.faction-grid .faction-grid-group::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 0;
+  height: 1px;
+  background: rgba(185,130,93,.22);
+}
+
+#intelTable.faction-grid .faction-column-row {
+  min-height: 50px;
+  border-bottom: 2px solid #303538;
+  background: #0d0f10;
+}
+
+#intelTable.faction-grid .faction-column-row > :nth-child(1) {
+  background: #101213;
+}
+
+#intelTable.faction-grid .faction-column-row > :nth-child(n+2):nth-child(-n+5) {
+  background: #121416;
+}
+
+#intelTable.faction-grid .faction-column-row > :nth-child(n+6):nth-child(-n+12) {
+  background: #141719;
+}
+
+#intelTable.faction-grid .faction-column-row > :nth-child(13) {
+  background: #111315;
+}
+
+#intelTable.faction-grid .faction-grid-header-cell {
+  padding: 11px 9px 10px;
+  color: #e1e4e6;
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: .02em;
+  text-transform: none;
+}
+
+#intelTable.faction-grid .faction-grid-header-cell .sort-label {
+  line-height: 1.1;
+}
+
+#intelTable.faction-grid .faction-grid-header-cell.sorted {
+  color: var(--accent-2);
+}
+
+#intelTable.faction-grid .faction-grid-header-cell button:hover {
+  color: #ffffff;
+}
+
+#intelTable.faction-grid .faction-grid-row > :nth-child(2),
+#intelTable.faction-grid .faction-grid-row > :nth-child(6),
+#intelTable.faction-grid .faction-grid-row > :nth-child(13) {
+  border-left: 1px solid #34383b !important;
+}
