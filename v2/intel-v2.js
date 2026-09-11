@@ -130,7 +130,7 @@ export function initIntelV2() {
     renderFactionControls();
   });
 
-  document.addEventListener('click', event => {
+  document.addEventListener('pointerdown', event => {
     if (!filterPanelOpen) return;
     if (event.target.closest('#factionFilterPanel')) return;
     if (event.target.closest('#factionFilterToggle')) return;
