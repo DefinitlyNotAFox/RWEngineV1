@@ -78,9 +78,10 @@ async function getRange(db, factionId, body) {
         a.attacker_id AS player_id,
         SUM(COALESCE(a.respect_gain, 0)) AS respect_earned,
         0 AS respect_lost
-      FROM attacks a
-      JOIN selected_wars sw ON sw.war_id = a.war_id
+      FROM selected_wars sw
+      CROSS JOIN attacks a INDEXED BY idx_attacks_faction_war_attacker
       WHERE a.faction_id = ?
+        AND a.war_id = sw.war_id
         AND a.attacker_id IS NOT NULL
       GROUP BY a.attacker_id
 
@@ -90,9 +91,10 @@ async function getRange(db, factionId, body) {
         a.defender_id AS player_id,
         0 AS respect_earned,
         SUM(ABS(COALESCE(a.respect_loss, 0))) AS respect_lost
-      FROM attacks a
-      JOIN selected_wars sw ON sw.war_id = a.war_id
+      FROM selected_wars sw
+      CROSS JOIN attacks a INDEXED BY idx_attacks_faction_war_defender
       WHERE a.faction_id = ?
+        AND a.war_id = sw.war_id
         AND a.defender_id IS NOT NULL
       GROUP BY a.defender_id
     )
