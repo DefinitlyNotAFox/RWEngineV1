@@ -251,30 +251,54 @@ async function getRange(db, factionId, body) {
       AND COALESCE(end_timestamp, start_timestamp, imported_at, 0) BETWEEN ? AND ?
   `).bind(factionId, range.from, range.to).first();
 
-  const respectEarnedResult = await db.prepare(`
-    SELECT attacker_id AS player_id, SUM(COALESCE(respect_gain, 0)) AS respect_earned
-    FROM attacks
-    WHERE faction_id = ?
-      AND war_id IS NOT NULL
-      AND attacker_id IS NOT NULL
-      AND COALESCE(timestamp_ended, timestamp_started, 0) BETWEEN ? AND ?
-    GROUP BY attacker_id
-  `).bind(factionId, range.from, range.to).all();
+  const respectMetricsResult = await db.prepare(`
+    WITH selected_wars AS (
+      SELECT war_id
+      FROM wars
+      WHERE faction_id = ?
+        AND COALESCE(end_timestamp, start_timestamp, imported_at, 0) BETWEEN ? AND ?
+    ),
+    metrics AS (
+      SELECT
+        a.attacker_id AS player_id,
+        SUM(COALESCE(a.respect_gain, 0)) AS respect_earned,
+        0 AS respect_lost
+      FROM attacks a
+      JOIN selected_wars sw ON sw.war_id = a.war_id
+      WHERE a.faction_id = ?
+        AND a.attacker_id IS NOT NULL
+      GROUP BY a.attacker_id
 
-  const respectLostResult = await db.prepare(`
-    SELECT defender_id AS player_id, SUM(ABS(COALESCE(respect_loss, 0))) AS respect_lost
-    FROM attacks
-    WHERE faction_id = ?
-      AND war_id IS NOT NULL
-      AND defender_id IS NOT NULL
-      AND COALESCE(timestamp_ended, timestamp_started, 0) BETWEEN ? AND ?
-    GROUP BY defender_id
-  `).bind(factionId, range.from, range.to).all();
+      UNION ALL
+
+      SELECT
+        a.defender_id AS player_id,
+        0 AS respect_earned,
+        SUM(ABS(COALESCE(a.respect_loss, 0))) AS respect_lost
+      FROM attacks a
+      JOIN selected_wars sw ON sw.war_id = a.war_id
+      WHERE a.faction_id = ?
+        AND a.defender_id IS NOT NULL
+      GROUP BY a.defender_id
+    )
+    SELECT
+      player_id,
+      SUM(respect_earned) AS respect_earned,
+      SUM(respect_lost) AS respect_lost
+    FROM metrics
+    GROUP BY player_id
+  `).bind(
+    factionId,
+    range.from,
+    range.to,
+    factionId,
+    factionId
+  ).all();
 
   const snapshotsByPlayer = groupBy(snapshotsResult.results || [], row => Number(row.player_id));
   const warsByPlayer = new Map((warResult.results || []).map(row => [Number(row.player_id), row]));
-  const respectEarnedByPlayer = new Map((respectEarnedResult.results || []).map(row => [Number(row.player_id), Number(row.respect_earned || 0)]));
-  const respectLostByPlayer = new Map((respectLostResult.results || []).map(row => [Number(row.player_id), Number(row.respect_lost || 0)]));
+  const respectEarnedByPlayer = new Map((respectMetricsResult.results || []).map(row => [Number(row.player_id), Number(row.respect_earned || 0)]));
+  const respectLostByPlayer = new Map((respectMetricsResult.results || []).map(row => [Number(row.player_id), Number(row.respect_lost || 0)]));
   const totalWars = Number(totalWarsRow?.count || 0);
 
   const members = (membersResult.results || []).map(member => {
