@@ -23,13 +23,16 @@ async function load() {
       throw new Error(data?.message || 'This share link is unavailable.');
     }
 
-    renderWar(data);
+    if (data.resourceType === 'player-analysis') renderPlayerAnalysis(data);
+    else renderWar(data);
   } catch (error) {
     showError(error.message || 'Failed to load the shared report.');
   }
 }
 
 function renderWar(data) {
+  document.querySelector('#warPublicBody')?.classList.remove('hidden');
+  document.querySelector('#playerPublicBody')?.classList.add('hidden');
   const war = data.war || {};
   const summary = data.summary || {};
   const members = Array.isArray(data.members) ? data.members : [];
@@ -80,6 +83,68 @@ function renderWar(data) {
         </tr>
       `).join('')
     : '<tr><td colspan="7">No member performance stored for this report.</td></tr>';
+
+  loadingState.classList.add('hidden');
+  errorState.classList.add('hidden');
+  reportView.classList.remove('hidden');
+}
+
+function renderPlayerAnalysis(data) {
+  const snapshot = data.snapshot || {};
+  const analysis = data.analysis || {};
+  const player = analysis.player || {};
+  const context = analysis.context || {};
+  const last4 = analysis.war?.last4 || null;
+  const wars = Array.isArray(analysis.war?.history) ? analysis.war.history : [];
+  const sources = Array.isArray(analysis.sources) ? analysis.sources : [];
+
+  document.querySelector('#warPublicBody')?.classList.add('hidden');
+  document.querySelector('#playerPublicBody')?.classList.remove('hidden');
+
+  document.title = `RWEngine · ${player.playerName || snapshot.targetPlayerName || 'Player'}`;
+  setText('#reportMeta', 'Player analysis snapshot');
+  setText('#reportTitle', `${player.playerName || snapshot.targetPlayerName || 'Player'} [${player.playerId || snapshot.targetPlayerId || '—'}]`);
+  setText('#reportDate', snapshot.createdAt ? `Saved ${formatDate(snapshot.createdAt)}` : '');
+  setText('#sharedAt', data.sharedAt ? `Link issued ${formatDate(data.sharedAt)}` : '');
+
+  const grid = document.querySelector('#playerSummaryGrid');
+  grid.innerHTML = [
+    summaryItem('Level', player.level ?? '—'),
+    summaryItem('Battle stats', analysis.battleStats?.value == null ? '—' : formatCompact(analysis.battleStats.value)),
+    summaryItem('Activity / day', formatDuration(analysis.activity?.perDay30d)),
+    summaryItem('Xanax / day', formatMaybeDecimal(analysis.xanax?.perDay30d)),
+    summaryItem('RW participation', last4 ? formatPercent(last4.participation) : '—'),
+    summaryItem('Hits / war', last4 ? formatMaybeDecimal(last4.hitsPerWar, 1) : '—')
+  ].join('');
+
+  const contextEl = document.querySelector('#playerPublicContext');
+  contextEl.innerHTML = [
+    player.rank ? `<span>Rank <b>${escapeHtml(player.rank)}</b></span>` : '',
+    player.title ? `<span>Title <b>${escapeHtml(player.title)}</b></span>` : '',
+    player.factionId ? `<span>Faction <b>${escapeHtml(player.factionId)}</b></span>` : '',
+    player.lastActionAt ? `<span>Last action <b>${escapeHtml(formatRelative(player.lastActionAt))}</b></span>` : '',
+    context.localFactionName ? `<span>Observed with <b>${escapeHtml(context.localFactionName)}</b></span>` : ''
+  ].filter(Boolean).join('');
+
+  const sourceEl = document.querySelector('#playerPublicSources');
+  sourceEl.innerHTML = `<span>Sources</span>${sources.length
+    ? sources.map(source => `<b title="${escapeHtml(source.detail || '')}">${escapeHtml(source.label || '')}</b>`).join('')
+    : '<b>None</b>'}`;
+
+  const warsEl = document.querySelector('#playerPublicWars');
+  warsEl.innerHTML = wars.length
+    ? wars.map(war => `
+        <div class="public-war-row">
+          <div>
+            <strong>${escapeHtml(war.opponentFactionName || 'Unknown opponent')}</strong>
+            <small>#${escapeHtml(war.warId)}${war.endedAt ? ` · ${escapeHtml(formatDate(war.endedAt))}` : ''}</small>
+          </div>
+          <span>${formatNumber(war.hits)} hits</span>
+          <span>${formatNumber(war.assists)} assists</span>
+          <span>${formatSigned(war.netScore)} net</span>
+        </div>
+      `).join('')
+    : '<div class="public-war-row empty">No shared war history.</div>';
 
   loadingState.classList.add('hidden');
   errorState.classList.add('hidden');
@@ -138,6 +203,53 @@ function formatSigned(value) {
   const number = Number(value || 0);
   const formatted = formatDecimal(number);
   return number > 0 ? `+${formatted}` : formatted;
+}
+
+function formatCompact(value) {
+  if (value === null || value === undefined || value === '') return '—';
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '—';
+  return new Intl.NumberFormat(undefined, {
+    notation: 'compact',
+    maximumFractionDigits: number >= 1e9 ? 2 : 1
+  }).format(number);
+}
+
+function formatMaybeDecimal(value, digits = 2) {
+  if (value === null || value === undefined || value === '') return '—';
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '—';
+  return number.toLocaleString(undefined, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits
+  });
+}
+
+function formatPercent(value) {
+  if (value === null || value === undefined || value === '') return '—';
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '—';
+  return `${Math.round(number * 100)}%`;
+}
+
+function formatDuration(seconds) {
+  if (seconds === null || seconds === undefined || seconds === '') return '—';
+  const value = Number(seconds);
+  if (!Number.isFinite(value) || value < 0) return '—';
+  if (value < 60) return `${Math.round(value)}s`;
+  if (value < 3600) return `${Math.round(value / 60)}m`;
+  const hours = value / 3600;
+  return hours < 10 ? `${hours.toFixed(1)}h` : `${Math.round(hours)}h`;
+}
+
+function formatRelative(timestamp) {
+  const value = Number(timestamp || 0);
+  if (!value) return '—';
+  const delta = Math.max(0, Math.floor(Date.now() / 1000) - value);
+  if (delta < 60) return `${delta}s`;
+  if (delta < 3600) return `${Math.floor(delta / 60)}m`;
+  if (delta < 86400) return `${Math.floor(delta / 3600)}h`;
+  return `${Math.floor(delta / 86400)}d`;
 }
 
 function escapeHtml(value) {
