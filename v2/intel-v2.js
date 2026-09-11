@@ -90,7 +90,7 @@ const detailLoading = new Set();
 
 export function initIntelV2() {
   renderFilters();
-  renderPresetControls();
+  renderFactionControls();
 
   document.querySelector('#intelSearch')?.addEventListener('input', renderIntelV2);
 
@@ -106,20 +106,82 @@ export function initIntelV2() {
     renderIntelV2();
   });
 
-  document.querySelector('#factionPresets')?.addEventListener('click', async event => {
-    const button = event.target.closest('[data-faction-preset]');
+  document.querySelector('.faction-modes')?.addEventListener('click', async event => {
+    const button = event.target.closest('[data-faction-mode]');
     if (!button) return;
+    const next = button.dataset.factionMode;
+    if (!['timeline','wars'].includes(next) || next === filterMode) return;
 
-    const next = button.dataset.factionPreset;
-    if (!presetColumns[next]) return;
+    filterMode = next;
+    try { localStorage.setItem('rwengine.factionMode', filterMode); } catch (_) {}
+    filterPanelOpen = false;
+    loadedAnalysisKey = '';
+    factionPerformance.loadedKey = '';
+    factionPerformance.members.clear();
+    ensureFilterState();
+    renderFactionControls();
+    await loadIntelV2(true);
+  });
 
-    activePreset = next;
-    try { localStorage.setItem('rwengine.factionPreset', activePreset); } catch (_) {}
-    ensureSortKey();
-    renderPresetControls();
-    renderIntelV2();
+  document.querySelector('#factionFilterToggle')?.addEventListener('click', () => {
+    filterPanelOpen = !filterPanelOpen;
+    if (filterPanelOpen) prepareFilterDraft();
+    renderFactionControls();
+  });
 
-    if (needsPerformance()) await loadFactionPerformance(false);
+  document.querySelector('#factionFilterPanel')?.addEventListener('click', async event => {
+    const nav = event.target.closest('[data-calendar-nav]');
+    if (nav) {
+      moveCalendar(Number(nav.dataset.calendarNav || 0));
+      renderFilterPanel();
+      return;
+    }
+
+    const day = event.target.closest('[data-calendar-day]');
+    if (day && !day.disabled) {
+      selectCalendarDay(day.dataset.calendarDay);
+      renderFilterPanel();
+      return;
+    }
+
+    const action = event.target.closest('[data-filter-action]');
+    if (!action) return;
+
+    const type = action.dataset.filterAction;
+    if (type === 'cancel') {
+      filterPanelOpen = false;
+      renderFactionControls();
+      return;
+    }
+
+    if (type === 'calendar-apply') {
+      await applyTimelineDraft();
+      return;
+    }
+
+    if (type === 'wars-all') {
+      draftWarIds = new Set(sortedWars().map(war => Number(warId(war))));
+      renderFilterPanel();
+      return;
+    }
+
+    if (type === 'wars-none') {
+      draftWarIds.clear();
+      renderFilterPanel();
+      return;
+    }
+
+    if (type === 'wars-apply') await applyWarDraft();
+  });
+
+  document.querySelector('#factionFilterPanel')?.addEventListener('change', event => {
+    const checkbox = event.target.closest('[data-war-check]');
+    if (!checkbox) return;
+    const id = Number(checkbox.dataset.warCheck || 0);
+    if (!id) return;
+    if (checkbox.checked) draftWarIds.add(id);
+    else draftWarIds.delete(id);
+    updateWarApplyState();
   });
 
   document.querySelector('#intelFilters')?.addEventListener('click', event => {
@@ -158,25 +220,19 @@ export function initIntelV2() {
 
   on('route', route => {
     if (route !== 'intel') return;
-    activePreset = restoreFactionPreset();
+    ensureFilterState();
     ensureSortKey();
-    renderPresetControls();
+    renderFactionControls();
     loadIntelV2(false);
   });
 
-  on('period', () => {
-    factionPerformance.loadedKey = '';
-    factionPerformance.members.clear();
-    renderPresetControls();
-    if (state.route === 'intel' && needsPerformance()) loadFactionPerformance(true);
-  });
-
-  on('faction', () => {
-    resetIntelState();
-  });
+  on('faction', () => resetIntelState());
 
   on('data', () => {
-    if (state.route === 'intel') loadIntelV2(true);
+    if (state.route !== 'intel') return;
+    ensureFilterState();
+    renderFactionControls();
+    loadIntelV2(true);
   });
 
   on('open-member', playerId => {
