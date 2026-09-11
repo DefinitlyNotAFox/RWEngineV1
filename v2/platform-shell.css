@@ -358,3 +358,69 @@
     width: 100%;
   }
 }
+
+
+#ranked-warTab .ranked-war-metrics {
+  gap: 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+#ranked-warTab .metric-card {
+  border: 0;
+  border-right: 1px solid var(--border-soft);
+  border-radius: 0;
+  background: transparent;
+}
+
+#ranked-warTab .metric-card:last-child {
+  border-right: 0;
+}
+
+#ranked-warTab .two-column {
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+#ranked-warTab .two-column > .panel {
+  border: 0;
+  border-right: 1px solid var(--border-soft);
+  border-radius: 0;
+  background: transparent;
+}
+
+#ranked-warTab .two-column > .panel:last-child {
+  border-right: 0;
+}
+
+#settingsTab .panel {
+  border-radius: 0;
+  background: transparent;
+}
+
+.login-card {
+  box-shadow: none;
+}
+
+@media (max-width: 900px) {
+  #ranked-warTab .ranked-war-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #ranked-warTab .metric-card:nth-child(2) {
+    border-right: 0;
+  }
+
+  #ranked-warTab .metric-card:nth-child(-n+2) {
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  #ranked-warTab .two-column {
+    border-bottom: 0;
+  }
+
+  #ranked-warTab .two-column > .panel {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+}
