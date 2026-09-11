@@ -235,12 +235,14 @@ export function routeFromHash() {
 }
 
 export function formatNumber(value) {
+  if (value === null || value === undefined || value === '') return '—';
   const number = Number(value);
   if (!Number.isFinite(number)) return '—';
   return new Intl.NumberFormat().format(Math.round(number));
 }
 
 export function formatCompact(value) {
+  if (value === null || value === undefined || value === '') return '—';
   const number = Number(value);
   if (!Number.isFinite(number)) return '—';
   return new Intl.NumberFormat(undefined, {
@@ -250,6 +252,7 @@ export function formatCompact(value) {
 }
 
 export function formatDecimal(value, digits = 2) {
+  if (value === null || value === undefined || value === '') return '—';
   const number = Number(value);
   if (!Number.isFinite(number)) return '—';
   return number.toLocaleString(undefined, {
@@ -259,6 +262,7 @@ export function formatDecimal(value, digits = 2) {
 }
 
 export function formatSigned(value, digits = 2) {
+  if (value === null || value === undefined || value === '') return '—';
   const number = Number(value);
   if (!Number.isFinite(number)) return '—';
   const formatted = formatDecimal(number, digits);
@@ -266,12 +270,14 @@ export function formatSigned(value, digits = 2) {
 }
 
 export function formatPercent(value) {
+  if (value === null || value === undefined || value === '') return '—';
   const number = Number(value);
   if (!Number.isFinite(number)) return '—';
   return `${Math.round(number * 100)}%`;
 }
 
 export function formatDuration(seconds) {
+  if (seconds === null || seconds === undefined || seconds === '') return '—';
   const value = Number(seconds);
   if (!Number.isFinite(value) || value < 0) return '—';
   if (value < 60) return `${Math.round(value)}s`;
