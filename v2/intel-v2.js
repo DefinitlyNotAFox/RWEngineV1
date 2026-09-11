@@ -1,6 +1,6 @@
 import {
   state, on, emit, intelV2Api, syncApi, performanceApi,
-  metric, formatNumber, formatCompact, formatDecimal, formatPercent, formatSigned,
+  formatNumber, formatCompact, formatDecimal, formatPercent, formatSigned,
   formatDuration, formatRelative, escapeHtml, sleep
 } from './core.js';
 
@@ -391,7 +391,6 @@ function renderFactionStatus() {
 function renderIntelV2() {
   ensureSortKey();
   renderFactionControls();
-  renderSummary();
   renderHeaders();
 
   const body = document.querySelector('#intelBody');
@@ -416,12 +415,14 @@ function renderIntelV2() {
     )
     .sort(compareMembers);
 
+  const totalRow = renderFactionTotalRow();
+
   if (!rows.length) {
-    body.innerHTML = `<tr class="empty-row"><td colspan="${colspan}">No members match this view.</td></tr>`;
+    body.innerHTML = `${totalRow}<tr class="empty-row"><td colspan="${colspan}">No members match this view.</td></tr>`;
     return;
   }
 
-  body.innerHTML = rows.map(member => {
+  body.innerHTML = totalRow + rows.map(member => {
     const selected = Number(selectedMemberId) === Number(member.playerId);
 
     return `
@@ -433,32 +434,86 @@ function renderIntelV2() {
   }).join('');
 }
 
-function renderSummary() {
-  const element = document.querySelector('#intelSummary');
-  if (!element) return;
-
+function renderFactionTotalRow() {
   const summary = overview?.summary;
-  if (!summary) {
-    element.innerHTML = '';
-    return;
-  }
+  if (!summary) return '';
 
   const current = (overview.members || []).filter(member => member.current !== false);
-  const rows = current.map(member => performanceMember(member)).filter(Boolean);
-  const participation = averageNullable(rows.map(row => row.participation));
-  const activityScope = filterMode === 'timeline' ? 'selected period' : 'selected war span';
+  const currentPerformance = current.map(member => performanceMember(member)).filter(Boolean);
+  const allPerformance = [...factionPerformance.members.values()];
+  const totalWars = Number(factionPerformance.totalWars || 0);
+  const warLoading = factionPerformance.loading;
+
+  const participation = averageNullable(currentPerformance.map(row => row.participation));
+  const totalHits = sumNullable(allPerformance, 'warHits');
+  const hitsPerWar = totalWars > 0 && totalHits !== null ? totalHits / totalWars : null;
+  const assists = sumNullable(allPerformance, 'assists');
+  const assistsPerWar = totalWars > 0 && assists !== null ? assists / totalWars : null;
+  const outsideHits = sumNullable(allPerformance, 'outsideHits');
+  const respectEarned = sumNullable(allPerformance, 'respectEarned');
+  const respectLost = sumNullable(allPerformance, 'respectLost');
+  const scoreUp = sumNullable(allPerformance, 'scoreUp');
+  const scoreDown = sumNullable(allPerformance, 'scoreDown');
+  const netScore = sumNullable(allPerformance, 'netScore');
+  const netPerWar = totalWars > 0 && netScore !== null ? netScore / totalWars : null;
   const warScope = filterMode === 'timeline'
-    ? `${formatNumber(factionPerformance.totalWars)} wars in range`
+    ? `${formatNumber(totalWars)} wars in range`
     : `${selectedWarIds.size} selected war${selectedWarIds.size === 1 ? '' : 's'}`;
 
-  element.innerHTML = [
-    metric('Members', formatNumber(summary.currentMembers), 'current roster'),
-    metric('Median stats', formatCompact(summary.medianBattleStats), `${formatNumber(summary.knownBattleStats)} estimates known`),
-    metric('Activity / day', formatDuration(summary.avgActivityPerDay30d), activityScope),
-    metric('Xanax / day', formatDecimal(summary.avgXanaxPerDay30d, 2), activityScope),
-    metric('War participation', factionPerformance.loading ? '…' : formatPercent(participation), warScope),
-    metric('Attention', formatNumber(current.filter(member => topSignal(member)?.kind === 'attention').length), 'actionable signals')
-  ].join('');
+  return `
+    <tr class="faction-total-row">
+      <td class="col-member">
+        <span class="member-name">Faction total</span>
+        <span class="member-meta">${formatNumber(summary.currentMembers)} current members</span>
+      </td>
+      <td class="col-stats">
+        <strong>${formatCompact(summary.medianBattleStats)}</strong>
+        <span class="member-meta">median · ${formatNumber(summary.knownBattleStats)} known</span>
+      </td>
+      <td class="col-activity">
+        <strong>${formatDuration(summary.avgActivityPerDay30d)}</strong>
+        <span class="member-meta">average / day</span>
+      </td>
+      <td class="col-xanax">
+        <strong>${formatDecimal(summary.avgXanaxPerDay30d, 2)}</strong>
+        <span class="member-meta">average / day</span>
+      </td>
+      <td class="col-participation">
+        <strong>${warLoading ? '…' : formatPercent(participation)}</strong>
+        <span class="member-meta">${escapeHtml(warScope)}</span>
+      </td>
+      <td class="col-hits">
+        <strong>${warLoading ? '…' : formatDecimal(hitsPerWar, 1)}</strong>
+        <span class="member-meta">${warLoading ? '…' : `${formatNumber(totalHits)} total`}</span>
+      </td>
+      <td class="col-assists">
+        <strong>${warLoading ? '…' : formatNumber(assists)}</strong>
+        <span class="member-meta">${warLoading ? '…' : `${formatDecimal(assistsPerWar, 1)} / war`}</span>
+      </td>
+      <td class="col-outsideHits">${warLoading ? '…' : formatNumber(outsideHits)}</td>
+      <td class="col-respect">
+        <strong>${warLoading ? '…' : (respectEarned === null ? '—' : `+${formatDecimal(respectEarned, 2)}`)}</strong>
+        <span class="member-meta">${warLoading ? '…' : (respectLost === null ? '—' : `−${formatDecimal(respectLost, 2)}`)}</span>
+      </td>
+      <td class="col-score">
+        <strong>${warLoading ? '…' : (scoreUp === null ? '—' : `+${formatDecimal(scoreUp, 2)}`)}</strong>
+        <span class="member-meta">${warLoading ? '…' : (scoreDown === null ? '—' : `−${formatDecimal(scoreDown, 2)}`)}</span>
+      </td>
+      <td class="col-netScore">
+        <strong>${warLoading ? '…' : formatSigned(netScore, 2)}</strong>
+        <span class="member-meta">${warLoading ? '…' : `${formatSigned(netPerWar, 2)} / war`}</span>
+      </td>
+      <td class="col-attention"></td>
+    </tr>
+  `;
+}
+
+function sumNullable(rows, key) {
+  const values = rows
+    .map(row => nullable(row?.[key]))
+    .filter(value => value !== null);
+  if (!values.length) return null;
+  return values.reduce((sum, value) => sum + value, 0);
 }
 
 function renderIntelFreshness() {
