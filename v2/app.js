@@ -111,7 +111,16 @@ function bindApplication() {
     const factionId = Number(row.dataset.adminFaction || 0);
     if (!factionId) return;
     adminKeyFactionId = factionId;
-    renderAdminKeyForm();
+    if (Number(state.selectedFactionId) !== factionId) {
+      state.selectedFactionId = factionId;
+      try { localStorage.setItem('rwengine.adminFaction', String(factionId)); } catch (_) {}
+      renderIdentity();
+      renderAdminContext();
+      emit('faction', factionId);
+      refreshAll(false);
+    } else {
+      renderAdminKeyForm();
+    }
   });
 
   document.querySelector('#adminKeyForm')?.addEventListener('submit', saveAdminKey);
@@ -130,7 +139,6 @@ function bindApplication() {
 
   on('route', route => {
     if (route === 'settings') renderAdminSettings();
-    if (route === 'performance') loadPerformance(false);
   });
 }
 
@@ -291,7 +299,8 @@ async function loadAdminFactions() {
     ? stored
     : (valid.has(Number(state.user?.factionId)) ? Number(state.user.factionId) : Number(state.adminFactions[0]?.factionId || 0));
 
-  adminKeyFactionId = state.selectedFactionId;
+  const validAdminKeyFaction = state.adminFactions.some(item => Number(item.factionId) === Number(adminKeyFactionId));
+  if (!validAdminKeyFaction) adminKeyFactionId = state.selectedFactionId;
 }
 
 function renderAdminContext() {
