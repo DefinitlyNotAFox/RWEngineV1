@@ -4320,3 +4320,19 @@ body {
   color: var(--muted);
   font-size: 9px;
 }
+
+
+/* Persistent faction view toggles sit after the contextual filters. */
+.intel-filter-options {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: 8px;
+  padding-left: 16px;
+  border-left: 1px solid var(--line);
+}
+
+.intel2-option.active {
+  color: var(--accent-2);
+  border-bottom-color: var(--accent);
+}
