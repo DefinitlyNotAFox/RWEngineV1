@@ -1,5 +1,5 @@
 import {
-  state, on, emit, intelV2Api, syncApi, performanceApi, periodPayload,
+  state, on, emit, intelV2Api, syncApi, performanceApi,
   metric, formatNumber, formatCompact, formatDecimal, formatPercent, formatSigned,
   formatDuration, formatRelative, escapeHtml, sleep
 } from './core.js';
@@ -14,33 +14,17 @@ const filters = [
   ['former','Former members']
 ];
 
-const factionPresets = [
-  ['overview','Overview'],
-  ['activity','Activity'],
-  ['training','Training'],
-  ['war','War'],
-  ['all','All']
+const factionColumns = [
+  'member','stats','activity','xanax',
+  'participation','hits','assists','outsideHits',
+  'respect','score','netScore','attention'
 ];
-
-const presetColumns = {
-  overview:['member','stats','activity','xanax','participation4','hits4','attention'],
-  activity:['member','activity','xanax','attention'],
-  training:['member','stats','xanax','attention'],
-  war:['member','participation','hits','assists','outsideHits','netScore','attention'],
-  all:[
-    'member','stats','activity','xanax',
-    'participation','hits','assists','outsideHits',
-    'respect','score','netScore','attention'
-  ]
-};
 
 const columnLabels = {
   member:['Member',''],
   stats:['Battle stats',''],
-  activity:['Activity / day','30d'],
-  xanax:['Xanax / day','30d'],
-  participation4:['War participation','last 4'],
-  hits4:['Hits per war','last 4'],
+  activity:['Activity / day',''],
+  xanax:['Xanax / day',''],
   participation:['Wars / participation',''],
   hits:['Hits per war',''],
   assists:['Assists',''],
@@ -51,43 +35,12 @@ const columnLabels = {
   attention:['Signal','']
 };
 
-const presetGroups = {
-  overview:[
-    ['roster','Roster',1],
-    ['training','Activity & training',3],
-    ['war','War',2],
-    ['context','Context',1]
-  ],
-  activity:[
-    ['roster','Roster',1],
-    ['activity','Activity',2],
-    ['context','Context',1]
-  ],
-  training:[
-    ['roster','Roster',1],
-    ['training','Training',2],
-    ['context','Context',1]
-  ],
-  war:[
-    ['roster','Roster',1],
-    ['war','War performance',5],
-    ['context','Context',1]
-  ],
-  all:[
-    ['roster','Roster',1],
-    ['training','Training',3],
-    ['war','War performance',7],
-    ['context','Context',1]
-  ]
-};
-
-const presetGuides = {
-  overview:'Roster, training and recent war performance.',
-  activity:'Activity, Xanax use and current attention signals.',
-  training:'Battle-stat estimates and Xanax usage.',
-  war:'',
-  all:''
-};
+const factionGroups = [
+  ['roster','Roster',1],
+  ['training','Activity & training',3],
+  ['war','War performance',7],
+  ['context','Context',1]
+];
 
 const priority = [
   'inactive',
@@ -105,7 +58,6 @@ const priority = [
 
 let overview = null;
 let loadedFactionId = null;
-let activePreset = restoreFactionPreset();
 let activeFilter = 'all';
 let selectedMemberId = null;
 let sortKey = 'attention';
@@ -114,6 +66,15 @@ let trendDays = 90;
 let loading = false;
 let syncJob = null;
 let syncing = false;
+let filterMode = restoreFactionMode();
+let timelineRange = { from:null, to:null };
+let draftTimelineRange = null;
+let selectedWarIds = new Set();
+let draftWarIds = new Set();
+let calendarCursor = null;
+let calendarAnchor = null;
+let filterPanelOpen = false;
+let loadedAnalysisKey = '';
 
 const factionPerformance = {
   members:new Map(),
