@@ -54,7 +54,7 @@ const columnLabels = {
 const presetGroups = {
   overview:[
     ['roster','Roster',1],
-    ['training','Training',3],
+    ['training','Activity & training',3],
     ['war','War',2],
     ['context','Context',1]
   ],
@@ -82,11 +82,11 @@ const presetGroups = {
 };
 
 const presetGuides = {
-  overview:'A compact faction overview combining roster state, training activity and recent war participation.',
-  activity:'Compare member activity, Xanax use and current attention signals.',
-  training:'Compare battle-stat estimates and Xanax usage across the roster.',
-  war:'Cross-war member performance for the selected war range. Open Archive for individual war reports.',
-  all:'Every comparable roster, training and war metric RWEngine currently collects.'
+  overview:'Roster, training and recent war performance.',
+  activity:'Activity, Xanax use and current attention signals.',
+  training:'Battle-stat estimates and Xanax usage.',
+  war:'',
+  all:''
 };
 
 const priority = [
@@ -332,7 +332,7 @@ function renderFactionStatus() {
   }
 
   if (factionPerformance.loading) {
-    element.textContent = `War range: ${periodLabel()} · loading performance…`;
+    element.textContent = `War data: ${periodLabel()} · loading…`;
     element.classList.remove('hidden','error');
     return;
   }
@@ -345,7 +345,7 @@ function renderFactionStatus() {
   }
 
   if (factionPerformance.loadedKey) {
-    element.textContent = `War range: ${periodLabel()} · ${formatNumber(factionPerformance.totalWars)} imported war${factionPerformance.totalWars === 1 ? '' : 's'}`;
+    element.textContent = `War data: ${periodLabel()} · ${formatNumber(factionPerformance.totalWars)} imported war${factionPerformance.totalWars === 1 ? '' : 's'}`;
     element.classList.remove('hidden','error');
     return;
   }
@@ -548,15 +548,15 @@ function renderFactionCell(member, key) {
   }
 
   if (key === 'stats') {
-    return `<td class="col-stats">${member.battleStats?.value == null ? '—' : escapeHtml(formatCompact(member.battleStats.value))}<span class="trend ${trendClass(member.battleStats?.changePct30d)}">${battleStatsTrend(member)}</span></td>`;
+    return `<td class="col-stats">${member.battleStats?.value == null ? '—' : escapeHtml(formatCompact(member.battleStats.value))}<span class="trend ${trendClass(member.battleStats?.changePct30d)}">${tableBattleStatsTrend(member)}</span></td>`;
   }
 
   if (key === 'activity') {
-    return `<td class="col-activity">${escapeHtml(formatDuration(member.activity?.perDay30d))}<span class="trend ${trendClass(member.activity?.changePct)}">${escapeHtml(trendLabel(member.activity?.changePct, 'vs prev 30d'))}</span></td>`;
+    return `<td class="col-activity">${escapeHtml(formatDuration(member.activity?.perDay30d))}<span class="trend ${trendClass(member.activity?.changePct)}">${escapeHtml(tableTrendLabel(member.activity?.changePct))}</span></td>`;
   }
 
   if (key === 'xanax') {
-    return `<td class="col-xanax">${escapeHtml(formatDecimal(member.xanax?.perDay30d, 2))}<span class="trend ${trendClass(member.xanax?.changePct)}">${escapeHtml(trendLabel(member.xanax?.changePct, 'vs prev 30d'))}</span></td>`;
+    return `<td class="col-xanax">${escapeHtml(formatDecimal(member.xanax?.perDay30d, 2))}<span class="trend ${trendClass(member.xanax?.changePct)}">${escapeHtml(tableTrendLabel(member.xanax?.changePct))}</span></td>`;
   }
 
   if (key === 'participation4') {
@@ -568,7 +568,7 @@ function renderFactionCell(member, key) {
   }
 
   if (key === 'attention') {
-    return `<td class="col-attention">${signal ? `<span class="signal ${signal.kind}">${escapeHtml(signalLabel(signal, member))}</span>` : '—'}</td>`;
+    return `<td class="col-attention">${signal ? `<span class="signal ${signal.kind}">${escapeHtml(tableSignalLabel(signal, member))}</span>` : '—'}</td>`;
   }
 
   if (!performance) {
@@ -724,6 +724,40 @@ function averageNullable(values) {
   const valid = values.map(nullable).filter(value => value !== null);
   if (!valid.length) return null;
   return valid.reduce((sum,value) => sum + value, 0) / valid.length;
+}
+
+function tableTrendLabel(value) {
+  if (value === null || value === undefined || value === '') return '—';
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '—';
+  const pct = Math.round(number * 100);
+  return `${pct > 0 ? '+' : ''}${pct}%`;
+}
+
+function tableBattleStatsTrend(member) {
+  const value = member?.battleStats?.changePct30d;
+  if (value === null || value === undefined || value === '') {
+    return member?.battleStats?.value == null ? 'No estimate' : '—';
+  }
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '—';
+  const pct = Math.round(number * 100);
+  return `${pct > 0 ? '+' : ''}${pct}% · 30d`;
+}
+
+function tableSignalLabel(signal, member) {
+  if (!signal) return '—';
+  if (signal.code === 'low_war_participation') return 'Low participation';
+  if (signal.code === 'participation_down') return 'Participation declining';
+  if (signal.code === 'activity_down') return 'Activity declining';
+  if (signal.code === 'activity_up') return 'Activity improving';
+  if (signal.code === 'xanax_down') return 'Xanax declining';
+  if (signal.code === 'xanax_up') return 'Xanax improving';
+  if (signal.code === 'strong_war_output') return 'Strong war output';
+  if (signal.code === 'missing_battle_stats') return 'Stats missing';
+  if (signal.code === 'stale_battle_stats') return 'Stats stale';
+  if (signal.code === 'battle_stats_growth') return 'Stats growing';
+  return signalLabel(signal, member);
 }
 
 function topSignal(member) {
