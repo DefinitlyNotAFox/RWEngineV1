@@ -4542,3 +4542,36 @@ body {
 #intelTable thead .faction-total-head-row button {
   pointer-events: none;
 }
+
+
+/* Aggregate is the first tbody row, inserted after sorting so it can never be reordered. */
+#intelTable #intelBody > .faction-total-row td {
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  z-index: auto !important;
+  height: 50px !important;
+  padding: 8px 11px !important;
+  background: #0b0d0e !important;
+  color: var(--text) !important;
+  border-top: 1px solid var(--line) !important;
+  border-bottom: 1px solid var(--line) !important;
+  box-shadow: none !important;
+}
+
+#intelTable #intelBody > .faction-total-row .member-name,
+#intelTable #intelBody > .faction-total-row strong {
+  color: var(--text) !important;
+  font-weight: 700 !important;
+}
+
+#intelTable #intelBody > .faction-total-row .member-meta {
+  display: block !important;
+  margin-top: 2px;
+  color: var(--muted) !important;
+  font-size: 9px !important;
+}
+
+#intelTable #intelBody > .faction-total-row:hover td {
+  background: #0b0d0e !important;
+}
