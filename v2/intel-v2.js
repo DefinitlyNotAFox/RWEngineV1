@@ -436,15 +436,19 @@ function renderIntelV2() {
   renderFactionControls();
   renderHeaders();
 
+  const aggregateBody = document.querySelector('#intelAggregateBody');
   const body = document.querySelector('#intelBody');
-  if (!body) return;
+  if (!aggregateBody || !body) return;
 
   const colspan = factionColumns.length;
 
   if (loading && !overview) {
+    aggregateBody.innerHTML = '';
     body.innerHTML = `<tr class="empty-row"><td colspan="${colspan}">Loading faction data…</td></tr>`;
     return;
   }
+
+  aggregateBody.innerHTML = renderFactionTotalRow();
 
   const members = Array.isArray(overview?.members) ? overview.members : [];
   const query = String(document.querySelector('#intelSearch')?.value || '').trim().toLowerCase();
@@ -617,7 +621,6 @@ function renderHeaders() {
   head.innerHTML = `
     <tr class="faction-group-row">${groupRow}</tr>
     <tr class="faction-column-row">${columnRow}</tr>
-    ${renderFactionTotalRow()}
   `;
 }
 
