@@ -4065,3 +4065,47 @@ body {
 .faction-filter-panel[data-mode="wars"] .filter-panel-foot {
   border-top: 0;
 }
+
+
+/* Faction table spacing cleanup. */
+.intel2-toolbar {
+  border-bottom: 0;
+}
+
+.faction-table-wrap {
+  border-top: 0;
+}
+
+#intelTable .faction-group-row th,
+#intelTable .faction-column-row th {
+  padding-left: 11px;
+  padding-right: 11px;
+}
+
+#intelTable .faction-column-row th {
+  padding-bottom: 8px;
+}
+
+#intelTable .faction-head-spacer td {
+  height: 9px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+#intelTable .faction-total-row td {
+  height: 50px;
+}
+
+#intelTable .faction-total-row .member-meta {
+  display: block;
+  margin-top: 2px;
+}
+
+@media (max-width: 1100px) {
+  #intelTable .faction-group-row th,
+  #intelTable .faction-column-row th {
+    padding-left: 7px;
+    padding-right: 7px;
+  }
+}
