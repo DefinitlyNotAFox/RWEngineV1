@@ -364,10 +364,7 @@ function renderFilterPanel() {
 
 function renderFactionStatus() {
   const element = document.querySelector('#factionTableStatus');
-  const wrap = document.querySelector('#factionTableContext');
   if (!element) return;
-
-  wrap?.classList.remove('hidden');
 
   if (factionPerformance.loading) {
     element.textContent = filterMode === 'timeline'
