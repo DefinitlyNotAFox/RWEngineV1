@@ -66,8 +66,15 @@ async function generateLink() {
     copyButton.classList.remove('hidden');
     revokeButton.disabled = false;
     setStatus('Public link active. Generating another link will invalidate this one.');
-    await copyToClipboard(currentShareUrl);
-    setStatus('Public link active and copied to clipboard.');
+
+    try {
+      await copyToClipboard(currentShareUrl);
+      setStatus('Public link active and copied to clipboard.');
+    } catch (_) {
+      urlInput?.focus();
+      urlInput?.select();
+      setStatus('Public link active. Select and copy it manually.');
+    }
   } catch (error) {
     setStatus(error.message || 'Failed to generate share link.', true);
   } finally {
