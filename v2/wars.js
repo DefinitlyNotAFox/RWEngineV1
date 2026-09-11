@@ -69,9 +69,9 @@ export function initWarViews() {
   document.querySelector('#importForm')?.addEventListener('submit', handleImport);
 
   document.querySelector('#shareToggle')?.addEventListener('click', toggleShare);
+  document.querySelector('#shareVisibility')?.addEventListener('change', updateShareVisibility);
   document.querySelector('#shareGenerate')?.addEventListener('click', generateShare);
   document.querySelector('#shareCopy')?.addEventListener('click', copyShare);
-  document.querySelector('#shareRevoke')?.addEventListener('click', revokeShare);
 
   on('route', route => {
     if (route === 'war') renderWarOverview();
@@ -536,40 +536,57 @@ function renderWarCell(member,key) {
 async function toggleShare() {
   const panel = document.querySelector('#sharePanel');
   if (!panel || !detail.warId) return;
+
   const opening = panel.classList.contains('hidden');
   panel.classList.toggle('hidden', !opening);
   if (!opening) return;
 
-  setShareStatus('Checking share status…');
+  setShareStatus('Checking report access…');
+
   try {
     const result = await shareApi('status', { resourceType:'war', warId:detail.warId });
-    setShareStatus(result.share?.enabled
-      ? 'A public link is active. Generate a new link to replace it.'
-      : 'No public link is active.');
-    document.querySelector('#shareRevoke').disabled = !result.share?.enabled;
+    applyShareState(result);
   } catch (error) {
     setShareStatus(error.message, true);
   }
 }
 
+async function updateShareVisibility() {
+  if (!detail.warId) return;
+
+  const select = document.querySelector('#shareVisibility');
+  const visibility = select?.value || 'faction';
+  if (select) select.disabled = true;
+  setShareStatus('Updating access…');
+
+  try {
+    const result = await shareApi('setVisibility', {
+      resourceType:'war',
+      warId:detail.warId,
+      visibility
+    });
+    applyShareState({ ...result, canManage:true });
+  } catch (error) {
+    setShareStatus(error.message, true);
+    try {
+      const status = await shareApi('status', { resourceType:'war', warId:detail.warId });
+      applyShareState(status);
+    } catch (_) {}
+  } finally {
+    if (select) select.disabled = false;
+  }
+}
+
 async function generateShare() {
   if (!detail.warId) return;
+
   const button = document.querySelector('#shareGenerate');
   if (button) button.disabled = true;
-  setShareStatus('Generating link…');
+  setShareStatus('Generating new public link…');
 
   try {
     const result = await shareApi('create', { resourceType:'war', warId:detail.warId });
-    detail.shareUrl = String(result.shareUrl || '');
-    document.querySelector('#shareUrl').value = detail.shareUrl;
-    document.querySelector('#shareCopy').classList.toggle('hidden', !detail.shareUrl);
-    document.querySelector('#shareRevoke').disabled = false;
-    try {
-      await navigator.clipboard.writeText(detail.shareUrl);
-      setShareStatus('Public link active and copied.');
-    } catch (_) {
-      setShareStatus('Public link active.');
-    }
+    applyShareState({ ...result, canManage:true });
   } catch (error) {
     setShareStatus(error.message, true);
   } finally {
@@ -580,6 +597,7 @@ async function generateShare() {
 async function copyShare() {
   const value = detail.shareUrl || document.querySelector('#shareUrl')?.value || '';
   if (!value) return;
+
   try {
     await navigator.clipboard.writeText(value);
     setShareStatus('Link copied.');
@@ -589,17 +607,47 @@ async function copyShare() {
   }
 }
 
-async function revokeShare() {
-  if (!detail.warId) return;
-  try {
-    await shareApi('revoke', { resourceType:'war', warId:detail.warId });
-    detail.shareUrl = '';
-    document.querySelector('#shareUrl').value = '';
-    document.querySelector('#shareCopy').classList.add('hidden');
-    document.querySelector('#shareRevoke').disabled = true;
-    setShareStatus('Public link revoked.');
-  } catch (error) {
-    setShareStatus(error.message, true);
+function applyShareState(result) {
+  const visibility = result.visibility || 'faction';
+  const canManage = result.canManage !== false;
+  const select = document.querySelector('#shareVisibility');
+  const url = document.querySelector('#shareUrl');
+  const generate = document.querySelector('#shareGenerate');
+  const copy = document.querySelector('#shareCopy');
+
+  if (select) {
+    select.value = visibility;
+    select.disabled = !canManage;
+  }
+
+  detail.shareUrl = String(result.shareUrl || '');
+  if (url) url.value = detail.shareUrl;
+
+  const isPublic = visibility === 'public';
+  generate?.classList.toggle('hidden', !isPublic || !canManage);
+  copy?.classList.toggle('hidden', !detail.shareUrl);
+
+  if (!canManage) {
+    setShareStatus(
+      visibility === 'private'
+        ? 'Private report. Only its owner or an admin can change access.'
+        : 'You can view this report, but only its owner or an admin can change access.'
+    );
+    return;
+  }
+
+  if (visibility === 'public') {
+    setShareStatus(
+      detail.shareUrl
+        ? 'Public link active. New link rotates the current URL.'
+        : result.share?.enabled
+          ? 'Public link active. Create a new link to reveal and rotate the URL.'
+          : 'Public access enabled.'
+    );
+  } else if (visibility === 'private') {
+    setShareStatus('Private · owner and admins only.');
+  } else {
+    setShareStatus('Faction · authenticated faction members can view.');
   }
 }
 
@@ -607,8 +655,17 @@ function resetSharePanel(hide = false) {
   detail.shareUrl = '';
   const panel = document.querySelector('#sharePanel');
   if (hide) panel?.classList.add('hidden');
+
   const input = document.querySelector('#shareUrl');
   if (input) input.value = '';
+
+  const select = document.querySelector('#shareVisibility');
+  if (select) {
+    select.value = 'faction';
+    select.disabled = false;
+  }
+
+  document.querySelector('#shareGenerate')?.classList.add('hidden');
   document.querySelector('#shareCopy')?.classList.add('hidden');
   setShareStatus('');
 }
