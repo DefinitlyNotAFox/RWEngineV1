@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=15" />
+  <link rel="stylesheet" href="/v2/app.css?v=16" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -115,8 +115,7 @@
         <div id="syncLine" class="status-line hidden"></div>
 
         <div class="faction-viewbar" data-intel2-only>
-          <div id="factionPresets" class="faction-presets" aria-label="Faction table columns"></div>
-          <div id="factionWarPeriodWrap" class="faction-period hidden">
+          <div id="factionWarPeriodWrap" class="faction-period">
             <span>War range</span>
             <div id="factionPeriodControl" class="period-control"></div>
           </div>
@@ -129,7 +128,6 @@
         </div>
 
         <div id="factionTableContext" class="faction-table-context" data-intel2-only>
-          <span id="factionTableGuide"></span>
           <span id="factionTableStatus" class="hidden"></span>
         </div>
 
@@ -277,6 +275,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=6"></script>
+  <script type="module" src="/v2/app.js?v=7"></script>
 </body>
 </html>
