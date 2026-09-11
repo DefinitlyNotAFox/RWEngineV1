@@ -15,7 +15,12 @@ Primary views:
 - War Archive
 - Account / admin settings
 
-Ranked-war reports can generate revocable public read-only links under `/share/`.
+Ranked-war reports use the shared resource-access model:
+- private — report owner and RWEngine admins
+- faction — authenticated members of the faction
+- public — faction access plus a revocable public URL under `/share/`
+
+The same visibility model is intended for future shareable modules.
 
 ## Frontend architecture
 
@@ -33,7 +38,7 @@ Do not add presentation scripts that intercept or patch other frontend modules. 
 ## Backend
 
 - `functions/api.js` — authentication and legacy-compatible ranked-war import actions
-- `functions/v2/` — current data, sync, analytics, sharing and admin endpoints
+- `functions/v2/` — current data, sync, analytics, sharing, freshness and admin endpoints
 - `migrations/` / `schema.sql` — Cloudflare D1 schema
 
 Torn API keys, persistent data, aggregation rules and sensitive calculations remain server-side.
@@ -41,3 +46,8 @@ Torn API keys, persistent data, aggregation rules and sensitive calculations rem
 ## Product direction
 
 RWEngine is a host for focused Torn utilities. Shared infrastructure should be reused across modules, but modules do not need to share the same page layout. Dense data should remain dense; navigation and setup should remain quiet.
+
+
+## Data freshness
+
+`/v2/freshness` is the shared freshness contract for module data. Faction Intel is considered stale after 36 hours without a newer roster, snapshot or successful sync observation. War/archive data is event data, so RWEngine reports its last update rather than incorrectly marking old completed wars as stale.
