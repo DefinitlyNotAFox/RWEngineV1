@@ -1,66 +1,68 @@
-# RWEngine Platform Direction
+# RWEngine Frontend Rebuild
 
-## Product
+## Why this exists
 
-RWEngine is a hosted Torn tools and analytics platform.
+The previous frontend grew through many local improvements. Individual changes were reasonable, but the result accumulated presentation scripts, late DOM overrides and overlapping CSS layers.
 
-Its job is not to replicate Torn inside another website. It should collect reusable Torn data once, keep important calculations server-side, and expose focused tools that are easy to use and easy to share without distributing the underlying implementation.
+The current frontend was rebuilt from zero around the product RWEngine is becoming: a hosted Torn data workbench.
 
-Ranked-war analytics is the first mature feature set, not the boundary of the product.
+## Interface principles
 
-## Product rules
+- Data first. Tables and reports are the visual focus.
+- No dashboard-card default. Use rules, spacing and typography before containers.
+- No gradients, glows, floating panels or decorative metrics.
+- Navigation is always visible and predictable.
+- Numeric data is right-aligned and uses tabular figures.
+- Secondary information belongs under the primary value, not in another column when it can be avoided.
+- Color is functional. The copper accent marks selection, links and active controls.
+- Modules may have different layouts when their jobs differ.
+- Mobile is usable, but desktop remains the primary information-dense surface.
 
-1. A feature is a module, not a new application.
-2. Shared data belongs in the common backend and D1 model.
-3. Calculations and API-key handling stay server-side whenever practical.
-4. The UI should be dense when comparing data and simple when navigating.
-5. Do not expose placeholders as navigation. A module appears when it does useful work.
-6. Remove obsolete UI and compatibility code once nothing active depends on it.
-7. Prefer explicit module events and APIs over scripts intercepting each other.
-8. Every important view should eventually support a stable URL or explicit share flow.
-9. Preserve production data. Schema changes are migrations, never resets.
+## Active frontend
 
-## Current module structure
+The authenticated application intentionally consists of six files:
+
+- `v2/index.html`
+- `v2/app.css`
+- `v2/core.js`
+- `v2/app.js`
+- `v2/intel.js`
+- `v2/wars.js`
+
+Do not reintroduce scripts whose purpose is to patch, intercept or restyle another frontend module after it loads.
+
+## Views
 
 ### Home
-Launcher and platform entry point. Shows available tools rather than pretending to be an analytics dashboard of its own.
+A plain index of available tools plus faction/data coverage.
 
 ### Faction Intel
-Current roster intelligence:
-- battle-stat estimates or verified values
-- recent activity
-- activity per day
-- Xanax per day
-- ranked-war participation
-- average hits per war
-- per-member drill-down
+Roster analytics, period controls, sync, sorting and inline member history.
 
 ### Ranked War
-High-level selected-period war summary and entry point to deeper war analysis.
+Period-level totals, recent war reports and leading contributors.
 
 ### Performance
-Cross-war member performance with sortable simplified and detailed views.
+Cross-war member comparison with optional detail and chain-bonus filtering.
 
-### War Archive
-Imported ranked-war reports with search, individual war drill-down, chain-bonus controls and historical importing.
+### Archive
+Historical import, search, individual war detail and public sharing.
 
-## Sharing model
+### Settings
+Account identity plus tracked-faction/API-key administration for admins.
 
-RWEngine now supports revocable public read-only links for ranked-war reports. Share tokens are opaque, only their hashes are stored, and generating a replacement link rotates the token.
+## Data ownership
 
-The same share-link model should be reused for future public resources rather than implementing module-specific public authentication.
+The frontend does not own Torn API keys, long-term datasets or sensitive calculations. Those remain in Pages Functions and D1.
 
-## Platform roadmap
+Public sharing uses opaque, revocable share tokens and exposes read-only result data rather than application internals.
 
-Near-term work should improve the shared platform rather than multiply features:
+## Adding a new tool
 
-- extend the share/report model to other useful resources
-- clearer permissions for private, faction and public views
-- reusable player/faction selectors
-- common data freshness indicators
-- module-level URLs and share links
-- API/client cleanup so modules do not wrap global browser behaviour
+A new module should have:
+1. one clear job,
+2. a stable backend data contract,
+3. a route or explicit entry point,
+4. no dependency on DOM interception from another module.
 
-Future tools can cover player analysis, companies, organized crimes, calculators and other Torn utilities when their data contracts are real.
-
-No placeholder modules should be added merely to advertise that they might exist later.
+If a tool does not yet do useful work, it does not appear in navigation.
