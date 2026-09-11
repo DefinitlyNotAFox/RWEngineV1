@@ -4109,3 +4109,22 @@ body {
     padding-right: 7px;
   }
 }
+
+
+/* Imported ranked-war dates should be obvious at a glance. */
+.calendar-day.has-war:not(.unavailable) {
+  background: rgba(185,130,93,.14);
+  color: var(--text);
+}
+
+.calendar-day.has-war:not(.unavailable):hover {
+  background: rgba(185,130,93,.22);
+}
+
+.calendar-day.has-war.selected {
+  background: rgba(185,130,93,.20);
+}
+
+.calendar-day.has-war.edge {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
