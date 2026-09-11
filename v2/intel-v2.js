@@ -160,7 +160,7 @@ export function initIntelV2() {
     }
 
     if (type === 'wars-all') {
-      draftWarIds = new Set(sortedWars().map(war => Number(warId(war))));
+      draftWarIds = new Set(sortedWars().map(war => String(warId(war))).filter(Boolean));
       renderFilterPanel();
       return;
     }
@@ -177,7 +177,7 @@ export function initIntelV2() {
   document.querySelector('#factionFilterPanel')?.addEventListener('change', event => {
     const checkbox = event.target.closest('[data-war-check]');
     if (!checkbox) return;
-    const id = Number(checkbox.dataset.warCheck || 0);
+    const id = String(checkbox.dataset.warCheck || '').trim();
     if (!id) return;
     if (checkbox.checked) draftWarIds.add(id);
     else draftWarIds.delete(id);
@@ -366,12 +366,13 @@ function renderFactionStatus() {
   const wrap = document.querySelector('#factionTableContext');
   if (!element) return;
 
+  wrap?.classList.remove('hidden');
+
   if (factionPerformance.loading) {
     element.textContent = filterMode === 'timeline'
       ? `Loading war data for ${formatRangeLabel(timelineRange)}…`
       : `Loading ${selectedWarIds.size} selected ranked wars…`;
     element.classList.remove('hidden','error');
-    wrap?.classList.remove('hidden');
     return;
   }
 
@@ -379,14 +380,12 @@ function renderFactionStatus() {
     element.textContent = factionPerformance.error;
     element.classList.remove('hidden');
     element.classList.add('error');
-    wrap?.classList.remove('hidden');
     return;
   }
 
   element.textContent = '';
-  element.classList.add('hidden');
   element.classList.remove('error');
-  wrap?.classList.add('hidden');
+  element.classList.add('hidden');
 }
 
 function renderIntelV2() {
@@ -458,7 +457,7 @@ function renderSummary() {
     metric('Activity / day', formatDuration(summary.avgActivityPerDay30d), activityScope),
     metric('Xanax / day', formatDecimal(summary.avgXanaxPerDay30d, 2), activityScope),
     metric('War participation', factionPerformance.loading ? '…' : formatPercent(participation), warScope),
-    metric('Attention', formatNumber(summary.membersNeedingAttention), 'actionable signals')
+    metric('Attention', formatNumber(current.filter(member => topSignal(member)?.kind === 'attention').length), 'actionable signals')
   ].join('');
 }
 
@@ -576,16 +575,17 @@ function matchesFilter(member) {
   const codes = new Set(insights.map(item => item.code));
 
   if (activeFilter === 'all') return member.current !== false;
-  if (activeFilter === 'attention') return member.current !== false && insights.some(item => item.kind === 'attention');
+  if (activeFilter === 'attention') return member.current !== false && topSignal(member)?.kind === 'attention';
   if (activeFilter === 'inactive') return member.current !== false && codes.has('inactive');
   if (activeFilter === 'war') {
-    if (factionPerformance.loadedKey) {
-      const performance = performanceMember(member);
-      return member.current !== false && Number(performance?.participation ?? 1) < 0.5;
-    }
-    return member.current !== false && (codes.has('low_war_participation') || codes.has('participation_down'));
+    if (!factionPerformance.loadedKey || factionPerformance.totalWars <= 0) return false;
+    const performance = performanceMember(member);
+    return member.current !== false &&
+      performance &&
+      Number.isFinite(Number(performance.participation)) &&
+      Number(performance.participation) < 0.5;
   }
-  if (activeFilter === 'decline') return member.current !== false && (codes.has('activity_down') || codes.has('xanax_down') || codes.has('participation_down'));
+  if (activeFilter === 'decline') return member.current !== false && (codes.has('activity_down') || codes.has('xanax_down'));
   if (activeFilter === 'stats') return member.current !== false && (codes.has('missing_battle_stats') || codes.has('stale_battle_stats'));
   if (activeFilter === 'former') return member.current === false;
   return true;
@@ -649,7 +649,7 @@ function analysisPayload() {
 
 function performancePayload() {
   if (filterMode === 'wars') {
-    return { warIds:[...selectedWarIds].sort((a,b) => a-b) };
+    return { warIds:[...selectedWarIds].sort() };
   }
   return analysisPayload();
 }
@@ -663,7 +663,7 @@ function analysisKey() {
 function performanceKey() {
   const factionId = Number(state.selectedFactionId || state.user?.factionId || 0);
   if (filterMode === 'wars') {
-    return `${factionId}:wars:${[...selectedWarIds].sort((a,b) => a-b).join(',')}`;
+    return `${factionId}:wars:${[...selectedWarIds].sort().join(',')}`;
   }
   const range = effectiveRange();
   return `${factionId}:timeline:${range?.from || ''}:${range?.to || ''}`;
@@ -694,14 +694,14 @@ function ensureFilterState() {
   if (bounds.to && timelineRange.to > bounds.to) timelineRange.to = bounds.to;
   if (timelineRange.from > timelineRange.to) timelineRange = defaultTimelineRange(bounds);
 
-  const validWarIds = new Set(sortedWars().map(war => Number(warId(war))));
-  selectedWarIds = new Set([...selectedWarIds].filter(id => validWarIds.has(id)));
+  const validWarIds = new Set(sortedWars().map(war => String(warId(war))).filter(Boolean));
+  selectedWarIds = new Set([...selectedWarIds].map(String).filter(id => validWarIds.has(id)));
 
   if (!selectedWarIds.size) {
     const restored = restoreWarSelection(validWarIds);
     selectedWarIds = restored.size
       ? restored
-      : new Set(sortedWars().slice(0,4).map(war => Number(warId(war))));
+      : new Set(sortedWars().slice(0,4).map(war => String(warId(war))).filter(Boolean));
   }
 
   if (!calendarCursor) {
@@ -746,8 +746,8 @@ function restoreWarSelection(validIds) {
     const parsed = JSON.parse(localStorage.getItem('rwengine.selectedWarIds') || '[]');
     return new Set(
       (Array.isArray(parsed) ? parsed : [])
-        .map(Number)
-        .filter(id => validIds.has(id))
+        .map(value => String(value || '').trim())
+        .filter(id => id && validIds.has(id))
     );
   } catch (_) {
     return new Set();
@@ -880,7 +880,7 @@ function renderWarPicker() {
       </header>
       <div class="war-picker-list">
         ${wars.length ? wars.map(war => {
-          const id = Number(warId(war));
+          const id = String(warId(war));
           const checked = draftWarIds.has(id);
           return `
             <label class="war-picker-row">
@@ -926,7 +926,7 @@ function moveCalendar(offset) {
 }
 
 function rangeForWarIds(ids) {
-  const selected = sortedWars().filter(war => ids.has(Number(warId(war))));
+  const selected = sortedWars().filter(war => ids.has(String(warId(war))));
   if (!selected.length) return timelineRange;
 
   const starts = selected.map(war => warStartDate(war)).filter(Boolean).sort();
@@ -1065,15 +1065,23 @@ function tableSignalLabel(signal, member) {
 }
 
 function topSignal(member) {
-  const insights = Array.isArray(member.insights) ? [...member.insights] : [];
+  const scopedOut = new Set([
+    'low_war_participation',
+    'participation_down',
+    'strong_war_output'
+  ]);
+
+  const insights = (Array.isArray(member.insights) ? member.insights : [])
+    .filter(item => !scopedOut.has(item.code))
+    .map(item => ({ ...item }));
+
   const performance = performanceMember(member);
 
   if (
-    performance &&
     factionPerformance.totalWars > 0 &&
+    performance &&
     Number.isFinite(Number(performance.participation)) &&
-    Number(performance.participation) < 0.5 &&
-    !insights.some(item => item.code === 'low_war_participation')
+    Number(performance.participation) < 0.5
   ) {
     insights.push({
       code:'low_war_participation',
