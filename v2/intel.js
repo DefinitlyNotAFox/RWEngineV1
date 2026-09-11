@@ -2,7 +2,7 @@ import {
   state, on, emit, rangeApi, syncApi,
   metric, median, average,
   formatNumber, formatCompact, formatDecimal, formatPercent,
-  formatDuration, formatRelative, formatDate, formatDateTime,
+  formatDuration, formatDate,
   escapeHtml, sleep
 } from './core.js';
 
@@ -76,7 +76,7 @@ export function renderIntel() {
   if (!body) return;
 
   if (!rows.length) {
-    body.innerHTML = '<tr class="empty-row"><td colspan="7">No members match this view.</td></tr>';
+    body.innerHTML = '<tr class="empty-row"><td colspan="6">No members match this view.</td></tr>';
     return;
   }
 
@@ -87,10 +87,6 @@ export function renderIntel() {
         <td>
           <span class="member-name">${escapeHtml(member.playerName || 'Unknown')}</span>
           <span class="member-meta">${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(member.level ?? '—')} · [${escapeHtml(member.playerId)}]</span>
-        </td>
-        <td title="${escapeHtml(formatDateTime(member.lastActionAt))}">
-          ${escapeHtml(formatRelative(member.lastActionAt))}
-          ${member.lastActionStatus ? `<span class="member-meta">${escapeHtml(member.lastActionStatus)}</span>` : ''}
         </td>
         <td>
           ${member.battleStatsValue == null ? '—' : escapeHtml(formatCompact(member.battleStatsValue))}
@@ -158,7 +154,6 @@ function renderHeaders() {
 function compareMembers(a, b) {
   const direction = sort.direction === 'asc' ? 1 : -1;
   const values = {
-    lastAction: member => Number(member.lastActionAt || 0),
     stats: member => nullable(member.battleStatsValue),
     activity: member => nullable(member.activityPerDaySeconds),
     xanax: member => nullable(member.xanaxPerDay),
@@ -234,7 +229,7 @@ function renderDetailRow(member) {
 
   return `
     <tr class="member-detail-row">
-      <td colspan="7">
+      <td colspan="6">
         <section class="member-detail">
           <header class="member-detail-head">
             <div>
