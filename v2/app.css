@@ -3667,6 +3667,7 @@ body {
 /* Faction scope modes */
 
 .faction-modebar {
+  position: relative;
   min-height: 42px;
   display: grid;
   gap: 2px;
@@ -3738,11 +3739,16 @@ body {
 }
 
 .faction-filter-panel {
+  position: absolute;
+  top: calc(100% + 1px);
+  left: 0;
+  z-index: 20;
   width: min(760px, 100%);
-  margin: -1px 0 12px 0;
+  margin: 0;
   padding: 14px;
   border: 1px solid var(--line);
   background: #0f1112;
+  box-shadow: 0 12px 30px rgba(0,0,0,.32);
 }
 
 .filter-panel-head,
@@ -4041,10 +4047,13 @@ body {
 
 /* Ranked-war selection is intentionally narrower and visually quieter. */
 .faction-filter-panel[data-mode="wars"] {
-  width: min(520px, 100%);
+  width: min(420px, 100%);
 }
 
 .faction-filter-panel[data-mode="wars"] .war-picker-list {
+  max-height: 235px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
   border-top: 0;
   border-bottom: 0;
 }
