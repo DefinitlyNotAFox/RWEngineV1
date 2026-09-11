@@ -3486,3 +3486,124 @@ body {
     top: 82px;
   }
 }
+
+
+/* Faction table must fit the viewport: no sideways workspace. */
+
+.faction-table-wrap {
+  overflow-x: hidden;
+}
+
+#intelTable {
+  width: 100%;
+  min-width: 0 !important;
+}
+
+#intelTable[data-preset="all"] {
+  table-layout: fixed;
+  min-width: 0;
+}
+
+#intelTable[data-preset="overview"],
+#intelTable[data-preset="activity"],
+#intelTable[data-preset="training"],
+#intelTable[data-preset="war"] {
+  min-width: 0;
+}
+
+#intelTable th,
+#intelTable td {
+  min-width: 0 !important;
+}
+
+#intelTable th button {
+  white-space: normal;
+  line-height: 1.2;
+}
+
+#intelTable td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#intelTable .col-lastAction,
+#intelTable .col-wars,
+#intelTable .col-respectEarned,
+#intelTable .col-respectLost,
+#intelTable .col-scoreUp,
+#intelTable .col-scoreDown {
+  display: none;
+}
+
+/* All: fixed proportions, still readable at normal desktop widths. */
+
+#intelTable[data-preset="all"] .col-member       { width: 15% !important; }
+#intelTable[data-preset="all"] .col-stats        { width: 8% !important; }
+#intelTable[data-preset="all"] .col-activity     { width: 8% !important; }
+#intelTable[data-preset="all"] .col-xanax        { width: 7% !important; }
+#intelTable[data-preset="all"] .col-participation{ width: 10% !important; }
+#intelTable[data-preset="all"] .col-hits         { width: 8% !important; }
+#intelTable[data-preset="all"] .col-assists      { width: 6% !important; }
+#intelTable[data-preset="all"] .col-outsideHits  { width: 7% !important; }
+#intelTable[data-preset="all"] .col-respect      { width: 9% !important; }
+#intelTable[data-preset="all"] .col-score        { width: 9% !important; }
+#intelTable[data-preset="all"] .col-netScore     { width: 7% !important; }
+#intelTable[data-preset="all"] .col-attention    { width: 6% !important; }
+
+/* War stays roomy without ever exceeding the page. */
+
+#intelTable[data-preset="war"] {
+  table-layout: fixed;
+}
+
+#intelTable[data-preset="war"] .col-member        { width: 22% !important; }
+#intelTable[data-preset="war"] .col-participation { width: 16% !important; }
+#intelTable[data-preset="war"] .col-hits          { width: 13% !important; }
+#intelTable[data-preset="war"] .col-assists       { width: 11% !important; }
+#intelTable[data-preset="war"] .col-outsideHits   { width: 11% !important; }
+#intelTable[data-preset="war"] .col-netScore      { width: 14% !important; }
+#intelTable[data-preset="war"] .col-attention     { width: 13% !important; }
+
+/* Update grouping boundaries after the merged war columns. */
+
+#intelTable[data-preset="war"] :is(.col-participation,.col-attention),
+#intelTable[data-preset="all"] :is(.col-stats,.col-participation,.col-attention) {
+  border-left: 1px solid var(--line);
+}
+
+#intelTable[data-preset="war"] tbody :is(.col-participation,.col-hits,.col-assists,.col-outsideHits,.col-netScore),
+#intelTable[data-preset="all"] tbody :is(.col-participation,.col-hits,.col-assists,.col-outsideHits,.col-respect,.col-score,.col-netScore) {
+  background: rgba(255,255,255,.012);
+}
+
+/* Two-value cells remain compact but explicit. */
+
+#intelTable .col-respect strong,
+#intelTable .col-score strong,
+#intelTable .col-participation strong {
+  display: block;
+}
+
+#intelTable .col-respect .member-meta,
+#intelTable .col-score .member-meta,
+#intelTable .col-participation .member-meta {
+  margin-top: 1px;
+}
+
+@media (max-width: 1100px) {
+  #intelTable[data-preset="all"] th,
+  #intelTable[data-preset="all"] td {
+    padding-left: 6px;
+    padding-right: 6px;
+    font-size: 11px;
+  }
+
+  #intelTable[data-preset="all"] .member-name {
+    font-size: 12px;
+  }
+
+  #intelTable[data-preset="all"] .member-meta,
+  #intelTable[data-preset="all"] .trend {
+    font-size: 9px;
+  }
+}
