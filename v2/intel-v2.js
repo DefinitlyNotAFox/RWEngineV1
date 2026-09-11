@@ -460,12 +460,20 @@ function renderIntelV2() {
     )
     .sort(compareMembers);
 
+  let aggregateRow = '';
+  try {
+    aggregateRow = renderFactionTotalRow();
+  } catch (error) {
+    console.error('Faction aggregate render failed', error);
+    aggregateRow = renderFactionTotalFallback();
+  }
+
   if (!rows.length) {
-    body.innerHTML = `<tr class="empty-row"><td colspan="${colspan}">No members match this view.</td></tr>`;
+    body.innerHTML = aggregateRow + `<tr class="empty-row"><td colspan="${colspan}">No members match this view.</td></tr>`;
     return;
   }
 
-  body.innerHTML = rows.map(member => {
+  body.innerHTML = aggregateRow + rows.map(member => {
     const selected = Number(selectedMemberId) === Number(member.playerId);
 
     return `
@@ -629,37 +637,10 @@ function renderHeaders() {
     `;
   }).join('');
 
-  let aggregateRow = '';
-  try {
-    aggregateRow = renderFactionTotalHeaderRow();
-  } catch (error) {
-    console.error('Faction aggregate render failed', error);
-    aggregateRow = renderFactionTotalHeaderFallback();
-  }
-
   head.innerHTML = `
     <tr class="faction-group-row">${groupRow}</tr>
     <tr class="faction-column-row">${columnRow}</tr>
-    ${aggregateRow}
   `;
-}
-
-function renderFactionTotalHeaderRow() {
-  const row = renderFactionTotalRow();
-  if (!row) return '';
-
-  return row
-    .replace('<tr class="faction-total-row">', '<tr class="faction-total-row faction-total-head-row">')
-    .replaceAll('<td ', '<th scope="col" ')
-    .replaceAll('</td>', '</th>');
-}
-
-function renderFactionTotalHeaderFallback() {
-  const row = renderFactionTotalFallback();
-  return row
-    .replace('<tr class="faction-total-row faction-total-fallback">', '<tr class="faction-total-row faction-total-head-row faction-total-fallback">')
-    .replaceAll('<td ', '<th scope="col" ')
-    .replaceAll('</td>', '</th>');
 }
 
 function renderFactionCell(member, key) {
