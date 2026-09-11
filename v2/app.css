@@ -5038,3 +5038,27 @@ body {
 #intelTable.faction-grid .faction-grid-row > :nth-child(13) {
   border-left: 1px solid #34383b !important;
 }
+
+
+/* Simplify faction header separators: quiet internals, one strong content divider. */
+#intelTable.faction-grid .faction-grid-group {
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+
+#intelTable.faction-grid .faction-grid-group::after {
+  background: rgba(185,130,93,.14);
+}
+
+#intelTable.faction-grid .faction-column-row {
+  border-bottom: 0;
+}
+
+#intelTable.faction-grid .faction-grid-row > :nth-child(2),
+#intelTable.faction-grid .faction-grid-row > :nth-child(6),
+#intelTable.faction-grid .faction-grid-row > :nth-child(13) {
+  border-left: 1px solid rgba(255,255,255,.10) !important;
+}
+
+#intelTable.faction-grid .faction-grid-aggregate {
+  border-top: 2px solid #b9825d;
+}
