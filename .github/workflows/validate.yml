@@ -26,6 +26,7 @@ jobs:
           node tests/intel-insights.test.mjs
           node tests/intel-contract.test.mjs
           node tests/player-analysis-contract.test.mjs
+          node tests/player-report-public.test.mjs
           rm package.json
 
       - name: Check v2 asset references
