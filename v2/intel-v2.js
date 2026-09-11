@@ -741,7 +741,7 @@ function renderDetailRow(member) {
   const payload = detailCache.get(key);
 
   if (detailLoading.has(key)) {
-    return '<tr class="intel2-detail-row"><td colspan="${activeColumns().length}"><section class="intel2-detail"><p class="status-line">Loading member history…</p></section></td></tr>';
+    return `<tr class="intel2-detail-row"><td colspan="${activeColumns().length}"><section class="intel2-detail"><p class="status-line">Loading member history…</p></section></td></tr>`;
   }
 
   if (payload?.error) {
@@ -749,7 +749,7 @@ function renderDetailRow(member) {
   }
 
   if (!payload?.member) {
-    return '<tr class="intel2-detail-row"><td colspan="${activeColumns().length}"><section class="intel2-detail"><p class="status-line">Loading member history…</p></section></td></tr>';
+    return `<tr class="intel2-detail-row"><td colspan="${activeColumns().length}"><section class="intel2-detail"><p class="status-line">Loading member history…</p></section></td></tr>`;
   }
 
   const detailMember = payload.member;
