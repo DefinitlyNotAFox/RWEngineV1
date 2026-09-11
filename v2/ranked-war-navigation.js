@@ -31,6 +31,7 @@ if (rankedWarGroup && rankedWarParent) {
 document.querySelectorAll('.nav-button[data-tab], .jump-button[data-jump]').forEach(button => {
   button.addEventListener('click', () => window.setTimeout(syncNavigationState, 0));
 });
+window.addEventListener('rwe:tab-changed', () => window.setTimeout(syncNavigationState, 0));
 
 syncNavigationState();
 
