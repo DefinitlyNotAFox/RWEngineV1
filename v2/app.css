@@ -4844,3 +4844,33 @@ body {
     font-size: 8px;
   }
 }
+
+
+/* The rebuilt faction grid must not inherit dimensions/positioning from the old table. */
+#intelTable.faction-grid .faction-grid-header-cell,
+#intelTable.faction-grid .faction-grid-cell {
+  width: auto !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  position: static !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  z-index: auto !important;
+  box-shadow: none !important;
+}
+
+#intelTable.faction-grid .faction-grid-header-cell {
+  display: flex !important;
+}
+
+#intelTable.faction-grid .faction-grid-cell {
+  display: block !important;
+}
+
+/* Reapply only the deliberate group boundaries from the new grid. */
+#intelTable.faction-grid .faction-grid-row > :nth-child(2),
+#intelTable.faction-grid .faction-grid-row > :nth-child(6),
+#intelTable.faction-grid .faction-grid-row > :nth-child(13) {
+  border-left: 1px solid var(--line) !important;
+}
