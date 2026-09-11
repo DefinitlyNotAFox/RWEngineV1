@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=4" />
+  <link rel="stylesheet" href="/v2/app.css?v=5" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -304,6 +304,20 @@
             <div><button class="action primary" type="submit">Save key</button><button id="adminClearKey" class="text-action" type="button">Remove managed key</button></div>
             <small id="adminKeyStatus"></small>
           </form>
+
+          <section class="database-admin">
+            <header>
+              <p class="kicker">Database</p>
+              <h2>D1 diagnostics</h2>
+              <span>Checks the analytics indexes and query plans without running the heavy queries.</span>
+            </header>
+            <div class="database-actions">
+              <button id="databaseCheck" class="action" type="button">Check D1</button>
+              <button id="databaseApply" class="action primary" type="button">Apply maintenance</button>
+            </div>
+            <p id="databaseStatus" class="status-line hidden"></p>
+            <div id="databaseDiagnostics" class="database-diagnostics hidden"></div>
+          </section>
         </section>
       </section>
     </main>
