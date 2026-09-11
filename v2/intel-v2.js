@@ -220,6 +220,7 @@ export function initIntelV2() {
 
   on('route', route => {
     if (route !== 'intel') return;
+    filterMode = restoreFactionMode();
     ensureFilterState();
     ensureSortKey();
     renderFactionControls();
