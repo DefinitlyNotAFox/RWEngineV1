@@ -432,12 +432,14 @@ function renderIntelV2() {
     )
     .sort(compareMembers);
 
+  const aggregateRow = renderFactionTotalRow();
+
   if (!rows.length) {
-    body.innerHTML = `<tr class="empty-row"><td colspan="${colspan}">No members match this view.</td></tr>`;
+    body.innerHTML = `${aggregateRow}<tr class="empty-row"><td colspan="${colspan}">No members match this view.</td></tr>`;
     return;
   }
 
-  body.innerHTML = rows.map(member => {
+  body.innerHTML = aggregateRow + rows.map(member => {
     const selected = Number(selectedMemberId) === Number(member.playerId);
 
     return `
@@ -591,17 +593,7 @@ function renderHeaders() {
   head.innerHTML = `
     <tr class="faction-group-row">${groupRow}</tr>
     <tr class="faction-column-row">${columnRow}</tr>
-    ${renderFactionTotalHeaderRow()}
   `;
-}
-
-function renderFactionTotalHeaderRow() {
-  const row = renderFactionTotalRow();
-  if (!row) return '';
-  return row
-    .replace('class="faction-total-row"', 'class="faction-total-row faction-total-head-row"')
-    .replaceAll('<td ', '<th ')
-    .replaceAll('</td>', '</th>');
 }
 
 function renderFactionCell(member, key) {
