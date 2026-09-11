@@ -644,7 +644,6 @@ function renderWars() {
       <td>${escapeHtml(String(war.war_id || '—'))}</td>
       <td>${formatWarDate(war.start_timestamp)}</td>
       <td>${formatWarDate(war.end_timestamp)}</td>
-      <td>${escapeHtml(formatChainStatus(war))}</td>
     </tr>
   `).join('');
 }
@@ -805,7 +804,6 @@ function formatDecimal(value, digits) {
   });
 }
 
-function formatChainStatus(war) {
   if (!war.chain_adjustment_status) return 'Not adjusted';
   return war.chain_adjustment_status;
 }
