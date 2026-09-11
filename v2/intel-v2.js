@@ -619,7 +619,6 @@ async function runSync() {
 
     if (safety >= 500) throw new Error('Faction sync exceeded the safety limit.');
 
-    await loadIntelV2(true);
     emit('request-refresh', { source:'sync' });
   } catch (error) {
     syncJob = { status:'failed', error:error.message || 'Faction sync failed.' };
