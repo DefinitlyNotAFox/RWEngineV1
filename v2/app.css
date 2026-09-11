@@ -236,7 +236,7 @@ select:focus { border-color: var(--accent); }
   padding: 0;
   background: transparent;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .primary-nav button:hover { color: var(--text); }
@@ -324,7 +324,7 @@ select:focus { border-color: var(--accent); }
   align-items: flex-end;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
 
 .view-head h1,
@@ -557,6 +557,7 @@ select:focus { border-color: var(--accent); }
   border-bottom: 1px solid var(--line-soft);
   text-align: right;
   font-variant-numeric: tabular-nums;
+  font-size: 12px;
 }
 
 .data-table th {
