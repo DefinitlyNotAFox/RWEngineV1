@@ -5105,3 +5105,28 @@ body {
 #intelTable.faction-grid .faction-grid-group.group-context {
   background: #0d0f10 !important;
 }
+
+
+/* Treat column titles and faction aggregate as one visual header block. */
+#intelTable.faction-grid .faction-column-row {
+  background: #0d0f10;
+  border-bottom: 0;
+}
+
+#intelTable.faction-grid .faction-column-row > * {
+  background: #0d0f10 !important;
+}
+
+#intelTable.faction-grid .faction-grid-aggregate {
+  border-top: 0;
+}
+
+#intelTable.faction-grid .faction-total-row {
+  background: #0d0f10;
+  border-top: 1px solid rgba(255,255,255,.05);
+  border-bottom: 2px solid #b9825d;
+}
+
+#intelTable.faction-grid .faction-total-row .faction-grid-cell {
+  background: #0d0f10 !important;
+}
