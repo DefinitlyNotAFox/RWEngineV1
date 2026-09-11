@@ -201,8 +201,11 @@ async function enterApp() {
 
   renderIdentity();
   renderAdminContext();
-  await refreshAll(false);
+
+  // Restore the previous workspace immediately so reloads do not flash Home
+  // while faction data is still refreshing.
   routeTo(routeFromHash(), { updateHash:false });
+  await refreshAll(false);
 }
 
 function showAuth() {
