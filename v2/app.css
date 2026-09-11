@@ -4472,3 +4472,31 @@ body {
 .faction-control-row .intel-filter-options {
   margin-left: clamp(72px, 8vw, 150px) !important;
 }
+
+
+/* Context toggles are now their own right-side control group. */
+.faction-control-row > .intel-filter-options {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto !important;
+  padding-left: 22px;
+  border-left: 1px solid var(--line);
+}
+
+.faction-control-row .intel-filter-block {
+  flex: 0 1 auto;
+}
+
+.faction-control-row .search {
+  margin-left: 10px;
+}
+
+#intelAggregateBody:empty {
+  display: none;
+}
+
+#intelAggregateBody:not(:empty) {
+  display: table-row-group;
+}
