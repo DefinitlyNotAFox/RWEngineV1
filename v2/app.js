@@ -113,9 +113,6 @@ function bindApplication() {
       return;
     }
 
-    if (event.target.closest('[data-refresh]')) {
-      refreshAll(true);
-    }
   });
 
   window.addEventListener('hashchange', () => routeTo(routeFromHash(), { updateHash:false }));
@@ -235,8 +232,6 @@ function setAuthError(message) {
 async function refreshAll(userInitiated = false) {
   if (loading) return;
   loading = true;
-  setRefreshBusy(true);
-
   if (userInitiated) setRefreshStatus('Refreshing data…');
 
   try {
@@ -272,7 +267,6 @@ async function refreshAll(userInitiated = false) {
     setRefreshStatus(error.message || 'Failed to refresh RWEngine data.', true);
   } finally {
     loading = false;
-    setRefreshBusy(false);
   }
 }
 
@@ -619,12 +613,6 @@ function setRefreshStatus(message = '', error = false) {
   }
 }
 
-function setRefreshBusy(busy) {
-  document.querySelectorAll('[data-refresh]').forEach(button => {
-    button.disabled = busy;
-    button.textContent = busy ? 'Refreshing…' : 'Refresh';
-  });
-}
 
 async function loadAdminFactions() {
   const result = await adminApi('listFactions');
