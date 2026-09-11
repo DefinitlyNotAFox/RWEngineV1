@@ -338,3 +338,16 @@ Intel 2.0 should consume `war_member_metrics` when that table is enabled.
 Until then, the existing optimized war-log / attack queries remain the fallback.
 
 The API contract must remain the same regardless of which storage path supplies war metrics.
+
+
+## Staged preview
+
+The draft branch includes a standalone preview:
+
+- `/v2/intel-preview.html` — fixture mode, no D1 access required
+- `/v2/intel-preview.html?live=1` — staged live endpoint once D1 is available
+- admins may append `&factionId=<id>` in live mode
+
+Live mode loads only the overview initially. Opening a member lazily requests the member-detail contract and derives display-rate history from the returned cumulative snapshots.
+
+This preview is intentionally separate from the production Intel route until live D1 data has been checked.
