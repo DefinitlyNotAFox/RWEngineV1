@@ -395,7 +395,10 @@ function renderDetailRow(member) {
               <h2>${escapeHtml(detailMember.playerName || member.playerName)}</h2>
               <p>${escapeHtml(detailMember.position || 'Member')} · Lv ${escapeHtml(detailMember.level ?? '—')} · ${detailMember.current ? `${formatNumber(detailMember.daysInFaction)} days in faction` : 'former member'}</p>
             </div>
-            <a href="https://www.torn.com/profiles.php?XID=${encodeURIComponent(detailMember.playerId)}" target="_blank" rel="noopener noreferrer">Torn profile ↗</a>
+            <div class="member-detail-actions">
+              <button class="text-action" type="button" data-analyze-player="${detailMember.playerId}">Analyze →</button>
+              <a href="https://www.torn.com/profiles.php?XID=${encodeURIComponent(detailMember.playerId)}" target="_blank" rel="noopener noreferrer">Torn profile ↗</a>
+            </div>
           </header>
 
           <div class="detail-metrics">
