@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=6" />
+  <link rel="stylesheet" href="/v2/app.css?v=7" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -84,6 +84,7 @@
           <div>
             <p class="kicker">Workspace</p>
             <h1 id="homeFaction">Faction</h1>
+            <p class="view-description">Choose a workspace below. Data is scoped to the selected faction.</p>
           </div>
           <p id="homeCoverage" class="home-copy">Loading data coverage…</p>
         </header>
@@ -109,6 +110,7 @@
           <div>
             <p class="kicker">Faction</p>
             <h1>Intel</h1>
+            <p class="view-description">Current roster health, activity, Xanax use and recent ranked-war participation.</p>
             <p id="intelFreshness" class="freshness"></p>
           </div>
           <div class="view-actions">
@@ -126,6 +128,12 @@
           <input id="intelSearch" class="search" type="search" placeholder="Search member or ID" />
         </div>
 
+        <p class="intel-guide">
+          Activity and Xanax are 30-day daily averages. War participation uses the last four imported wars.
+          Signals flag inactivity, low participation, meaningful declines or unusually strong output.
+          Click a member for history and trends.
+        </p>
+
         <div class="data-table-wrap">
           <table id="intelTable" class="data-table intel2-table">
             <thead>
@@ -135,8 +143,8 @@
                 <th data-intel2-sort="stats" data-intel-sort="stats">Battle stats</th>
                 <th data-intel2-sort="activity" data-intel-sort="activity">Activity / day <small>30d</small></th>
                 <th data-intel2-sort="xanax" data-intel-sort="xanax">Xanax / day <small>30d</small></th>
-                <th data-intel2-sort="participation" data-intel-sort="participation">RW participation <small>last 4</small></th>
-                <th data-intel2-sort="hits" data-intel-sort="hits">Hits / war <small>last 4</small></th>
+                <th data-intel2-sort="participation" data-intel-sort="participation">War participation <small>last 4</small></th>
+                <th data-intel2-sort="hits" data-intel-sort="hits">Hits per war <small>last 4</small></th>
                 <th data-intel2-sort="attention" data-intel2-only>Signal</th>
               </tr>
             </thead>
@@ -147,7 +155,7 @@
 
       <section id="warView" class="view" data-view="war">
         <header class="view-head">
-          <div><p class="kicker">Ranked War</p><h1>Overview</h1><p id="warFreshness" class="freshness"></p></div>
+          <div><p class="kicker">Ranked War</p><h1>Overview</h1><p class="view-description">Faction totals, recent wars and top contributors for the selected period.</p><p id="warFreshness" class="freshness"></p></div>
           <button class="action" type="button" data-refresh>Refresh</button>
         </header>
 
@@ -168,7 +176,7 @@
 
       <section id="performanceView" class="view" data-view="performance">
         <header class="view-head">
-          <div><p class="kicker">Ranked War</p><h1>Performance</h1><p id="performanceFreshness" class="freshness"></p></div>
+          <div><p class="kicker">Ranked War</p><h1>Performance</h1><p class="view-description">Compare member output across imported wars. Detail mode adds scoring and respect.</p><p id="performanceFreshness" class="freshness"></p></div>
           <button class="action" type="button" data-refresh>Refresh</button>
         </header>
 
@@ -196,7 +204,7 @@
 
       <section id="archiveView" class="view" data-view="archive">
         <header class="view-head">
-          <div><p class="kicker">Ranked War</p><h1>Archive</h1><p id="archiveFreshness" class="freshness"></p></div>
+          <div><p class="kicker">Ranked War</p><h1>Archive</h1><p class="view-description">Browse imported war reports, open full results and manage shared links.</p><p id="archiveFreshness" class="freshness"></p></div>
           <button class="action" type="button" data-refresh>Refresh</button>
         </header>
 
@@ -282,7 +290,7 @@
 
       <section id="settingsView" class="view" data-view="settings">
         <header class="view-head">
-          <div><p class="kicker">Account</p><h1>Settings</h1></div>
+          <div><p class="kicker">Account</p><h1>Settings</h1><p class="view-description">Account, report access and administrative controls.</p></div>
           <button id="logoutButton" class="action" type="button">Log out</button>
         </header>
 
