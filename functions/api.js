@@ -283,6 +283,8 @@ async function handleRegister(env, body) {
     .bind(playerId)
     .first();
 
+  await queueInitialFactionSync(env.DB, createdUser, now);
+
   const session = await createSession(env, createdUser.user_id);
 
   return json(
@@ -296,6 +298,25 @@ async function handleRegister(env, body) {
       "Set-Cookie": buildSessionCookie(session.token)
     }
   );
+}
+
+async function queueInitialFactionSync(db, user, now) {
+  const factionId = Number(user?.faction_id || 0);
+  const userId = Number(user?.user_id || 0);
+  if (!Number.isSafeInteger(factionId) || factionId <= 0 || !Number.isSafeInteger(userId) || userId <= 0) return;
+
+  const [snapshots, active] = await Promise.all([
+    db.prepare('SELECT COUNT(*) AS count FROM member_snapshots WHERE faction_id = ?').bind(factionId).first(),
+    db.prepare("SELECT job_id FROM faction_sync_jobs WHERE faction_id = ? AND status IN ('queued','running') LIMIT 1").bind(factionId).first()
+  ]);
+
+  if (Number(snapshots?.count || 0) > 0 || active?.job_id) return;
+
+  await db.prepare(`
+    INSERT INTO faction_sync_jobs (
+      faction_id, requested_by_user_id, trigger_type, status, phase, seed_history, created_at, updated_at
+    ) VALUES (?, ?, 'registration', 'queued', 'initializing', 0, ?, ?)
+  `).bind(factionId, userId, now, now).run();
 }
 
 async function refreshUserFactionFromStoredApiKey(env, userRow, options = {}) {
