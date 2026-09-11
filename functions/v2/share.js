@@ -338,6 +338,25 @@ async function buildPublicPlayerAnalysis(db, factionId, snapshotId) {
   try { analysis = JSON.parse(row.payload_json); }
   catch (_) { throw httpError(500, 'The shared player report is invalid.'); }
 
+  const publicAnalysis = {
+    generatedAt: analysis.generatedAt || Number(row.created_at),
+    player: analysis.player || null,
+    context: analysis.context ? {
+      localHistoryAvailable: Boolean(analysis.context.localHistoryAvailable),
+      localFactionName: analysis.context.localFactionName || null,
+      currentFactionMember: Boolean(analysis.context.currentFactionMember),
+      observedAt: analysis.context.observedAt || null
+    } : null,
+    battleStats: analysis.battleStats || null,
+    activity: analysis.activity || null,
+    xanax: analysis.xanax || null,
+    war: {
+      last4: analysis.war?.last4 || null,
+      history: Array.isArray(analysis.war?.history) ? analysis.war.history : []
+    },
+    sources: Array.isArray(analysis.sources) ? analysis.sources : []
+  };
+
   return {
     snapshot: {
       snapshotId: Number(row.snapshot_id),
@@ -345,7 +364,7 @@ async function buildPublicPlayerAnalysis(db, factionId, snapshotId) {
       targetPlayerName: row.target_player_name,
       createdAt: Number(row.created_at)
     },
-    analysis
+    analysis: publicAnalysis
   };
 }
 
