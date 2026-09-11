@@ -552,7 +552,8 @@ function renderHeaders() {
     return `
       <th class="col-${key}${active ? ' sorted' : ''}">
         <button type="button" data-intel2-sort="${key}">
-          ${escapeHtml(label)}${detail ? ` <small>${escapeHtml(detail)}</small>` : ''}${active ? ` ${sortDirection === 'desc' ? '↓' : '↑'}` : ''}
+          <span class="sort-label">${escapeHtml(label)}${detail ? ` <small>${escapeHtml(detail)}</small>` : ''}</span>
+          <span class="sort-indicator" aria-hidden="true">${active ? (sortDirection === 'desc' ? '↓' : '↑') : ''}</span>
         </button>
       </th>
     `;
