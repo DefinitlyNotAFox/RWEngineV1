@@ -40,6 +40,7 @@ async function buildOverview(db, factionId, body = {}) {
   const range = resolveAnalysisRange(body, now);
   const span = Math.max(DAY, range.to - range.from);
   const members = await loadMembers(db, factionId);
+  const snapshotBounds = await loadSnapshotBounds(db, factionId);
   const snapshots = await loadSnapshots(
     db,
     factionId,
@@ -83,7 +84,11 @@ async function buildOverview(db, factionId, body = {}) {
     success:true,
     generatedAt:now,
     faction:await loadFaction(db, factionId),
-    freshness:buildFreshness(snapshots, now),
+    freshness:buildFreshnessFromBounds(snapshotBounds, now),
+    availability:{
+      from:snapshotBounds.firstAt ? utcDate(snapshotBounds.firstAt) : null,
+      to:snapshotBounds.lastAt ? utcDate(snapshotBounds.lastAt) : null
+    },
     range:{
       from:range.from,
       to:range.to,
@@ -343,6 +348,17 @@ async function loadMembers(db, factionId) {
   return result.results || [];
 }
 
+async function loadSnapshotBounds(db, factionId) {
+  const row = await db.prepare(
+    'SELECT MIN(snapshot_at) AS first_at, MAX(snapshot_at) AS last_at FROM member_snapshots WHERE faction_id = ?'
+  ).bind(factionId).first();
+
+  return {
+    firstAt:nullableNumber(row?.first_at),
+    lastAt:nullableNumber(row?.last_at)
+  };
+}
+
 async function loadSnapshots(db, factionId, cutoff, upper = null) {
   const result = upper
     ? await db.prepare(
@@ -458,6 +474,16 @@ async function loadFaction(db, factionId) {
   return {
     factionId,
     factionName:row?.faction_name || 'Faction ' + factionId
+  };
+}
+
+function buildFreshnessFromBounds(bounds, now) {
+  const observedAt = nullableNumber(bounds?.lastAt);
+  const ageSeconds = observedAt ? Math.max(0, now - observedAt) : null;
+  return {
+    state:!observedAt ? 'empty' : ageSeconds > 36 * 3600 ? 'stale' : 'fresh',
+    observedAt,
+    ageSeconds
   };
 }
 
