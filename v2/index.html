@@ -4,18 +4,18 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/styles.css?v=6" />
-  <link rel="stylesheet" href="/v2/compact.css?v=2" />
+  <link rel="stylesheet" href="/v2/styles.css?v=7" />
+  <link rel="stylesheet" href="/v2/compact.css?v=3" />
   <link rel="stylesheet" href="/v2/war-import.css?v=3" />
   <link rel="stylesheet" href="/v2/admin-workspace.css?v=2" data-rwe-admin-workspace="1" />
   <link rel="stylesheet" href="/v2/boot-stability.css?v=1" />
-  <link rel="stylesheet" href="/v2/layout-refinement.css?v=3" />
-  <link rel="stylesheet" href="/v2/member-table.css?v=3" data-rwe-member-table="1" />
+  <link rel="stylesheet" href="/v2/layout-refinement.css?v=4" />
+  <link rel="stylesheet" href="/v2/member-table.css?v=4" data-rwe-member-table="1" />
   <link rel="stylesheet" href="/v2/range-controls.css?v=3" data-rwe-range-controls="1" />
-  <link rel="stylesheet" href="/v2/performance-table.css?v=5" data-rwe-performance-table="1" />
-  <link rel="stylesheet" href="/v2/war-drilldown.css?v=2" data-rwe-war-drilldown="1" />
+  <link rel="stylesheet" href="/v2/performance-table.css?v=6" data-rwe-performance-table="1" />
+  <link rel="stylesheet" href="/v2/war-drilldown.css?v=3" data-rwe-war-drilldown="1" />
   <link rel="stylesheet" href="/v2/war-detail-controls.css?v=1" data-rwe-war-detail-controls="1" />
-  <link rel="stylesheet" href="/v2/platform-shell.css?v=2" />
+  <link rel="stylesheet" href="/v2/platform-shell.css?v=3" />
 </head>
 <body>
   <div id="loginView" class="login-view hidden">
@@ -270,10 +270,14 @@
       </section>
 
       <section id="settingsTab" class="tab">
-        <div class="two-column">
-          <article class="panel"><p class="eyebrow">Account</p><h2>Identity</h2><dl class="definition-list"><div><dt>Player</dt><dd id="settingsPlayer">—</dd></div><div><dt>Faction</dt><dd id="settingsFaction">—</dd></div><div><dt>Faction ID</dt><dd id="settingsFactionId">—</dd></div></dl></article>
-          <article class="panel"><p class="eyebrow">Platform</p><h2>RWEngine</h2><p class="muted">Shared Torn tools, faction intelligence and analytics backed by a server-owned data layer.</p></article>
-        </div>
+        <article class="settings-sheet">
+          <h2>Account</h2>
+          <dl class="definition-list">
+            <div><dt>Player</dt><dd id="settingsPlayer">—</dd></div>
+            <div><dt>Faction</dt><dd id="settingsFaction">—</dd></div>
+            <div><dt>Faction ID</dt><dd id="settingsFactionId">—</dd></div>
+          </dl>
+        </article>
       </section>
     </main>
   </div>
