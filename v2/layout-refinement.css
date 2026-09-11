@@ -53,59 +53,6 @@
   min-height: 36px;
 }
 
-/* Ranked War is a section with nested destinations, not three flat tabs. */
-.nav-group {
-  display: grid;
-  gap: 2px;
-}
-
-.nav-parent {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.nav-parent .nav-caret {
-  color: var(--muted-dim);
-  font-size: 13px;
-  line-height: 1;
-  transform: rotate(0deg);
-  transition: transform 120ms ease;
-}
-
-.nav-group.open .nav-caret {
-  transform: rotate(90deg);
-}
-
-.nav-group.section-active > .nav-parent:not(.active) {
-  color: var(--text);
-  background: #0f171a;
-}
-
-.nav-submenu {
-  display: none;
-  gap: 2px;
-  margin-left: 12px;
-  padding-left: 8px;
-  border-left: 1px solid var(--border-soft);
-}
-
-.nav-group.open .nav-submenu {
-  display: grid;
-}
-
-.nav-subbutton {
-  padding: 7px 9px;
-  font-size: 12px;
-}
-
-.nav-subbutton.active::before {
-  left: -9px;
-  top: 6px;
-  bottom: 6px;
-}
-
 /* Members and war history are workspaces, not cards inside a page. */
 #membersTab > .panel,
 #warsTab > .panel {
