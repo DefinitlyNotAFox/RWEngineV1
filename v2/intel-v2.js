@@ -201,24 +201,26 @@ export function initIntelV2() {
   });
 
   document.querySelector('#intelFilters')?.addEventListener('click', event => {
-    const option = event.target.closest('[data-intel-option]');
-    if (option) {
-      const key = option.dataset.intelOption;
-      if (key === 'former') {
-        showFormerMembers = !showFormerMembers;
-        storeBooleanPreference('rwengine.showFormerMembers', showFormerMembers);
-      } else if (key === 'milestones') {
-        excludeMilestones = !excludeMilestones;
-        storeBooleanPreference('rwengine.excludeMilestones', excludeMilestones);
-      }
-      renderFilters();
-      renderIntelV2();
-      return;
-    }
-
     const button = event.target.closest('[data-intel-filter]');
     if (!button) return;
     activeFilter = button.dataset.intelFilter || 'all';
+    renderFilters();
+    renderIntelV2();
+  });
+
+  document.querySelector('#intelViewOptions')?.addEventListener('click', event => {
+    const option = event.target.closest('[data-intel-option]');
+    if (!option) return;
+
+    const key = option.dataset.intelOption;
+    if (key === 'former') {
+      showFormerMembers = !showFormerMembers;
+      storeBooleanPreference('rwengine.showFormerMembers', showFormerMembers);
+    } else if (key === 'milestones') {
+      excludeMilestones = !excludeMilestones;
+      storeBooleanPreference('rwengine.excludeMilestones', excludeMilestones);
+    }
+
     renderFilters();
     renderIntelV2();
   });
@@ -345,20 +347,20 @@ async function loadFactionPerformance(force = false) {
 
 function renderFilters() {
   const container = document.querySelector('#intelFilters');
-  if (!container) return;
+  const options = document.querySelector('#intelViewOptions');
 
-  const contextFilters = filters.map(([key,label]) =>
-    `<button class="intel2-filter${key === activeFilter ? ' active' : ''}" type="button" data-intel-filter="${key}">${label}</button>`
-  ).join('');
+  if (container) {
+    container.innerHTML = filters.map(([key,label]) =>
+      `<button class="intel2-filter${key === activeFilter ? ' active' : ''}" type="button" data-intel-filter="${key}">${label}</button>`
+    ).join('');
+  }
 
-  const options = `
-    <span class="intel-filter-options">
+  if (options) {
+    options.innerHTML = `
       <button class="intel2-filter intel2-option${showFormerMembers ? ' active' : ''}" type="button" data-intel-option="former">Show former members</button>
       <button class="intel2-filter intel2-option${excludeMilestones ? ' active' : ''}" type="button" data-intel-option="milestones">Exclude milestones</button>
-    </span>
-  `;
-
-  container.innerHTML = contextFilters + options;
+    `;
+  }
 }
 
 function renderFactionControls() {
@@ -436,9 +438,10 @@ function renderIntelV2() {
   renderFactionControls();
   renderHeaders();
 
-  const aggregateBody = document.querySelector('#intelAggregateBody');
   const body = document.querySelector('#intelBody');
-  if (!aggregateBody || !body) return;
+  if (!body) return;
+
+  const aggregateBody = ensureAggregateBody(body);
 
   const colspan = factionColumns.length;
 
@@ -448,7 +451,12 @@ function renderIntelV2() {
     return;
   }
 
-  aggregateBody.innerHTML = renderFactionTotalRow();
+  try {
+    aggregateBody.innerHTML = renderFactionTotalRow();
+  } catch (error) {
+    console.error('Faction aggregate render failed', error);
+    aggregateBody.innerHTML = renderFactionTotalFallback();
+  }
 
   const members = Array.isArray(overview?.members) ? overview.members : [];
   const query = String(document.querySelector('#intelSearch')?.value || '').trim().toLowerCase();
@@ -477,6 +485,17 @@ function renderIntelV2() {
       ${selected ? renderDetailRow(member) : ''}
     `;
   }).join('');
+}
+
+function ensureAggregateBody(memberBody) {
+  let aggregateBody = document.querySelector('#intelAggregateBody');
+  if (aggregateBody) return aggregateBody;
+
+  aggregateBody = document.createElement('tbody');
+  aggregateBody.id = 'intelAggregateBody';
+  aggregateBody.className = 'faction-aggregate-body';
+  memberBody.parentNode?.insertBefore(aggregateBody, memberBody);
+  return aggregateBody;
 }
 
 function renderFactionTotalRow() {
@@ -567,6 +586,19 @@ function renderFactionTotalRow() {
       </td>
     </tr>
   `;
+}
+
+function renderFactionTotalFallback() {
+  const current = (overview?.members || []).filter(member => member.current !== false);
+  const count = current.length;
+  const cells = factionColumns.map((key,index) => {
+    if (index === 0) {
+      return `<td class="col-member"><span class="member-name">Faction total</span><span class="member-meta">${formatNumber(count)} members</span></td>`;
+    }
+    return `<td class="col-${key}"><strong>—</strong><span class="member-meta">aggregate unavailable</span></td>`;
+  }).join('');
+
+  return `<tr class="faction-total-row faction-total-fallback">${cells}</tr>`;
 }
 
 function sumNullable(rows, key) {
