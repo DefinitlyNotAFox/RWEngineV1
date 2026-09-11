@@ -13,7 +13,6 @@
   <link rel="stylesheet" href="/v2/member-table.css?v=3" data-rwe-member-table="1" />
   <link rel="stylesheet" href="/v2/range-controls.css?v=3" data-rwe-range-controls="1" />
   <link rel="stylesheet" href="/v2/performance-table.css?v=5" data-rwe-performance-table="1" />
-  <link rel="stylesheet" href="/v2/ui-refinement.css?v=1" data-rwe-ui-refinement="1" />
   <link rel="stylesheet" href="/v2/war-drilldown.css?v=2" data-rwe-war-drilldown="1" />
   <link rel="stylesheet" href="/v2/war-detail-controls.css?v=1" data-rwe-war-detail-controls="1" />
   <link rel="stylesheet" href="/v2/platform-shell.css?v=2" />
@@ -78,23 +77,16 @@
       </div>
 
       <nav class="nav-list" aria-label="RWEngine sections">
-        <div class="nav-section-label">Workspace</div>
+        <div class="nav-section-label">General</div>
         <button class="nav-button active" data-tab="overview" type="button">Home</button>
         <button class="nav-button" data-tab="members" type="button">Faction Intel</button>
 
-        <div class="nav-section-label">War</div>
-        <div id="rankedWarNavGroup" class="nav-group">
-          <button class="nav-button nav-parent" data-tab="ranked-war" type="button" aria-expanded="false">
-            <span>Ranked War</span>
-            <span class="nav-caret" aria-hidden="true">›</span>
-          </button>
-          <div class="nav-submenu">
-            <button class="nav-button nav-subbutton" data-tab="performance" type="button">Performance</button>
-            <button class="nav-button nav-subbutton" data-tab="wars" type="button">War archive</button>
-          </div>
-        </div>
+        <div class="nav-section-label">Ranked War</div>
+        <button class="nav-button" data-tab="ranked-war" type="button">Overview</button>
+        <button class="nav-button" data-tab="performance" type="button">Performance</button>
+        <button class="nav-button" data-tab="wars" type="button">Archive</button>
 
-        <div class="nav-section-label nav-section-bottom">System</div>
+        <div class="nav-section-label nav-section-bottom">Account</div>
         <button class="nav-button" data-tab="settings" type="button">Settings</button>
       </nav>
 
@@ -111,7 +103,7 @@
           <h1 id="pageTitle">Home</h1>
         </div>
         <div class="member-controls">
-          <button id="syncIntelButton" class="button primary" type="button">Sync faction</button>
+          <button id="syncIntelButton" class="button" type="button">Sync faction</button>
           <button id="refreshButton" class="button" type="button">Refresh</button>
         </div>
       </header>
@@ -130,39 +122,39 @@
 
         <div class="tool-index" aria-label="Available RWEngine tools">
           <button class="tool-row" data-open-module="members" type="button">
-            <span class="tool-code">01</span>
+            <span class="tool-type">Faction</span>
             <span class="tool-copy">
               <strong>Faction Intel</strong>
-              <small>Roster, stats, activity, Xanax and war participation.</small>
+              <small>Members, activity, stats and participation.</small>
             </span>
-            <span class="tool-open">Open</span>
+            <span class="tool-open" aria-hidden="true">→</span>
           </button>
 
           <button class="tool-row" data-open-module="ranked-war" type="button">
-            <span class="tool-code">02</span>
+            <span class="tool-type">War</span>
             <span class="tool-copy">
-              <strong>Ranked War</strong>
-              <small>Period summaries and recent faction war output.</small>
+              <strong>Ranked War Overview</strong>
+              <small>Current period totals, recent wars and leading contributors.</small>
             </span>
-            <span class="tool-open">Open</span>
+            <span class="tool-open" aria-hidden="true">→</span>
           </button>
 
           <button class="tool-row" data-open-module="performance" type="button">
-            <span class="tool-code">03</span>
+            <span class="tool-type">War</span>
             <span class="tool-copy">
               <strong>Performance</strong>
-              <small>Cross-war member comparison and contribution detail.</small>
+              <small>Member contribution across imported wars.</small>
             </span>
-            <span class="tool-open">Open</span>
+            <span class="tool-open" aria-hidden="true">→</span>
           </button>
 
           <button class="tool-row" data-open-module="wars" type="button">
-            <span class="tool-code">04</span>
+            <span class="tool-type">War</span>
             <span class="tool-copy">
-              <strong>War Archive</strong>
-              <small>Imported reports, war detail and historical data.</small>
+              <strong>Archive</strong>
+              <small>Historical reports, detail views and sharing.</small>
             </span>
-            <span class="tool-open">Open</span>
+            <span class="tool-open" aria-hidden="true">→</span>
           </button>
         </div>
       </section>
@@ -236,7 +228,7 @@
 
           <div class="table-wrap members-table-wrap">
             <table class="members-table">
-              <thead><tr><th>Member</th><th>Position</th><th>Last action</th><th>Stats</th><th>Activity / day</th><th>Xanax / day</th><th>RW participation</th><th>Avg hits / war</th></tr></thead>
+              <thead><tr><th>Member</th><th>Last action</th><th>Stats</th><th>Activity / day</th><th>Xanax / day</th><th>RW participation</th><th>Avg hits / war</th></tr></thead>
               <tbody id="membersBody"></tbody>
             </table>
           </div>
@@ -288,7 +280,6 @@
 
   <script src="/v2/admin-boot-router.js?v=1"></script>
   <script type="module" src="/v2/app.js?v=4"></script>
-  <script type="module" src="/v2/ranked-war-navigation.js?v=4"></script>
   <script type="module" src="/v2/sync-status.js?v=27"></script>
   <script type="module" src="/v2/war-import.js?v=6"></script>
   <script type="module" src="/v2/war-sharing.js?v=1"></script>
