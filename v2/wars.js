@@ -436,6 +436,11 @@ function setDetailLoading() {
   document.querySelector('#warDetailDate').textContent = '';
   document.querySelector('#warDetailScore').innerHTML = '';
   document.querySelector('#warDetailSummary').innerHTML = '';
+  const detailNotice = document.querySelector('#warDetailNotice');
+  if (detailNotice) {
+    detailNotice.textContent = '';
+    detailNotice.classList.add('hidden');
+  }
   document.querySelector('#warDetailBody').innerHTML = '<tr class="empty-row"><td>Loading war report…</td></tr>';
   document.querySelector('#warDetailHead').innerHTML = '';
   document.querySelector('#warDetailFoot').innerHTML = '';
@@ -472,9 +477,10 @@ function renderWarDetail() {
     metric('Net score', formatSigned(summary.displayNetScore, 2))
   ].join('');
 
-  if (payload.chainFilterWarning) {
-    const status = document.querySelector('#shareStatus');
-    if (status) status.textContent = payload.chainFilterWarning;
+  const detailNotice = document.querySelector('#warDetailNotice');
+  if (detailNotice) {
+    detailNotice.textContent = payload.chainFilterWarning || '';
+    detailNotice.classList.toggle('hidden', !payload.chainFilterWarning);
   }
 
   const detailed = document.querySelector('#warDetailMode')?.value === 'detail';
