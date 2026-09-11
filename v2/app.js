@@ -8,7 +8,10 @@ import {
 } from './core.js';
 
 import { initIntel, renderIntel, refreshSyncStatus } from './intel.js';
+import { initIntelV2 } from './intel-v2.js';
 import { initWarViews, renderWarOverview, renderArchive } from './wars.js';
+
+const legacyIntelMode = new URL(location.href).searchParams.get('legacyIntel') === '1';
 
 let loading = false;
 let adminKeyFactionId = null;
@@ -19,9 +22,20 @@ init();
 function init() {
   bindAuth();
   bindApplication();
-  initIntel();
+  configureIntelMode();
+  if (legacyIntelMode) initIntel();
+  else initIntelV2();
   initWarViews();
   boot();
+}
+
+function configureIntelMode() {
+  document.body.classList.toggle('legacy-intel-mode', legacyIntelMode);
+  document.querySelector('#intelFilters')?.classList.toggle('hidden', legacyIntelMode);
+  document.querySelector('#periodControl')?.classList.toggle('hidden', !legacyIntelMode);
+  document.querySelectorAll('[data-intel2-only]').forEach(element => {
+    element.classList.toggle('hidden', legacyIntelMode);
+  });
 }
 
 function bindAuth() {
@@ -223,11 +237,11 @@ async function refreshAll(userInitiated = false) {
     renderPeriodControls();
     renderIdentity();
     renderHome();
-    renderIntel();
+    if (legacyIntelMode) renderIntel();
     renderWarOverview();
     renderArchive();
     renderFreshness();
-    await refreshSyncStatus();
+    if (legacyIntelMode) await refreshSyncStatus();
 
     emit('data');
     if (state.route === 'settings') loadAccessList();
@@ -250,7 +264,7 @@ async function loadRangeOnly() {
     state.range = await rangeApi('getRange', periodPayload());
     renderPeriodControls();
     renderHome();
-    renderIntel();
+    if (legacyIntelMode) renderIntel();
     renderWarOverview();
     emit('data');
   } catch (error) {
