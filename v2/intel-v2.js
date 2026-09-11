@@ -422,12 +422,6 @@ function renderDetailRow(member) {
               ${renderWarHistory(history.wars)}
             </section>
 
-            <footer class="intel2-coverage">
-              <span>Coverage</span>
-              <b>${formatDecimal(detailMember.coverage?.snapshotDays60d, 0)} snapshot days</b>
-              <b>${formatNumber(detailMember.coverage?.warHistoryAvailable)} wars available</b>
-              <b>${detailMember.coverage?.battleStatsKnown ? 'battle stats known' : 'battle stats unavailable'}</b>
-            </footer>
           </section>
         </section>
       </td>
