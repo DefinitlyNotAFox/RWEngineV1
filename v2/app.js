@@ -634,7 +634,7 @@ function renderWars() {
   const wars = getWarsInRange();
 
   if (!wars.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty">No imported wars found in this range.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="empty">No imported wars found in this range.</td></tr>';
     return;
   }
 
@@ -802,10 +802,6 @@ function formatDecimal(value, digits) {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits
   });
-}
-
-  if (!war.chain_adjustment_status) return 'Not adjusted';
-  return war.chain_adjustment_status;
 }
 
 function formatNumber(value) {
