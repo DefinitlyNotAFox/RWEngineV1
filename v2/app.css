@@ -3349,3 +3349,140 @@ body {
 #warDetailHead th button:hover {
   color: var(--text);
 }
+
+
+/* Faction table polish */
+
+.faction-table-context {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: -2px 0 6px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+#factionTableStatus:not(.hidden)::before {
+  content: "·";
+  margin-right: 12px;
+  color: var(--dim);
+}
+
+#factionTableStatus.error {
+  color: var(--danger);
+}
+
+#intelTable .faction-group-row th {
+  top: 58px;
+  z-index: 4;
+  height: 24px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-bottom: 0;
+  color: var(--dim);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+#intelTable .faction-column-row th {
+  top: 82px;
+  z-index: 3;
+}
+
+#intelTable .faction-group.group-roster {
+  background: var(--bg);
+}
+
+#intelTable .faction-group.group-activity,
+#intelTable .faction-group.group-training {
+  background: #0d0f10;
+}
+
+#intelTable .faction-group.group-war {
+  background: #101213;
+}
+
+#intelTable .faction-group.group-context {
+  background: #0d0f10;
+}
+
+#intelTable th small {
+  font-size: 9px;
+}
+
+#intelTable .faction-column-row th.sorted {
+  color: var(--accent-2);
+}
+
+/* Domain boundaries. One divider per conceptual block, not one per column. */
+
+#intelTable[data-preset="overview"] :is(.col-stats,.col-participation4,.col-attention),
+#intelTable[data-preset="activity"] :is(.col-activity,.col-attention),
+#intelTable[data-preset="training"] :is(.col-stats,.col-attention),
+#intelTable[data-preset="war"] :is(.col-wars,.col-attention),
+#intelTable[data-preset="all"] :is(.col-stats,.col-wars,.col-attention) {
+  border-left: 1px solid var(--line);
+}
+
+/* Very shallow tonal depth makes wide tables easier to parse. */
+
+#intelTable[data-preset="overview"] tbody :is(.col-stats,.col-activity,.col-xanax),
+#intelTable[data-preset="training"] tbody :is(.col-stats,.col-xanax),
+#intelTable[data-preset="all"] tbody :is(.col-stats,.col-activity,.col-xanax) {
+  background: rgba(255,255,255,.006);
+}
+
+#intelTable[data-preset="overview"] tbody :is(.col-participation4,.col-hits4),
+#intelTable[data-preset="war"] tbody :is(.col-wars,.col-participation,.col-hits,.col-assists,.col-outsideHits,.col-netScore),
+#intelTable[data-preset="all"] tbody :is(.col-wars,.col-participation,.col-hits,.col-assists,.col-outsideHits,.col-respectEarned,.col-respectLost,.col-scoreUp,.col-scoreDown,.col-netScore) {
+  background: rgba(255,255,255,.012);
+}
+
+#intelTable tbody .col-attention {
+  background: rgba(255,255,255,.005);
+}
+
+#intelTable[data-preset="war"] .col-member,
+#intelTable[data-preset="all"] .col-member {
+  box-shadow: 1px 0 0 var(--line);
+}
+
+/* Keep hover and selected-row depth visible through the group tints. */
+
+#intelTable tbody tr:hover td {
+  background-color: rgba(255,255,255,.018);
+}
+
+#intelTable tbody tr.selected td {
+  background-color: #0f1112;
+}
+
+#intelTable tbody tr.selected .col-attention {
+  background-color: #111314;
+}
+
+@media (max-width: 850px) {
+  .faction-table-context {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  #factionTableStatus:not(.hidden)::before {
+    content: "";
+    margin: 0;
+  }
+
+  #intelTable .faction-group-row th {
+    top: 58px;
+  }
+
+  #intelTable .faction-column-row th {
+    top: 82px;
+  }
+}
