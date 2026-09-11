@@ -410,12 +410,10 @@ function renderIntelV2() {
   renderFactionControls();
   renderHeaders();
 
-  const totals = document.querySelector('#intelTotals');
   const body = document.querySelector('#intelBody');
-  if (!body || !totals) return;
+  if (!body) return;
 
   const colspan = factionColumns.length;
-  totals.innerHTML = `<tr class="faction-head-spacer" aria-hidden="true"><td colspan="${colspan}"></td></tr>${renderFactionTotalRow()}`;
 
   if (loading && !overview) {
     body.innerHTML = `<tr class="empty-row"><td colspan="${colspan}">Loading faction data…</td></tr>`;
@@ -593,7 +591,17 @@ function renderHeaders() {
   head.innerHTML = `
     <tr class="faction-group-row">${groupRow}</tr>
     <tr class="faction-column-row">${columnRow}</tr>
+    ${renderFactionTotalHeaderRow()}
   `;
+}
+
+function renderFactionTotalHeaderRow() {
+  const row = renderFactionTotalRow();
+  if (!row) return '';
+  return row
+    .replace('class="faction-total-row"', 'class="faction-total-row faction-total-head-row"')
+    .replaceAll('<td ', '<th ')
+    .replaceAll('</td>', '</th>');
 }
 
 function renderFactionCell(member, key) {
