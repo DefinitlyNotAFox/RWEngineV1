@@ -24,6 +24,7 @@ jobs:
           printf '{"type":"module"}\n' > package.json
           find v2 functions share -name '*.js' -print0 | xargs -0 -n1 node --check
           node tests/intel-insights.test.mjs
+          node tests/intel-contract.test.mjs
           rm package.json
 
       - name: Check v2 asset references
@@ -33,7 +34,7 @@ jobs:
           import re
           import sys
 
-          pages = [Path("v2/index.html"), Path("share/index.html")]
+          pages = [Path("v2/index.html"), Path("v2/intel-preview.html"), Path("share/index.html")]
           refs = []
 
           for page in pages:
