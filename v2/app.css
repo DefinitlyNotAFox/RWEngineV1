@@ -4228,3 +4228,65 @@ body {
     flex-basis: auto;
   }
 }
+
+
+/* Scope, context filters and search share one row beneath the mode tabs. */
+.faction-control-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 26px;
+  min-width: 0;
+  padding: 5px 0 8px;
+}
+
+.faction-control-row .faction-scope-row {
+  flex: 0 0 auto;
+  min-height: 27px;
+}
+
+.faction-control-row .intel-filter-block {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.faction-control-row .intel-filter-label {
+  line-height: 1;
+}
+
+.faction-control-row .intel2-filters {
+  gap: 17px;
+  min-height: 27px;
+}
+
+.faction-control-row .search {
+  width: 240px;
+  flex: 0 0 240px;
+  align-self: flex-end;
+}
+
+.faction-modebar > .intel2-toolbar {
+  display: none;
+}
+
+@media (max-width: 1050px) {
+  .faction-control-row {
+    flex-wrap: wrap;
+    gap: 10px 20px;
+  }
+
+  .faction-control-row .intel-filter-block {
+    order: 3;
+    flex-basis: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  .faction-control-row .search {
+    width: 100%;
+    flex-basis: 100%;
+  }
+}
