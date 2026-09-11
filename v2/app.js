@@ -43,7 +43,6 @@ function configureIntelMode() {
       head.innerHTML = `
         <tr>
           <th>Member</th>
-          <th data-intel-sort="lastAction">Last action</th>
           <th data-intel-sort="stats">Battle stats</th>
           <th data-intel-sort="activity">Activity / day</th>
           <th data-intel-sort="xanax">Xanax / day</th>
