@@ -3607,3 +3607,56 @@ body {
     font-size: 9px;
   }
 }
+
+
+/* Faction cleanup: quieter headers, wider member column, less repeated noise */
+
+.faction-table-context {
+  min-height: 22px;
+  margin: -2px 0 4px;
+  font-size: 9px;
+}
+
+#intelTable .faction-group-row th {
+  height: 20px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  font-size: 7px;
+}
+
+#intelTable .faction-column-row th {
+  top: 78px;
+}
+
+#intelTable .trend {
+  min-height: 1em;
+}
+
+#intelTable[data-preset="all"] .col-member        { width: 17% !important; }
+#intelTable[data-preset="all"] .col-stats         { width: 7% !important; }
+#intelTable[data-preset="all"] .col-activity      { width: 7% !important; }
+#intelTable[data-preset="all"] .col-xanax         { width: 6% !important; }
+#intelTable[data-preset="all"] .col-participation { width: 10% !important; }
+#intelTable[data-preset="all"] .col-hits          { width: 7% !important; }
+#intelTable[data-preset="all"] .col-assists       { width: 6% !important; }
+#intelTable[data-preset="all"] .col-outsideHits   { width: 7% !important; }
+#intelTable[data-preset="all"] .col-respect       { width: 8% !important; }
+#intelTable[data-preset="all"] .col-score         { width: 8% !important; }
+#intelTable[data-preset="all"] .col-netScore      { width: 8% !important; }
+#intelTable[data-preset="all"] .col-attention     { width: 9% !important; }
+
+#intelTable[data-preset="all"] .col-member .member-meta {
+  white-space: normal;
+  line-height: 1.25;
+}
+
+#intelTable .signal {
+  white-space: normal;
+  line-height: 1.25;
+}
+
+@media (max-width: 1100px) {
+  #intelTable[data-preset="all"] .col-member {
+    width: 18% !important;
+  }
+}
