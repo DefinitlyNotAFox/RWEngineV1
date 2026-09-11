@@ -4359,3 +4359,9 @@ body {
   padding-left: 24px;
   gap: 16px;
 }
+
+
+/* Give the Filters heading clearer separation from its controls. */
+.faction-control-row .intel-filter-label {
+  margin-bottom: 7px;
+}
