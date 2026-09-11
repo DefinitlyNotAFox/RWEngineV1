@@ -4163,3 +4163,68 @@ body {
   letter-spacing: 0;
   text-transform: none;
 }
+
+
+/* Keep faction scope, context filters and search in one compact control block. */
+.faction-modebar .intel2-toolbar {
+  margin: 4px 0 0;
+  padding: 7px 0 8px;
+  border: 0;
+}
+
+.intel-filter-block {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.intel-filter-label {
+  flex: 0 0 auto;
+  color: var(--dim);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.faction-modebar .intel2-filters {
+  gap: 17px;
+}
+
+.faction-modebar .intel2-toolbar .search {
+  width: 240px;
+  flex: 0 0 240px;
+}
+
+/* No empty status gutter when there is nothing to report. */
+.faction-status-stack:not(:has(.faction-status-item:not(.hidden))) {
+  display: none;
+}
+
+.faction-status-stack:has(.faction-status-item:not(.hidden)) {
+  min-height: 18px;
+  margin: 4px 0 2px;
+}
+
+/* Pull the table closer to the controls once the empty gutter is gone. */
+.faction-table-wrap {
+  margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+  .faction-modebar .intel2-toolbar {
+    align-items: stretch;
+  }
+
+  .intel-filter-block {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .faction-modebar .intel2-toolbar .search {
+    width: 100%;
+    flex-basis: auto;
+  }
+}
