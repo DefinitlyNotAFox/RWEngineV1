@@ -13,8 +13,14 @@ const state = {
 const loginView = document.querySelector('#loginView');
 const appView = document.querySelector('#appView');
 const loginForm = document.querySelector('#loginForm');
+const registerForm = document.querySelector('#registerForm');
+const showLoginButton = document.querySelector('#showLoginButton');
+const showRegisterButton = document.querySelector('#showRegisterButton');
 const playerIdInput = document.querySelector('#playerIdInput');
 const passwordInput = document.querySelector('#passwordInput');
+const registerApiKeyInput = document.querySelector('#registerApiKeyInput');
+const registerPasswordInput = document.querySelector('#registerPasswordInput');
+const registerConfirmInput = document.querySelector('#registerConfirmInput');
 const loginError = document.querySelector('#loginError');
 const globalError = document.querySelector('#globalError');
 const refreshButton = document.querySelector('#refreshButton');
@@ -36,6 +42,9 @@ const pageTitles = {
   settings: 'Settings'
 };
 
+showLoginButton?.addEventListener('click', () => setAuthMode('login'));
+showRegisterButton?.addEventListener('click', () => setAuthMode('register'));
+
 loginForm.addEventListener('submit', async event => {
   event.preventDefault();
   setLoginError('');
@@ -48,6 +57,27 @@ loginForm.addEventListener('submit', async event => {
 
     state.user = response.user;
     passwordInput.value = '';
+    await enterApp();
+  } catch (error) {
+    setLoginError(error.message);
+  }
+});
+
+registerForm?.addEventListener('submit', async event => {
+  event.preventDefault();
+  setLoginError('');
+
+  try {
+    const response = await api('register', {
+      apiKey: registerApiKeyInput.value.trim(),
+      password: registerPasswordInput.value,
+      confirmPassword: registerConfirmInput.value
+    });
+
+    state.user = response.user;
+    registerApiKeyInput.value = '';
+    registerPasswordInput.value = '';
+    registerConfirmInput.value = '';
     await enterApp();
   } catch (error) {
     setLoginError(error.message);
@@ -118,7 +148,17 @@ async function enterApp() {
 function showLogin() {
   appView.classList.add('hidden');
   loginView.classList.remove('hidden');
+  setAuthMode('login');
   setGlobalError('');
+  setLoginError('');
+}
+
+function setAuthMode(mode) {
+  const registering = mode === 'register';
+  loginForm.classList.toggle('hidden', registering);
+  registerForm?.classList.toggle('hidden', !registering);
+  showLoginButton?.classList.toggle('active', !registering);
+  showRegisterButton?.classList.toggle('active', registering);
   setLoginError('');
 }
 
