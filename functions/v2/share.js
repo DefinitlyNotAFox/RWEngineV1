@@ -3,12 +3,9 @@ export async function onRequest(context) {
     const { request, env } = context;
     if (!env.DB) throw new Error('D1 binding missing. Expected binding name: DB.');
 
-    await ensureShareSchema(env.DB);
+    await ensureSchemas(env.DB);
 
-    if (request.method === 'GET') {
-      return handlePublicShare(context);
-    }
-
+    if (request.method === 'GET') return handlePublicShare(context);
     if (request.method !== 'POST') {
       return json({ success: false, message: 'Method not allowed.' }, 405);
     }
@@ -21,8 +18,10 @@ export async function onRequest(context) {
     if (action === 'create') return createShare(env.DB, request, user, factionId, body);
     if (action === 'status') return shareStatus(env.DB, user, factionId, body);
     if (action === 'revoke') return revokeShare(env.DB, user, factionId, body);
+    if (action === 'setVisibility') return setVisibility(env.DB, request, user, factionId, body);
+    if (action === 'list') return listResources(env.DB, user, factionId);
 
-    return json({ success: false, message: `Unknown share action: ${action}` }, 400);
+    return json({ success: false, message: 'Unknown share action: ' + action }, 400);
   } catch (error) {
     return json(
       { success: false, message: error?.message || 'Unexpected share-link error.' },
@@ -33,25 +32,126 @@ export async function onRequest(context) {
 
 async function createShare(db, request, user, factionId, body) {
   const resource = normalizeResource(body);
-  await assertResourceExists(db, factionId, resource);
+  const record = await getResourceRecord(db, factionId, resource);
+  assertCanManage(user, record);
 
+  return activatePublicLink(db, request, user, factionId, resource, record);
+}
+
+async function setVisibility(db, request, user, factionId, body) {
+  const resource = normalizeResource(body);
+  const record = await getResourceRecord(db, factionId, resource);
+  assertCanManage(user, record);
+
+  const visibility = normalizeVisibility(body.visibility);
+  if (visibility === 'public') {
+    return activatePublicLink(db, request, user, factionId, resource, record);
+  }
+
+  const now = unixNow();
+  await upsertPermission(
+    db,
+    factionId,
+    resource,
+    Number(record.imported_by_user_id || user.user_id),
+    visibility,
+    now
+  );
+
+  await disableResourceLinks(db, factionId, resource, now);
+
+  return json({
+    success: true,
+    visibility,
+    share: null,
+    shareUrl: null,
+    message: visibility === 'private'
+      ? 'Report is private.'
+      : 'Report is visible to the faction.'
+  });
+}
+
+async function revokeShare(db, user, factionId, body) {
+  const resource = normalizeResource(body);
+  const record = await getResourceRecord(db, factionId, resource);
+  assertCanManage(user, record);
+
+  const now = unixNow();
+  await upsertPermission(
+    db,
+    factionId,
+    resource,
+    Number(record.imported_by_user_id || user.user_id),
+    'faction',
+    now
+  );
+  await disableResourceLinks(db, factionId, resource, now);
+
+  return json({
+    success: true,
+    visibility: 'faction',
+    share: null,
+    shareUrl: null,
+    message: 'Public access revoked. Report is faction-only.'
+  });
+}
+
+async function shareStatus(db, user, factionId, body) {
+  const resource = normalizeResource(body);
+  const record = await getResourceRecord(db, factionId, resource);
+  const permission = await getPermission(db, factionId, resource);
+  const visibility = permission?.visibility || 'faction';
+
+  const share = await db.prepare(
+    'SELECT share_id, resource_type, resource_key, is_enabled, created_at, updated_at, last_accessed_at FROM share_links WHERE faction_id = ? AND resource_type = ? AND resource_key = ? AND is_enabled = 1 ORDER BY updated_at DESC LIMIT 1'
+  ).bind(factionId, resource.type, resource.key).first();
+
+  return json({
+    success: true,
+    visibility,
+    canManage: canManage(user, record),
+    share: share ? publicShareMeta(share) : null
+  });
+}
+
+async function listResources(db, user, factionId) {
+  const isAdmin = Number(user.is_admin) === 1;
+  const sql = isAdmin
+    ? "SELECT w.war_id, w.opponent_faction_name, w.end_timestamp, w.imported_at, w.imported_by_user_id, COALESCE(rp.visibility, 'faction') AS visibility, rp.owner_user_id, (SELECT COUNT(*) FROM share_links sl WHERE sl.faction_id = w.faction_id AND sl.resource_type = 'war' AND sl.resource_key = w.war_id AND sl.is_enabled = 1) AS share_enabled, (SELECT MAX(sl.updated_at) FROM share_links sl WHERE sl.faction_id = w.faction_id AND sl.resource_type = 'war' AND sl.resource_key = w.war_id) AS share_updated_at, (SELECT MAX(sl.last_accessed_at) FROM share_links sl WHERE sl.faction_id = w.faction_id AND sl.resource_type = 'war' AND sl.resource_key = w.war_id) AS last_accessed_at FROM wars w LEFT JOIN resource_permissions rp ON rp.faction_id = w.faction_id AND rp.resource_type = 'war' AND rp.resource_key = w.war_id WHERE w.faction_id = ? ORDER BY COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) DESC LIMIT 100"
+    : "SELECT w.war_id, w.opponent_faction_name, w.end_timestamp, w.imported_at, w.imported_by_user_id, COALESCE(rp.visibility, 'faction') AS visibility, rp.owner_user_id, (SELECT COUNT(*) FROM share_links sl WHERE sl.faction_id = w.faction_id AND sl.resource_type = 'war' AND sl.resource_key = w.war_id AND sl.is_enabled = 1) AS share_enabled, (SELECT MAX(sl.updated_at) FROM share_links sl WHERE sl.faction_id = w.faction_id AND sl.resource_type = 'war' AND sl.resource_key = w.war_id) AS share_updated_at, (SELECT MAX(sl.last_accessed_at) FROM share_links sl WHERE sl.faction_id = w.faction_id AND sl.resource_type = 'war' AND sl.resource_key = w.war_id) AS last_accessed_at FROM wars w LEFT JOIN resource_permissions rp ON rp.faction_id = w.faction_id AND rp.resource_type = 'war' AND rp.resource_key = w.war_id WHERE w.faction_id = ? AND (w.imported_by_user_id = ? OR rp.owner_user_id = ?) ORDER BY COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) DESC LIMIT 100";
+
+  const result = isAdmin
+    ? await db.prepare(sql).bind(factionId).all()
+    : await db.prepare(sql).bind(factionId, Number(user.user_id), Number(user.user_id)).all();
+
+  return json({
+    success: true,
+    resources: (result.results || []).map(row => ({
+      resourceType: 'war',
+      resourceKey: String(row.war_id),
+      title: row.opponent_faction_name || 'Unknown opponent',
+      endedAt: nullableNumber(row.end_timestamp),
+      importedAt: nullableNumber(row.imported_at),
+      visibility: normalizeVisibility(row.visibility),
+      publicLinkActive: Number(row.share_enabled || 0) > 0,
+      shareUpdatedAt: nullableNumber(row.share_updated_at),
+      lastAccessedAt: nullableNumber(row.last_accessed_at)
+    }))
+  });
+}
+
+async function activatePublicLink(db, request, user, factionId, resource, record) {
   const token = randomToken();
   const tokenHash = await sha256(token);
   const now = unixNow();
+  const ownerUserId = Number(record.imported_by_user_id || user.user_id);
 
-  await db.prepare(`
-    INSERT INTO share_links (
-      owner_user_id, faction_id, resource_type, resource_key,
-      token_hash, is_enabled, created_at, updated_at
-    )
-    VALUES (?, ?, ?, ?, ?, 1, ?, ?)
-    ON CONFLICT(owner_user_id, faction_id, resource_type, resource_key)
-    DO UPDATE SET
-      token_hash = excluded.token_hash,
-      is_enabled = 1,
-      updated_at = excluded.updated_at,
-      last_accessed_at = NULL
-  `).bind(
+  await upsertPermission(db, factionId, resource, ownerUserId, 'public', now);
+  await disableResourceLinks(db, factionId, resource, now);
+
+  await db.prepare(
+    'INSERT INTO share_links (owner_user_id, faction_id, resource_type, resource_key, token_hash, is_enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?) ON CONFLICT(owner_user_id, faction_id, resource_type, resource_key) DO UPDATE SET token_hash = excluded.token_hash, is_enabled = 1, updated_at = excluded.updated_at, last_accessed_at = NULL'
+  ).bind(
     Number(user.user_id),
     factionId,
     resource.type,
@@ -61,52 +161,18 @@ async function createShare(db, request, user, factionId, body) {
     now
   ).run();
 
-  const row = await findOwnedShare(db, user.user_id, factionId, resource);
+  const row = await db.prepare(
+    'SELECT share_id, resource_type, resource_key, is_enabled, created_at, updated_at, last_accessed_at FROM share_links WHERE owner_user_id = ? AND faction_id = ? AND resource_type = ? AND resource_key = ? LIMIT 1'
+  ).bind(Number(user.user_id), factionId, resource.type, resource.key).first();
+
   const shareUrl = new URL('/share/', request.url);
   shareUrl.searchParams.set('token', token);
 
   return json({
     success: true,
-    share: publicShareMeta(row),
-    shareUrl: shareUrl.toString()
-  });
-}
-
-async function shareStatus(db, user, factionId, body) {
-  const resource = normalizeResource(body);
-  await assertResourceExists(db, factionId, resource);
-
-  const row = await findOwnedShare(db, user.user_id, factionId, resource);
-  return json({
-    success: true,
-    share: row ? publicShareMeta(row) : null
-  });
-}
-
-async function revokeShare(db, user, factionId, body) {
-  const resource = normalizeResource(body);
-  const now = unixNow();
-
-  await db.prepare(`
-    UPDATE share_links
-    SET is_enabled = 0, updated_at = ?
-    WHERE owner_user_id = ?
-      AND faction_id = ?
-      AND resource_type = ?
-      AND resource_key = ?
-  `).bind(
-    now,
-    Number(user.user_id),
-    factionId,
-    resource.type,
-    resource.key
-  ).run();
-
-  const row = await findOwnedShare(db, user.user_id, factionId, resource);
-  return json({
-    success: true,
+    visibility: 'public',
     share: row ? publicShareMeta(row) : null,
-    message: 'Public link revoked.'
+    shareUrl: shareUrl.toString()
   });
 }
 
@@ -118,14 +184,19 @@ async function handlePublicShare(context) {
   if (token.length < 24 || token.length > 200) throw httpError(400, 'Invalid share token.');
 
   const tokenHash = await sha256(token);
-  const link = await env.DB.prepare(`
-    SELECT share_id, faction_id, resource_type, resource_key, created_at, updated_at
-    FROM share_links
-    WHERE token_hash = ? AND is_enabled = 1
-    LIMIT 1
-  `).bind(tokenHash).first();
+  const link = await env.DB.prepare(
+    'SELECT share_id, faction_id, resource_type, resource_key, created_at, updated_at FROM share_links WHERE token_hash = ? AND is_enabled = 1 LIMIT 1'
+  ).bind(tokenHash).first();
 
   if (!link) throw httpError(404, 'This share link is invalid or has been revoked.');
+
+  const permission = await getPermission(env.DB, Number(link.faction_id), {
+    type: link.resource_type,
+    key: String(link.resource_key)
+  });
+  if (!permission || permission.visibility !== 'public') {
+    throw httpError(404, 'This report is no longer public.');
+  }
 
   let payload;
   if (link.resource_type === 'war') {
@@ -147,6 +218,7 @@ async function handlePublicShare(context) {
   return json({
     success: true,
     resourceType: link.resource_type,
+    visibility: 'public',
     sharedAt: Number(link.updated_at || link.created_at || 0) || null,
     ...payload
   }, 200, {
@@ -156,35 +228,15 @@ async function handlePublicShare(context) {
 }
 
 async function buildPublicWar(db, factionId, warId) {
-  const war = await db.prepare(`
-    SELECT
-      war_id, report_id, faction_id, faction_name,
-      opponent_faction_id, opponent_faction_name,
-      start_timestamp, end_timestamp, imported_at
-    FROM wars
-    WHERE faction_id = ? AND war_id = ?
-    LIMIT 1
-  `).bind(factionId, warId).first();
+  const war = await db.prepare(
+    'SELECT war_id, report_id, faction_id, faction_name, opponent_faction_id, opponent_faction_name, start_timestamp, end_timestamp, imported_at FROM wars WHERE faction_id = ? AND war_id = ? LIMIT 1'
+  ).bind(factionId, warId).first();
 
   if (!war) throw httpError(404, 'The shared war report no longer exists.');
 
-  const result = await db.prepare(`
-    SELECT
-      wl.player_id,
-      wl.player_name,
-      CASE WHEN fm.is_current = 1 THEN 1 ELSE 0 END AS is_current,
-      COALESCE(wl.war_hits, 0) AS hits,
-      COALESCE(wl.outside_hits, 0) AS outside_hits,
-      COALESCE(wl.assists, 0) AS assists,
-      COALESCE(wl.score_up, 0) AS score_up,
-      COALESCE(wl.score_down, 0) AS score_down
-    FROM war_log wl
-    LEFT JOIN faction_members fm
-      ON fm.faction_id = wl.faction_id
-      AND fm.player_id = wl.player_id
-    WHERE wl.faction_id = ? AND wl.war_id = ?
-    ORDER BY wl.player_name COLLATE NOCASE
-  `).bind(factionId, warId).all();
+  const result = await db.prepare(
+    "SELECT wl.player_id, wl.player_name, CASE WHEN fm.is_current = 1 THEN 1 ELSE 0 END AS is_current, COALESCE(wl.war_hits, 0) AS hits, COALESCE(wl.outside_hits, 0) AS outside_hits, COALESCE(wl.assists, 0) AS assists, COALESCE(wl.score_up, 0) AS score_up, COALESCE(wl.score_down, 0) AS score_down FROM war_log wl LEFT JOIN faction_members fm ON fm.faction_id = wl.faction_id AND fm.player_id = wl.player_id WHERE wl.faction_id = ? AND wl.war_id = ? ORDER BY wl.player_name COLLATE NOCASE"
+  ).bind(factionId, warId).all();
 
   let hits = 0;
   let assists = 0;
@@ -204,7 +256,7 @@ async function buildPublicWar(db, factionId, warId) {
 
     return {
       playerId: Number(row.player_id),
-      playerName: row.player_name || `Player ${row.player_id}`,
+      playerName: row.player_name || 'Player ' + row.player_id,
       current: Number(row.is_current) === 1,
       hits: memberHits,
       assists: memberAssists,
@@ -223,7 +275,7 @@ async function buildPublicWar(db, factionId, warId) {
     war: {
       warId: String(war.war_id),
       reportId: String(war.report_id || war.war_id),
-      factionName: war.faction_name || `Faction ${factionId}`,
+      factionName: war.faction_name || 'Faction ' + factionId,
       opponentFactionId: Number(war.opponent_faction_id || 0) || null,
       opponentFactionName: war.opponent_faction_name || 'Unknown opponent',
       startTimestamp: Number(war.start_timestamp || 0) || null,
@@ -241,14 +293,44 @@ async function buildPublicWar(db, factionId, warId) {
   };
 }
 
-async function assertResourceExists(db, factionId, resource) {
-  if (resource.type !== 'war') throw httpError(400, 'Only war reports can be shared right now.');
+async function getResourceRecord(db, factionId, resource) {
+  if (resource.type !== 'war') throw httpError(400, 'Unsupported shared resource type.');
 
   const row = await db.prepare(
-    'SELECT war_id FROM wars WHERE faction_id = ? AND war_id = ? LIMIT 1'
+    'SELECT war_id, imported_by_user_id FROM wars WHERE faction_id = ? AND war_id = ? LIMIT 1'
   ).bind(factionId, resource.key).first();
 
   if (!row) throw httpError(404, 'Imported war not found for this faction.');
+  return row;
+}
+
+async function getPermission(db, factionId, resource) {
+  return db.prepare(
+    'SELECT owner_user_id, visibility, created_at, updated_at FROM resource_permissions WHERE faction_id = ? AND resource_type = ? AND resource_key = ? LIMIT 1'
+  ).bind(factionId, resource.type, resource.key).first();
+}
+
+async function upsertPermission(db, factionId, resource, ownerUserId, visibility, now) {
+  await db.prepare(
+    'INSERT INTO resource_permissions (owner_user_id, faction_id, resource_type, resource_key, visibility, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(faction_id, resource_type, resource_key) DO UPDATE SET visibility = excluded.visibility, updated_at = excluded.updated_at'
+  ).bind(ownerUserId, factionId, resource.type, resource.key, visibility, now, now).run();
+}
+
+async function disableResourceLinks(db, factionId, resource, now) {
+  await db.prepare(
+    'UPDATE share_links SET is_enabled = 0, updated_at = ? WHERE faction_id = ? AND resource_type = ? AND resource_key = ? AND is_enabled = 1'
+  ).bind(now, factionId, resource.type, resource.key).run();
+}
+
+function canManage(user, record) {
+  return Number(user.is_admin) === 1 ||
+    Number(record.imported_by_user_id || 0) === Number(user.user_id);
+}
+
+function assertCanManage(user, record) {
+  if (!canManage(user, record)) {
+    throw httpError(403, 'Only the report owner or an RWEngine admin can change visibility.');
+  }
 }
 
 function normalizeResource(body) {
@@ -261,16 +343,12 @@ function normalizeResource(body) {
   return { type, key };
 }
 
-async function findOwnedShare(db, userId, factionId, resource) {
-  return db.prepare(`
-    SELECT share_id, resource_type, resource_key, is_enabled, created_at, updated_at, last_accessed_at
-    FROM share_links
-    WHERE owner_user_id = ?
-      AND faction_id = ?
-      AND resource_type = ?
-      AND resource_key = ?
-    LIMIT 1
-  `).bind(Number(userId), factionId, resource.type, resource.key).first();
+function normalizeVisibility(value) {
+  const visibility = String(value || 'faction').trim().toLowerCase();
+  if (!['private', 'faction', 'public'].includes(visibility)) {
+    throw httpError(400, 'Visibility must be private, faction, or public.');
+  }
+  return visibility;
 }
 
 function publicShareMeta(row) {
@@ -311,49 +389,31 @@ async function getCurrentUser(env, request) {
   if (!token) throw httpError(401, 'Not logged in.');
 
   const tokenHash = await sha256(token);
-  const user = await env.DB.prepare(`
-    SELECT
-      u.user_id, u.player_id, u.player_name, u.faction_id, u.faction_name,
-      u.is_admin, u.is_disabled
-    FROM sessions s
-    JOIN users u ON u.user_id = s.user_id
-    WHERE s.token_hash = ? AND s.expires_at > ?
-    LIMIT 1
-  `).bind(tokenHash, unixNow()).first();
+  const user = await env.DB.prepare(
+    'SELECT u.user_id, u.player_id, u.player_name, u.faction_id, u.faction_name, u.is_admin, u.is_disabled FROM sessions s JOIN users u ON u.user_id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ? LIMIT 1'
+  ).bind(tokenHash, unixNow()).first();
 
   if (!user) throw httpError(401, 'Session expired or invalid.');
   if (Number(user.is_disabled) === 1) throw httpError(403, 'This account is disabled.');
   return user;
 }
 
-async function ensureShareSchema(db) {
-  await db.prepare(`
-    CREATE TABLE IF NOT EXISTS share_links (
-      share_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      owner_user_id INTEGER NOT NULL,
-      faction_id INTEGER NOT NULL,
-      resource_type TEXT NOT NULL,
-      resource_key TEXT NOT NULL,
-      token_hash TEXT NOT NULL UNIQUE,
-      is_enabled INTEGER NOT NULL DEFAULT 1,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      last_accessed_at INTEGER,
-      UNIQUE(owner_user_id, faction_id, resource_type, resource_key),
-      FOREIGN KEY (owner_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-      FOREIGN KEY (faction_id) REFERENCES factions(faction_id)
-    )
-  `).run();
+async function ensureSchemas(db) {
+  await db.prepare(
+    'CREATE TABLE IF NOT EXISTS share_links (share_id INTEGER PRIMARY KEY AUTOINCREMENT, owner_user_id INTEGER NOT NULL, faction_id INTEGER NOT NULL, resource_type TEXT NOT NULL, resource_key TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE, is_enabled INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, last_accessed_at INTEGER, UNIQUE(owner_user_id, faction_id, resource_type, resource_key), FOREIGN KEY (owner_user_id) REFERENCES users(user_id) ON DELETE CASCADE, FOREIGN KEY (faction_id) REFERENCES factions(faction_id))'
+  ).run();
 
-  await db.prepare(`
-    CREATE INDEX IF NOT EXISTS idx_share_links_token
-    ON share_links(token_hash, is_enabled)
-  `).run();
+  await db.prepare(
+    "CREATE TABLE IF NOT EXISTS resource_permissions (permission_id INTEGER PRIMARY KEY AUTOINCREMENT, owner_user_id INTEGER NOT NULL, faction_id INTEGER NOT NULL, resource_type TEXT NOT NULL, resource_key TEXT NOT NULL, visibility TEXT NOT NULL DEFAULT 'faction' CHECK (visibility IN ('private', 'faction', 'public')), created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE(faction_id, resource_type, resource_key), FOREIGN KEY (owner_user_id) REFERENCES users(user_id) ON DELETE CASCADE, FOREIGN KEY (faction_id) REFERENCES factions(faction_id))"
+  ).run();
 
-  await db.prepare(`
-    CREATE INDEX IF NOT EXISTS idx_share_links_owner
-    ON share_links(owner_user_id, faction_id, resource_type, updated_at DESC)
-  `).run();
+  await db.prepare(
+    'CREATE INDEX IF NOT EXISTS idx_resource_permissions_lookup ON resource_permissions(faction_id, resource_type, resource_key)'
+  ).run();
+
+  await db.prepare(
+    "INSERT OR IGNORE INTO resource_permissions (owner_user_id, faction_id, resource_type, resource_key, visibility, created_at, updated_at) SELECT owner_user_id, faction_id, resource_type, resource_key, 'public', created_at, updated_at FROM share_links WHERE is_enabled = 1 AND resource_type = 'war'"
+  ).run();
 }
 
 function randomToken() {
@@ -380,6 +440,12 @@ function cookie(request, name) {
     if (key === name) return decodeURIComponent(rest.join('=') || '');
   }
   return '';
+}
+
+function nullableNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
 async function readJson(request) {
