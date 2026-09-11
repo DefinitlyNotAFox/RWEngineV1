@@ -8,7 +8,7 @@ import {
 } from './core.js';
 
 import { initIntel, renderIntel, refreshSyncStatus } from './intel.js?v=2';
-import { initIntelV2 } from './intel-v2.js?v=19';
+import { initIntelV2 } from './intel-v2.js?v=20';
 import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=2';
 
 const legacyIntelMode = new URL(location.href).searchParams.get('legacyIntel') === '1';
@@ -164,7 +164,7 @@ function bindApplication() {
   on('open-member', () => {
     routeTo('intel');
     window.setTimeout(() => {
-      document.querySelector('#intelBody tr.selected')?.scrollIntoView({ block:'center', behavior:'smooth' });
+      document.querySelector('#intelBody [data-member-id].selected')?.scrollIntoView({ block:'center', behavior:'smooth' });
     }, 0);
   });
 
