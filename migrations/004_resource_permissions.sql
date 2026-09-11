@@ -41,7 +41,7 @@ INSERT OR IGNORE INTO resource_permissions (
   updated_at
 )
 SELECT
-  sl.owner_user_id,
+  COALESCE(w.imported_by_user_id, sl.owner_user_id),
   sl.faction_id,
   sl.resource_type,
   sl.resource_key,
@@ -49,5 +49,8 @@ SELECT
   sl.created_at,
   sl.updated_at
 FROM share_links sl
+LEFT JOIN wars w
+  ON w.faction_id = sl.faction_id
+  AND w.war_id = sl.resource_key
 WHERE sl.is_enabled = 1
   AND sl.resource_type = 'war';
