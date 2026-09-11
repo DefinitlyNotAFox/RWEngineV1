@@ -29,6 +29,83 @@ jobs:
           node tests/player-report-public.test.mjs
           rm package.json
 
+      - name: Validate SQLite schema and migrations
+        shell: python
+        run: |
+          from pathlib import Path
+          import sqlite3
+          import sys
+          import tempfile
+
+          migrations = sorted(Path("migrations").glob("*.sql"))
+          expected_names = [f"{i:03d}_" for i in range(1, len(migrations) + 1)]
+
+          for path, prefix in zip(migrations, expected_names):
+              if not path.name.startswith(prefix):
+                  print(f"Migration sequence mismatch: expected prefix {prefix}, got {path.name}")
+                  sys.exit(1)
+
+          with tempfile.TemporaryDirectory() as tmp:
+              db_path = Path(tmp) / "rwengine-validation.sqlite"
+              connection = sqlite3.connect(db_path)
+              connection.execute("PRAGMA foreign_keys = ON")
+
+              try:
+                  connection.executescript(Path("schema.sql").read_text(encoding="utf-8"))
+
+                  integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
+                  if integrity != "ok":
+                      raise RuntimeError(f"Base schema integrity check failed: {integrity}")
+
+                  for migration in migrations:
+                      try:
+                          connection.executescript(migration.read_text(encoding="utf-8"))
+                      except Exception as error:
+                          raise RuntimeError(f"{migration} failed: {error}") from error
+
+                  integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
+                  if integrity != "ok":
+                      raise RuntimeError(f"Post-migration integrity check failed: {integrity}")
+
+                  foreign_key_errors = connection.execute("PRAGMA foreign_key_check").fetchall()
+                  if foreign_key_errors:
+                      raise RuntimeError(f"Foreign-key check failed: {foreign_key_errors[:10]}")
+
+                  required = {
+                      "faction_members": {"faction_id", "player_id", "is_current"},
+                      "member_snapshots": {
+                          "faction_id", "player_id", "snapshot_at",
+                          "activity_total_seconds", "xanax_taken_total",
+                          "battle_stats_estimate"
+                      },
+                      "resource_permissions": {
+                          "owner_user_id", "faction_id", "resource_type",
+                          "resource_key", "visibility"
+                      },
+                      "analysis_snapshots": {
+                          "owner_user_id", "faction_id", "target_player_id",
+                          "payload_json", "created_at"
+                      }
+                  }
+
+                  for table, columns in required.items():
+                      found = {
+                          row[1]
+                          for row in connection.execute(f"PRAGMA table_info({table})").fetchall()
+                      }
+                      missing = columns - found
+                      if missing:
+                          raise RuntimeError(
+                              f"{table} is missing required columns: {sorted(missing)}"
+                          )
+
+                  print(
+                      f"Validated schema.sql plus {len(migrations)} migrations "
+                      "with SQLite integrity and foreign-key checks."
+                  )
+              finally:
+                  connection.close()
+
       - name: Check v2 asset references
         shell: python
         run: |
