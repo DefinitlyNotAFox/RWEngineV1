@@ -81,6 +81,14 @@ export async function shareApi(action, payload = {}) {
   });
 }
 
+export async function intelV2Api(action, payload = {}) {
+  return post('/v2/intel-v2', {
+    action,
+    ...(usesAdminFaction() ? { factionId: state.selectedFactionId } : {}),
+    ...payload
+  });
+}
+
 export async function freshnessApi() {
   return post('/v2/freshness', {
     ...(usesAdminFaction() ? { factionId: state.selectedFactionId } : {})

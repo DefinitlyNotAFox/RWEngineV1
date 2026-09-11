@@ -414,7 +414,9 @@ function snapshotHistoryPoint(row) {
   return {
     at:nullableNumber(row.snapshot_at),
     activityTotalSeconds:numberOrNull(row.activity_total_seconds),
+    activityPerDaySeconds:numberOrNull(row.activity_per_day_seconds),
     xanaxTakenTotal:numberOrNull(row.xanax_taken_total),
+    xanaxPerDay:numberOrNull(row.xanax_per_day),
     battleStatsValue:numberOrNull(row.battle_stats_estimate),
     battleStatsSource:row.battle_stats_source || null,
     battleStatsObservedAt:nullableNumber(row.battle_stats_observed_at),
