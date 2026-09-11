@@ -1323,3 +1323,158 @@ button.line-row:hover strong { color: var(--accent-2); }
     width: 100%;
   }
 }
+
+
+/* admin D1 diagnostics */
+
+.database-admin {
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.database-admin > header h2 {
+  margin: 2px 0 3px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.database-admin > header span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.database-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.database-diagnostics {
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.database-summary {
+  min-height: 50px;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  gap: 14px;
+  align-items: center;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.database-summary strong,
+.database-summary small {
+  display: block;
+}
+
+.database-summary strong {
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.database-summary small {
+  margin-top: 2px;
+  color: var(--dim);
+  font-size: 8px;
+}
+
+.database-summary > b,
+.database-object-list b,
+.database-plan-list header b {
+  font-size: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.database-diagnostics .ok {
+  color: var(--success);
+}
+
+.database-diagnostics .warn {
+  color: var(--warning);
+}
+
+.database-object-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  border-bottom: 1px solid var(--line);
+}
+
+.database-object-list > div {
+  min-height: 34px;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding-right: 14px;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.database-object-list > div:nth-child(odd) {
+  border-right: 1px solid var(--line-soft);
+}
+
+.database-object-list > div:nth-child(even) {
+  padding-left: 14px;
+}
+
+.database-plan-list section {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.database-plan-list header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 5px;
+}
+
+.database-plan-list header strong {
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.database-plan-list code {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--dim);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 8px;
+  line-height: 1.5;
+  white-space: normal;
+}
+
+.database-warning-list {
+  padding: 8px 0;
+}
+
+.database-warning-list span {
+  display: block;
+  color: var(--warning);
+  font-size: 8px;
+}
+
+@media (max-width: 700px) {
+  .database-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .database-object-list {
+    grid-template-columns: 1fr;
+  }
+
+  .database-object-list > div:nth-child(odd) {
+    border-right: 0;
+  }
+
+  .database-object-list > div:nth-child(even) {
+    padding-left: 0;
+  }
+}
