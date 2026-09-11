@@ -1863,3 +1863,8 @@ button.line-row:hover strong { color: var(--accent-2); }
 
 .legacy-intel-mode #intelTable th:nth-child(7),
 .legacy-intel-mode #intelTable td:nth-child(7) { width: 12%; }
+
+
+#intelTable th[data-intel2-sort] {
+  cursor: pointer;
+}
