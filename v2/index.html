@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=5" />
+  <link rel="stylesheet" href="/v2/app.css?v=6" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -60,6 +60,7 @@
 
         <nav class="primary-nav" aria-label="Primary">
           <button type="button" data-route="intel">Intel</button>
+          <button type="button" data-route="player">Player</button>
           <button type="button" data-route="war">War</button>
           <button type="button" data-route="performance">Performance</button>
           <button type="button" data-route="archive">Archive</button>
@@ -92,14 +93,17 @@
           <button type="button" data-route="intel">
             <span>01</span><strong>Faction Intel</strong><small>Roster, activity, training and participation.</small><b>→</b>
           </button>
+          <button type="button" data-route="player">
+            <span>02</span><strong>Player Analysis</strong><small>Search a player and combine Torn profile data with permitted RWEngine history.</small><b>→</b>
+          </button>
           <button type="button" data-route="war">
-            <span>02</span><strong>Ranked War</strong><small>Period totals, recent wars and contributors.</small><b>→</b>
+            <span>03</span><strong>Ranked War</strong><small>Period totals, recent wars and contributors.</small><b>→</b>
           </button>
           <button type="button" data-route="performance">
-            <span>03</span><strong>Performance</strong><small>Cross-war member comparison.</small><b>→</b>
+            <span>04</span><strong>Performance</strong><small>Cross-war member comparison.</small><b>→</b>
           </button>
           <button type="button" data-route="archive">
-            <span>04</span><strong>Archive</strong><small>Imported reports, detail and public sharing.</small><b>→</b>
+            <span>05</span><strong>Archive</strong><small>Imported reports, detail and public sharing.</small><b>→</b>
           </button>
         </nav>
       </section>
@@ -142,6 +146,25 @@
             <tbody id="intelBody"></tbody>
           </table>
         </div>
+      </section>
+
+      <section id="playerView" class="view" data-view="player">
+        <header class="view-head">
+          <div>
+            <p class="kicker">Analysis</p>
+            <h1>Player</h1>
+            <p id="playerAnalysisContext" class="freshness">Search by player name or ID.</p>
+          </div>
+        </header>
+
+        <form id="playerSearchForm" class="player-search">
+          <input id="playerSearchInput" class="search" type="search" placeholder="Player name or ID" autocomplete="off" />
+          <button class="action primary" type="submit">Search</button>
+        </form>
+
+        <p id="playerStatus" class="status-line hidden"></p>
+        <div id="playerSearchResults" class="player-results hidden"></div>
+        <section id="playerAnalysisResult" class="player-analysis-result hidden"></section>
       </section>
 
       <section id="warView" class="view" data-view="war">
