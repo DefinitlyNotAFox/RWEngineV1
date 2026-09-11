@@ -458,19 +458,41 @@ function renderInsights(member) {
 function normalizeHistory(history = {}) {
   const snapshots = Array.isArray(history.snapshots) ? history.snapshots : [];
 
+  const stats = snapshots
+    .filter(point => hasNumber(point.battleStatsValue))
+    .map(point => ({ at:Number(point.at), value:Number(point.battleStatsValue) }));
+
+  const activityStored = snapshots
+    .filter(point =>
+      hasNumber(point.activityPerDaySeconds) &&
+      Number(point.activityPerDaySeconds) >= 0 &&
+      Number(point.activityPerDaySeconds) <= 86400
+    )
+    .map(point => ({ at:Number(point.at), value:Number(point.activityPerDaySeconds) }));
+
+  const xanaxStored = snapshots
+    .filter(point =>
+      hasNumber(point.xanaxPerDay) &&
+      Number(point.xanaxPerDay) >= 0 &&
+      Number(point.xanaxPerDay) <= 10
+    )
+    .map(point => ({ at:Number(point.at), value:Number(point.xanaxPerDay) }));
+
   return {
-    stats:snapshots
-      .filter(point => Number.isFinite(Number(point.battleStatsValue)))
-      .map(point => ({ at:Number(point.at), value:Number(point.battleStatsValue) })),
-    activity:deriveRateSeries(snapshots, 'activityTotalSeconds'),
-    xanax:deriveRateSeries(snapshots, 'xanaxTakenTotal'),
+    stats,
+    activity:activityStored.length >= 2
+      ? activityStored
+      : deriveRateSeries(snapshots, 'activityTotalSeconds'),
+    xanax:xanaxStored.length >= 2
+      ? xanaxStored
+      : deriveRateSeries(snapshots, 'xanaxTakenTotal'),
     wars:Array.isArray(history.wars) ? history.wars : []
   };
 }
 
 function deriveRateSeries(snapshots, key) {
   const rows = snapshots
-    .filter(point => Number.isFinite(Number(point.at)) && Number.isFinite(Number(point[key])))
+    .filter(point => hasNumber(point.at) && hasNumber(point[key]))
     .sort((a,b) => Number(a.at) - Number(b.at));
 
   const maxPerDay = key === 'activityTotalSeconds'
@@ -699,6 +721,11 @@ function formatSignedLocal(value) {
   if (number === null) return '—';
   const formatted = formatDecimal(number, 2);
   return number > 0 ? `+${formatted}` : formatted;
+}
+
+function hasNumber(value) {
+  if (value === null || value === undefined || value === '') return false;
+  return Number.isFinite(Number(value));
 }
 
 function nullable(value) {
