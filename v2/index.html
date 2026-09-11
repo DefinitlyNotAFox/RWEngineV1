@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=21" />
+  <link rel="stylesheet" href="/v2/app.css?v=22" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -110,8 +110,6 @@
           </div>
         </header>
 
-        <div id="syncLine" class="status-line hidden"></div>
-
         <div class="faction-modebar" data-intel2-only>
           <div class="faction-modes" aria-label="Faction analysis mode">
             <button type="button" data-faction-mode="timeline">Timeline</button>
@@ -128,10 +126,11 @@
           <input id="intelSearch" class="search" type="search" placeholder="Search member or ID" />
         </div>
 
-        <div id="factionTableContext" class="faction-table-context" data-intel2-only>
-          <span id="factionTableStatus" class="hidden"></span>
+        <div id="factionStatusStack" class="faction-status-stack">
+          <span id="refreshLine" class="faction-status-item hidden"></span>
+          <span id="syncLine" class="faction-status-item hidden"></span>
+          <span id="factionTableStatus" class="faction-status-item hidden" data-intel2-only></span>
         </div>
-
 
         <div class="data-table-wrap faction-table-wrap">
           <table id="intelTable" class="data-table intel2-table">
@@ -277,6 +276,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=12"></script>
+  <script type="module" src="/v2/app.js?v=13"></script>
 </body>
 </html>
