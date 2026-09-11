@@ -2271,3 +2271,188 @@ body {
     font-size: 10px;
   }
 }
+
+
+/* Intel member history hierarchy */
+
+.intel2-history {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.intel2-history-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.intel2-history-kicker {
+  display: block;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
+.intel2-history-head p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.intel2-history-window {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 0 0 auto;
+}
+
+.intel2-history-window button {
+  border: 0;
+  border-bottom: 1px solid transparent;
+  padding: 3px 0 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.intel2-history-window button:hover {
+  color: var(--text);
+}
+
+.intel2-history-window button.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.intel2-history .intel2-trends {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 34px;
+  margin-top: 20px;
+  padding-bottom: 6px;
+  border: 0;
+}
+
+.intel2-history .intel2-trend,
+.intel2-history .intel2-trend + .intel2-trend {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.intel2-history .intel2-trend header {
+  margin-bottom: 10px;
+}
+
+.intel2-history .intel2-trend header strong {
+  font-size: 12px;
+}
+
+.intel2-history .intel2-trend header span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.intel2-history .sparkline {
+  height: 70px;
+}
+
+.intel2-history .sparkline line {
+  stroke: #252829;
+}
+
+.intel2-trend-empty {
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.intel2-history .intel2-wars {
+  margin-top: 28px;
+}
+
+.intel2-history .intel2-wars > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 7px;
+  padding: 0;
+  color: inherit;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.intel2-history .intel2-wars > header strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.intel2-history .intel2-wars > header span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.intel2-history .intel2-war {
+  min-height: 48px;
+  border-top-color: var(--line-soft);
+}
+
+.intel2-history .intel2-war:first-of-type {
+  border-top: 0;
+}
+
+.intel2-history .intel2-coverage {
+  margin-top: 16px;
+  padding-top: 0;
+  border-top: 0;
+  gap: 18px;
+  color: var(--dim);
+}
+
+.intel2-history .intel2-coverage span,
+.intel2-history .intel2-coverage b {
+  font-size: 9px;
+}
+
+@media (max-width: 900px) {
+  .intel2-history-head {
+    align-items: flex-start;
+  }
+
+  .intel2-history .intel2-trends {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+
+  .intel2-history .intel2-trend,
+  .intel2-history .intel2-trend + .intel2-trend {
+    padding: 0;
+    border: 0;
+  }
+}
+
+@media (max-width: 620px) {
+  .intel2-history-head {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .intel2-history-window {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .intel2-history .intel2-wars {
+    margin-top: 24px;
+  }
+}
