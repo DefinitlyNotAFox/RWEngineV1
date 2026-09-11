@@ -201,9 +201,10 @@ async function handleDatabaseStatus(env, body) {
           a.attacker_id AS player_id,
           SUM(COALESCE(a.respect_gain, 0)) AS respect_earned,
           0 AS respect_lost
-        FROM attacks a
-        JOIN selected_wars sw ON sw.war_id = a.war_id
+        FROM selected_wars sw
+        CROSS JOIN attacks a INDEXED BY idx_attacks_faction_war_attacker
         WHERE a.faction_id = ?
+          AND a.war_id = sw.war_id
           AND a.attacker_id IS NOT NULL
         GROUP BY a.attacker_id
 
@@ -213,9 +214,10 @@ async function handleDatabaseStatus(env, body) {
           a.defender_id AS player_id,
           0 AS respect_earned,
           SUM(ABS(COALESCE(a.respect_loss, 0))) AS respect_lost
-        FROM attacks a
-        JOIN selected_wars sw ON sw.war_id = a.war_id
+        FROM selected_wars sw
+        CROSS JOIN attacks a INDEXED BY idx_attacks_faction_war_defender
         WHERE a.faction_id = ?
+          AND a.war_id = sw.war_id
           AND a.defender_id IS NOT NULL
         GROUP BY a.defender_id
       )
@@ -223,7 +225,8 @@ async function handleDatabaseStatus(env, body) {
       FROM metrics
       GROUP BY player_id`,
     [factionId, rangeFrom, rangeTo, factionId, factionId],
-    ['attacks']
+    ['attacks'],
+    ['idx_attacks_faction_war_attacker', 'idx_attacks_faction_war_defender']
   ));
 
   const required = {
@@ -258,7 +261,7 @@ async function handleDatabaseStatus(env, body) {
   });
 }
 
-async function explainPlan(db, label, sql, params, watchedTables) {
+async function explainPlan(db, label, sql, params, watchedTables, expectedIndexes = []) {
   try {
     const result = await db.prepare(sql).bind(...params).all();
     const rows = result.results || [];
@@ -270,6 +273,12 @@ async function explainPlan(db, label, sql, params, watchedTables) {
     for (const table of watchedTables) {
       if (details.some(detail => new RegExp('\\bSCAN\\s+' + table + '\\b', 'i').test(detail))) {
         warnings.push(`${label}: full scan of ${table}`);
+      }
+    }
+
+    for (const index of expectedIndexes) {
+      if (!details.some(detail => detail.includes(index))) {
+        warnings.push(`${label}: expected index ${index} is not used`);
       }
     }
 
@@ -511,9 +520,10 @@ async function getRange(db, factionId, body) {
         a.attacker_id AS player_id,
         SUM(COALESCE(a.respect_gain, 0)) AS respect_earned,
         0 AS respect_lost
-      FROM attacks a
-      JOIN selected_wars sw ON sw.war_id = a.war_id
+      FROM selected_wars sw
+      CROSS JOIN attacks a INDEXED BY idx_attacks_faction_war_attacker
       WHERE a.faction_id = ?
+        AND a.war_id = sw.war_id
         AND a.attacker_id IS NOT NULL
       GROUP BY a.attacker_id
 
@@ -523,9 +533,10 @@ async function getRange(db, factionId, body) {
         a.defender_id AS player_id,
         0 AS respect_earned,
         SUM(ABS(COALESCE(a.respect_loss, 0))) AS respect_lost
-      FROM attacks a
-      JOIN selected_wars sw ON sw.war_id = a.war_id
+      FROM selected_wars sw
+      CROSS JOIN attacks a INDEXED BY idx_attacks_faction_war_defender
       WHERE a.faction_id = ?
+        AND a.war_id = sw.war_id
         AND a.defender_id IS NOT NULL
       GROUP BY a.defender_id
     )
