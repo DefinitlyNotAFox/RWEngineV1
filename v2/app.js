@@ -8,6 +8,7 @@ import {
 } from './core.js';
 
 import { initIntelV2 } from './intel-v2.js';
+import { initPlayerAnalysis } from './player.js';
 import { initWarViews, renderWarOverview, renderArchive } from './wars.js';
 
 let loading = false;
@@ -19,6 +20,7 @@ function init() {
   bindAuth();
   bindApplication();
   initIntelV2();
+  initPlayerAnalysis();
   initWarViews();
   boot();
 }
