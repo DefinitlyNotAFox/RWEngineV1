@@ -93,7 +93,7 @@ function bindApplication() {
       if (!['last4','30d','year','all'].includes(next)) return;
       setPeriodPreset(next);
       renderPeriodControls();
-      loadRangeOnly();
+      if (legacyIntelMode) loadRangeOnly();
       return;
     }
 
@@ -231,14 +231,16 @@ async function refreshAll(userInitiated = false) {
     if (!state.period.from && !state.period.to) restorePeriod();
     else setPeriodPreset(state.period.preset);
 
-    const rangeResult = await rangeApi('getRange', periodPayload());
-    state.range = rangeResult;
+    if (legacyIntelMode) {
+      state.range = await rangeApi('getRange', periodPayload());
+    } else {
+      state.range = null;
+    }
 
     renderPeriodControls();
     renderIdentity();
     renderHome();
     if (legacyIntelMode) renderIntel();
-    renderWarOverview();
     renderArchive();
     renderFreshness();
     if (legacyIntelMode) await refreshSyncStatus();
@@ -256,7 +258,7 @@ async function refreshAll(userInitiated = false) {
 }
 
 async function loadRangeOnly() {
-  if (loading) return;
+  if (!legacyIntelMode || loading) return;
   loading = true;
   setRefreshBusy(true);
 
@@ -264,8 +266,7 @@ async function loadRangeOnly() {
     state.range = await rangeApi('getRange', periodPayload());
     renderPeriodControls();
     renderHome();
-    if (legacyIntelMode) renderIntel();
-    renderWarOverview();
+    renderIntel();
     emit('data');
   } catch (error) {
     setNotice(error.message || 'Failed to change period.', 'error');
@@ -285,13 +286,16 @@ function renderHome() {
 
   const coverage = document.querySelector('#homeCoverage');
   if (coverage) {
-    const tracked = range?.trackingStartedAt ? formatDateTime(range.trackingStartedAt) : 'not started';
-    const members = formatNumber(range?.summary?.currentMembers || 0);
     const intel = state.freshness?.datasets?.intel;
+    const members = formatNumber(
+      legacyIntelMode
+        ? range?.summary?.currentMembers || 0
+        : intel?.memberCount || 0
+    );
     const freshness = intel?.observedAt
-      ? ` · Intel ${intel.state === 'stale' ? 'stale' : 'updated'} ${formatAge(intel.ageSeconds)}`
+      ? ` · faction data ${intel.state === 'stale' ? 'stale' : 'updated'} ${formatAge(intel.ageSeconds)}`
       : '';
-    coverage.textContent = `${members} current members · ${formatNumber(wars)} imported wars · tracking since ${tracked}${freshness}`;
+    coverage.textContent = `${members} current members · ${formatNumber(wars)} imported wars${freshness}`;
   }
 }
 
@@ -313,8 +317,6 @@ function renderFreshness() {
     ? `${formatNumber(wars.warCount)} imported wars · archive updated ${formatAge(wars.ageSeconds)}`
     : 'No imported war data';
 
-  setFreshness('#warFreshness', warText, false);
-  setFreshness('#performanceFreshness', warText, false);
   setFreshness('#archiveFreshness', warText, false);
 }
 
