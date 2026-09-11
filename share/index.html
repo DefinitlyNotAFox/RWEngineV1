@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>RWEngine · Shared report</title>
+  <link rel="stylesheet" href="/share/share.css?v=1" />
+</head>
+<body>
+  <main class="share-shell">
+    <header class="share-header">
+      <a class="wordmark" href="/"><span>RW</span>Engine</a>
+      <span>Shared report</span>
+    </header>
+
+    <section id="loadingState" class="state">Loading report…</section>
+    <section id="errorState" class="state error hidden"></section>
+
+    <article id="reportView" class="hidden">
+      <header class="report-heading">
+        <div>
+          <p id="reportMeta" class="meta">Ranked war</p>
+          <h1 id="reportTitle">War report</h1>
+          <p id="reportDate" class="muted"></p>
+        </div>
+        <span class="read-only">Read only</span>
+      </header>
+
+      <section id="scoreLine" class="score-line"></section>
+      <section id="summaryGrid" class="summary-grid"></section>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Member</th>
+              <th>Hits</th>
+              <th>Assists</th>
+              <th>Outside</th>
+              <th>Score +</th>
+              <th>Score -</th>
+              <th>Net</th>
+            </tr>
+          </thead>
+          <tbody id="memberRows"></tbody>
+        </table>
+      </div>
+
+      <footer class="report-footer">
+        <span>Public RWEngine link</span>
+        <span id="sharedAt"></span>
+      </footer>
+    </article>
+  </main>
+
+  <script type="module" src="/share/share.js?v=1"></script>
+</body>
+</html>
