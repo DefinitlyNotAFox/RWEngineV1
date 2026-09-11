@@ -20,23 +20,53 @@
 </head>
 <body>
   <div id="loginView" class="login-view hidden">
-    <form id="loginForm" class="login-card">
-      <div class="wordmark"><span>RW</span>Engine</div>
-      <p class="muted">Torn tools and faction intelligence.</p>
+    <div class="login-card">
+      <div>
+        <div class="wordmark"><span>RW</span>Engine</div>
+        <p class="muted auth-intro">Torn tools and faction intelligence.</p>
+      </div>
 
-      <label>
-        Torn player ID
-        <input id="playerIdInput" type="text" inputmode="numeric" autocomplete="username" required />
-      </label>
+      <div class="auth-mode-switch" role="tablist" aria-label="Account access">
+        <button id="showLoginButton" class="auth-mode-button active" type="button">Sign in</button>
+        <button id="showRegisterButton" class="auth-mode-button" type="button">Create account</button>
+      </div>
 
-      <label>
-        Password
-        <input id="passwordInput" type="password" autocomplete="current-password" required />
-      </label>
+      <form id="loginForm" class="auth-form">
+        <label>
+          Torn player ID
+          <input id="playerIdInput" type="text" inputmode="numeric" autocomplete="username" required />
+        </label>
 
-      <button class="button primary" type="submit">Sign in</button>
+        <label>
+          Password
+          <input id="passwordInput" type="password" autocomplete="current-password" required />
+        </label>
+
+        <button class="button primary" type="submit">Sign in</button>
+      </form>
+
+      <form id="registerForm" class="auth-form hidden">
+        <label>
+          Limited Torn API key
+          <input id="registerApiKeyInput" type="password" autocomplete="off" required />
+          <small>Used to verify your Torn identity and connect your faction data.</small>
+        </label>
+
+        <label>
+          Password
+          <input id="registerPasswordInput" type="password" autocomplete="new-password" minlength="8" required />
+        </label>
+
+        <label>
+          Confirm password
+          <input id="registerConfirmInput" type="password" autocomplete="new-password" minlength="8" required />
+        </label>
+
+        <button class="button primary" type="submit">Create account</button>
+      </form>
+
       <p id="loginError" class="error hidden"></p>
-    </form>
+    </div>
   </div>
 
   <div id="appView" class="app-shell hidden">
