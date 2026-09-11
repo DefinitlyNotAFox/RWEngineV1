@@ -3,11 +3,11 @@ const rankedWarParent = document.querySelector('.nav-button[data-tab="ranked-war
 const pageTitle = document.querySelector('#pageTitle');
 
 const titles = {
-  overview: 'Overview',
+  overview: 'Home',
   members: 'Members',
   'ranked-war': 'Ranked War',
   performance: 'Performance',
-  wars: 'War history',
+  wars: 'War Archive',
   'current-war': 'Current matchup',
   settings: 'Settings'
 };
@@ -46,10 +46,10 @@ const startupTimer = window.setInterval(() => {
 function syncNavigationState() {
   const activeButton = document.querySelector('.nav-button.active[data-tab]');
   const active = activeButton?.dataset.tab || 'overview';
-  const inRankedWar = ['ranked-war', 'performance', 'wars', 'current-war'].includes(active);
+  const inRankedWar = ['ranked-war', 'performance', 'wars'].includes(active);
 
   rankedWarGroup?.classList.toggle('section-active', inRankedWar);
-  if (['performance', 'wars', 'current-war'].includes(active)) {
+  if (['performance', 'wars'].includes(active)) {
     rankedWarGroup?.classList.add('open');
     rankedWarParent?.setAttribute('aria-expanded', 'true');
   }
@@ -58,6 +58,6 @@ function syncNavigationState() {
 
   const toolbar = document.querySelector('#rangeToolbar');
   if (toolbar) {
-    toolbar.classList.toggle('hidden', ['overview', 'current-war', 'settings'].includes(active));
+    toolbar.classList.toggle('hidden', ['overview', 'settings'].includes(active));
   }
 }
