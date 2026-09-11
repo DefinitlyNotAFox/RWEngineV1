@@ -441,21 +441,11 @@ function renderIntelV2() {
   const body = document.querySelector('#intelBody');
   if (!body) return;
 
-  const aggregateBody = ensureAggregateBody(body);
-
   const colspan = factionColumns.length;
 
   if (loading && !overview) {
-    aggregateBody.innerHTML = '';
     body.innerHTML = `<tr class="empty-row"><td colspan="${colspan}">Loading faction data…</td></tr>`;
     return;
-  }
-
-  try {
-    aggregateBody.innerHTML = renderFactionTotalRow();
-  } catch (error) {
-    console.error('Faction aggregate render failed', error);
-    aggregateBody.innerHTML = renderFactionTotalFallback();
   }
 
   const members = Array.isArray(overview?.members) ? overview.members : [];
@@ -485,17 +475,6 @@ function renderIntelV2() {
       ${selected ? renderDetailRow(member) : ''}
     `;
   }).join('');
-}
-
-function ensureAggregateBody(memberBody) {
-  let aggregateBody = document.querySelector('#intelAggregateBody');
-  if (aggregateBody) return aggregateBody;
-
-  aggregateBody = document.createElement('tbody');
-  aggregateBody.id = 'intelAggregateBody';
-  aggregateBody.className = 'faction-aggregate-body';
-  memberBody.parentNode?.insertBefore(aggregateBody, memberBody);
-  return aggregateBody;
 }
 
 function renderFactionTotalRow() {
@@ -650,10 +629,37 @@ function renderHeaders() {
     `;
   }).join('');
 
+  let aggregateRow = '';
+  try {
+    aggregateRow = renderFactionTotalHeaderRow();
+  } catch (error) {
+    console.error('Faction aggregate render failed', error);
+    aggregateRow = renderFactionTotalHeaderFallback();
+  }
+
   head.innerHTML = `
     <tr class="faction-group-row">${groupRow}</tr>
     <tr class="faction-column-row">${columnRow}</tr>
+    ${aggregateRow}
   `;
+}
+
+function renderFactionTotalHeaderRow() {
+  const row = renderFactionTotalRow();
+  if (!row) return '';
+
+  return row
+    .replace('<tr class="faction-total-row">', '<tr class="faction-total-row faction-total-head-row">')
+    .replaceAll('<td ', '<th scope="col" ')
+    .replaceAll('</td>', '</th>');
+}
+
+function renderFactionTotalHeaderFallback() {
+  const row = renderFactionTotalFallback();
+  return row
+    .replace('<tr class="faction-total-row faction-total-fallback">', '<tr class="faction-total-row faction-total-head-row faction-total-fallback">')
+    .replaceAll('<td ', '<th scope="col" ')
+    .replaceAll('</td>', '</th>');
 }
 
 function renderFactionCell(member, key) {
