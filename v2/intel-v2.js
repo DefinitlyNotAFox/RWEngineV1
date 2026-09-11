@@ -411,10 +411,12 @@ function renderIntelV2() {
   renderFactionControls();
   renderHeaders();
 
+  const totals = document.querySelector('#intelTotals');
   const body = document.querySelector('#intelBody');
-  if (!body) return;
+  if (!body || !totals) return;
 
   const colspan = factionColumns.length;
+  totals.innerHTML = `<tr class="faction-head-spacer" aria-hidden="true"><td colspan="${colspan}"></td></tr>${renderFactionTotalRow()}`;
 
   if (loading && !overview) {
     body.innerHTML = `<tr class="empty-row"><td colspan="${colspan}">Loading faction data…</td></tr>`;
@@ -433,14 +435,12 @@ function renderIntelV2() {
     )
     .sort(compareMembers);
 
-  const tableLead = `<tr class="faction-head-spacer" aria-hidden="true"><td colspan="${colspan}"></td></tr>${renderFactionTotalRow()}`;
-
   if (!rows.length) {
-    body.innerHTML = `${tableLead}<tr class="empty-row"><td colspan="${colspan}">No members match this view.</td></tr>`;
+    body.innerHTML = `<tr class="empty-row"><td colspan="${colspan}">No members match this view.</td></tr>`;
     return;
   }
 
-  body.innerHTML = tableLead + rows.map(member => {
+  body.innerHTML = rows.map(member => {
     const selected = Number(selectedMemberId) === Number(member.playerId);
 
     return `
