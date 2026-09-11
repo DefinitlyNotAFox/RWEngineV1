@@ -3938,14 +3938,25 @@ body {
 }
 
 
-/* Reserve status-strip space so loading/errors never shift the roster table. */
-#factionTableContext {
+/* One reserved status area for refresh, sync and war-scope messages. */
+.faction-status-stack {
   min-height: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 18px;
+  row-gap: 3px;
+  margin: -2px 0 4px;
+  color: var(--muted);
+  font-size: 9px;
 }
 
-#factionTableStatus.hidden {
-  visibility: hidden;
-  display: inline;
+.faction-status-item {
+  min-width: 0;
+}
+
+.faction-status-item.error {
+  color: var(--danger);
 }
 
 
