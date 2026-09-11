@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=12" />
+  <link rel="stylesheet" href="/v2/app.css?v=13" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -128,8 +128,10 @@
           <input id="intelSearch" class="search" type="search" placeholder="Search member or ID" />
         </div>
 
-        <p id="factionTableGuide" class="intel-guide" data-intel2-only></p>
-        <p id="factionTableStatus" class="status-line hidden" data-intel2-only></p>
+        <div id="factionTableContext" class="faction-table-context" data-intel2-only>
+          <span id="factionTableGuide"></span>
+          <span id="factionTableStatus" class="hidden"></span>
+        </div>
 
         <div class="data-table-wrap faction-table-wrap">
           <table id="intelTable" class="data-table intel2-table">
