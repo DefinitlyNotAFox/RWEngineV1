@@ -136,7 +136,7 @@ export function renderWarOverview() {
     recentEl.innerHTML = recent.length
       ? recent.map(war => `
           <button class="line-row" type="button" data-open-war="${escapeHtml(String(war.war_id || war.report_id || ''))}">
-            <div><strong>${escapeHtml(war.opponent_faction_name || 'Unknown opponent')}</strong><small>${escapeHtml(formatDate(war.end_timestamp || war.start_timestamp))} · #${escapeHtml(String(war.war_id || war.report_id || '—'))}</small></div>
+            <div><strong>${escapeHtml(war.opponent_faction_name || 'Unknown opponent')}<small class="entity-id">#${escapeHtml(String(war.war_id || war.report_id || '—'))}</small></strong><small>${escapeHtml(formatDate(war.end_timestamp || war.start_timestamp))}</small></div>
             <b>Open →</b>
           </button>
         `).join('')
@@ -159,7 +159,7 @@ export function renderWarOverview() {
     contributorsEl.innerHTML = contributors.length
       ? contributors.map(member => `
           <button class="line-row" type="button" data-open-member="${member.playerId}">
-            <div><strong>${escapeHtml(member.playerName || 'Unknown')}</strong><small>${formatNumber(member.warHits)} hits · ${formatNumber(member.assists)} assists</small></div>
+            <div><strong>${escapeHtml(member.playerName || 'Unknown')}<small class="entity-id">[${escapeHtml(member.playerId)}]</small></strong><small>${formatNumber(member.warHits)} hits · ${formatNumber(member.assists)} assists</small></div>
             <b>${escapeHtml(formatSigned(member.netScore, 2))} net</b>
           </button>
         `).join('')
@@ -188,7 +188,7 @@ export function renderArchive() {
   body.innerHTML = wars.length
     ? wars.map(war => `
         <tr data-war-id="${escapeHtml(String(war.war_id || war.report_id || ''))}">
-          <td><span class="member-name">${escapeHtml(war.opponent_faction_name || 'Unknown opponent')}</span><span class="member-meta">${escapeHtml(war.opponent_faction_id ? `[${war.opponent_faction_id}]` : '')}</span></td>
+          <td><span class="member-name">${escapeHtml(war.opponent_faction_name || 'Unknown opponent')}${war.opponent_faction_id ? `<span class="entity-id">[${escapeHtml(war.opponent_faction_id)}]</span>` : ''}</span></td>
           <td>#${escapeHtml(String(war.war_id || war.report_id || '—'))}</td>
           <td>${escapeHtml(formatDate(war.start_timestamp))}</td>
           <td>${escapeHtml(formatDate(war.end_timestamp))}</td>
@@ -329,7 +329,7 @@ function renderPerformanceCell(member, key) {
   const classes = key === 'member' ? '' : (key === 'netScore' ? 'net' : '');
 
   if (key === 'member') {
-    return `<td><a href="https://www.torn.com/profiles.php?XID=${member.playerId}" target="_blank" rel="noopener noreferrer"><span class="member-name">${escapeHtml(member.playerName || `Player ${member.playerId}`)}</span><span class="member-meta">[${member.playerId}]${member.current ? '' : ' · former'}</span></a></td>`;
+    return `<td><a href="https://www.torn.com/profiles.php?XID=${member.playerId}" target="_blank" rel="noopener noreferrer"><span class="member-name">${escapeHtml(member.playerName || `Player ${member.playerId}`)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span>${member.current ? '' : '<span class="member-meta">former</span>'}</a></td>`;
   }
 
   if (key === 'wars') {
