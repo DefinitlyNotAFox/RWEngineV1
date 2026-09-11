@@ -5094,3 +5094,14 @@ body {
   right: 18%;
   background: rgba(185,130,93,.16);
 }
+
+
+/* Unify faction group-label row background. */
+#intelTable.faction-grid .faction-group-row,
+#intelTable.faction-grid .faction-grid-group,
+#intelTable.faction-grid .faction-grid-group.group-roster,
+#intelTable.faction-grid .faction-grid-group.group-training,
+#intelTable.faction-grid .faction-grid-group.group-war,
+#intelTable.faction-grid .faction-grid-group.group-context {
+  background: #0d0f10 !important;
+}
