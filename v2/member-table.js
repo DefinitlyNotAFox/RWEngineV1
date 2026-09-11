@@ -11,12 +11,12 @@ const sortState = {
 };
 
 const sortColumns = {
-  lastAction: { index: 2, label: 'Last action', parse: parseDuration, defaultDirection: 'asc' },
-  stats: { index: 3, label: 'Stats', parse: parseScaledNumber },
-  activity: { index: 4, label: 'Activity / day', parse: parseDuration },
-  xanax: { index: 5, label: 'Xanax / day', parse: parseNumber },
-  participation: { index: 6, label: 'RW participation', parse: parseNumber },
-  avgHits: { index: 7, label: 'Avg hits / war', parse: parseNumber }
+  lastAction: { index: 1, label: 'Last action', parse: parseDuration, defaultDirection: 'asc' },
+  stats: { index: 2, label: 'Stats', parse: parseScaledNumber },
+  activity: { index: 3, label: 'Activity / day', parse: parseDuration },
+  xanax: { index: 4, label: 'Xanax / day', parse: parseNumber },
+  participation: { index: 5, label: 'RW participation', parse: parseNumber },
+  avgHits: { index: 6, label: 'Avg hits / war', parse: parseNumber }
 };
 
 if (membersBody && membersTable) {
@@ -122,11 +122,11 @@ function resetSort() {
 function applyEmptyStates() {
   for (const row of membersBody.querySelectorAll('tr.member-row[data-member-id]')) {
     const cells = row.cells;
-    if (cells.length < 6) continue;
+    if (cells.length < 5) continue;
 
-    replaceUnavailable(cells[3], 'Unavailable');
+    replaceUnavailable(cells[2], 'Unavailable');
+    replaceUnavailable(cells[3], 'Needs 2 snapshots');
     replaceUnavailable(cells[4], 'Needs 2 snapshots');
-    replaceUnavailable(cells[5], 'Needs 2 snapshots');
   }
 }
 

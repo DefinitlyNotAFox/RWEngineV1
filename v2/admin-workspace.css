@@ -3,9 +3,10 @@
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border: 1px solid var(--border, rgba(255,255,255,.12));
-  border-radius: 3px;
-  background: rgba(255,255,255,.035);
+  border: 0;
+  border-bottom: 1px solid var(--border, rgba(255,255,255,.12));
+  border-radius: 0;
+  background: transparent;
 }
 
 .admin-faction-switcher > span {
@@ -56,7 +57,7 @@
 
 .admin-faction-list {
   display: grid;
-  gap: 8px;
+  gap: 0;
 }
 
 .admin-faction-row {
@@ -66,22 +67,22 @@
   align-items: center;
   gap: 18px;
   text-align: left;
-  padding: 12px 14px;
-  border: 1px solid var(--border, rgba(255,255,255,.1));
-  border-radius: 3px;
-  background: rgba(255,255,255,.025);
+  padding: 11px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--border-soft, rgba(255,255,255,.08));
+  border-radius: 0;
+  background: transparent;
   color: inherit;
   cursor: pointer;
 }
 
-.admin-faction-row:hover,
-.admin-faction-row.selected {
-  background: rgba(255,255,255,.055);
-  border-color: rgba(255,255,255,.2);
+.admin-faction-row:hover {
+  background: rgba(255,255,255,.018);
 }
 
 .admin-faction-row.selected {
-  box-shadow: inset 3px 0 0 rgba(255,255,255,.45);
+  background: rgba(185,133,96,.06);
+  box-shadow: inset 2px 0 0 var(--accent-strong);
 }
 
 .admin-faction-row > span,
@@ -100,10 +101,11 @@
 }
 
 .admin-key-card {
-  padding: 14px;
-  border: 1px solid var(--border, rgba(255,255,255,.1));
-  border-radius: 3px;
-  background: rgba(255,255,255,.025);
+  padding: 0 0 0 14px;
+  border: 0;
+  border-left: 1px solid var(--border, rgba(255,255,255,.1));
+  border-radius: 0;
+  background: transparent;
 }
 
 .admin-key-summary {

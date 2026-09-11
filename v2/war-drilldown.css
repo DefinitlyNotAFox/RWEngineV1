@@ -164,11 +164,11 @@
 
 #warDetailTable .performance-stat-cell,
 #warDetailTable .performance-sort-header:not(.is-left) {
-  text-align: center;
+  text-align: right;
 }
 
 #warDetailTable .performance-sort-header:not(.is-left) .performance-sort {
-  justify-content: center;
+  justify-content: flex-end;
 }
 
 #warDetailTable .performance-member-cell,
