@@ -12,6 +12,7 @@ import { initWarViews, renderWarOverview, renderArchive } from './wars.js';
 
 let loading = false;
 let adminKeyFactionId = null;
+let databaseBusy = false;
 
 init();
 
@@ -126,6 +127,8 @@ function bindApplication() {
 
   document.querySelector('#adminKeyForm')?.addEventListener('submit', saveAdminKey);
   document.querySelector('#adminClearKey')?.addEventListener('click', clearAdminKey);
+  document.querySelector('#databaseCheck')?.addEventListener('click', checkDatabaseStatus);
+  document.querySelector('#databaseApply')?.addEventListener('click', applyDatabaseMaintenance);
 
   document.querySelector('#accessList')?.addEventListener('change', handleAccessChange);
 
@@ -387,6 +390,165 @@ async function handleAccessChange(event) {
   } finally {
     select.disabled = false;
   }
+}
+
+async function checkDatabaseStatus() {
+  if (!state.user?.isAdmin || databaseBusy) return;
+
+  const factionId = Number(state.selectedFactionId || 0);
+  if (!factionId) {
+    setDatabaseStatus('Select a tracked faction first.', true);
+    return;
+  }
+
+  databaseBusy = true;
+  setDatabaseButtons(true);
+  setDatabaseStatus('Checking D1 schema and query plans…');
+  clearDatabaseDiagnostics();
+
+  try {
+    const result = await adminApi('databaseStatus', { factionId });
+    renderDatabaseDiagnostics(result);
+
+    if (result.schema?.ready && !(result.warnings || []).length) {
+      setDatabaseStatus('D1 maintenance is applied and the sampled plans show no full scans of the watched analytics tables.');
+    } else if (!result.schema?.ready) {
+      setDatabaseStatus('D1 is missing one or more maintenance objects. Apply maintenance before benchmarking.', true);
+    } else {
+      setDatabaseStatus('D1 schema is ready, but one or more sampled plans still contain a full table scan.', true);
+    }
+  } catch (error) {
+    setDatabaseStatus(error.message || 'Failed to inspect D1.', true);
+  } finally {
+    databaseBusy = false;
+    setDatabaseButtons(false);
+  }
+}
+
+async function applyDatabaseMaintenance() {
+  if (!state.user?.isAdmin || databaseBusy) return;
+
+  const factionId = Number(state.selectedFactionId || 0);
+  if (!factionId) {
+    setDatabaseStatus('Select a tracked faction first.', true);
+    return;
+  }
+
+  databaseBusy = true;
+  setDatabaseButtons(true);
+  clearDatabaseDiagnostics();
+
+  let step = 0;
+  try {
+    while (step < 20) {
+      setDatabaseStatus(`Applying database maintenance · step ${step + 1}…`);
+      const result = await adminApi('applyDatabaseMaintenance', {
+        factionId,
+        step
+      });
+
+      step = Number(result.nextStep ?? step + 1);
+      if (result.done) break;
+    }
+
+    if (step >= 20) {
+      throw new Error('Database maintenance exceeded the safety step limit.');
+    }
+
+    setDatabaseStatus('Database maintenance applied. Verifying query plans…');
+    const status = await adminApi('databaseStatus', { factionId });
+    renderDatabaseDiagnostics(status);
+
+    if (status.schema?.ready && !(status.warnings || []).length) {
+      setDatabaseStatus('Database maintenance complete. Required indexes are present and sampled plans show no watched full scans.');
+    } else if (!status.schema?.ready) {
+      setDatabaseStatus('Maintenance ran, but D1 is still missing a required object.', true);
+    } else {
+      setDatabaseStatus('Maintenance is applied, but a sampled query plan still contains a full scan.', true);
+    }
+  } catch (error) {
+    setDatabaseStatus(error.message || 'Database maintenance failed.', true);
+  } finally {
+    databaseBusy = false;
+    setDatabaseButtons(false);
+  }
+}
+
+function renderDatabaseDiagnostics(result) {
+  const container = document.querySelector('#databaseDiagnostics');
+  if (!container) return;
+
+  const required = result.schema?.required || {};
+  const schemaRows = [
+    ['Permissions table', required.resourcePermissionsTable],
+    ['Permission lookup index', required.resourcePermissionLookupIndex],
+    ['Permission owner index', required.resourcePermissionOwnerIndex],
+    ['Attack attacker index', required.attackerIndex],
+    ['Attack defender index', required.defenderIndex],
+    ['Snapshot history index', required.snapshotIndex],
+    ['War-log player index', required.warLogIndex]
+  ];
+
+  const plans = Array.isArray(result.plans) ? result.plans : [];
+  const sample = result.sample || {};
+
+  container.innerHTML = `
+    <div class="database-summary">
+      <div>
+        <strong>${escapeHtml(result.faction?.factionName || 'Faction')} [${escapeHtml(result.faction?.factionId || '—')}]</strong>
+        <small>Sample war #${escapeHtml(sample.warId || '—')} · player ${escapeHtml(sample.playerName || sample.playerId || '—')}</small>
+      </div>
+      <b class="${result.schema?.ready ? 'ok' : 'warn'}">${result.schema?.ready ? 'Schema ready' : 'Maintenance required'}</b>
+    </div>
+
+    <div class="database-object-list">
+      ${schemaRows.map(([label, ready]) => `
+        <div><span>${escapeHtml(label)}</span><b class="${ready ? 'ok' : 'warn'}">${ready ? 'Present' : 'Missing'}</b></div>
+      `).join('')}
+    </div>
+
+    <div class="database-plan-list">
+      ${plans.map(plan => `
+        <section>
+          <header>
+            <strong>${escapeHtml(plan.label || 'Query plan')}</strong>
+            <b class="${plan.ok && !(plan.warnings || []).length ? 'ok' : 'warn'}">${plan.ok ? ((plan.warnings || []).length ? 'Scan found' : 'OK') : 'Failed'}</b>
+          </header>
+          ${(plan.details || []).map(detail => `<code>${escapeHtml(detail)}</code>`).join('') || '<code>No plan rows returned.</code>'}
+        </section>
+      `).join('')}
+    </div>
+
+    ${(result.warnings || []).length ? `
+      <div class="database-warning-list">
+        ${result.warnings.map(warning => `<span>${escapeHtml(warning)}</span>`).join('')}
+      </div>
+    ` : ''}
+  `;
+
+  container.classList.remove('hidden');
+}
+
+function clearDatabaseDiagnostics() {
+  const container = document.querySelector('#databaseDiagnostics');
+  if (!container) return;
+  container.innerHTML = '';
+  container.classList.add('hidden');
+}
+
+function setDatabaseStatus(message, error = false) {
+  const element = document.querySelector('#databaseStatus');
+  if (!element) return;
+  element.textContent = message || '';
+  element.classList.toggle('hidden', !message);
+  element.classList.toggle('error', error);
+}
+
+function setDatabaseButtons(disabled) {
+  const check = document.querySelector('#databaseCheck');
+  const apply = document.querySelector('#databaseApply');
+  if (check) check.disabled = disabled;
+  if (apply) apply.disabled = disabled;
 }
 
 function renderIdentity() {
