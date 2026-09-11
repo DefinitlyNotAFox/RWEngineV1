@@ -438,10 +438,11 @@ function trendBlock(title,series,formatter){
   const availableDays=valid.length>1
     ? Math.max(1,Math.round((Number(valid[valid.length-1].at)-Number(valid[0].at))/86400))
     : 0;
-  const windowLabel=availableDays>0&&availableDays<trendDays
-    ? `${availableDays}d available`
-    : `${trendDays}d`;
-  return `<section class="intel2-trend"><header><strong>${title}</strong><span>${windowLabel} · ${formatter(latest)}</span></header>${sparkline(filtered)}</section>`;
+  const windowLabel=availableDays>0
+    ? (availableDays<trendDays?`${availableDays}d available`:`${trendDays}d`)
+    : 'No trend data';
+  const latestLabel=latest===null||latest===undefined?'—':formatter(latest);
+  return `<section class="intel2-trend"><header><strong>${title}</strong><span>${windowLabel} · ${latestLabel}</span></header>${sparkline(filtered)}</section>`;
 }
 
 function filterSeries(series,days){
@@ -467,6 +468,7 @@ function sparkline(series){
 }
 
 function trendLabel(value,suffix){
+  if(value===null||value===undefined||value==='')return 'No comparison';
   const number=Number(value);
   if(!Number.isFinite(number))return 'No comparison';
   const pct=Math.round(number*100);
@@ -474,6 +476,7 @@ function trendLabel(value,suffix){
 }
 
 function trendClass(value){
+  if(value===null||value===undefined||value==='')return '';
   const number=Number(value);
   if(!Number.isFinite(number)||Math.abs(number)<0.1)return '';
   return number>0?'up':'down';
