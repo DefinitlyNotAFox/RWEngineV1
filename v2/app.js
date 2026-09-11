@@ -8,7 +8,7 @@ import {
 } from './core.js';
 
 import { initIntel, renderIntel, refreshSyncStatus } from './intel.js?v=2';
-import { initIntelV2 } from './intel-v2.js?v=20';
+import { initIntelV2 } from './intel-v2.js?v=21';
 import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=2';
 
 const legacyIntelMode = new URL(location.href).searchParams.get('legacyIntel') === '1';
