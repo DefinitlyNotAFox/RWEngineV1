@@ -4431,3 +4431,44 @@ body {
   left: auto !important;
   z-index: auto !important;
 }
+
+
+/* Dedicated aggregate table body: isolated from sticky headers and sortable members. */
+#intelTable #intelAggregateBody .faction-total-row td {
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  z-index: auto !important;
+  height: 50px !important;
+  padding: 8px 11px !important;
+  background: #0b0d0e !important;
+  color: var(--text) !important;
+  border-top: 1px solid var(--line) !important;
+  border-bottom: 1px solid var(--line) !important;
+  box-shadow: none !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#intelTable #intelAggregateBody .faction-total-row .member-name,
+#intelTable #intelAggregateBody .faction-total-row strong {
+  color: var(--text) !important;
+  font-weight: 700 !important;
+}
+
+#intelTable #intelAggregateBody .faction-total-row .member-meta {
+  display: block !important;
+  margin-top: 2px;
+  color: var(--muted) !important;
+  font-size: 9px !important;
+  font-weight: 400 !important;
+}
+
+#intelTable #intelAggregateBody .faction-total-row:hover td {
+  background: #0b0d0e !important;
+}
+
+/* Make the persistent context toggles unmistakably separate from the filter set. */
+.faction-control-row .intel-filter-options {
+  margin-left: clamp(72px, 8vw, 150px) !important;
+}
