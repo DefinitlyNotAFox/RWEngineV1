@@ -13,7 +13,7 @@ export async function onRequest(context) {
     const selection = await resolveWarSelection(env.DB, factionId, body, now);
     const range = selection.range;
     const warFilter = selection.warIds.length
-      ? `w.war_id IN (${selection.warIds.map(() => '?').join(',')})`
+      ? `CAST(w.war_id AS TEXT) IN (${selection.warIds.map(() => '?').join(',')})`
       : 'COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) BETWEEN ? AND ?';
     const warFilterParams = selection.warIds.length
       ? selection.warIds
@@ -242,7 +242,11 @@ export async function onRequest(context) {
 async function resolveWarSelection(db, factionId, body, now) {
   const explicit = Array.isArray(body?.warIds);
   const warIds = explicit
-    ? [...new Set(body.warIds.map(Number).filter(id => Number.isSafeInteger(id) && id > 0))].slice(0, 100)
+    ? [...new Set(
+        body.warIds
+          .map(value => String(value ?? '').trim())
+          .filter(value => value.length > 0 && value.length <= 128)
+      )].slice(0, 100)
     : [];
 
   if (explicit && !warIds.length) {
@@ -251,22 +255,37 @@ async function resolveWarSelection(db, factionId, body, now) {
 
   if (warIds.length) {
     const placeholders = warIds.map(() => '?').join(',');
-    const bounds = await db.prepare(`
+    const rows = await db.prepare(`
       SELECT
-        COUNT(*) AS count,
-        MIN(COALESCE(start_timestamp, end_timestamp, imported_at, 0)) AS earliest,
-        MAX(COALESCE(end_timestamp, start_timestamp, imported_at, 0)) AS latest
+        CAST(war_id AS TEXT) AS war_id,
+        start_timestamp,
+        end_timestamp,
+        imported_at
       FROM wars
       WHERE faction_id = ?
-        AND war_id IN (${placeholders})
-    `).bind(factionId, ...warIds).first();
+        AND CAST(war_id AS TEXT) IN (${placeholders})
+    `).bind(factionId, ...warIds).all();
 
-    if (Number(bounds?.count || 0) !== warIds.length) {
-      throw httpError(400, 'One or more selected ranked wars are not available for this faction.');
+    const available = rows.results || [];
+    const found = new Set(available.map(row => String(row.war_id)));
+    const missing = warIds.filter(id => !found.has(id));
+
+    if (missing.length) {
+      throw httpError(
+        400,
+        `Selected ranked war${missing.length === 1 ? '' : 's'} no longer available: ${missing.join(', ')}.`
+      );
     }
 
-    const from = Number(bounds?.earliest || 0) || now;
-    const to = Math.min(now, Number(bounds?.latest || 0) || now);
+    const starts = available
+      .map(row => Number(row.start_timestamp || row.end_timestamp || row.imported_at || 0))
+      .filter(value => value > 0);
+    const ends = available
+      .map(row => Number(row.end_timestamp || row.start_timestamp || row.imported_at || 0))
+      .filter(value => value > 0);
+
+    const from = starts.length ? Math.min(...starts) : now;
+    const to = Math.min(now, ends.length ? Math.max(...ends) : now);
 
     return {
       warIds,
