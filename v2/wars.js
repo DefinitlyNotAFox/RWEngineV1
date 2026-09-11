@@ -244,6 +244,7 @@ export function renderPerformance() {
   if (!head || !body) return;
 
   const detailMode = document.querySelector('#performanceMode')?.value === 'detail';
+  document.querySelector('#performanceTable')?.classList.toggle('is-detail', detailMode);
   const columns = detailMode
     ? ['member','wars','hits','assists','outsideHits','respectEarned','respectLost','scoreUp','scoreDown','netScore']
     : ['member','wars','hits','assists','netScore'];
