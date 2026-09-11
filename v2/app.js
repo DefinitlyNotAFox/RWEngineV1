@@ -8,7 +8,7 @@ import {
 } from './core.js';
 
 import { initIntel, renderIntel, refreshSyncStatus } from './intel.js';
-import { initWarViews, renderWarOverview, renderArchive, loadPerformance } from './wars.js';
+import { initWarViews, renderWarOverview, renderArchive } from './wars.js';
 
 let loading = false;
 let adminKeyFactionId = null;
@@ -99,6 +99,7 @@ function bindApplication() {
     const factionId = Number(event.target.value || 0);
     if (!factionId || factionId === Number(state.selectedFactionId)) return;
     state.selectedFactionId = factionId;
+    adminKeyFactionId = factionId;
     try { localStorage.setItem('rwengine.adminFaction', String(factionId)); } catch (_) {}
     renderIdentity();
     emit('faction', factionId);
@@ -128,12 +129,10 @@ function bindApplication() {
 
   on('request-refresh', () => refreshAll(false));
 
-  on('open-member', playerId => {
+  on('open-member', () => {
     routeTo('intel');
     window.setTimeout(() => {
-      const row = document.querySelector(`#intelBody tr[data-member-id="${Number(playerId)}"]`);
-      row?.click();
-      row?.scrollIntoView({ block:'center', behavior:'smooth' });
+      document.querySelector('#intelBody tr.selected')?.scrollIntoView({ block:'center', behavior:'smooth' });
     }, 0);
   });
 
