@@ -67,6 +67,7 @@ let trendDays = 90;
 let loading = false;
 let syncJob = null;
 let syncing = false;
+const AUTO_SYNC_INTERVAL_SECONDS = 24 * 60 * 60;
 let filterMode = restoreFactionMode();
 let timelineRange = { from:null, to:null };
 let draftTimelineRange = null;
@@ -229,8 +230,6 @@ export function initIntelV2() {
 
     await openMember(playerId);
   });
-
-  document.querySelector('#syncButton')?.addEventListener('click', runSync);
 
   on('route', route => {
     if (route !== 'intel') return;
@@ -1568,17 +1567,24 @@ async function refreshSyncStatus() {
     syncJob = null;
   }
   renderSync();
+
+  if (shouldRunAutomaticSync(syncJob)) {
+    queueMicrotask(() => runSync());
+  }
+}
+
+function shouldRunAutomaticSync(job) {
+  if (syncing) return false;
+  if (job && ['queued','running'].includes(job.status)) return true;
+
+  const lastAt = Number(job?.finishedAt || job?.updatedAt || 0);
+  if (!lastAt) return true;
+  return Math.floor(Date.now() / 1000) - lastAt >= AUTO_SYNC_INTERVAL_SECONDS;
 }
 
 async function runSync() {
   if (syncing) return;
   syncing = true;
-
-  const button = document.querySelector('#syncButton');
-  if (button) {
-    button.disabled = true;
-    button.textContent = 'Syncing…';
-  }
 
   try {
     const started = await syncApi('startSync');
@@ -1609,10 +1615,6 @@ async function runSync() {
     renderSync();
   } finally {
     syncing = false;
-    if (button) {
-      button.disabled = false;
-      button.textContent = 'Sync faction';
-    }
   }
 }
 
