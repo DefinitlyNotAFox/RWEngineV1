@@ -384,65 +384,43 @@ function renderDetailRow(member) {
 
   const detailMember = payload.member;
   const history = normalizeHistory(payload.history);
+  const insights = renderInsights(detailMember);
 
   return `
     <tr class="intel2-detail-row">
       <td colspan="8">
         <section class="intel2-detail">
-          <div class="intel2-detail-inner">
-          <header class="intel2-detail-head">
-            <div>
-              <h2>${escapeHtml(detailMember.playerName || member.playerName)}</h2>
-              <p>${escapeHtml(detailMember.position || 'Member')} · Lv ${escapeHtml(detailMember.level ?? '—')} · ${detailMember.current ? `${formatNumber(detailMember.daysInFaction)} days in faction` : 'former member'}</p>
-            </div>
+          <div class="intel2-detail-tools">
+            <span>Member context</span>
             <a href="https://www.torn.com/profiles.php?XID=${encodeURIComponent(detailMember.playerId)}" target="_blank" rel="noopener noreferrer">Torn profile ↗</a>
-          </header>
-
-          <div class="detail-metrics">
-            ${metric('Battle stats', detailMember.battleStats?.value == null ? '—' : formatCompact(detailMember.battleStats.value), detailMember.battleStats?.source || 'Unavailable')}
-            ${metric('Activity / day', formatDuration(detailMember.activity?.perDay30d), '30d')}
-            ${metric('Xanax / day', formatDecimal(detailMember.xanax?.perDay30d, 2), '30d')}
-            ${metric('War participation', formatPercent(detailMember.war?.last4?.participation), 'last 4')}
-            ${metric('Hits per war', formatDecimal(detailMember.war?.last4?.hitsPerWar, 1), 'last 4')}
-            ${metric('Net score', formatSignedLocal(detailMember.war?.last4?.netScore), 'last 4')}
           </div>
 
-          <div class="intel2-insights">
-            ${renderInsights(detailMember)}
-          </div>
+          ${insights ? `<div class="intel2-insights">${insights}</div>` : ''}
 
           <section class="intel2-history">
             <header class="intel2-history-head">
               <div>
-                <span class="intel2-history-kicker">History</span>
-                <p>Longer-term member trends and recent ranked-war activity.</p>
+                <span class="intel2-history-kicker">History &amp; trends</span>
+                <p>How this member has changed over time, plus the wars behind the summary above.</p>
+              </div>
+              <div class="intel2-history-window" aria-label="History window">
+                ${[30,60,90].map(days => `<button type="button" data-trend-days="${days}" class="${trendDays === days ? 'active' : ''}">${days}d</button>`).join('')}
               </div>
             </header>
 
-            <div class="intel2-history-grid">
-              <section class="intel2-trend-pane">
-                <header class="intel2-subsection-head">
-                  <strong>Trends</strong>
-                  <div class="intel2-history-window" aria-label="History window">
-                    ${[30,60,90].map(days => `<button type="button" data-trend-days="${days}" class="${trendDays === days ? 'active' : ''}">${days}d</button>`).join('')}
-                  </div>
-                </header>
-
-                <div class="intel2-trends">
-                  ${trendBlock('Battle stats', history.stats, value => value == null ? '—' : formatCompact(value))}
-                  ${trendBlock('Activity / day', history.activity, formatDuration)}
-                  ${trendBlock('Xanax / day', history.xanax, value => formatDecimal(value, 2))}
-                </div>
-              </section>
-
-              <section class="intel2-wars">
-                <header>
-                  <strong>Recent wars</strong>
-                  <span>${history.wars.length} available</span>
-                </header>
-                ${renderWarHistory(history.wars)}
-              </section>
+            <div class="intel2-trends">
+              ${trendBlock('Battle stats', history.stats, value => value == null ? '—' : formatCompact(value))}
+              ${trendBlock('Activity / day', history.activity, formatDuration)}
+              ${trendBlock('Xanax / day', history.xanax, value => formatDecimal(value, 2))}
             </div>
+
+            <section class="intel2-wars">
+              <header>
+                <strong>Recent wars</strong>
+                <span>${history.wars.length} available</span>
+              </header>
+              ${renderWarHistory(history.wars)}
+            </section>
 
             <footer class="intel2-coverage">
               <span>Coverage</span>
@@ -451,7 +429,6 @@ function renderDetailRow(member) {
               <b>${detailMember.coverage?.battleStatsKnown ? 'battle stats known' : 'battle stats unavailable'}</b>
             </footer>
           </section>
-          </div>
         </section>
       </td>
     </tr>
@@ -460,9 +437,7 @@ function renderDetailRow(member) {
 
 function renderInsights(member) {
   const insights = Array.isArray(member.insights) ? member.insights : [];
-  if (!insights.length) {
-    return '<div class="intel2-insight note"><b>No signals</b><span>No current attention signals for this member.</span></div>';
-  }
+  if (!insights.length) return '';
 
   return insights.map(item => `
     <div class="intel2-insight ${escapeHtml(item.kind || 'note')}">
