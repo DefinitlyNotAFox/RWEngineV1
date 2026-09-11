@@ -25,6 +25,7 @@ jobs:
           find v2 functions share -name '*.js' -print0 | xargs -0 -n1 node --check
           node tests/intel-insights.test.mjs
           node tests/intel-contract.test.mjs
+          node tests/player-analysis-contract.test.mjs
           rm package.json
 
       - name: Check v2 asset references
