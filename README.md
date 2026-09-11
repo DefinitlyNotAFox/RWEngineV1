@@ -1,43 +1,43 @@
 # RWEngine
 
-RWEngine is a server-backed Torn tools and analytics platform.
+RWEngine is a server-backed Torn data and tools platform.
 
-The product is deliberately broader than ranked-war analytics. Ranked War is one module inside a shared application shell with common authentication, faction context, stored data and server-owned calculations.
+The application is deliberately utilitarian: the frontend is a thin workbench over shared server-side data, not a collection of distributed userscripts.
 
 ## Active application
 
 The public root redirects to `/v2/`.
 
-Current modules:
+Primary views:
 - Faction Intel
-- Ranked War
+- Ranked War overview
 - Performance
 - War Archive
+- Account / admin settings
 
-Sharing:
-- ranked-war detail can generate revocable public read-only links
-- public tokens are stored only as SHA-256 hashes
-- generating a replacement link invalidates the previous URL
+Ranked-war reports can generate revocable public read-only links under `/share/`.
 
-Module URLs are deep-linkable through hashes such as `/v2/#members`, `/v2/#performance` and `/v2/#wars`.
+## Frontend architecture
 
-## Architecture
+The active authenticated frontend is intentionally small:
 
-- Cloudflare Pages frontend
-- Pages Functions backend
-- Cloudflare D1 data store
-- server-side Torn API access and aggregation
-- session-based accounts with self-service registration
-- reusable faction/member/war data shared between modules
+- `v2/index.html` — semantic application shell
+- `v2/app.css` — complete visual system
+- `v2/core.js` — shared state, API adapters, routing and formatting
+- `v2/app.js` — authentication, application lifecycle and admin context
+- `v2/intel.js` — faction intelligence and member drill-down
+- `v2/wars.js` — war overview, performance, archive, import, detail and sharing
 
-The browser is the presentation layer. API keys, aggregation rules and the persistent dataset remain server-side so RWEngine functionality can be shared without distributing the implementation as userscripts.
+Do not add presentation scripts that intercept or patch other frontend modules. New tools should own a clear route and data contract.
 
-## Repository layout
+## Backend
 
-- `v2/` — active frontend and module UI
-- `functions/v2/` — module-specific backend endpoints
-- `functions/api.js` — shared authentication and import-compatible API actions
-- `migrations/` / `schema.sql` — D1 schema
-- `docs/` — product and architecture notes
+- `functions/api.js` — authentication and legacy-compatible ranked-war import actions
+- `functions/v2/` — current data, sync, analytics, sharing and admin endpoints
+- `migrations/` / `schema.sql` — Cloudflare D1 schema
 
-New functionality should be added as a module inside the platform rather than as another top-level application.
+Torn API keys, persistent data, aggregation rules and sensitive calculations remain server-side.
+
+## Product direction
+
+RWEngine is a host for focused Torn utilities. Shared infrastructure should be reused across modules, but modules do not need to share the same page layout. Dense data should remain dense; navigation and setup should remain quiet.
