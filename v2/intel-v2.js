@@ -431,7 +431,6 @@ function renderDetailRow(member) {
 
 function renderInsights(member) {
   const insights = Array.isArray(member.insights) ? member.insights : [];
-  if (!insights.length) return '';
 
   const positive = insights.filter(item => item.kind === 'positive');
   const concerns = insights.filter(item => item.kind === 'attention');
