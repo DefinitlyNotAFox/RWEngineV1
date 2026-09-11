@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=22" />
+  <link rel="stylesheet" href="/v2/app.css?v=23" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -115,7 +115,10 @@
             <button type="button" data-faction-mode="timeline">Timeline</button>
             <button type="button" data-faction-mode="wars">Ranked wars</button>
           </div>
-          <button id="factionFilterToggle" class="faction-filter-toggle" type="button"></button>
+          <div class="faction-scope-row">
+            <button id="factionFilterToggle" class="faction-filter-toggle" type="button"></button>
+            <button id="factionScopeAll" class="text-action faction-scope-all" type="button">All</button>
+          </div>
         </div>
 
         <section id="factionFilterPanel" class="faction-filter-panel hidden" data-intel2-only></section>
@@ -276,6 +279,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=14"></script>
+  <script type="module" src="/v2/app.js?v=15"></script>
 </body>
 </html>
