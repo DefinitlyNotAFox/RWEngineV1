@@ -312,7 +312,7 @@ async function getPermission(db, factionId, resource) {
 
 async function upsertPermission(db, factionId, resource, ownerUserId, visibility, now) {
   await db.prepare(
-    'INSERT INTO resource_permissions (owner_user_id, faction_id, resource_type, resource_key, visibility, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(faction_id, resource_type, resource_key) DO UPDATE SET visibility = excluded.visibility, updated_at = excluded.updated_at'
+    'INSERT INTO resource_permissions (owner_user_id, faction_id, resource_type, resource_key, visibility, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(faction_id, resource_type, resource_key) DO UPDATE SET owner_user_id = excluded.owner_user_id, visibility = excluded.visibility, updated_at = excluded.updated_at'
   ).bind(ownerUserId, factionId, resource.type, resource.key, visibility, now, now).run();
 }
 
@@ -412,7 +412,7 @@ async function ensureSchemas(db) {
   ).run();
 
   await db.prepare(
-    "INSERT OR IGNORE INTO resource_permissions (owner_user_id, faction_id, resource_type, resource_key, visibility, created_at, updated_at) SELECT owner_user_id, faction_id, resource_type, resource_key, 'public', created_at, updated_at FROM share_links WHERE is_enabled = 1 AND resource_type = 'war'"
+    "INSERT OR IGNORE INTO resource_permissions (owner_user_id, faction_id, resource_type, resource_key, visibility, created_at, updated_at) SELECT COALESCE(w.imported_by_user_id, sl.owner_user_id), sl.faction_id, sl.resource_type, sl.resource_key, 'public', sl.created_at, sl.updated_at FROM share_links sl LEFT JOIN wars w ON w.faction_id = sl.faction_id AND w.war_id = sl.resource_key WHERE sl.is_enabled = 1 AND sl.resource_type = 'war'"
   ).run();
 }
 
