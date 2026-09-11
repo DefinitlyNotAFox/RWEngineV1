@@ -3971,3 +3971,26 @@ body {
 #intelTable .col-ocs {
   text-align: center;
 }
+
+
+/* Sorting must not change header wrapping or row height. */
+#intelTable .faction-column-row th button {
+  position: relative;
+  padding-right: 10px;
+}
+
+#intelTable .faction-column-row .sort-label {
+  display: block;
+  min-width: 0;
+}
+
+#intelTable .faction-column-row .sort-indicator {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 8px;
+  transform: translateY(-50%);
+  text-align: center;
+  line-height: 1;
+  pointer-events: none;
+}
