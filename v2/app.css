@@ -3331,3 +3331,21 @@ body {
     gap: 5px;
   }
 }
+
+
+#warDetailHead th button {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+#warDetailHead th button:hover {
+  color: var(--text);
+}
