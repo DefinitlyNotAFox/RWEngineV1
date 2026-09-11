@@ -23,47 +23,43 @@ const factionPresets = [
 ];
 
 const presetColumns = {
-  overview:['member','lastAction','stats','activity','xanax','participation4','hits4','attention'],
-  activity:['member','lastAction','activity','xanax','attention'],
+  overview:['member','stats','activity','xanax','participation4','hits4','attention'],
+  activity:['member','activity','xanax','attention'],
   training:['member','stats','xanax','attention'],
-  war:['member','wars','participation','hits','assists','outsideHits','netScore','attention'],
+  war:['member','participation','hits','assists','outsideHits','netScore','attention'],
   all:[
-    'member','lastAction','stats','activity','xanax',
-    'wars','participation','hits','assists','outsideHits',
-    'respectEarned','respectLost','scoreUp','scoreDown','netScore','attention'
+    'member','stats','activity','xanax',
+    'participation','hits','assists','outsideHits',
+    'respect','score','netScore','attention'
   ]
 };
 
 const columnLabels = {
   member:['Member',''],
-  lastAction:['Last action',''],
   stats:['Battle stats',''],
   activity:['Activity / day','30d'],
   xanax:['Xanax / day','30d'],
   participation4:['War participation','last 4'],
   hits4:['Hits per war','last 4'],
-  wars:['Wars joined',''],
-  participation:['Participation',''],
+  participation:['Wars / participation',''],
   hits:['Hits per war',''],
   assists:['Assists',''],
   outsideHits:['Outside hits',''],
-  respectEarned:['Respect gained',''],
-  respectLost:['Respect lost',''],
-  scoreUp:['Score gained',''],
-  scoreDown:['Score lost',''],
+  respect:['Respect + / −',''],
+  score:['Score + / −',''],
   netScore:['Net score',''],
   attention:['Signal','']
 };
 
 const presetGroups = {
   overview:[
-    ['roster','Roster',2],
+    ['roster','Roster',1],
     ['training','Training',3],
     ['war','War',2],
     ['context','Context',1]
   ],
   activity:[
-    ['roster','Roster',2],
+    ['roster','Roster',1],
     ['activity','Activity',2],
     ['context','Context',1]
   ],
@@ -74,13 +70,13 @@ const presetGroups = {
   ],
   war:[
     ['roster','Roster',1],
-    ['war','War performance',6],
+    ['war','War performance',5],
     ['context','Context',1]
   ],
   all:[
-    ['roster','Roster',2],
+    ['roster','Roster',1],
     ['training','Training',3],
-    ['war','War performance',10],
+    ['war','War performance',7],
     ['context','Context',1]
   ]
 };
@@ -551,10 +547,6 @@ function renderFactionCell(member, key) {
     return `<td class="col-member"><span class="member-name">${escapeHtml(member.playerName || 'Unknown')}</span><span class="member-meta">${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(member.level ?? '—')} · [${escapeHtml(member.playerId)}]${member.current ? '' : ' · former'}</span></td>`;
   }
 
-  if (key === 'lastAction') {
-    return `<td class="col-lastAction">${escapeHtml(formatRelative(member.presence?.lastActionAt))}${member.presence?.lastActionStatus ? `<span class="member-meta">${escapeHtml(member.presence.lastActionStatus)}</span>` : ''}</td>`;
-  }
-
   if (key === 'stats') {
     return `<td class="col-stats">${member.battleStats?.value == null ? '—' : escapeHtml(formatCompact(member.battleStats.value))}<span class="trend ${trendClass(member.battleStats?.changePct30d)}">${battleStatsTrend(member)}</span></td>`;
   }
@@ -583,12 +575,8 @@ function renderFactionCell(member, key) {
     return `<td class="col-${key}">${factionPerformance.loading ? '…' : '—'}</td>`;
   }
 
-  if (key === 'wars') {
-    return `<td class="col-wars"><strong>${formatNumber(performance.wars)}</strong><span class="member-meta">of ${formatNumber(factionPerformance.totalWars)}</span></td>`;
-  }
-
   if (key === 'participation') {
-    return `<td class="col-participation">${formatPercent(performance.participation)}</td>`;
+    return `<td class="col-participation"><strong>${formatNumber(performance.wars)} / ${formatNumber(factionPerformance.totalWars)}</strong><span class="member-meta">${formatPercent(performance.participation)} participation</span></td>`;
   }
 
   if (key === 'hits') {
@@ -601,10 +589,13 @@ function renderFactionCell(member, key) {
   }
 
   if (key === 'outsideHits') return `<td class="col-outsideHits">${formatNumber(performance.outsideHits)}</td>`;
-  if (key === 'respectEarned') return `<td class="col-respectEarned">${formatDecimal(performance.respectEarned, 2)}</td>`;
-  if (key === 'respectLost') return `<td class="col-respectLost">${formatDecimal(performance.respectLost, 2)}</td>`;
-  if (key === 'scoreUp') return `<td class="col-scoreUp">${formatDecimal(performance.scoreUp, 2)}</td>`;
-  if (key === 'scoreDown') return `<td class="col-scoreDown">${formatDecimal(performance.scoreDown, 2)}</td>`;
+  if (key === 'respect') {
+    return `<td class="col-respect"><strong>+${formatDecimal(performance.respectEarned, 2)}</strong><span class="member-meta">−${formatDecimal(performance.respectLost, 2)}</span></td>`;
+  }
+
+  if (key === 'score') {
+    return `<td class="col-score"><strong>+${formatDecimal(performance.scoreUp, 2)}</strong><span class="member-meta">−${formatDecimal(performance.scoreDown, 2)}</span></td>`;
+  }
 
   if (key === 'netScore') {
     const perWar = Number(performance.wars) > 0 ? Number(performance.netScore || 0) / Number(performance.wars) : null;
@@ -652,21 +643,27 @@ function sortValue(member, key) {
   const performance = performanceMember(member);
 
   if (key === 'member') return member.playerName || '';
-  if (key === 'lastAction') return nullable(member.presence?.lastActionAt);
   if (key === 'stats') return nullable(member.battleStats?.value);
   if (key === 'activity') return nullable(member.activity?.perDay30d);
   if (key === 'xanax') return nullable(member.xanax?.perDay30d);
   if (key === 'participation4') return nullable(member.war?.last4?.participation);
   if (key === 'hits4') return nullable(member.war?.last4?.hitsPerWar);
-  if (key === 'wars') return nullable(performance?.wars);
   if (key === 'participation') return nullable(performance?.participation);
   if (key === 'hits') return nullable(performance?.avgHitsPerWar);
   if (key === 'assists') return nullable(performance?.assists);
   if (key === 'outsideHits') return nullable(performance?.outsideHits);
-  if (key === 'respectEarned') return nullable(performance?.respectEarned);
-  if (key === 'respectLost') return nullable(performance?.respectLost);
-  if (key === 'scoreUp') return nullable(performance?.scoreUp);
-  if (key === 'scoreDown') return nullable(performance?.scoreDown);
+  if (key === 'respect') {
+    const earned = nullable(performance?.respectEarned);
+    const lost = nullable(performance?.respectLost);
+    if (earned === null && lost === null) return null;
+    return Number(earned || 0) - Number(lost || 0);
+  }
+  if (key === 'score') {
+    const up = nullable(performance?.scoreUp);
+    const down = nullable(performance?.scoreDown);
+    if (up === null && down === null) return null;
+    return Number(up || 0) - Number(down || 0);
+  }
   if (key === 'netScore') return nullable(performance?.netScore);
   if (key === 'attention') {
     const signal = topSignal(member);
