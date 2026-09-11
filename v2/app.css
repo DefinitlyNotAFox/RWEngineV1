@@ -4019,3 +4019,10 @@ body {
   line-height: 1;
   pointer-events: none;
 }
+
+
+/* Keep compact faction headers from breaking at awkward characters. */
+#intelTable .faction-column-row :is(.col-assists,.col-respect,.col-score,.col-netScore) .sort-label {
+  white-space: nowrap;
+  word-break: keep-all;
+}
