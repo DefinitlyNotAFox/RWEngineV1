@@ -4,7 +4,7 @@
   gap: 8px;
   padding: 6px 8px;
   border: 1px solid var(--border, rgba(255,255,255,.12));
-  border-radius: 8px;
+  border-radius: 3px;
   background: rgba(255,255,255,.035);
 }
 
@@ -68,7 +68,7 @@
   text-align: left;
   padding: 12px 14px;
   border: 1px solid var(--border, rgba(255,255,255,.1));
-  border-radius: 9px;
+  border-radius: 3px;
   background: rgba(255,255,255,.025);
   color: inherit;
   cursor: pointer;
@@ -102,7 +102,7 @@
 .admin-key-card {
   padding: 14px;
   border: 1px solid var(--border, rgba(255,255,255,.1));
-  border-radius: 10px;
+  border-radius: 3px;
   background: rgba(255,255,255,.025);
 }
 
@@ -153,7 +153,7 @@
   margin-top: 12px;
   padding: 10px 12px;
   border: 1px solid rgba(255,255,255,.12);
-  border-radius: 8px;
+  border-radius: 3px;
   background: rgba(255,255,255,.035);
   font-size: 12px;
 }
@@ -170,7 +170,7 @@
   margin-bottom: 12px;
   padding: 10px 12px;
   border: 1px solid rgba(255,255,255,.1);
-  border-radius: 8px;
+  border-radius: 3px;
   background: rgba(255,255,255,.025);
   color: var(--muted, #8f9a9d);
   font-size: 12px;
