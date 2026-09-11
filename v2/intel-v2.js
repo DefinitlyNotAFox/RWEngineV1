@@ -433,14 +433,14 @@ function renderIntelV2() {
     )
     .sort(compareMembers);
 
-  const totalRow = renderFactionTotalRow();
+  const tableLead = `<tr class="faction-head-spacer" aria-hidden="true"><td colspan="${colspan}"></td></tr>${renderFactionTotalRow()}`;
 
   if (!rows.length) {
-    body.innerHTML = `${totalRow}<tr class="empty-row"><td colspan="${colspan}">No members match this view.</td></tr>`;
+    body.innerHTML = `${tableLead}<tr class="empty-row"><td colspan="${colspan}">No members match this view.</td></tr>`;
     return;
   }
 
-  body.innerHTML = totalRow + rows.map(member => {
+  body.innerHTML = tableLead + rows.map(member => {
     const selected = Number(selectedMemberId) === Number(member.playerId);
 
     return `
