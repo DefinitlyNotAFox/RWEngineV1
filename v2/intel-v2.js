@@ -366,12 +366,13 @@ function renderFactionStatus() {
   const wrap = document.querySelector('#factionTableContext');
   if (!element) return;
 
+  wrap?.classList.remove('hidden');
+
   if (factionPerformance.loading) {
     element.textContent = filterMode === 'timeline'
       ? `Loading war data for ${formatRangeLabel(timelineRange)}…`
       : `Loading ${selectedWarIds.size} selected ranked wars…`;
     element.classList.remove('hidden','error');
-    wrap?.classList.remove('hidden');
     return;
   }
 
@@ -379,14 +380,12 @@ function renderFactionStatus() {
     element.textContent = factionPerformance.error;
     element.classList.remove('hidden');
     element.classList.add('error');
-    wrap?.classList.remove('hidden');
     return;
   }
 
   element.textContent = '';
-  element.classList.add('hidden');
   element.classList.remove('error');
-  wrap?.classList.add('hidden');
+  element.classList.add('hidden');
 }
 
 function renderIntelV2() {
