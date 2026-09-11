@@ -362,6 +362,7 @@ function renderFilterPanel() {
 
 function renderFactionStatus() {
   const element = document.querySelector('#factionTableStatus');
+  const wrap = document.querySelector('#factionTableContext');
   if (!element) return;
 
   if (factionPerformance.loading) {
@@ -369,6 +370,7 @@ function renderFactionStatus() {
       ? `Loading war data for ${formatRangeLabel(timelineRange)}…`
       : `Loading ${selectedWarIds.size} selected ranked wars…`;
     element.classList.remove('hidden','error');
+    wrap?.classList.remove('hidden');
     return;
   }
 
@@ -376,12 +378,14 @@ function renderFactionStatus() {
     element.textContent = factionPerformance.error;
     element.classList.remove('hidden');
     element.classList.add('error');
+    wrap?.classList.remove('hidden');
     return;
   }
 
   element.textContent = '';
   element.classList.add('hidden');
   element.classList.remove('error');
+  wrap?.classList.add('hidden');
 }
 
 function renderIntelV2() {
@@ -442,16 +446,17 @@ function renderSummary() {
   const current = (overview.members || []).filter(member => member.current !== false);
   const rows = current.map(member => performanceMember(member)).filter(Boolean);
   const participation = averageNullable(rows.map(row => row.participation));
-  const scope = filterMode === 'timeline'
-    ? formatRangeLabel(effectiveRange())
+  const activityScope = filterMode === 'timeline' ? 'selected period' : 'selected war span';
+  const warScope = filterMode === 'timeline'
+    ? `${formatNumber(factionPerformance.totalWars)} wars in range`
     : `${selectedWarIds.size} selected war${selectedWarIds.size === 1 ? '' : 's'}`;
 
   element.innerHTML = [
     metric('Members', formatNumber(summary.currentMembers), 'current roster'),
     metric('Median stats', formatCompact(summary.medianBattleStats), `${formatNumber(summary.knownBattleStats)} estimates known`),
-    metric('Activity / day', formatDuration(summary.avgActivityPerDay30d), scope),
-    metric('Xanax / day', formatDecimal(summary.avgXanaxPerDay30d, 2), scope),
-    metric('War participation', factionPerformance.loading ? '…' : formatPercent(participation), scope),
+    metric('Activity / day', formatDuration(summary.avgActivityPerDay30d), activityScope),
+    metric('Xanax / day', formatDecimal(summary.avgXanaxPerDay30d, 2), activityScope),
+    metric('War participation', factionPerformance.loading ? '…' : formatPercent(participation), warScope),
     metric('Attention', formatNumber(summary.membersNeedingAttention), 'actionable signals')
   ].join('');
 }
