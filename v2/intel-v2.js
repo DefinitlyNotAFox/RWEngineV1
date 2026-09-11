@@ -101,7 +101,6 @@ export function initIntelV2() {
 
   on('faction', () => {
     resetIntelState();
-    if (state.route === 'intel') loadIntelV2(true);
   });
 
   on('data', () => {
