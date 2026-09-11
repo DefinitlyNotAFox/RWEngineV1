@@ -2978,3 +2978,146 @@ body {
     display: none;
   }
 }
+
+
+/* Intel member context traits */
+
+.intel2-detail .intel2-insights {
+  margin: 0;
+  padding: 0 14px 11px;
+  border: 0;
+  background: #0e1011;
+}
+
+.intel2-trait-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 18px;
+}
+
+.intel2-trait-group {
+  padding: 9px 0 4px;
+}
+
+.intel2-trait-group > header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 5px;
+}
+
+.intel2-trait-group > header span {
+  width: 14px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+}
+
+.intel2-trait-group > header strong {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
+.intel2-trait-group.positive > header span,
+.intel2-trait-group.positive > header strong {
+  color: var(--success);
+}
+
+.intel2-trait-group.attention > header span,
+.intel2-trait-group.attention > header strong {
+  color: var(--warning);
+}
+
+.intel2-trait-list {
+  display: grid;
+  gap: 3px;
+}
+
+.intel2-trait {
+  display: grid;
+  grid-template-columns: 145px minmax(0,1fr);
+  gap: 10px;
+  align-items: baseline;
+  min-height: 26px;
+  padding: 4px 0;
+}
+
+.intel2-trait b {
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 620;
+}
+
+.intel2-trait span {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.intel2-trait-empty {
+  color: var(--dim);
+  font-size: 10px;
+}
+
+.intel2-data-notes {
+  display: grid;
+  grid-template-columns: 58px minmax(0,1fr);
+  gap: 12px;
+  align-items: start;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid #1b1e20;
+}
+
+.intel2-data-notes > span {
+  color: var(--dim);
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.intel2-data-note {
+  display: grid;
+  grid-template-columns: 145px minmax(0,1fr);
+  gap: 10px;
+}
+
+.intel2-data-note b {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 620;
+}
+
+.intel2-data-note span {
+  color: var(--dim);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+@media (max-width: 800px) {
+  .intel2-trait-grid {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .intel2-trait,
+  .intel2-data-note {
+    grid-template-columns: 130px minmax(0,1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .intel2-trait,
+  .intel2-data-note,
+  .intel2-data-notes {
+    grid-template-columns: 1fr;
+  }
+
+  .intel2-data-notes {
+    gap: 5px;
+  }
+}
