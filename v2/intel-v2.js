@@ -15,7 +15,7 @@ const filters = [
 ];
 
 const factionColumns = [
-  'member','stats','activity','xanax',
+  'member','stats','xanax','activity','ocs',
   'participation','hits','assists','outsideHits',
   'respect','score','netScore','attention'
 ];
@@ -23,8 +23,9 @@ const factionColumns = [
 const columnLabels = {
   member:['Member',''],
   stats:['Battle stats',''],
-  activity:['Activity / day',''],
   xanax:['Xanax / day',''],
+  activity:['Activity / day',''],
+  ocs:['OCs',''],
   participation:['Wars / participation',''],
   hits:['Hits per war',''],
   assists:['Assists',''],
@@ -37,7 +38,7 @@ const columnLabels = {
 
 const factionGroups = [
   ['roster','Roster',1],
-  ['training','Activity & training',3],
+  ['training','Activity & training',4],
   ['war','War performance',7],
   ['context','Context',1]
 ];
@@ -470,14 +471,15 @@ function renderFactionTotalRow() {
         <strong>${formatCompact(summary.medianBattleStats)}</strong>
         <span class="member-meta">median · ${formatNumber(summary.knownBattleStats)} known</span>
       </td>
-      <td class="col-activity">
-        <strong>${formatDuration(summary.avgActivityPerDay30d)}</strong>
-        <span class="member-meta">average / day</span>
-      </td>
       <td class="col-xanax">
         <strong>${formatDecimal(summary.avgXanaxPerDay30d, 2)}</strong>
         <span class="member-meta">average / day</span>
       </td>
+      <td class="col-activity">
+        <strong>${formatDuration(summary.avgActivityPerDay30d)}</strong>
+        <span class="member-meta">average / day</span>
+      </td>
+      <td class="col-ocs">—</td>
       <td class="col-participation">
         <strong>${warLoading ? '…' : formatPercent(participation)}</strong>
         <span class="member-meta">${escapeHtml(warScope)}</span>
@@ -544,6 +546,9 @@ function renderHeaders() {
   const columnRow = factionColumns.map(key => {
     const [label, detail] = columnLabels[key] || [key,''];
     const active = key === sortKey;
+    if (key === 'ocs') {
+      return `<th class="col-ocs"><span>${escapeHtml(label)}</span></th>`;
+    }
     return `
       <th class="col-${key}${active ? ' sorted' : ''}">
         <button type="button" data-intel2-sort="${key}">
@@ -577,6 +582,10 @@ function renderFactionCell(member, key) {
 
   if (key === 'xanax') {
     return `<td class="col-xanax">${escapeHtml(formatDecimal(member.xanax?.perDay30d, 2))}<span class="trend ${trendClass(member.xanax?.changePct)}">${escapeHtml(tableTrendLabel(member.xanax?.changePct))}</span></td>`;
+  }
+
+  if (key === 'ocs') {
+    return '<td class="col-ocs">—</td>';
   }
 
   if (key === 'participation4') {
@@ -667,6 +676,7 @@ function sortValue(member, key) {
   if (key === 'stats') return nullable(member.battleStats?.value);
   if (key === 'activity') return nullable(member.activity?.perDay30d);
   if (key === 'xanax') return nullable(member.xanax?.perDay30d);
+  if (key === 'ocs') return null;
   if (key === 'participation4') return nullable(member.war?.last4?.participation);
   if (key === 'hits4') return nullable(member.war?.last4?.hitsPerWar);
   if (key === 'participation') return nullable(performance?.participation);
