@@ -3537,18 +3537,19 @@ body {
 
 /* All: fixed proportions, still readable at normal desktop widths. */
 
-#intelTable[data-preset="all"] .col-member       { width: 15% !important; }
+#intelTable[data-preset="all"] .col-member       { width: 14% !important; }
 #intelTable[data-preset="all"] .col-stats        { width: 8% !important; }
-#intelTable[data-preset="all"] .col-activity     { width: 8% !important; }
 #intelTable[data-preset="all"] .col-xanax        { width: 7% !important; }
+#intelTable[data-preset="all"] .col-activity     { width: 8% !important; }
+#intelTable[data-preset="all"] .col-ocs          { width: 5% !important; }
 #intelTable[data-preset="all"] .col-participation{ width: 10% !important; }
 #intelTable[data-preset="all"] .col-hits         { width: 8% !important; }
 #intelTable[data-preset="all"] .col-assists      { width: 6% !important; }
 #intelTable[data-preset="all"] .col-outsideHits  { width: 7% !important; }
-#intelTable[data-preset="all"] .col-respect      { width: 9% !important; }
-#intelTable[data-preset="all"] .col-score        { width: 9% !important; }
-#intelTable[data-preset="all"] .col-netScore     { width: 7% !important; }
-#intelTable[data-preset="all"] .col-attention    { width: 6% !important; }
+#intelTable[data-preset="all"] .col-respect      { width: 8% !important; }
+#intelTable[data-preset="all"] .col-score        { width: 8% !important; }
+#intelTable[data-preset="all"] .col-netScore     { width: 6% !important; }
+#intelTable[data-preset="all"] .col-attention    { width: 5% !important; }
 
 /* War stays roomy without ever exceeding the page. */
 
@@ -3632,18 +3633,19 @@ body {
   min-height: 1em;
 }
 
-#intelTable[data-preset="all"] .col-member        { width: 17% !important; }
+#intelTable[data-preset="all"] .col-member        { width: 16% !important; }
 #intelTable[data-preset="all"] .col-stats         { width: 7% !important; }
-#intelTable[data-preset="all"] .col-activity      { width: 7% !important; }
 #intelTable[data-preset="all"] .col-xanax         { width: 6% !important; }
+#intelTable[data-preset="all"] .col-activity      { width: 7% !important; }
+#intelTable[data-preset="all"] .col-ocs           { width: 5% !important; }
 #intelTable[data-preset="all"] .col-participation { width: 10% !important; }
 #intelTable[data-preset="all"] .col-hits          { width: 7% !important; }
 #intelTable[data-preset="all"] .col-assists       { width: 6% !important; }
 #intelTable[data-preset="all"] .col-outsideHits   { width: 7% !important; }
 #intelTable[data-preset="all"] .col-respect       { width: 8% !important; }
 #intelTable[data-preset="all"] .col-score         { width: 8% !important; }
-#intelTable[data-preset="all"] .col-netScore      { width: 8% !important; }
-#intelTable[data-preset="all"] .col-attention     { width: 9% !important; }
+#intelTable[data-preset="all"] .col-netScore      { width: 7% !important; }
+#intelTable[data-preset="all"] .col-attention     { width: 6% !important; }
 
 #intelTable[data-preset="all"] .col-member .member-meta {
   white-space: normal;
@@ -3964,4 +3966,8 @@ body {
 
 #intelTable .faction-total-row .col-attention {
   background: #0b0d0e;
+}
+
+#intelTable .col-ocs {
+  text-align: center;
 }
