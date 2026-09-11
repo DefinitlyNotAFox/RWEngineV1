@@ -36,6 +36,23 @@ function configureIntelMode() {
   document.querySelectorAll('[data-intel2-only]').forEach(element => {
     element.classList.toggle('hidden', legacyIntelMode);
   });
+
+  if (legacyIntelMode) {
+    const head = document.querySelector('#intelHead');
+    if (head) {
+      head.innerHTML = `
+        <tr>
+          <th>Member</th>
+          <th data-intel-sort="lastAction">Last action</th>
+          <th data-intel-sort="stats">Battle stats</th>
+          <th data-intel-sort="activity">Activity / day</th>
+          <th data-intel-sort="xanax">Xanax / day</th>
+          <th data-intel-sort="participation">War participation</th>
+          <th data-intel-sort="hits">Hits per war</th>
+        </tr>
+      `;
+    }
+  }
 }
 
 function bindAuth() {
