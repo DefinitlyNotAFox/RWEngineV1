@@ -10,6 +10,7 @@ const VALID_TABS = new Set([
 
 installUiRefinementStyles();
 bindTabPersistence();
+window.addEventListener('rwe:tab-changed', event => rememberTab(event.detail?.tab));
 restoreActiveTab();
 repairAdminFactionLabel();
 
