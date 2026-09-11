@@ -10,8 +10,7 @@ const filters = [
   ['inactive','Inactive 48h+'],
   ['war','Low participation'],
   ['decline','Declining'],
-  ['stats','Stats missing/stale'],
-  ['former','Former members']
+  ['stats','Stats missing/stale']
 ];
 
 const factionColumns = [
@@ -60,6 +59,8 @@ const priority = [
 let overview = null;
 let loadedFactionId = null;
 let activeFilter = 'all';
+let showFormerMembers = restoreBooleanPreference('rwengine.showFormerMembers', false);
+let excludeMilestones = restoreBooleanPreference('rwengine.excludeMilestones', false);
 let selectedMemberId = null;
 let sortKey = 'member';
 let sortDirection = 'asc';
@@ -200,6 +201,21 @@ export function initIntelV2() {
   });
 
   document.querySelector('#intelFilters')?.addEventListener('click', event => {
+    const option = event.target.closest('[data-intel-option]');
+    if (option) {
+      const key = option.dataset.intelOption;
+      if (key === 'former') {
+        showFormerMembers = !showFormerMembers;
+        storeBooleanPreference('rwengine.showFormerMembers', showFormerMembers);
+      } else if (key === 'milestones') {
+        excludeMilestones = !excludeMilestones;
+        storeBooleanPreference('rwengine.excludeMilestones', excludeMilestones);
+      }
+      renderFilters();
+      renderIntelV2();
+      return;
+    }
+
     const button = event.target.closest('[data-intel-filter]');
     if (!button) return;
     activeFilter = button.dataset.intelFilter || 'all';
@@ -330,9 +346,19 @@ async function loadFactionPerformance(force = false) {
 function renderFilters() {
   const container = document.querySelector('#intelFilters');
   if (!container) return;
-  container.innerHTML = filters.map(([key,label]) =>
+
+  const contextFilters = filters.map(([key,label]) =>
     `<button class="intel2-filter${key === activeFilter ? ' active' : ''}" type="button" data-intel-filter="${key}">${label}</button>`
   ).join('');
+
+  const options = `
+    <span class="intel-filter-options">
+      <button class="intel2-filter intel2-option${showFormerMembers ? ' active' : ''}" type="button" data-intel-option="former">Show former members</button>
+      <button class="intel2-filter intel2-option${excludeMilestones ? ' active' : ''}" type="button" data-intel-option="milestones">Exclude milestones</button>
+    </span>
+  `;
+
+  container.innerHTML = contextFilters + options;
 }
 
 function renderFactionControls() {
@@ -456,7 +482,7 @@ function renderFactionTotalRow() {
   if (!current.length && !factionPerformance.members.size) return '';
 
   const currentPerformance = current.map(member => performanceMember(member)).filter(Boolean);
-  const allPerformance = [...factionPerformance.members.values()];
+  const allPerformance = [...factionPerformance.members.values()].map(adjustedPerformance);
   const totalWars = Number(factionPerformance.totalWars || 0);
   const warLoading = factionPerformance.loading;
 
@@ -669,21 +695,23 @@ function renderFactionCell(member, key) {
 function matchesFilter(member) {
   const insights = Array.isArray(member.insights) ? member.insights : [];
   const codes = new Set(insights.map(item => item.code));
+  const memberVisible = member.current !== false || showFormerMembers;
 
-  if (activeFilter === 'all') return member.current !== false;
-  if (activeFilter === 'attention') return member.current !== false && topSignal(member)?.kind === 'attention';
-  if (activeFilter === 'inactive') return member.current !== false && codes.has('inactive');
+  if (!memberVisible) return false;
+  if (activeFilter === 'all') return true;
+  if (activeFilter === 'attention') return topSignal(member)?.kind === 'attention';
+  if (activeFilter === 'inactive') return codes.has('inactive');
   if (activeFilter === 'war') {
     if (!factionPerformance.loadedKey || factionPerformance.totalWars <= 0) return false;
     const performance = performanceMember(member);
-    return member.current !== false &&
+    return Boolean(
       performance &&
       Number.isFinite(Number(performance.participation)) &&
-      Number(performance.participation) < 0.5;
+      Number(performance.participation) < 0.5
+    );
   }
-  if (activeFilter === 'decline') return member.current !== false && (codes.has('activity_down') || codes.has('xanax_down'));
-  if (activeFilter === 'stats') return member.current !== false && (codes.has('missing_battle_stats') || codes.has('stale_battle_stats'));
-  if (activeFilter === 'former') return member.current === false;
+  if (activeFilter === 'decline') return codes.has('activity_down') || codes.has('xanax_down');
+  if (activeFilter === 'stats') return codes.has('missing_battle_stats') || codes.has('stale_battle_stats');
   return true;
 }
 
@@ -736,7 +764,37 @@ function sortValue(member, key) {
 }
 
 function performanceMember(member) {
-  return factionPerformance.members.get(Number(member?.playerId)) || null;
+  const row = factionPerformance.members.get(Number(member?.playerId)) || null;
+  return adjustedPerformance(row);
+}
+
+function adjustedPerformance(row) {
+  if (!row || !excludeMilestones) return row;
+
+  const wars = Number(row.wars || 0);
+  const milestoneHits = Math.max(0, Number(row.chainBonusHitsOut || 0));
+  const warHits = Math.max(0, Number(row.warHits || 0) - milestoneHits);
+
+  const respectEarned = row.respectEarned == null
+    ? null
+    : Number(row.respectEarned || 0) - Number(row.chainBonusScoreOut || 0);
+  const respectLost = row.respectLost == null
+    ? null
+    : Math.max(0, Number(row.respectLost || 0) - Number(row.chainBonusRespectLostIn || 0));
+
+  const scoreUp = Number(row.scoreUp || 0) - Number(row.chainBonusScoreOut || 0);
+  const scoreDown = Math.max(0, Number(row.scoreDown || 0) - Number(row.chainBonusScoreIn || 0));
+
+  return {
+    ...row,
+    warHits,
+    avgHitsPerWar:wars > 0 ? warHits / wars : null,
+    respectEarned,
+    respectLost,
+    scoreUp,
+    scoreDown,
+    netScore:scoreUp - scoreDown
+  };
 }
 
 function analysisPayload() {
@@ -770,6 +828,19 @@ function ensureSortKey() {
   if (factionColumns.includes(sortKey)) return;
   sortKey = 'member';
   sortDirection = 'asc';
+}
+
+function restoreBooleanPreference(key, fallback = false) {
+  try {
+    const value = localStorage.getItem(key);
+    return value === null ? fallback : value === 'true';
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function storeBooleanPreference(key, value) {
+  try { localStorage.setItem(key, value ? 'true' : 'false'); } catch (_) {}
 }
 
 function restoreFactionMode() {
