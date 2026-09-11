@@ -9,7 +9,7 @@ export const intelFixture = {
     avgActivityPerDay30d: 18720,
     avgXanaxPerDay30d: 2.43,
     avgParticipationLast4: 0.73,
-    membersNeedingAttention: 5
+    membersNeedingAttention: 4
   },
   members: [
     member(101,'Aster','Leader',88,1450000000,0.98,23400,21800,3.1,2.8,4,4,34.5,620,[
