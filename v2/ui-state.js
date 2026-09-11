@@ -5,7 +5,6 @@ const VALID_TABS = new Set([
   'ranked-war',
   'performance',
   'wars',
-  'current-war',
   'settings'
 ]);
 
