@@ -44,14 +44,17 @@ export const intelFixture = {
     member(111,'Kestrel','Member',49,180000000,0.71,12600,12900,1.7,1.8,4,3,15.5,80,[], [140,146,151,157,163,168,173,178],[3.4,3.5,3.5,3.6,3.6,3.5,3.6,3.5],[1.8,1.8,1.8,1.7,1.8,1.8,1.7,1.7]),
     member(112,'Lumen','Member',46,95000000,0.36,9300,9800,1.4,1.5,4,2,9.5,35,[
       attention('low_war_participation','2/4 wars','Participated in 2 of the last 4 wars.')
-    ], [72,75,78,81,84,87,90,94],[2.9,2.8,2.8,2.7,2.7,2.6,2.6,2.6],[1.5,1.5,1.5,1.4,1.5,1.4,1.4,1.4])
+    ], [72,75,78,81,84,87,90,94],[2.9,2.8,2.8,2.7,2.7,2.6,2.6,2.6],[1.5,1.5,1.5,1.4,1.5,1.4,1.4,1.4]),
+    member(113,'Morrow','Former',58,390000000,0.50,0,0,0,0,4,2,14.0,-40,[
+      note('former_member','former','No longer in the faction.')
+    ], [310,320,332,345,356,367,378,389],[3.8,3.9,4.0,3.7,3.2,2.6,1.2,0],[2.0,2.1,2.1,2.0,1.7,1.2,0.5,0],0,false)
   ]
 };
 
-function member(id,name,position,level,stats,lastActionRatio,activity,prevActivity,xanax,prevXanax,warsAvailable,warsParticipated,hitsPerWar,netScore,insights,statsSeries,activitySeries,xanaxSeries,inactiveDays=0){
+function member(id,name,position,level,stats,lastActionRatio,activity,prevActivity,xanax,prevXanax,warsAvailable,warsParticipated,hitsPerWar,netScore,insights,statsSeries,activitySeries,xanaxSeries,inactiveDays=0,current=true){
   const now=intelFixtureTime();
   return {
-    playerId:id, playerName:name, level, position, current:true, daysInFaction:240 + (id%7)*31,
+    playerId:id, playerName:name, level, position, current, daysInFaction:240 + (id%7)*31,
     presence:{
       lastActionAt: now - (inactiveDays ? inactiveDays*86400 : Math.round((1-lastActionRatio)*7*3600)),
       lastActionStatus: inactiveDays ? 'Offline' : 'Online recently',
