@@ -36,6 +36,8 @@ let selectedId=null;
 let sortKey='attention';
 let sortDirection='desc';
 let trendDays=90;
+const detailCache=new Map();
+const detailLoading=new Set();
 
 init();
 
@@ -84,7 +86,7 @@ async function init(){
     render();
   });
 
-  document.querySelector('#intel2Body').addEventListener('click',event=>{
+  document.querySelector('#intel2Body').addEventListener('click',async event=>{
     const trendButton=event.target.closest('[data-trend-days]');
     if(trendButton){
       trendDays=Number(trendButton.dataset.trendDays)||90;
@@ -95,8 +97,36 @@ async function init(){
     const row=event.target.closest('tr[data-member-id]');
     if(!row)return;
     const id=Number(row.dataset.memberId);
-    selectedId=selectedId===id?null:id;
+    if(selectedId===id){
+      selectedId=null;
+      render();
+      return;
+    }
+
+    selectedId=id;
     render();
+
+    if(liveMode&&!detailCache.has(id)&&!detailLoading.has(id)){
+      detailLoading.add(id);
+      render();
+      try{
+        const payload=await loadLiveMember(id);
+        detailCache.set(id,payload);
+        const index=data.members.findIndex(member=>Number(member.playerId)===id);
+        if(index>=0){
+          data.members[index]={
+            ...data.members[index],
+            ...payload.member,
+            history:payload.history||data.members[index].history||{stats:[],activity:[],xanax:[],wars:[]}
+          };
+        }
+      }catch(error){
+        detailCache.set(id,{error:error.message||'Failed to load member detail.'});
+      }finally{
+        detailLoading.delete(id);
+        if(selectedId===id)render();
+      }
+    }
   });
 
   renderSummary();
@@ -140,6 +170,69 @@ function normalizeLivePayload(payload){
       }
     }))
   };
+}
+
+async function loadLiveMember(playerId){
+  const params=new URL(location.href).searchParams;
+  const factionId=Number(params.get('factionId')||0);
+  const response=await fetch('/v2/intel-v2',{
+    method:'POST',
+    credentials:'same-origin',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      action:'member',
+      playerId,
+      ...(factionId>0?{factionId}:{})
+    })
+  });
+
+  let payload;
+  try{payload=await response.json();}
+  catch(_){throw new Error('Intel member detail returned no JSON.');}
+
+  if(!response.ok||payload?.success===false){
+    throw new Error(payload?.message||`Member detail failed with HTTP ${response.status}.`);
+  }
+
+  const history=payload.history||{};
+  const snapshots=Array.isArray(history.snapshots)?history.snapshots:[];
+  return {
+    ...payload,
+    history:{
+      stats:snapshots
+        .filter(point=>Number.isFinite(Number(point.battleStatsValue)))
+        .map(point=>({at:point.at,value:Number(point.battleStatsValue)})),
+      activity:deriveRateSeries(snapshots,'activityTotalSeconds'),
+      xanax:deriveRateSeries(snapshots,'xanaxTakenTotal'),
+      wars:Array.isArray(history.wars)?history.wars.map(war=>({
+        opponent:war.opponentFactionName||'Unknown opponent',
+        warId:war.warId,
+        endedAt:war.endedAt,
+        hits:Number(war.hits||0),
+        assists:Number(war.assists||0),
+        outsideHits:Number(war.outsideHits||0),
+        netScore:Number(war.netScore||0)
+      })):[]
+    }
+  };
+}
+
+function deriveRateSeries(snapshots,key){
+  const rows=snapshots
+    .filter(point=>Number.isFinite(Number(point.at))&&Number.isFinite(Number(point[key])))
+    .sort((a,b)=>Number(a.at)-Number(b.at));
+
+  const series=[];
+  for(let index=1;index<rows.length;index++){
+    const previous=rows[index-1];
+    const current=rows[index];
+    const elapsed=(Number(current.at)-Number(previous.at))/86400;
+    const delta=Number(current[key])-Number(previous[key]);
+    if(elapsed>0&&delta>=0){
+      series.push({at:Number(current.at),value:delta/elapsed});
+    }
+  }
+  return series;
 }
 
 function renderSummary(){
@@ -228,6 +321,14 @@ function topSignal(member){
 }
 
 function detailRow(member){
+  const cached=detailCache.get(Number(member.playerId));
+  if(liveMode&&detailLoading.has(Number(member.playerId))){
+    return `<tr class="intel2-detail-row"><td colspan="8"><section class="intel2-detail"><p class="status-line">Loading member history…</p></section></td></tr>`;
+  }
+  if(liveMode&&cached?.error){
+    return `<tr class="intel2-detail-row"><td colspan="8"><section class="intel2-detail"><p class="status-line error">${escapeHtml(cached.error)}</p></section></td></tr>`;
+  }
+
   return `
     <tr class="intel2-detail-row">
       <td colspan="8">
