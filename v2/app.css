@@ -3947,17 +3947,21 @@ body {
 }
 
 
-/* Faction totals belong to the table, not the page header. */
-.faction-table-summary {
-  margin: 0;
-  border-bottom: 0;
-}
 
-.faction-table-summary + .faction-table-wrap {
+/* Faction-wide aggregate row lives inside the roster table. */
+#intelTable .faction-total-row td {
+  height: 46px;
   border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: #0b0d0e;
+  font-variant-numeric: tabular-nums;
 }
 
-.faction-table-summary .metric {
-  padding-top: 10px;
-  padding-bottom: 10px;
+#intelTable .faction-total-row .member-name,
+#intelTable .faction-total-row strong {
+  font-weight: 700;
+}
+
+#intelTable .faction-total-row .col-attention {
+  background: #0b0d0e;
 }
