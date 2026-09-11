@@ -450,7 +450,10 @@ function renderInlineMemberDetail(summaryMember) {
               <h3>${escapeHtml(summaryMember.playerName || `Player ${summaryMember.playerId}`)}</h3>
               <p>${escapeHtml(summaryMember.position || 'Member')} · Level ${summaryMember.level ?? '—'} · [${summaryMember.playerId}]</p>
             </div>
-            <button class="inline-close" data-close-member type="button" aria-label="Collapse member details">×</button>
+            <div class="member-inline-actions">
+              <a class="member-profile-external" href="https://www.torn.com/profiles.php?XID=${summaryMember.playerId}" target="_blank" rel="noopener noreferrer">Torn profile ↗</a>
+              <button class="inline-close" data-close-member type="button" aria-label="Collapse member details">×</button>
+            </div>
           </header>
           <div class="member-inline-body">${body}</div>
         </section>
