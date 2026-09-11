@@ -2,7 +2,10 @@ import {
   formatNumber, formatCompact, formatDecimal, formatPercent,
   formatDuration, formatRelative, formatDate, escapeHtml, metric
 } from './core.js';
-import { intelFixture as data } from './fixtures/intel-v2.js';
+import { intelFixture } from './fixtures/intel-v2.js';
+
+let data = intelFixture;
+const liveMode = new URL(location.href).searchParams.get('live') === '1';
 
 const filters = [
   ['all','All'],
@@ -36,7 +39,19 @@ let trendDays=90;
 
 init();
 
-function init(){
+async function init(){
+  if (liveMode) {
+    try {
+      data = await loadLiveIntel();
+      document.querySelector('.preview-flag').textContent = 'Live preview';
+      document.querySelector('.context-button').textContent = 'Live Intel 2.0 · staged endpoint';
+    } catch (error) {
+      document.querySelector('.preview-flag').textContent = 'Live failed';
+      document.querySelector('.context-button').textContent = 'Falling back to fixture data';
+      console.error(error);
+      data = intelFixture;
+    }
+  }
   document.querySelector('#intel2Freshness').textContent =
     `Fixture contract · generated ${formatRelative(data.generatedAt)} relative to preview clock`;
 
@@ -86,6 +101,45 @@ function init(){
 
   renderSummary();
   render();
+}
+
+async function loadLiveIntel(){
+  const params=new URL(location.href).searchParams;
+  const factionId=Number(params.get('factionId')||0);
+  const response=await fetch('/v2/intel-v2',{
+    method:'POST',
+    credentials:'same-origin',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      action:'overview',
+      ...(factionId>0?{factionId}:{})
+    })
+  });
+
+  let payload;
+  try{payload=await response.json();}
+  catch(_){throw new Error('Intel 2.0 returned no JSON.');}
+
+  if(!response.ok||payload?.success===false){
+    throw new Error(payload?.message||`Intel 2.0 failed with HTTP ${response.status}.`);
+  }
+
+  return normalizeLivePayload(payload);
+}
+
+function normalizeLivePayload(payload){
+  return {
+    ...payload,
+    members:(payload.members||[]).map(member=>({
+      ...member,
+      history:member.history||{
+        stats:[],
+        activity:[],
+        xanax:[],
+        wars:[]
+      }
+    }))
+  };
 }
 
 function renderSummary(){
