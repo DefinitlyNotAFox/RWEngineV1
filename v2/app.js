@@ -364,7 +364,7 @@ function renderMembers() {
   });
 
   if (!rows.length) {
-    membersBody.innerHTML = '<tr><td colspan="9" class="empty">No matching members in the selected range.</td></tr>';
+    membersBody.innerHTML = '<tr><td colspan="8" class="empty">No matching members in the selected range.</td></tr>';
     return;
   }
 
@@ -381,7 +381,6 @@ function renderMembers() {
         <td>${formatBattleStats(member)}</td>
         <td>${formatActivityPerDay(member.activityPerDaySeconds)}</td>
         <td>${formatNullableDecimal(member.xanaxPerDay, 2)}</td>
-        <td>${formatNullableDecimal(member.ocsPerMonth, 1)}</td>
         <td>${formatPercent(member.participation)}</td>
         <td>${formatNullableDecimal(member.avgHitsPerWar, 1)}</td>
       </tr>
@@ -444,7 +443,7 @@ function renderInlineMemberDetail(summaryMember) {
 
   return `
     <tr class="member-detail-row">
-      <td colspan="9">
+      <td colspan="8">
         <section class="member-inline-panel">
           <header class="member-inline-header">
             <div>
@@ -540,7 +539,6 @@ function renderMemberDetailContent(member, wars) {
       ${detailCard('Battle stats', formatBattleStats(member), member.battleStatsVerified ? 'Verified by member API' : member.battleStatsValue ? 'Estimate' : 'Unavailable')}
       ${detailCard('Activity / day', formatActivityPerDay(member.activityPerDaySeconds), coverageText(member.coverageDays))}
       ${detailCard('Xanax / day', formatNullableDecimal(member.xanaxPerDay, 2), member.xanaxTaken !== null ? `${formatNumber(member.xanaxTaken)} in range` : 'Unavailable')}
-      ${detailCard('OCs / month', formatNullableDecimal(member.ocsPerMonth, 1), member.ocCount !== null ? `${formatNumber(member.ocCount)} in range` : 'Tracking will be added next')}
     </div>
 
     <section class="member-detail-section">
