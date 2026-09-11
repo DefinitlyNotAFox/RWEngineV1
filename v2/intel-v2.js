@@ -42,17 +42,47 @@ const columnLabels = {
   xanax:['Xanax / day','30d'],
   participation4:['War participation','last 4'],
   hits4:['Hits per war','last 4'],
-  wars:['Wars joined','selected range'],
-  participation:['Participation','selected range'],
-  hits:['Hits per war','selected range'],
-  assists:['Assists','selected range'],
-  outsideHits:['Outside hits','selected range'],
-  respectEarned:['Respect gained','selected range'],
-  respectLost:['Respect lost','selected range'],
-  scoreUp:['Score gained','selected range'],
-  scoreDown:['Score lost','selected range'],
-  netScore:['Net score','selected range'],
+  wars:['Wars joined',''],
+  participation:['Participation',''],
+  hits:['Hits per war',''],
+  assists:['Assists',''],
+  outsideHits:['Outside hits',''],
+  respectEarned:['Respect gained',''],
+  respectLost:['Respect lost',''],
+  scoreUp:['Score gained',''],
+  scoreDown:['Score lost',''],
+  netScore:['Net score',''],
   attention:['Signal','']
+};
+
+const presetGroups = {
+  overview:[
+    ['roster','Roster',2],
+    ['training','Training',3],
+    ['war','War',2],
+    ['context','Context',1]
+  ],
+  activity:[
+    ['roster','Roster',2],
+    ['activity','Activity',2],
+    ['context','Context',1]
+  ],
+  training:[
+    ['roster','Roster',1],
+    ['training','Training',2],
+    ['context','Context',1]
+  ],
+  war:[
+    ['roster','Roster',1],
+    ['war','War performance',6],
+    ['context','Context',1]
+  ],
+  all:[
+    ['roster','Roster',2],
+    ['training','Training',3],
+    ['war','War performance',10],
+    ['context','Context',1]
+  ]
 };
 
 const presetGuides = {
@@ -306,7 +336,7 @@ function renderFactionStatus() {
   }
 
   if (factionPerformance.loading) {
-    element.textContent = 'Loading war performance for the selected range…';
+    element.textContent = `War range: ${periodLabel()} · loading performance…`;
     element.classList.remove('hidden','error');
     return;
   }
@@ -319,7 +349,7 @@ function renderFactionStatus() {
   }
 
   if (factionPerformance.loadedKey) {
-    element.textContent = `${formatNumber(factionPerformance.totalWars)} imported war${factionPerformance.totalWars === 1 ? '' : 's'} in selected range`;
+    element.textContent = `War range: ${periodLabel()} · ${formatNumber(factionPerformance.totalWars)} imported war${factionPerformance.totalWars === 1 ? '' : 's'}`;
     element.classList.remove('hidden','error');
     return;
   }
@@ -491,17 +521,26 @@ function renderHeaders() {
   const head = document.querySelector('#intelHead');
   if (!head) return;
 
-  head.innerHTML = `<tr>${activeColumns().map(key => {
+  const groupRow = (presetGroups[activePreset] || []).map(([key,label,count]) => `
+    <th class="faction-group group-${key}" colspan="${count}">${escapeHtml(label)}</th>
+  `).join('');
+
+  const columnRow = activeColumns().map(key => {
     const [label, detail] = columnLabels[key] || [key,''];
     const active = key === sortKey;
     return `
-      <th class="col-${key}">
+      <th class="col-${key}${active ? ' sorted' : ''}">
         <button type="button" data-intel2-sort="${key}">
           ${escapeHtml(label)}${detail ? ` <small>${escapeHtml(detail)}</small>` : ''}${active ? ` ${sortDirection === 'desc' ? '↓' : '↑'}` : ''}
         </button>
       </th>
     `;
-  }).join('')}</tr>`;
+  }).join('');
+
+  head.innerHTML = `
+    <tr class="faction-group-row">${groupRow}</tr>
+    <tr class="faction-column-row">${columnRow}</tr>
+  `;
 }
 
 function renderFactionCell(member, key) {
@@ -672,6 +711,16 @@ function restoreFactionPreset() {
     if (presetColumns[stored]) return stored;
   } catch (_) {}
   return 'overview';
+}
+
+function periodLabel() {
+  const labels = {
+    last4:'Last 4 wars',
+    '30d':'30 days',
+    year:'This year',
+    all:'All imported wars'
+  };
+  return labels[state.period?.preset] || 'Selected range';
 }
 
 function averageNullable(values) {
