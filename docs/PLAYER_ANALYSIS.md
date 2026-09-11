@@ -166,3 +166,28 @@ RWEngine should therefore:
 Not implemented in this stage.
 
 If Player Analysis becomes shareable, RWEngine should create an immutable analysis snapshot and share that resource. A public URL should not silently turn into a live surveillance view as the player's data changes.
+
+
+## Saved analysis snapshots
+
+Player analyses can be saved as immutable server-generated snapshots.
+
+Properties:
+
+- the server recomputes the analysis when saving; the browser does not submit arbitrary report JSON,
+- snapshots default to `private`,
+- snapshots use the shared `resource_permissions` model,
+- visibility can be changed to `faction` or `public`,
+- public links are revocable and rotate when a new link is generated,
+- deleting a snapshot disables its public links and removes its permission row.
+
+Public Player Analysis reports are intentionally sanitized. They include:
+
+- current profile fields captured by the snapshot,
+- summary activity/Xanax/battle-stat metrics,
+- recent-war summaries,
+- source/provenance labels.
+
+They do **not** expose the stored raw snapshot history or cumulative personal-stat counters.
+
+The database table is `analysis_snapshots`; Player Analysis snapshots use resource type `player-analysis`.
