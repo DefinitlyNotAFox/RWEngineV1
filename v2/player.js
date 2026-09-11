@@ -1,7 +1,7 @@
 import {
-  state, on, routeTo, playerAnalysisApi,
+  state, on, routeTo, playerAnalysisApi, playerReportsApi, shareApi,
   metric, formatNumber, formatCompact, formatDecimal, formatPercent,
-  formatDuration, formatRelative, formatDate, escapeHtml
+  formatDuration, formatRelative, formatDate, formatDateTime, escapeHtml
 } from './core.js';
 import { playerAnalysisFixture } from './fixtures/player-analysis.js';
 
@@ -9,6 +9,9 @@ const fixtureMode = new URL(location.href).searchParams.get('playerFixture') ===
 
 let searchResults = [];
 let analysis = null;
+let savedReports = [];
+let activeSnapshot = null;
+let activeShareUrl = '';
 let loading = false;
 
 export function initPlayerAnalysis() {
@@ -26,28 +29,73 @@ export function initPlayerAnalysis() {
     if (playerId) await analyze(playerId);
   });
 
-  document.addEventListener('click', event => {
-    const button = event.target.closest('[data-analyze-player]');
-    if (!button) return;
-    const playerId = Number(button.dataset.analyzePlayer || 0);
-    if (!playerId) return;
-    routeTo('player');
-    analyze(playerId);
+  document.addEventListener('click', async event => {
+    const analyzeButton = event.target.closest('[data-analyze-player]');
+    if (analyzeButton) {
+      const playerId = Number(analyzeButton.dataset.analyzePlayer || 0);
+      if (!playerId) return;
+      routeTo('player');
+      await analyze(playerId);
+      return;
+    }
+
+    const saveButton = event.target.closest('[data-save-player-report]');
+    if (saveButton) {
+      await saveCurrentReport();
+      return;
+    }
+
+    const openButton = event.target.closest('[data-saved-player-report]');
+    if (openButton) {
+      await openSavedReport(Number(openButton.dataset.savedPlayerReport || 0));
+      return;
+    }
+
+    const deleteButton = event.target.closest('[data-delete-player-report]');
+    if (deleteButton) {
+      await deleteSavedReport(Number(deleteButton.dataset.deletePlayerReport || 0));
+      return;
+    }
+
+    const newLinkButton = event.target.closest('[data-player-report-link]');
+    if (newLinkButton) {
+      await rotatePublicLink();
+      return;
+    }
+
+    const copyButton = event.target.closest('[data-copy-player-link]');
+    if (copyButton) {
+      await copyPublicLink();
+    }
+  });
+
+  document.addEventListener('change', async event => {
+    const select = event.target.closest('[data-player-report-visibility]');
+    if (!select) return;
+    await changeSnapshotVisibility(select.value);
   });
 
   on('faction', () => {
     searchResults = [];
     analysis = null;
+    savedReports = [];
+    activeSnapshot = null;
+    activeShareUrl = '';
     renderSearchResults();
     renderAnalysis();
+    renderSavedReports();
   });
 
   on('route', route => {
-    if (route === 'player' && fixtureMode && !analysis) {
+    if (route !== 'player') return;
+
+    if (fixtureMode && !analysis) {
       const input = document.querySelector('#playerSearchInput');
       if (input && !input.value) input.value = 'Aster';
       runSearch('Aster');
     }
+
+    if (!fixtureMode) loadSavedReports();
   });
 }
 
@@ -100,6 +148,8 @@ async function analyze(playerId) {
       analysis = await playerAnalysisApi('analyze', { playerId });
     }
 
+    activeSnapshot = null;
+    activeShareUrl = '';
     renderAnalysis();
     renderSearchResults();
     setStatus('');
@@ -174,7 +224,10 @@ function renderAnalysis() {
           ${player.factionId ? ` · faction ${escapeHtml(player.factionId)}` : ' · no faction'}
         </p>
       </div>
-      <a href="https://www.torn.com/profiles.php?XID=${encodeURIComponent(player.playerId)}" target="_blank" rel="noopener noreferrer">Torn profile ↗</a>
+      <div class="player-analysis-actions">
+        ${!fixtureMode && !activeSnapshot ? `<button class="text-action" type="button" data-save-player-report="${player.playerId}">Save report</button>` : ''}
+        <a href="https://www.torn.com/profiles.php?XID=${encodeURIComponent(player.playerId)}" target="_blank" rel="noopener noreferrer">Torn profile ↗</a>
+      </div>
     </header>
 
     <div class="player-state-line">
@@ -194,6 +247,7 @@ function renderAnalysis() {
     </div>
 
     ${renderSourceLine()}
+    ${renderSnapshotControls()}
 
     ${local ? renderLocalAnalysis() : `
       <section class="player-no-history">
@@ -214,6 +268,197 @@ function renderSourceLine() {
         : '<b>None</b>'}
     </div>
   `;
+}
+
+function renderSnapshotControls() {
+  if (!activeSnapshot) return '';
+
+  const visibility = activeSnapshot.visibility || 'private';
+  return `
+    <div class="player-report-controls">
+      <span>Saved snapshot #${escapeHtml(activeSnapshot.snapshotId)} · ${escapeHtml(formatDateTime(activeSnapshot.createdAt))}</span>
+      <select class="small-select" data-player-report-visibility>
+        <option value="private"${visibility === 'private' ? ' selected' : ''}>Private</option>
+        <option value="faction"${visibility === 'faction' ? ' selected' : ''}>Faction</option>
+        <option value="public"${visibility === 'public' ? ' selected' : ''}>Public</option>
+      </select>
+      ${visibility === 'public' ? '<button class="text-action" type="button" data-player-report-link>New public link</button>' : ''}
+      ${activeShareUrl ? '<button class="text-action" type="button" data-copy-player-link>Copy link</button>' : ''}
+    </div>
+  `;
+}
+
+async function saveCurrentReport() {
+  if (!analysis?.player?.playerId || fixtureMode || loading) return;
+
+  loading = true;
+  setStatus('Saving analysis snapshot…');
+
+  try {
+    const result = await playerReportsApi('save', { playerId:Number(analysis.player.playerId) });
+    activeSnapshot = result.snapshot || null;
+    activeShareUrl = '';
+    await loadSavedReports();
+    renderAnalysis();
+    setStatus(result.message || 'Analysis snapshot saved.');
+  } catch (error) {
+    setStatus(error.message || 'Failed to save analysis snapshot.', true);
+  } finally {
+    loading = false;
+  }
+}
+
+async function loadSavedReports() {
+  try {
+    const result = await playerReportsApi('list');
+    savedReports = result.snapshots || [];
+    renderSavedReports();
+  } catch (_) {
+    savedReports = [];
+    renderSavedReports();
+  }
+}
+
+function renderSavedReports() {
+  const section = document.querySelector('#playerSavedReports');
+  const list = document.querySelector('#playerSavedList');
+  if (!section || !list) return;
+
+  if (fixtureMode || !savedReports.length) {
+    section.classList.add('hidden');
+    list.innerHTML = '';
+    return;
+  }
+
+  section.classList.remove('hidden');
+  list.innerHTML = savedReports.map(snapshot => `
+    <div class="player-saved-row">
+      <button type="button" data-saved-player-report="${snapshot.snapshotId}">
+        <strong>${escapeHtml(snapshot.playerName || 'Player ' + snapshot.playerId)}</strong>
+        <small>[${escapeHtml(snapshot.playerId)}] · ${escapeHtml(formatDateTime(snapshot.createdAt))}</small>
+      </button>
+      <span>${escapeHtml(snapshot.visibility || 'private')}</span>
+      <button class="text-action" type="button" data-delete-player-report="${snapshot.snapshotId}">Delete</button>
+    </div>
+  `).join('');
+}
+
+async function openSavedReport(snapshotId) {
+  if (!snapshotId || loading) return;
+  loading = true;
+  setStatus('Opening saved report…');
+
+  try {
+    const result = await playerReportsApi('get', { snapshotId });
+    analysis = result.analysis || null;
+    activeSnapshot = result.snapshot || null;
+    activeShareUrl = '';
+    renderAnalysis();
+    renderSearchResults();
+    setStatus('');
+  } catch (error) {
+    setStatus(error.message || 'Failed to open saved report.', true);
+  } finally {
+    loading = false;
+  }
+}
+
+async function deleteSavedReport(snapshotId) {
+  if (!snapshotId || loading) return;
+  loading = true;
+
+  try {
+    const result = await playerReportsApi('delete', { snapshotId });
+    if (Number(activeSnapshot?.snapshotId) === Number(snapshotId)) {
+      activeSnapshot = null;
+      activeShareUrl = '';
+    }
+    await loadSavedReports();
+    renderAnalysis();
+    setStatus(result.message || 'Saved report deleted.');
+  } catch (error) {
+    setStatus(error.message || 'Failed to delete saved report.', true);
+  } finally {
+    loading = false;
+  }
+}
+
+async function changeSnapshotVisibility(visibility) {
+  if (!activeSnapshot?.snapshotId || loading) return;
+  loading = true;
+  setStatus('Updating report access…');
+
+  try {
+    const result = await shareApi('setVisibility', {
+      resourceType:'player-analysis',
+      resourceKey:String(activeSnapshot.snapshotId),
+      visibility
+    });
+
+    activeSnapshot = {
+      ...activeSnapshot,
+      visibility:result.visibility || visibility
+    };
+    activeShareUrl = String(result.shareUrl || '');
+
+    if (activeShareUrl) {
+      try {
+        await navigator.clipboard.writeText(activeShareUrl);
+        setStatus('Public link created and copied.');
+      } catch (_) {
+        setStatus('Public link created. Use Copy link to copy it.');
+      }
+    } else {
+      setStatus(result.message || 'Report access updated.');
+    }
+
+    await loadSavedReports();
+    renderAnalysis();
+  } catch (error) {
+    setStatus(error.message || 'Failed to update report access.', true);
+    renderAnalysis();
+  } finally {
+    loading = false;
+  }
+}
+
+async function rotatePublicLink() {
+  if (!activeSnapshot?.snapshotId || loading) return;
+  loading = true;
+  setStatus('Generating new public link…');
+
+  try {
+    const result = await shareApi('create', {
+      resourceType:'player-analysis',
+      resourceKey:String(activeSnapshot.snapshotId)
+    });
+    activeSnapshot = { ...activeSnapshot, visibility:'public' };
+    activeShareUrl = String(result.shareUrl || '');
+    renderAnalysis();
+
+    if (activeShareUrl) {
+      try {
+        await navigator.clipboard.writeText(activeShareUrl);
+        setStatus('New public link created and copied.');
+      } catch (_) {
+        setStatus('New public link created.');
+      }
+    }
+  } catch (error) {
+    setStatus(error.message || 'Failed to create public link.', true);
+  } finally {
+    loading = false;
+  }
+}
+
+async function copyPublicLink() {
+  if (!activeShareUrl) return;
+  try {
+    await navigator.clipboard.writeText(activeShareUrl);
+    setStatus('Public link copied.');
+  } catch (_) {
+    setStatus('Browser clipboard access failed.', true);
+  }
 }
 
 function renderLocalAnalysis() {
