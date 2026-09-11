@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=3" />
+  <link rel="stylesheet" href="/v2/app.css?v=4" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -106,7 +106,7 @@
 
       <section id="intelView" class="view" data-view="intel">
         <header class="view-head">
-          <div><p class="kicker">Faction</p><h1>Intel</h1></div>
+          <div><p class="kicker">Faction</p><h1>Intel</h1><p id="intelFreshness" class="freshness"></p></div>
           <div class="view-actions">
             <button id="syncButton" class="action" type="button">Sync faction</button>
             <button class="action" type="button" data-refresh>Refresh</button>
@@ -140,7 +140,7 @@
 
       <section id="warView" class="view" data-view="war">
         <header class="view-head">
-          <div><p class="kicker">Ranked War</p><h1>Overview</h1></div>
+          <div><p class="kicker">Ranked War</p><h1>Overview</h1><p id="warFreshness" class="freshness"></p></div>
           <button class="action" type="button" data-refresh>Refresh</button>
         </header>
 
@@ -161,7 +161,7 @@
 
       <section id="performanceView" class="view" data-view="performance">
         <header class="view-head">
-          <div><p class="kicker">Ranked War</p><h1>Performance</h1></div>
+          <div><p class="kicker">Ranked War</p><h1>Performance</h1><p id="performanceFreshness" class="freshness"></p></div>
           <button class="action" type="button" data-refresh>Refresh</button>
         </header>
 
@@ -189,7 +189,7 @@
 
       <section id="archiveView" class="view" data-view="archive">
         <header class="view-head">
-          <div><p class="kicker">Ranked War</p><h1>Archive</h1></div>
+          <div><p class="kicker">Ranked War</p><h1>Archive</h1><p id="archiveFreshness" class="freshness"></p></div>
           <button class="action" type="button" data-refresh>Refresh</button>
         </header>
 
@@ -236,11 +236,15 @@
           </header>
 
           <section id="sharePanel" class="share-panel hidden">
-            <div><strong>Public read-only link</strong><small>Anyone with the URL can view this report.</small></div>
-            <input id="shareUrl" readonly placeholder="No public link generated" />
-            <button id="shareGenerate" class="action primary" type="button">Generate</button>
+            <div><strong>Report access</strong><small>Choose who can open this report.</small></div>
+            <select id="shareVisibility" class="small-select">
+              <option value="private">Private</option>
+              <option value="faction">Faction</option>
+              <option value="public">Public</option>
+            </select>
+            <input id="shareUrl" readonly placeholder="Public link appears here" />
+            <button id="shareGenerate" class="action hidden" type="button">New link</button>
             <button id="shareCopy" class="action hidden" type="button">Copy</button>
-            <button id="shareRevoke" class="text-action" type="button">Revoke</button>
             <span id="shareStatus"></span>
           </section>
 
@@ -280,6 +284,16 @@
           <div><dt>Faction</dt><dd id="settingsFaction">—</dd></div>
           <div><dt>Faction ID</dt><dd id="settingsFactionId">—</dd></div>
         </dl>
+
+        <section class="access-section">
+          <header>
+            <p class="kicker">Access</p>
+            <h2>Report visibility</h2>
+            <span>Private is owner/admin only. Faction is the default. Public creates a revocable link.</span>
+          </header>
+          <div id="accessList" class="access-list"></div>
+          <p id="accessStatus" class="status-line hidden"></p>
+        </section>
 
         <section id="adminSection" class="admin-section hidden">
           <header><p class="kicker">Admin</p><h2>Tracked factions</h2></header>
