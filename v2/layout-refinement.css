@@ -30,7 +30,7 @@
   min-height: 36px;
   padding: 0 9px;
   gap: 7px;
-  border-radius: 7px;
+  border-radius: 3px;
 }
 
 .admin-faction-switcher > span {
