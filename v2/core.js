@@ -224,7 +224,12 @@ export function setNotice(message = '', kind = '') {
 }
 
 export function routeTo(route, options = {}) {
-  const valid = new Set(['home','intel','war','performance','archive','settings']);
+  if (route === 'war' || route === 'performance') {
+    try { localStorage.setItem('rwengine.factionPreset', 'war'); } catch (_) {}
+    route = 'intel';
+  }
+
+  const valid = new Set(['home','intel','archive','settings']);
   const next = valid.has(route) ? route : 'home';
   state.route = next;
 
@@ -246,7 +251,13 @@ export function routeTo(route, options = {}) {
 
 export function routeFromHash() {
   const value = String(location.hash || '').replace(/^#/, '').trim();
-  return ['home','intel','war','performance','archive','settings'].includes(value) ? value : 'home';
+
+  if (value === 'war' || value === 'performance') {
+    try { localStorage.setItem('rwengine.factionPreset', 'war'); } catch (_) {}
+    return 'intel';
+  }
+
+  return ['home','intel','archive','settings'].includes(value) ? value : 'home';
 }
 
 export function formatNumber(value) {

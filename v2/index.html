@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=11" />
+  <link rel="stylesheet" href="/v2/app.css?v=12" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -59,9 +59,7 @@
         <button class="brand brand-button" type="button" data-route="home">RWEngine</button>
 
         <nav class="primary-nav" aria-label="Primary">
-          <button type="button" data-route="intel">Intel</button>
-          <button type="button" data-route="war">War</button>
-          <button type="button" data-route="performance">Performance</button>
+          <button type="button" data-route="intel">Faction</button>
           <button type="button" data-route="archive">Archive</button>
         </nav>
 
@@ -91,16 +89,10 @@
 
         <nav class="index-list" aria-label="RWEngine tools">
           <button type="button" data-route="intel">
-            <span>01</span><strong>Faction Intel</strong><small>Roster, activity, training and participation.</small><b>→</b>
-          </button>
-          <button type="button" data-route="war">
-            <span>02</span><strong>Ranked War</strong><small>Period totals, recent wars and contributors.</small><b>→</b>
-          </button>
-          <button type="button" data-route="performance">
-            <span>03</span><strong>Performance</strong><small>Cross-war member comparison.</small><b>→</b>
+            <span>01</span><strong>Faction</strong><small>Compare roster, activity, training and war performance in one table.</small><b>→</b>
           </button>
           <button type="button" data-route="archive">
-            <span>04</span><strong>Archive</strong><small>Imported reports, detail and public sharing.</small><b>→</b>
+            <span>02</span><strong>Archive</strong><small>Individual ranked-war reports, imports and public sharing.</small><b>→</b>
           </button>
         </nav>
       </section>
@@ -109,8 +101,8 @@
         <header class="view-head">
           <div>
             <p class="kicker">Faction</p>
-            <h1>Intel</h1>
-            <p class="view-description">Current roster health, activity, Xanax use and recent ranked-war participation.</p>
+            <h1>Faction</h1>
+            <p class="view-description">Compare everything RWEngine knows about the current roster from one table.</p>
             <p id="intelFreshness" class="freshness"></p>
           </div>
           <div class="view-actions">
@@ -122,89 +114,34 @@
         <div id="intelSummary" class="metric-line"></div>
         <div id="syncLine" class="status-line hidden"></div>
 
+        <div class="faction-viewbar" data-intel2-only>
+          <div id="factionPresets" class="faction-presets" aria-label="Faction table columns"></div>
+          <div id="factionWarPeriodWrap" class="faction-period hidden">
+            <span>War range</span>
+            <div id="factionPeriodControl" class="period-control"></div>
+          </div>
+        </div>
+
         <div class="intel2-toolbar">
           <div id="intelFilters" class="intel2-filters"></div>
           <div id="periodControl" class="period-control legacy-intel-control hidden"></div>
           <input id="intelSearch" class="search" type="search" placeholder="Search member or ID" />
         </div>
 
-        <p class="intel-guide">
-          Activity and Xanax are 30-day daily averages. War participation uses the last four imported wars.
-          Signals flag inactivity, low participation, meaningful declines or unusually strong output.
-          Click a member for history and trends.
-        </p>
+        <p id="factionTableGuide" class="intel-guide" data-intel2-only></p>
+        <p id="factionTableStatus" class="status-line hidden" data-intel2-only></p>
 
-        <div class="data-table-wrap">
+        <div class="data-table-wrap faction-table-wrap">
           <table id="intelTable" class="data-table intel2-table">
-            <thead>
-              <tr>
-                <th data-intel2-sort="member">Member</th>
-                <th data-intel2-sort="lastAction" data-intel-sort="lastAction">Last action</th>
-                <th data-intel2-sort="stats" data-intel-sort="stats">Battle stats</th>
-                <th data-intel2-sort="activity" data-intel-sort="activity">Activity / day <small>30d</small></th>
-                <th data-intel2-sort="xanax" data-intel-sort="xanax">Xanax / day <small>30d</small></th>
-                <th data-intel2-sort="participation" data-intel-sort="participation">War participation <small>last 4</small></th>
-                <th data-intel2-sort="hits" data-intel-sort="hits">Hits per war <small>last 4</small></th>
-                <th data-intel2-sort="attention" data-intel2-only>Signal</th>
-              </tr>
-            </thead>
+            <thead id="intelHead"></thead>
             <tbody id="intelBody"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section id="warView" class="view" data-view="war">
-        <header class="view-head">
-          <div><p class="kicker">Ranked War</p><h1>Overview</h1><p class="view-description">Faction totals, recent wars and top contributors for the selected period.</p><p id="warFreshness" class="freshness"></p></div>
-          <button class="action" type="button" data-refresh>Refresh</button>
-        </header>
-
-        <div id="warSummary" class="metric-line"></div>
-        <div id="warPeriodControl" class="period-control period-standalone"></div>
-
-        <div class="split-list">
-          <section>
-            <header><h2>Recent wars</h2><button type="button" class="text-action" data-route="archive">Archive →</button></header>
-            <div id="recentWars" class="line-list"></div>
-          </section>
-          <section>
-            <header><h2>Contributors</h2><button type="button" class="text-action" data-route="performance">Performance →</button></header>
-            <div id="topContributors" class="line-list"></div>
-          </section>
-        </div>
-      </section>
-
-      <section id="performanceView" class="view" data-view="performance">
-        <header class="view-head">
-          <div><p class="kicker">Ranked War</p><h1>Performance</h1><p class="view-description">Compare member output across imported wars. Detail mode adds scoring and respect.</p><p id="performanceFreshness" class="freshness"></p></div>
-          <button class="action" type="button" data-refresh>Refresh</button>
-        </header>
-
-        <div class="control-line performance-controls">
-          <div id="performancePeriodControl" class="period-control"></div>
-          <div class="control-cluster">
-            <label class="check"><input id="excludeChain" type="checkbox" /> Exclude chain bonuses</label>
-            <label class="check"><input id="includeFormer" type="checkbox" /> Former members</label>
-            <select id="performanceMode" class="small-select" aria-label="Performance detail">
-              <option value="summary">Summary</option>
-              <option value="detail">Detail</option>
-            </select>
-            <input id="performanceSearch" class="search" type="search" placeholder="Search member or ID" />
-          </div>
-        </div>
-
-        <p id="performanceStatus" class="status-line hidden"></p>
-        <div class="data-table-wrap">
-          <table id="performanceTable" class="data-table performance-table">
-            <thead id="performanceHead"></thead>
-            <tbody id="performanceBody"></tbody>
           </table>
         </div>
       </section>
 
       <section id="archiveView" class="view" data-view="archive">
         <header class="view-head">
-          <div><p class="kicker">Ranked War</p><h1>Archive</h1><p class="view-description">Browse imported war reports, open full results and manage shared links.</p><p id="archiveFreshness" class="freshness"></p></div>
+          <div><p class="kicker">Ranked War</p><h1>Archive</h1><p class="view-description">Open individual ranked-war performance reports, import history and manage shared links.</p><p id="archiveFreshness" class="freshness"></p></div>
           <button class="action" type="button" data-refresh>Refresh</button>
         </header>
 
@@ -338,6 +275,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=2"></script>
+  <script type="module" src="/v2/app.js?v=3"></script>
 </body>
 </html>

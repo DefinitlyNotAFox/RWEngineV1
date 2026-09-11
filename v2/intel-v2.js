@@ -1,6 +1,6 @@
 import {
-  state, on, emit, intelV2Api, syncApi,
-  metric, formatNumber, formatCompact, formatDecimal, formatPercent,
+  state, on, emit, intelV2Api, syncApi, performanceApi, periodPayload,
+  metric, formatNumber, formatCompact, formatDecimal, formatPercent, formatSigned,
   formatDuration, formatRelative, escapeHtml, sleep
 } from './core.js';
 
@@ -13,6 +13,55 @@ const filters = [
   ['stats','Stats missing/stale'],
   ['former','Former members']
 ];
+
+const factionPresets = [
+  ['overview','Overview'],
+  ['activity','Activity'],
+  ['training','Training'],
+  ['war','War'],
+  ['all','All']
+];
+
+const presetColumns = {
+  overview:['member','lastAction','stats','activity','xanax','participation4','hits4','attention'],
+  activity:['member','lastAction','activity','xanax','attention'],
+  training:['member','stats','xanax','attention'],
+  war:['member','wars','participation','hits','assists','outsideHits','netScore','attention'],
+  all:[
+    'member','lastAction','stats','activity','xanax',
+    'wars','participation','hits','assists','outsideHits',
+    'respectEarned','respectLost','scoreUp','scoreDown','netScore','attention'
+  ]
+};
+
+const columnLabels = {
+  member:['Member',''],
+  lastAction:['Last action',''],
+  stats:['Battle stats',''],
+  activity:['Activity / day','30d'],
+  xanax:['Xanax / day','30d'],
+  participation4:['War participation','last 4'],
+  hits4:['Hits per war','last 4'],
+  wars:['Wars joined','selected range'],
+  participation:['Participation','selected range'],
+  hits:['Hits per war','selected range'],
+  assists:['Assists','selected range'],
+  outsideHits:['Outside hits','selected range'],
+  respectEarned:['Respect gained','selected range'],
+  respectLost:['Respect lost','selected range'],
+  scoreUp:['Score gained','selected range'],
+  scoreDown:['Score lost','selected range'],
+  netScore:['Net score','selected range'],
+  attention:['Signal','']
+};
+
+const presetGuides = {
+  overview:'A compact faction overview combining roster state, training activity and recent war participation.',
+  activity:'Compare member activity, Xanax use and current attention signals.',
+  training:'Compare battle-stat estimates and Xanax usage across the roster.',
+  war:'Cross-war member performance for the selected war range. Open Archive for individual war reports.',
+  all:'Every comparable roster, training and war metric RWEngine currently collects.'
+};
 
 const priority = [
   'inactive',
@@ -30,6 +79,7 @@ const priority = [
 
 let overview = null;
 let loadedFactionId = null;
+let activePreset = restoreFactionPreset();
 let activeFilter = 'all';
 let selectedMemberId = null;
 let sortKey = 'attention';
@@ -39,11 +89,21 @@ let loading = false;
 let syncJob = null;
 let syncing = false;
 
+const factionPerformance = {
+  members:new Map(),
+  totalWars:0,
+  playersWithAttackDetails:0,
+  loadedKey:'',
+  loading:false,
+  error:''
+};
+
 const detailCache = new Map();
 const detailLoading = new Set();
 
 export function initIntelV2() {
   renderFilters();
+  renderPresetControls();
 
   document.querySelector('#intelSearch')?.addEventListener('input', renderIntelV2);
 
@@ -57,6 +117,22 @@ export function initIntelV2() {
       sortDirection = key === 'member' ? 'asc' : 'desc';
     }
     renderIntelV2();
+  });
+
+  document.querySelector('#factionPresets')?.addEventListener('click', async event => {
+    const button = event.target.closest('[data-faction-preset]');
+    if (!button) return;
+
+    const next = button.dataset.factionPreset;
+    if (!presetColumns[next]) return;
+
+    activePreset = next;
+    try { localStorage.setItem('rwengine.factionPreset', activePreset); } catch (_) {}
+    ensureSortKey();
+    renderPresetControls();
+    renderIntelV2();
+
+    if (needsPerformance()) await loadFactionPerformance(false);
   });
 
   document.querySelector('#intelFilters')?.addEventListener('click', event => {
@@ -94,9 +170,18 @@ export function initIntelV2() {
   document.querySelector('#syncButton')?.addEventListener('click', runSync);
 
   on('route', route => {
-    if (route === 'intel') {
-      loadIntelV2(false);
-    }
+    if (route !== 'intel') return;
+    activePreset = restoreFactionPreset();
+    ensureSortKey();
+    renderPresetControls();
+    loadIntelV2(false);
+  });
+
+  on('period', () => {
+    factionPerformance.loadedKey = '';
+    factionPerformance.members.clear();
+    renderPresetControls();
+    if (state.route === 'intel' && needsPerformance()) loadFactionPerformance(true);
   });
 
   on('faction', () => {
@@ -122,11 +207,12 @@ export async function loadIntelV2(force = false) {
 
   if (!force && overview && Number(loadedFactionId) === factionId) {
     renderIntelV2();
+    if (needsPerformance()) await loadFactionPerformance(false);
     return;
   }
 
   loading = true;
-  setIntelStatus('Loading Intel…');
+  setIntelStatus('Loading faction data…');
 
   try {
     overview = await intelV2Api('overview');
@@ -135,12 +221,49 @@ export async function loadIntelV2(force = false) {
     renderIntelV2();
     renderIntelFreshness();
     await refreshSyncStatus();
+
+    if (needsPerformance()) await loadFactionPerformance(force);
   } catch (error) {
     overview = null;
-    setIntelStatus(error.message || 'Failed to load Intel 2.0.', true);
+    setIntelStatus(error.message || 'Failed to load faction data.', true);
     renderIntelV2();
   } finally {
     loading = false;
+  }
+}
+
+async function loadFactionPerformance(force = false) {
+  if (!needsPerformance() || factionPerformance.loading) return;
+
+  const key = performanceKey();
+  if (!force && factionPerformance.loadedKey === key) {
+    renderIntelV2();
+    return;
+  }
+
+  factionPerformance.loading = true;
+  factionPerformance.error = '';
+  renderFactionStatus();
+  renderIntelV2();
+
+  try {
+    const data = await performanceApi(periodPayload());
+    factionPerformance.members = new Map(
+      (data.members || []).map(member => [Number(member.playerId), member])
+    );
+    factionPerformance.totalWars = Number(data.totalWars || 0);
+    factionPerformance.playersWithAttackDetails = Number(data.playersWithAttackDetails || 0);
+    factionPerformance.loadedKey = key;
+  } catch (error) {
+    factionPerformance.members.clear();
+    factionPerformance.totalWars = 0;
+    factionPerformance.playersWithAttackDetails = 0;
+    factionPerformance.loadedKey = '';
+    factionPerformance.error = error.message || 'Failed to load war performance.';
+  } finally {
+    factionPerformance.loading = false;
+    renderFactionStatus();
+    renderIntelV2();
   }
 }
 
@@ -152,15 +275,73 @@ function renderFilters() {
   ).join('');
 }
 
+function renderPresetControls() {
+  const container = document.querySelector('#factionPresets');
+  if (container) {
+    container.innerHTML = factionPresets.map(([key,label]) =>
+      `<button type="button" data-faction-preset="${key}" class="${activePreset === key ? 'active' : ''}">${label}</button>`
+    ).join('');
+  }
+
+  document.querySelector('#factionWarPeriodWrap')?.classList.toggle('hidden', !needsPerformance());
+
+  const guide = document.querySelector('#factionTableGuide');
+  if (guide) guide.textContent = presetGuides[activePreset] || '';
+
+  const table = document.querySelector('#intelTable');
+  if (table) table.dataset.preset = activePreset;
+
+  renderFactionStatus();
+}
+
+function renderFactionStatus() {
+  const element = document.querySelector('#factionTableStatus');
+  if (!element) return;
+
+  if (!needsPerformance()) {
+    element.textContent = '';
+    element.classList.add('hidden');
+    element.classList.remove('error');
+    return;
+  }
+
+  if (factionPerformance.loading) {
+    element.textContent = 'Loading war performance for the selected range…';
+    element.classList.remove('hidden','error');
+    return;
+  }
+
+  if (factionPerformance.error) {
+    element.textContent = factionPerformance.error;
+    element.classList.remove('hidden');
+    element.classList.add('error');
+    return;
+  }
+
+  if (factionPerformance.loadedKey) {
+    element.textContent = `${formatNumber(factionPerformance.totalWars)} imported war${factionPerformance.totalWars === 1 ? '' : 's'} in selected range`;
+    element.classList.remove('hidden','error');
+    return;
+  }
+
+  element.textContent = '';
+  element.classList.add('hidden');
+}
+
 function renderIntelV2() {
+  ensureSortKey();
+  renderPresetControls();
   renderSummary();
   renderHeaders();
 
   const body = document.querySelector('#intelBody');
   if (!body) return;
 
+  const columns = activeColumns();
+  const colspan = columns.length;
+
   if (loading && !overview) {
-    body.innerHTML = '<tr class="empty-row"><td colspan="8">Loading Intel…</td></tr>';
+    body.innerHTML = `<tr class="empty-row"><td colspan="${colspan}">Loading faction data…</td></tr>`;
     return;
   }
 
@@ -177,42 +358,16 @@ function renderIntelV2() {
     .sort(compareMembers);
 
   if (!rows.length) {
-    body.innerHTML = '<tr class="empty-row"><td colspan="8">No members match this view.</td></tr>';
+    body.innerHTML = `<tr class="empty-row"><td colspan="${colspan}">No members match this view.</td></tr>`;
     return;
   }
 
   body.innerHTML = rows.map(member => {
-    const signal = topSignal(member);
     const selected = Number(selectedMemberId) === Number(member.playerId);
 
     return `
       <tr class="clickable${selected ? ' selected' : ''}" data-member-id="${member.playerId}">
-        <td>
-          <span class="member-name">${escapeHtml(member.playerName || 'Unknown')}</span>
-          <span class="member-meta">${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(member.level ?? '—')} · [${escapeHtml(member.playerId)}]${member.current ? '' : ' · former'}</span>
-        </td>
-        <td>
-          ${escapeHtml(formatRelative(member.presence?.lastActionAt))}
-          ${member.presence?.lastActionStatus ? `<span class="member-meta">${escapeHtml(member.presence.lastActionStatus)}</span>` : ''}
-        </td>
-        <td>
-          ${member.battleStats?.value == null ? '—' : escapeHtml(formatCompact(member.battleStats.value))}
-          <span class="trend ${trendClass(member.battleStats?.changePct30d)}">${battleStatsTrend(member)}</span>
-        </td>
-        <td>
-          ${escapeHtml(formatDuration(member.activity?.perDay30d))}
-          <span class="trend ${trendClass(member.activity?.changePct)}">${escapeHtml(trendLabel(member.activity?.changePct, 'vs prev 30d'))}</span>
-        </td>
-        <td>
-          ${escapeHtml(formatDecimal(member.xanax?.perDay30d, 2))}
-          <span class="trend ${trendClass(member.xanax?.changePct)}">${escapeHtml(trendLabel(member.xanax?.changePct, 'vs prev 30d'))}</span>
-        </td>
-        <td>
-          ${escapeHtml(formatPercent(member.war?.last4?.participation))}
-          <span class="member-meta">${formatNumber(member.war?.last4?.warsParticipated)}/${formatNumber(member.war?.last4?.warsAvailable)} wars</span>
-        </td>
-        <td>${escapeHtml(formatDecimal(member.war?.last4?.hitsPerWar, 1))}</td>
-        <td>${signal ? `<span class="signal ${signal.kind}">${escapeHtml(signalLabel(signal, member))}</span>` : '—'}</td>
+        ${columns.map(key => renderFactionCell(member, key)).join('')}
       </tr>
       ${selected ? renderDetailRow(member) : ''}
     `;
@@ -226,6 +381,82 @@ function renderSummary() {
   const summary = overview?.summary;
   if (!summary) {
     element.innerHTML = '';
+    return;
+  }
+
+  const current = (overview.members || []).filter(member => member.current !== false);
+
+  if (activePreset === 'activity') {
+    const inactive = current.filter(member =>
+      (member.insights || []).some(item => item.code === 'inactive')
+    ).length;
+    const improving = current.filter(member =>
+      (member.insights || []).some(item => item.code === 'activity_up')
+    ).length;
+    const declining = current.filter(member =>
+      (member.insights || []).some(item => item.code === 'activity_down')
+    ).length;
+
+    element.innerHTML = [
+      metric('Members', formatNumber(summary.currentMembers), 'current roster'),
+      metric('Activity / day', formatDuration(summary.avgActivityPerDay30d), '30d roster average'),
+      metric('Xanax / day', formatDecimal(summary.avgXanaxPerDay30d, 2), '30d roster average'),
+      metric('Inactive 48h+', formatNumber(inactive), 'members'),
+      metric('Activity improving', formatNumber(improving), 'members'),
+      metric('Activity declining', formatNumber(declining), 'members')
+    ].join('');
+    return;
+  }
+
+  if (activePreset === 'training') {
+    const growth = current.filter(member =>
+      (member.insights || []).some(item => item.code === 'battle_stats_growth')
+    ).length;
+    const unavailable = current.filter(member =>
+      (member.insights || []).some(item => ['missing_battle_stats','stale_battle_stats'].includes(item.code))
+    ).length;
+
+    element.innerHTML = [
+      metric('Members', formatNumber(summary.currentMembers), 'current roster'),
+      metric('Median stats', formatCompact(summary.medianBattleStats), `${formatNumber(summary.knownBattleStats)} estimates known`),
+      metric('Stats growing', formatNumber(growth), 'members'),
+      metric('Xanax / day', formatDecimal(summary.avgXanaxPerDay30d, 2), '30d roster average'),
+      metric('Stats unavailable', formatNumber(unavailable), 'missing or stale'),
+      metric('Attention', formatNumber(summary.membersNeedingAttention), 'actionable signals')
+    ].join('');
+    return;
+  }
+
+  if (activePreset === 'war') {
+    const rows = current.map(member => performanceMember(member)).filter(Boolean);
+    const totalHits = rows.reduce((sum,row) => sum + Number(row.warHits || 0), 0);
+    const totalAssists = rows.reduce((sum,row) => sum + Number(row.assists || 0), 0);
+    const totalNet = rows.reduce((sum,row) => sum + Number(row.netScore || 0), 0);
+    const participation = averageNullable(rows.map(row => row.participation));
+
+    element.innerHTML = [
+      metric('Wars', factionPerformance.loading ? '…' : formatNumber(factionPerformance.totalWars), 'selected range'),
+      metric('Participation', factionPerformance.loading ? '…' : formatPercent(participation), 'roster average'),
+      metric('War hits', factionPerformance.loading ? '…' : formatNumber(totalHits), 'all members'),
+      metric('Hits per war', factionPerformance.loading || !factionPerformance.totalWars ? '—' : formatDecimal(totalHits / factionPerformance.totalWars, 1), 'faction average'),
+      metric('Assists', factionPerformance.loading ? '…' : formatNumber(totalAssists), 'selected range'),
+      metric('Net score', factionPerformance.loading ? '…' : formatSigned(totalNet, 2), 'score gained − lost')
+    ].join('');
+    return;
+  }
+
+  if (activePreset === 'all') {
+    const rows = current.map(member => performanceMember(member)).filter(Boolean);
+    const participation = averageNullable(rows.map(row => row.participation));
+
+    element.innerHTML = [
+      metric('Members', formatNumber(summary.currentMembers), 'current roster'),
+      metric('Median stats', formatCompact(summary.medianBattleStats), `${formatNumber(summary.knownBattleStats)} estimates known`),
+      metric('Activity / day', formatDuration(summary.avgActivityPerDay30d), '30d average'),
+      metric('Xanax / day', formatDecimal(summary.avgXanaxPerDay30d, 2), '30d average'),
+      metric('War participation', factionPerformance.loading ? '…' : formatPercent(participation), 'selected range'),
+      metric('Attention', formatNumber(summary.membersNeedingAttention), 'actionable signals')
+    ].join('');
     return;
   }
 
@@ -245,7 +476,7 @@ function renderIntelFreshness() {
 
   const freshness = overview?.freshness;
   if (!freshness?.observedAt) {
-    element.textContent = 'No synced Intel data';
+    element.textContent = 'No synced faction data';
     element.classList.remove('stale');
     return;
   }
@@ -257,14 +488,91 @@ function renderIntelFreshness() {
 }
 
 function renderHeaders() {
-  document.querySelectorAll('[data-intel2-sort]').forEach(header => {
-    if (!header.dataset.label) header.dataset.label = header.innerHTML;
-    const active = header.dataset.intel2Sort === sortKey;
-    header.classList.toggle('sorted', active);
-    header.innerHTML = active
-      ? `${header.dataset.label} ${sortDirection === 'desc' ? '↓' : '↑'}`
-      : header.dataset.label;
-  });
+  const head = document.querySelector('#intelHead');
+  if (!head) return;
+
+  head.innerHTML = `<tr>${activeColumns().map(key => {
+    const [label, detail] = columnLabels[key] || [key,''];
+    const active = key === sortKey;
+    return `
+      <th class="col-${key}">
+        <button type="button" data-intel2-sort="${key}">
+          ${escapeHtml(label)}${detail ? ` <small>${escapeHtml(detail)}</small>` : ''}${active ? ` ${sortDirection === 'desc' ? '↓' : '↑'}` : ''}
+        </button>
+      </th>
+    `;
+  }).join('')}</tr>`;
+}
+
+function renderFactionCell(member, key) {
+  const performance = performanceMember(member);
+  const signal = topSignal(member);
+
+  if (key === 'member') {
+    return `<td class="col-member"><span class="member-name">${escapeHtml(member.playerName || 'Unknown')}</span><span class="member-meta">${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(member.level ?? '—')} · [${escapeHtml(member.playerId)}]${member.current ? '' : ' · former'}</span></td>`;
+  }
+
+  if (key === 'lastAction') {
+    return `<td class="col-lastAction">${escapeHtml(formatRelative(member.presence?.lastActionAt))}${member.presence?.lastActionStatus ? `<span class="member-meta">${escapeHtml(member.presence.lastActionStatus)}</span>` : ''}</td>`;
+  }
+
+  if (key === 'stats') {
+    return `<td class="col-stats">${member.battleStats?.value == null ? '—' : escapeHtml(formatCompact(member.battleStats.value))}<span class="trend ${trendClass(member.battleStats?.changePct30d)}">${battleStatsTrend(member)}</span></td>`;
+  }
+
+  if (key === 'activity') {
+    return `<td class="col-activity">${escapeHtml(formatDuration(member.activity?.perDay30d))}<span class="trend ${trendClass(member.activity?.changePct)}">${escapeHtml(trendLabel(member.activity?.changePct, 'vs prev 30d'))}</span></td>`;
+  }
+
+  if (key === 'xanax') {
+    return `<td class="col-xanax">${escapeHtml(formatDecimal(member.xanax?.perDay30d, 2))}<span class="trend ${trendClass(member.xanax?.changePct)}">${escapeHtml(trendLabel(member.xanax?.changePct, 'vs prev 30d'))}</span></td>`;
+  }
+
+  if (key === 'participation4') {
+    return `<td class="col-participation4">${escapeHtml(formatPercent(member.war?.last4?.participation))}<span class="member-meta">${formatNumber(member.war?.last4?.warsParticipated)}/${formatNumber(member.war?.last4?.warsAvailable)} wars</span></td>`;
+  }
+
+  if (key === 'hits4') {
+    return `<td class="col-hits4">${escapeHtml(formatDecimal(member.war?.last4?.hitsPerWar, 1))}</td>`;
+  }
+
+  if (key === 'attention') {
+    return `<td class="col-attention">${signal ? `<span class="signal ${signal.kind}">${escapeHtml(signalLabel(signal, member))}</span>` : '—'}</td>`;
+  }
+
+  if (!performance) {
+    return `<td class="col-${key}">${factionPerformance.loading ? '…' : '—'}</td>`;
+  }
+
+  if (key === 'wars') {
+    return `<td class="col-wars"><strong>${formatNumber(performance.wars)}</strong><span class="member-meta">of ${formatNumber(factionPerformance.totalWars)}</span></td>`;
+  }
+
+  if (key === 'participation') {
+    return `<td class="col-participation">${formatPercent(performance.participation)}</td>`;
+  }
+
+  if (key === 'hits') {
+    return `<td class="col-hits"><strong>${formatDecimal(performance.avgHitsPerWar, 1)}</strong><span class="member-meta">${formatNumber(performance.warHits)} total</span></td>`;
+  }
+
+  if (key === 'assists') {
+    const perWar = Number(performance.wars) > 0 ? Number(performance.assists || 0) / Number(performance.wars) : null;
+    return `<td class="col-assists"><strong>${formatNumber(performance.assists)}</strong><span class="member-meta">${formatDecimal(perWar, 1)} / war</span></td>`;
+  }
+
+  if (key === 'outsideHits') return `<td class="col-outsideHits">${formatNumber(performance.outsideHits)}</td>`;
+  if (key === 'respectEarned') return `<td class="col-respectEarned">${formatDecimal(performance.respectEarned, 2)}</td>`;
+  if (key === 'respectLost') return `<td class="col-respectLost">${formatDecimal(performance.respectLost, 2)}</td>`;
+  if (key === 'scoreUp') return `<td class="col-scoreUp">${formatDecimal(performance.scoreUp, 2)}</td>`;
+  if (key === 'scoreDown') return `<td class="col-scoreDown">${formatDecimal(performance.scoreDown, 2)}</td>`;
+
+  if (key === 'netScore') {
+    const perWar = Number(performance.wars) > 0 ? Number(performance.netScore || 0) / Number(performance.wars) : null;
+    return `<td class="col-netScore"><strong>${formatSigned(performance.netScore, 2)}</strong><span class="member-meta">${formatSigned(perWar, 2)} / war</span></td>`;
+  }
+
+  return `<td class="col-${key}">—</td>`;
 }
 
 function matchesFilter(member) {
@@ -274,7 +582,13 @@ function matchesFilter(member) {
   if (activeFilter === 'all') return member.current !== false;
   if (activeFilter === 'attention') return member.current !== false && insights.some(item => item.kind === 'attention');
   if (activeFilter === 'inactive') return member.current !== false && codes.has('inactive');
-  if (activeFilter === 'war') return member.current !== false && (codes.has('low_war_participation') || codes.has('participation_down'));
+  if (activeFilter === 'war') {
+    if (needsPerformance() && factionPerformance.loadedKey) {
+      const performance = performanceMember(member);
+      return member.current !== false && Number(performance?.participation ?? 1) < 0.5;
+    }
+    return member.current !== false && (codes.has('low_war_participation') || codes.has('participation_down'));
+  }
   if (activeFilter === 'decline') return member.current !== false && (codes.has('activity_down') || codes.has('xanax_down') || codes.has('participation_down'));
   if (activeFilter === 'stats') return member.current !== false && (codes.has('missing_battle_stats') || codes.has('stale_battle_stats'));
   if (activeFilter === 'former') return member.current === false;
@@ -296,18 +610,74 @@ function compareMembers(a, b) {
 }
 
 function sortValue(member, key) {
+  const performance = performanceMember(member);
+
   if (key === 'member') return member.playerName || '';
   if (key === 'lastAction') return nullable(member.presence?.lastActionAt);
   if (key === 'stats') return nullable(member.battleStats?.value);
   if (key === 'activity') return nullable(member.activity?.perDay30d);
   if (key === 'xanax') return nullable(member.xanax?.perDay30d);
-  if (key === 'participation') return nullable(member.war?.last4?.participation);
-  if (key === 'hits') return nullable(member.war?.last4?.hitsPerWar);
+  if (key === 'participation4') return nullable(member.war?.last4?.participation);
+  if (key === 'hits4') return nullable(member.war?.last4?.hitsPerWar);
+  if (key === 'wars') return nullable(performance?.wars);
+  if (key === 'participation') return nullable(performance?.participation);
+  if (key === 'hits') return nullable(performance?.avgHitsPerWar);
+  if (key === 'assists') return nullable(performance?.assists);
+  if (key === 'outsideHits') return nullable(performance?.outsideHits);
+  if (key === 'respectEarned') return nullable(performance?.respectEarned);
+  if (key === 'respectLost') return nullable(performance?.respectLost);
+  if (key === 'scoreUp') return nullable(performance?.scoreUp);
+  if (key === 'scoreDown') return nullable(performance?.scoreDown);
+  if (key === 'netScore') return nullable(performance?.netScore);
   if (key === 'attention') {
     const signal = topSignal(member);
     return signal ? priority.length - priorityIndex(signal.code) : 0;
   }
   return 0;
+}
+
+function activeColumns() {
+  return presetColumns[activePreset] || presetColumns.overview;
+}
+
+function needsPerformance() {
+  return activePreset === 'war' || activePreset === 'all';
+}
+
+function performanceMember(member) {
+  return factionPerformance.members.get(Number(member?.playerId)) || null;
+}
+
+function performanceKey() {
+  const factionId = Number(state.selectedFactionId || state.user?.factionId || 0);
+  const period = periodPayload();
+  return `${factionId}:${period.from || ''}:${period.to || ''}`;
+}
+
+function ensureSortKey() {
+  const columns = activeColumns();
+  if (columns.includes(sortKey)) return;
+
+  if (activePreset === 'war') sortKey = 'netScore';
+  else if (activePreset === 'activity') sortKey = 'activity';
+  else if (activePreset === 'training') sortKey = 'stats';
+  else sortKey = 'attention';
+
+  sortDirection = sortKey === 'member' ? 'asc' : 'desc';
+}
+
+function restoreFactionPreset() {
+  try {
+    const stored = localStorage.getItem('rwengine.factionPreset');
+    if (presetColumns[stored]) return stored;
+  } catch (_) {}
+  return 'overview';
+}
+
+function averageNullable(values) {
+  const valid = values.map(nullable).filter(value => value !== null);
+  if (!valid.length) return null;
+  return valid.reduce((sum,value) => sum + value, 0) / valid.length;
 }
 
 function topSignal(member) {
@@ -371,15 +741,15 @@ function renderDetailRow(member) {
   const payload = detailCache.get(key);
 
   if (detailLoading.has(key)) {
-    return '<tr class="intel2-detail-row"><td colspan="8"><section class="intel2-detail"><p class="status-line">Loading member history…</p></section></td></tr>';
+    return `<tr class="intel2-detail-row"><td colspan="${activeColumns().length}"><section class="intel2-detail"><p class="status-line">Loading member history…</p></section></td></tr>`;
   }
 
   if (payload?.error) {
-    return `<tr class="intel2-detail-row"><td colspan="8"><section class="intel2-detail"><p class="status-line error">${escapeHtml(payload.error)}</p></section></td></tr>`;
+    return `<tr class="intel2-detail-row"><td colspan="${activeColumns().length}"><section class="intel2-detail"><p class="status-line error">${escapeHtml(payload.error)}</p></section></td></tr>`;
   }
 
   if (!payload?.member) {
-    return '<tr class="intel2-detail-row"><td colspan="8"><section class="intel2-detail"><p class="status-line">Loading member history…</p></section></td></tr>';
+    return `<tr class="intel2-detail-row"><td colspan="${activeColumns().length}"><section class="intel2-detail"><p class="status-line">Loading member history…</p></section></td></tr>`;
   }
 
   const detailMember = payload.member;
@@ -388,7 +758,7 @@ function renderDetailRow(member) {
 
   return `
     <tr class="intel2-detail-row">
-      <td colspan="8">
+      <td colspan="${activeColumns().length}">
         <section class="intel2-detail">
           <div class="intel2-detail-tools">
             <span>Member context</span>
@@ -787,9 +1157,17 @@ function resetIntelState() {
   activeFilter = 'all';
   trendDays = 90;
 
+  factionPerformance.members.clear();
+  factionPerformance.totalWars = 0;
+  factionPerformance.playersWithAttackDetails = 0;
+  factionPerformance.loadedKey = '';
+  factionPerformance.loading = false;
+  factionPerformance.error = '';
+
   const search = document.querySelector('#intelSearch');
   if (search) search.value = '';
 
   renderFilters();
+  renderPresetControls();
   renderSync();
 }
