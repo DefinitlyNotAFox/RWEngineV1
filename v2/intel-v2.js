@@ -32,7 +32,7 @@ const columnLabels = {
   respect:['Respect + / −',''],
   score:['Score + / −',''],
   netScore:['Net score',''],
-  attention:['Signal','']
+  attention:['Notes','']
 };
 
 const factionGroups = [
