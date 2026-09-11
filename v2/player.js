@@ -120,10 +120,12 @@ async function runSearch(query) {
 
     const numeric = /^\d+$/.test(query);
     if (numeric && searchResults.length === 1) {
+      loading = false;
       await analyze(Number(searchResults[0].playerId));
-    } else {
-      setStatus(searchResults.length ? '' : 'No players found.');
+      return;
     }
+
+    setStatus(searchResults.length ? '' : 'No players found.');
   } catch (error) {
     searchResults = [];
     renderSearchResults();
