@@ -5130,3 +5130,34 @@ body {
 #intelTable.faction-grid .faction-total-row .faction-grid-cell {
   background: #0d0f10 !important;
 }
+
+
+/* Slimmer, clearer faction column header row. */
+#intelTable.faction-grid .faction-column-row {
+  min-height: 36px;
+}
+
+#intelTable.faction-grid .faction-grid-header-cell {
+  min-height: 36px;
+  padding: 5px 8px;
+  justify-content: center !important;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.15;
+}
+
+#intelTable.faction-grid .faction-grid-header-cell button {
+  padding: 0 10px;
+  text-align: center;
+}
+
+#intelTable.faction-grid .faction-grid-header-cell:first-child {
+  justify-content: flex-start !important;
+  text-align: left;
+}
+
+#intelTable.faction-grid .faction-grid-header-cell:first-child button {
+  padding-left: 0;
+  padding-right: 10px;
+  text-align: left;
+}
