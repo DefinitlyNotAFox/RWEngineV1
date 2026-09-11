@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=31" />
+  <link rel="stylesheet" href="/v2/app.css?v=32" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -111,16 +111,17 @@
             <button type="button" data-faction-mode="timeline">Timeline</button>
             <button type="button" data-faction-mode="wars">Ranked wars</button>
           </div>
-          <div class="faction-scope-row">
-            <button id="factionScopeAll" class="text-action faction-scope-all" type="button">All</button>
-            <button id="factionFilterToggle" class="faction-filter-toggle" type="button"></button>
-          </div>
+          <div class="faction-control-row">
+            <div class="faction-scope-row">
+              <button id="factionScopeAll" class="text-action faction-scope-all" type="button">All</button>
+              <button id="factionFilterToggle" class="faction-filter-toggle" type="button"></button>
+            </div>
 
-          <div class="intel2-toolbar">
             <div class="intel-filter-block">
               <span class="intel-filter-label">Filters</span>
               <div id="intelFilters" class="intel2-filters"></div>
             </div>
+
             <div id="periodControl" class="period-control legacy-intel-control hidden"></div>
             <input id="intelSearch" class="search" type="search" placeholder="Search member or ID" />
           </div>
@@ -277,6 +278,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=28"></script>
+  <script type="module" src="/v2/app.js?v=29"></script>
 </body>
 </html>
