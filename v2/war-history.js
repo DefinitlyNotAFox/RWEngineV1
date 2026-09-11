@@ -31,7 +31,6 @@ if (warsTab && warsBody) {
   installStylesheet();
   ensureDetailShell();
   normalizeHeader();
-  installRangeRenderGuard();
 
   warsNav?.addEventListener('click', () => window.setTimeout(async () => {
     syncRangeVisibility();
@@ -96,7 +95,7 @@ function ensureDetailShell() {
   detail.className = 'war-drilldown hidden';
   detail.innerHTML = `
     <header class="war-detail-header">
-      <button class="text-button war-detail-back" type="button" data-war-detail-back>← Back to War history</button>
+      <button class="text-button war-detail-back" type="button" data-war-detail-back>← Back to War Archive</button>
       <div class="war-detail-heading">
         <small id="warDetailMeta">Ranked war</small>
         <h2 id="warDetailTitle">War detail</h2>
@@ -175,28 +174,6 @@ function syncRangeVisibility() {
   const toolbar = document.querySelector('#rangeToolbar');
   if (!toolbar) return;
   if (warsTab?.classList.contains('active')) toolbar.classList.add('hidden');
-}
-
-function installRangeRenderGuard() {
-  if (window.__rweWarHistoryFetchWrapped) return;
-  window.__rweWarHistoryFetchWrapped = true;
-
-  const previousFetch = window.fetch.bind(window);
-  window.fetch = async (...args) => {
-    const url = requestUrl(args[0]);
-    const response = await previousFetch(...args);
-
-    if (url.includes('/v2/range')) {
-      window.setTimeout(() => {
-        if (warsTab?.classList.contains('active') && !selectedWarId) {
-          syncRangeVisibility();
-          renderWars();
-        }
-      }, 0);
-    }
-
-    return response;
-  };
 }
 
 async function loadWars(force) {
@@ -350,6 +327,14 @@ async function loadWarDetail(force) {
 function applyDetailPayload(data) {
   detailPayload = data;
   detailMembers = Array.isArray(data.members) ? data.members : [];
+
+  window.dispatchEvent(new CustomEvent('rwe:war-detail-loaded', {
+    detail: {
+      payload: data,
+      factionId: Number(document.querySelector('#adminFactionSelect')?.value || 0) || 0,
+      excludeChainBonuses
+    }
+  }));
   const war = data.war || {};
   if (pageTitle) pageTitle.textContent = `War #${war.warId || selectedWarId}`;
 
