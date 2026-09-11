@@ -176,6 +176,7 @@
         <div class="metric-grid ranked-war-metrics">
           <article class="metric-card"><span>Wars in period</span><strong id="metricWars">—</strong></article>
           <article class="metric-card"><span>Total war hits</span><strong id="metricHits">—</strong></article>
+          <article class="metric-card"><span>Avg hits / war</span><strong id="metricHitsPerWar">—</strong></article>
           <article class="metric-card"><span>Net score</span><strong id="metricNetScore">—</strong></article>
         </div>
 
@@ -220,7 +221,15 @@
       </section>
 
       <section id="membersTab" class="tab">
-        <article class="panel">
+        <div class="intel-summary-grid" aria-label="Faction intel summary">
+          <article><span>Current members</span><strong id="intelCurrentMembers">—</strong></article>
+          <article><span>Median stats</span><strong id="intelMedianStats">—</strong><small>Known estimates</small></article>
+          <article><span>Avg activity / day</span><strong id="intelAvgActivity">—</strong><small>Tracked coverage</small></article>
+          <article><span>Avg Xanax / day</span><strong id="intelAvgXanax">—</strong><small>Tracked coverage</small></article>
+          <article><span>RW participation</span><strong id="intelAvgParticipation">—</strong><small>Selected period</small></article>
+        </div>
+
+        <article class="panel intel-roster-panel">
           <div class="panel-header members-header">
             <div class="member-controls range-controls">
               <label class="compact-control hidden"><span>From</span><input id="intelFrom" type="date" /></label>
