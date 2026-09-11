@@ -29,13 +29,13 @@
   flex-wrap: wrap;
   padding: 3px;
   border: 1px solid var(--border-soft);
-  border-radius: 8px;
+  border-radius: 3px;
   background: #090f12;
 }
 
 .period-preset {
   border: 0;
-  border-radius: 5px;
+  border-radius: 2px;
   padding: 6px 9px;
   background: transparent;
   color: var(--muted);

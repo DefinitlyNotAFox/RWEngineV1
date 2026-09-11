@@ -19,7 +19,7 @@
 .inline-close {
   width: 24px;
   height: 24px;
-  border-radius: 6px;
+  border-radius: 3px;
   font-size: 16px;
 }
 
@@ -41,7 +41,7 @@
 
 .detail-card {
   padding: 6px 8px;
-  border-radius: 6px;
+  border-radius: 3px;
 }
 
 .detail-card > span {
@@ -76,7 +76,7 @@
 
 .detail-war-table {
   margin-top: 6px;
-  border-radius: 6px;
+  border-radius: 3px;
 }
 
 .detail-war-table th,

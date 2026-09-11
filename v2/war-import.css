@@ -56,7 +56,7 @@
   min-height: 66px;
   resize: vertical;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: 3px;
   padding: 9px 10px;
   background: var(--input, #0b1114);
   color: var(--text);
@@ -116,7 +116,7 @@
 .historical-import-progress-track {
   height: 4px;
   margin: 8px 0 10px;
-  border-radius: 99px;
+  border-radius: 1px;
   background: #080d0f;
   overflow: hidden;
 }

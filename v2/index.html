@@ -4,19 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/styles.css?v=5" />
-  <link rel="stylesheet" href="/v2/compact.css?v=1" />
-  <link rel="stylesheet" href="/v2/war-import.css?v=2" />
-  <link rel="stylesheet" href="/v2/admin-workspace.css?v=1" data-rwe-admin-workspace="1" />
+  <link rel="stylesheet" href="/v2/styles.css?v=6" />
+  <link rel="stylesheet" href="/v2/compact.css?v=2" />
+  <link rel="stylesheet" href="/v2/war-import.css?v=3" />
+  <link rel="stylesheet" href="/v2/admin-workspace.css?v=2" data-rwe-admin-workspace="1" />
   <link rel="stylesheet" href="/v2/boot-stability.css?v=1" />
-  <link rel="stylesheet" href="/v2/layout-refinement.css?v=2" />
+  <link rel="stylesheet" href="/v2/layout-refinement.css?v=3" />
   <link rel="stylesheet" href="/v2/member-table.css?v=3" data-rwe-member-table="1" />
-  <link rel="stylesheet" href="/v2/range-controls.css?v=2" data-rwe-range-controls="1" />
-  <link rel="stylesheet" href="/v2/performance-table.css?v=4" data-rwe-performance-table="1" />
+  <link rel="stylesheet" href="/v2/range-controls.css?v=3" data-rwe-range-controls="1" />
+  <link rel="stylesheet" href="/v2/performance-table.css?v=5" data-rwe-performance-table="1" />
   <link rel="stylesheet" href="/v2/ui-refinement.css?v=1" data-rwe-ui-refinement="1" />
   <link rel="stylesheet" href="/v2/war-drilldown.css?v=1" data-rwe-war-drilldown="1" />
   <link rel="stylesheet" href="/v2/war-detail-controls.css?v=1" data-rwe-war-detail-controls="1" />
-  <link rel="stylesheet" href="/v2/platform-shell.css?v=1" />
+  <link rel="stylesheet" href="/v2/platform-shell.css?v=2" />
 </head>
 <body>
   <div id="loginView" class="login-view hidden">
@@ -73,7 +73,7 @@
     <aside class="sidebar">
       <div class="sidebar-brand">
         <div class="wordmark sidebar-wordmark"><span>RW</span>Engine</div>
-        <div class="product-caption">Torn intelligence platform</div>
+        <div class="product-caption">Torn tools</div>
         <div id="factionLabel" class="faction-label">Faction</div>
       </div>
 
@@ -120,56 +120,51 @@
       <div id="syncStatus" class="sync-status hidden"></div>
 
       <section id="overviewTab" class="tab active">
-        <section class="platform-hero">
+        <div class="home-status">
           <div>
-            <p class="eyebrow">RWEngine</p>
-            <h2>One place for your Torn data.</h2>
-            <p class="platform-hero-copy">Faction intelligence and ranked-war analysis live here now. Future tools plug into the same account, data layer and sharing system instead of becoming another stray userscript.</p>
-          </div>
-          <div class="platform-hero-stat">
-            <span>Tracked members</span>
+            <span>Faction members</span>
             <strong id="metricMembers">—</strong>
-            <small id="trackingText">Loading faction coverage…</small>
           </div>
-        </section>
-
-        <div class="module-grid">
-          <button class="module-card module-card-primary" data-open-module="members" type="button">
-            <span class="module-kicker">Faction</span>
-            <strong>Faction Intel</strong>
-            <p>Roster, activity, battle-stat estimates, xanax use, OC activity and war participation.</p>
-            <span class="module-action">Open module →</span>
-          </button>
-
-          <button class="module-card" data-open-module="ranked-war" type="button">
-            <span class="module-kicker">War</span>
-            <strong>Ranked War Analytics</strong>
-            <p>Performance summaries, contribution data and imported ranked-war history.</p>
-            <span class="module-action">Open module →</span>
-          </button>
-
-          <button class="module-card" data-open-module="performance" type="button">
-            <span class="module-kicker">Analysis</span>
-            <strong>Performance</strong>
-            <p>Compare member output across the selected period with simplified or detailed views.</p>
-            <span class="module-action">Open module →</span>
-          </button>
-
-          <button class="module-card" data-open-module="wars" type="button">
-            <span class="module-kicker">Data</span>
-            <strong>War Archive</strong>
-            <p>Browse imported wars and bring older reports into the shared RWEngine dataset.</p>
-            <span class="module-action">Open module →</span>
-          </button>
+          <p id="trackingText">Loading faction coverage…</p>
         </div>
 
-        <section class="platform-roadmap">
-          <div>
-            <p class="eyebrow">Platform direction</p>
-            <h3>Built to expand without rebuilding the site.</h3>
-          </div>
-          <p>New tools will appear as modules and reuse the same authentication, faction context and stored Torn data. Public sharing will be added at the report/tool level rather than exposing the underlying implementation.</p>
-        </section>
+        <div class="tool-index" aria-label="Available RWEngine tools">
+          <button class="tool-row" data-open-module="members" type="button">
+            <span class="tool-code">01</span>
+            <span class="tool-copy">
+              <strong>Faction Intel</strong>
+              <small>Roster, stats, activity, Xanax and war participation.</small>
+            </span>
+            <span class="tool-open">Open</span>
+          </button>
+
+          <button class="tool-row" data-open-module="ranked-war" type="button">
+            <span class="tool-code">02</span>
+            <span class="tool-copy">
+              <strong>Ranked War</strong>
+              <small>Period summaries and recent faction war output.</small>
+            </span>
+            <span class="tool-open">Open</span>
+          </button>
+
+          <button class="tool-row" data-open-module="performance" type="button">
+            <span class="tool-code">03</span>
+            <span class="tool-copy">
+              <strong>Performance</strong>
+              <small>Cross-war member comparison and contribution detail.</small>
+            </span>
+            <span class="tool-open">Open</span>
+          </button>
+
+          <button class="tool-row" data-open-module="wars" type="button">
+            <span class="tool-code">04</span>
+            <span class="tool-copy">
+              <strong>War Archive</strong>
+              <small>Imported reports, war detail and historical data.</small>
+            </span>
+            <span class="tool-open">Open</span>
+          </button>
+        </div>
       </section>
 
       <section id="ranked-warTab" class="tab">
