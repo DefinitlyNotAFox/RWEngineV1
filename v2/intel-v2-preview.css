@@ -53,3 +53,12 @@
 .intel2-war span{text-align:right;font-variant-numeric:tabular-nums}
 .intel2-war small{display:block;color:var(--dim);font-size:8px}
 @media(max-width:900px){.intel2-trends{grid-template-columns:1fr}.intel2-trend,.intel2-trend+.intel2-trend{padding:10px 0;border-right:0;border-bottom:1px solid var(--line-soft)}.intel2-trend:last-child{border-bottom:0}.intel2-toolbar{align-items:stretch;flex-direction:column}.intel2-toolbar .search{width:100%}}
+
+.intel2-trend-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;padding-bottom:6px;border-bottom:1px solid var(--line-soft)}
+.intel2-trend-toolbar>span{color:var(--dim);font-size:8px;font-weight:700;letter-spacing:.07em;text-transform:uppercase}
+.intel2-trend-toolbar>div{display:flex;gap:12px}
+.intel2-trend-toolbar button{border:0;border-bottom:1px solid transparent;padding:2px 0;background:transparent;color:var(--muted);font-size:9px}
+.intel2-trend-toolbar button.active{color:var(--text);border-bottom-color:var(--accent)}
+.intel2-coverage{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-top:14px;padding-top:9px;border-top:1px solid var(--line-soft);color:var(--dim);font-size:8px}
+.intel2-coverage span{text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+.intel2-coverage b{font-weight:500;color:var(--muted)}
