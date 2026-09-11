@@ -52,6 +52,12 @@ export function initIntel() {
     syncJob = null;
     renderSync();
   });
+
+  on('open-member', playerId => {
+    const search = document.querySelector('#intelSearch');
+    if (search) search.value = '';
+    openMember(Number(playerId));
+  });
 }
 
 export function renderIntel() {
@@ -170,7 +176,11 @@ async function toggleMember(playerId) {
     renderIntel();
     return;
   }
+  await openMember(playerId);
+}
 
+async function openMember(playerId) {
+  if (!Number.isSafeInteger(playerId) || playerId <= 0) return;
   selectedMemberId = playerId;
   renderIntel();
 
