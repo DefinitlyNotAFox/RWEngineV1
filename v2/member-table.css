@@ -1,12 +1,6 @@
-/* Position/faction rank, last action and ranked-war columns are intentionally hidden from the general roster. */
+/* Position is low-value in the scanning view. The activity and war signals stay visible. */
 .members-table > thead > tr > th:nth-child(2),
-.members-table > thead > tr > th:nth-child(3),
-.members-table > thead > tr > th:nth-child(8),
-.members-table > thead > tr > th:nth-child(9),
-.members-table > tbody > tr.member-row > td:nth-child(2),
-.members-table > tbody > tr.member-row > td:nth-child(3),
-.members-table > tbody > tr.member-row > td:nth-child(8),
-.members-table > tbody > tr.member-row > td:nth-child(9) {
+.members-table > tbody > tr.member-row > td:nth-child(2) {
   display: none;
 }
 
@@ -54,4 +48,33 @@
 
 .metric-not-ready {
   color: var(--muted-dim);
+}
+
+.members-table th:first-child,
+.members-table td:first-child {
+  min-width: 185px;
+}
+
+.members-table th:nth-child(3),
+.members-table td:nth-child(3) {
+  width: 78px;
+}
+
+.members-table th:nth-child(n+4),
+.members-table td:nth-child(n+4) {
+  min-width: 92px;
+}
+
+@media (max-width: 1120px) {
+  .members-table > thead > tr > th:nth-child(7),
+  .members-table > tbody > tr.member-row > td:nth-child(7) {
+    display: none;
+  }
+}
+
+@media (max-width: 930px) {
+  .members-table > thead > tr > th:nth-child(9),
+  .members-table > tbody > tr.member-row > td:nth-child(9) {
+    display: none;
+  }
 }
