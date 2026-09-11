@@ -100,6 +100,7 @@ async function shareStatus(db, user, factionId, body) {
   const resource = normalizeResource(body);
   const record = await getResourceRecord(db, factionId, resource);
   const permission = await getPermission(db, factionId, resource);
+  assertCanView(user, record, permission);
   const visibility = permission?.visibility || 'faction';
 
   const share = await db.prepare(
@@ -320,6 +321,22 @@ async function disableResourceLinks(db, factionId, resource, now) {
   await db.prepare(
     'UPDATE share_links SET is_enabled = 0, updated_at = ? WHERE faction_id = ? AND resource_type = ? AND resource_key = ? AND is_enabled = 1'
   ).bind(now, factionId, resource.type, resource.key).run();
+}
+
+function assertCanView(user, record, permission) {
+  if (Number(user.is_admin) === 1) return;
+
+  const visibility = permission?.visibility || 'faction';
+  if (visibility !== 'private') return;
+
+  const permissionOwnerId = Number(permission?.owner_user_id || 0);
+  const importOwnerId = Number(record.imported_by_user_id || 0);
+  if (
+    permissionOwnerId !== Number(user.user_id) &&
+    importOwnerId !== Number(user.user_id)
+  ) {
+    throw httpError(403, 'This war report is private.');
+  }
 }
 
 function canManage(user, record) {
