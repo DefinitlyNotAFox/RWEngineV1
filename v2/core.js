@@ -4,6 +4,7 @@ export const state = {
   selectedFactionId: null,
   wars: [],
   range: null,
+  freshness: null,
   period: { preset: 'last4', from: null, to: null },
   route: 'home'
 };
@@ -77,6 +78,12 @@ export async function shareApi(action, payload = {}) {
     action,
     ...(usesAdminFaction() ? { factionId: state.selectedFactionId } : {}),
     ...payload
+  });
+}
+
+export async function freshnessApi() {
+  return post('/v2/freshness', {
+    ...(usesAdminFaction() ? { factionId: state.selectedFactionId } : {})
   });
 }
 
@@ -304,6 +311,16 @@ export function formatDate(timestamp) {
     month: 'short',
     day: '2-digit'
   }).format(new Date(value * 1000));
+}
+
+export function formatAge(seconds) {
+  const value = Number(seconds);
+  if (!Number.isFinite(value) || value < 0) return 'unknown';
+  if (value < 60) return 'just now';
+  if (value < 3600) return Math.floor(value / 60) + 'm ago';
+  if (value < 86400) return Math.floor(value / 3600) + 'h ago';
+  if (value < 604800) return Math.floor(value / 86400) + 'd ago';
+  return Math.floor(value / 604800) + 'w ago';
 }
 
 export function formatDateTime(timestamp) {
