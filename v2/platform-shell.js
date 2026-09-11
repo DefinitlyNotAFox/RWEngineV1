@@ -20,6 +20,7 @@ document.querySelectorAll('.nav-button[data-tab], .jump-button[data-jump]').forE
   button.addEventListener('click', () => window.setTimeout(syncShellMeta, 0));
 });
 
+window.addEventListener('rwe:tab-changed', syncShellMeta);
 syncShellMeta();
 
 function syncShellMeta() {
@@ -28,4 +29,9 @@ function syncShellMeta() {
   if (context) context.textContent = section;
   const pageTitle = document.querySelector('#pageTitle');
   if (pageTitle) pageTitle.textContent = title;
+
+  const syncButton = document.querySelector('#syncIntelButton');
+  const refreshButton = document.querySelector('#refreshButton');
+  if (syncButton) syncButton.classList.toggle('hidden', active !== 'members');
+  if (refreshButton) refreshButton.classList.toggle('hidden', active === 'settings');
 }
