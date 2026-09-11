@@ -212,8 +212,6 @@ async function loadRange(showBusyState = false) {
     syncRangeInputs();
     renderOverview();
     renderMembers();
-    renderWars();
-
     if (state.selectedMemberId) await loadMemberDetail(state.selectedMemberId);
   } catch (error) {
     setGlobalError(`Date range: ${error.message}`);
@@ -293,7 +291,6 @@ async function runFactionSync() {
 function renderAll() {
   renderOverview();
   renderMembers();
-  renderWars();
   renderSyncStatus();
 }
 
@@ -629,25 +626,6 @@ function isActiveSync(job) {
   return Boolean(job && ['queued', 'running'].includes(job.status));
 }
 
-function renderWars() {
-  const tbody = document.querySelector('#warsBody');
-  const wars = getWarsInRange();
-
-  if (!wars.length) {
-    tbody.innerHTML = '<tr><td colspan="4" class="empty">No imported wars found in this range.</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = wars.map(war => `
-    <tr>
-      <td>${escapeHtml(war.opponent_faction_name || 'Unknown opponent')}</td>
-      <td>${escapeHtml(String(war.war_id || '—'))}</td>
-      <td>${formatWarDate(war.start_timestamp)}</td>
-      <td>${formatWarDate(war.end_timestamp)}</td>
-    </tr>
-  `).join('');
-}
-
 function getWarsInRange() {
   const from = Number(state.range?.range?.from || 0);
   const to = Number(state.range?.range?.to || Number.MAX_SAFE_INTEGER);
@@ -683,11 +661,22 @@ async function api(action, payload = {}) {
 }
 
 async function intelApi(action, payload = {}) {
-  const response = await fetch('/v2/intel', {
+  const syncActions = new Set(['startSync', 'getSyncStatus', 'syncStep']);
+  const body = { action, ...payload };
+
+  if (syncActions.has(action) && state.user?.isAdmin) {
+    const selectedFactionId = Number(
+      document.querySelector('#adminFactionSelect')?.value ||
+      readLocalStorageNumber('rwengine.adminFactionView')
+    );
+    if (selectedFactionId > 0) body.factionId = selectedFactionId;
+  }
+
+  const response = await fetch(syncActions.has(action) ? '/v2/sync-current' : '/v2/intel', {
     method: 'POST',
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, ...payload })
+    body: JSON.stringify(body)
   });
   return parseApiResponse(response);
 }
@@ -828,6 +817,15 @@ function setGlobalError(message) {
 
 function sleep(milliseconds) {
   return new Promise(resolve => setTimeout(resolve, milliseconds));
+}
+
+function readLocalStorageNumber(key) {
+  try {
+    const value = Number(window.localStorage.getItem(key) || 0);
+    return Number.isSafeInteger(value) && value > 0 ? value : 0;
+  } catch (_) {
+    return 0;
+  }
 }
 
 function escapeHtml(value) {
