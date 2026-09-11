@@ -6,6 +6,9 @@ const adminFactionSelect = document.querySelector('#adminFactionSelect');
 const pageTitle = document.querySelector('#pageTitle');
 const archiveWrap = warsBody?.closest('.table-wrap');
 const importPanel = warsTab?.querySelector('.war-import');
+const archiveToolbar = warsTab?.querySelector('.war-archive-toolbar');
+const archiveSearch = document.querySelector('#warArchiveSearch');
+const archiveCount = document.querySelector('#warArchiveCount');
 
 const SELECTED_WAR_KEY = 'rwengine.selectedWarDetail';
 const DETAIL_MODE_KEY = 'rwengine.warDetailMode';
@@ -28,7 +31,6 @@ if (warsTab && warsBody) {
   installStylesheet();
   ensureDetailShell();
   normalizeHeader();
-  installRangeRenderGuard();
 
   warsNav?.addEventListener('click', () => window.setTimeout(async () => {
     syncRangeVisibility();
@@ -55,6 +57,8 @@ if (warsTab && warsBody) {
     if (button === warsNav) return;
     button.addEventListener('click', () => window.setTimeout(syncRangeVisibility, 0));
   });
+
+  archiveSearch?.addEventListener('input', renderWars);
 
   warsBody.addEventListener('click', event => {
     const row = event.target.closest('[data-war-id]');
@@ -91,7 +95,7 @@ function ensureDetailShell() {
   detail.className = 'war-drilldown hidden';
   detail.innerHTML = `
     <header class="war-detail-header">
-      <button class="text-button war-detail-back" type="button" data-war-detail-back>← Back to War history</button>
+      <button class="text-button war-detail-back" type="button" data-war-detail-back>← Back to War Archive</button>
       <div class="war-detail-heading">
         <small id="warDetailMeta">Ranked war</small>
         <h2 id="warDetailTitle">War detail</h2>
@@ -172,28 +176,6 @@ function syncRangeVisibility() {
   if (warsTab?.classList.contains('active')) toolbar.classList.add('hidden');
 }
 
-function installRangeRenderGuard() {
-  if (window.__rweWarHistoryFetchWrapped) return;
-  window.__rweWarHistoryFetchWrapped = true;
-
-  const previousFetch = window.fetch.bind(window);
-  window.fetch = async (...args) => {
-    const url = requestUrl(args[0]);
-    const response = await previousFetch(...args);
-
-    if (url.includes('/v2/range')) {
-      window.setTimeout(() => {
-        if (warsTab?.classList.contains('active') && !selectedWarId) {
-          syncRangeVisibility();
-          renderWars();
-        }
-      }, 0);
-    }
-
-    return response;
-  };
-}
-
 async function loadWars(force) {
   if (!force && wars.length) {
     renderWars();
@@ -224,9 +206,29 @@ function renderWars() {
   normalizeHeader();
   syncRangeVisibility();
 
-  const ordered = [...wars].sort((a, b) => warTimestamp(b) - warTimestamp(a));
-  if (!ordered.length) {
+  const query = String(archiveSearch?.value || '').trim().toLowerCase();
+  const ordered = [...wars]
+    .sort((a, b) => warTimestamp(b) - warTimestamp(a))
+    .filter(war => {
+      if (!query) return true;
+      const opponent = String(war.opponent_faction_name || '').toLowerCase();
+      const warId = String(war.war_id || war.report_id || '').toLowerCase();
+      return opponent.includes(query) || warId.includes(query);
+    });
+
+  if (archiveCount) {
+    archiveCount.textContent = query
+      ? `${formatNumber(ordered.length)} of ${formatNumber(wars.length)} wars`
+      : `${formatNumber(wars.length)} wars`;
+  }
+
+  if (!wars.length) {
     warsBody.innerHTML = '<tr><td colspan="4" class="empty">No imported wars stored for this faction.</td></tr>';
+    return;
+  }
+
+  if (!ordered.length) {
+    warsBody.innerHTML = '<tr><td colspan="4" class="empty">No wars match this search.</td></tr>';
     return;
   }
 
@@ -257,6 +259,7 @@ function openWarDetail(warId, persist = true) {
 
   archiveWrap?.classList.add('hidden');
   importPanel?.classList.add('hidden');
+  archiveToolbar?.classList.add('hidden');
   const detail = document.querySelector('#warDrilldown');
   detail?.classList.remove('hidden');
   if (pageTitle) pageTitle.textContent = `War #${id}`;
@@ -273,9 +276,10 @@ function closeWarDetail(keepStored) {
   document.querySelector('#warDrilldown')?.classList.add('hidden');
   archiveWrap?.classList.remove('hidden');
   importPanel?.classList.remove('hidden');
+  archiveToolbar?.classList.remove('hidden');
   const search = document.querySelector('[data-war-detail-search]');
   if (search) search.value = '';
-  if (pageTitle && warsTab?.classList.contains('active')) pageTitle.textContent = 'War history';
+  if (pageTitle && warsTab?.classList.contains('active')) pageTitle.textContent = 'War Archive';
   renderWars();
 }
 
@@ -323,6 +327,14 @@ async function loadWarDetail(force) {
 function applyDetailPayload(data) {
   detailPayload = data;
   detailMembers = Array.isArray(data.members) ? data.members : [];
+
+  window.dispatchEvent(new CustomEvent('rwe:war-detail-loaded', {
+    detail: {
+      payload: data,
+      factionId: Number(document.querySelector('#adminFactionSelect')?.value || 0) || 0,
+      excludeChainBonuses
+    }
+  }));
   const war = data.war || {};
   if (pageTitle) pageTitle.textContent = `War #${war.warId || selectedWarId}`;
 

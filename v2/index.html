@@ -16,39 +16,73 @@
   <link rel="stylesheet" href="/v2/ui-refinement.css?v=1" data-rwe-ui-refinement="1" />
   <link rel="stylesheet" href="/v2/war-drilldown.css?v=1" data-rwe-war-drilldown="1" />
   <link rel="stylesheet" href="/v2/war-detail-controls.css?v=1" data-rwe-war-detail-controls="1" />
+  <link rel="stylesheet" href="/v2/platform-shell.css?v=1" />
 </head>
 <body>
   <div id="loginView" class="login-view hidden">
-    <form id="loginForm" class="login-card">
-      <div class="wordmark"><span>RW</span>Engine</div>
-      <p class="muted">Faction analytics</p>
+    <div class="login-card">
+      <div>
+        <div class="wordmark"><span>RW</span>Engine</div>
+        <p class="muted auth-intro">Torn tools and faction intelligence.</p>
+      </div>
 
-      <label>
-        Torn player ID
-        <input id="playerIdInput" type="text" inputmode="numeric" autocomplete="username" required />
-      </label>
+      <div class="auth-mode-switch" role="tablist" aria-label="Account access">
+        <button id="showLoginButton" class="auth-mode-button active" type="button">Sign in</button>
+        <button id="showRegisterButton" class="auth-mode-button" type="button">Create account</button>
+      </div>
 
-      <label>
-        Password
-        <input id="passwordInput" type="password" autocomplete="current-password" required />
-      </label>
+      <form id="loginForm" class="auth-form">
+        <label>
+          Torn player ID
+          <input id="playerIdInput" type="text" inputmode="numeric" autocomplete="username" required />
+        </label>
 
-      <button class="button primary" type="submit">Sign in</button>
+        <label>
+          Password
+          <input id="passwordInput" type="password" autocomplete="current-password" required />
+        </label>
+
+        <button class="button primary" type="submit">Sign in</button>
+      </form>
+
+      <form id="registerForm" class="auth-form hidden">
+        <label>
+          Limited Torn API key
+          <input id="registerApiKeyInput" type="password" autocomplete="off" required />
+          <small>Used to verify your Torn identity and connect your faction data.</small>
+        </label>
+
+        <label>
+          Password
+          <input id="registerPasswordInput" type="password" autocomplete="new-password" minlength="8" required />
+        </label>
+
+        <label>
+          Confirm password
+          <input id="registerConfirmInput" type="password" autocomplete="new-password" minlength="8" required />
+        </label>
+
+        <button class="button primary" type="submit">Create account</button>
+      </form>
+
       <p id="loginError" class="error hidden"></p>
-    </form>
+    </div>
   </div>
 
   <div id="appView" class="app-shell hidden">
     <aside class="sidebar">
-      <div>
+      <div class="sidebar-brand">
         <div class="wordmark sidebar-wordmark"><span>RW</span>Engine</div>
+        <div class="product-caption">Torn intelligence platform</div>
         <div id="factionLabel" class="faction-label">Faction</div>
       </div>
 
       <nav class="nav-list" aria-label="RWEngine sections">
-        <button class="nav-button active" data-tab="overview" type="button">Overview</button>
-        <button class="nav-button" data-tab="members" type="button">Members</button>
+        <div class="nav-section-label">Workspace</div>
+        <button class="nav-button active" data-tab="overview" type="button">Home</button>
+        <button class="nav-button" data-tab="members" type="button">Faction Intel</button>
 
+        <div class="nav-section-label">War</div>
         <div id="rankedWarNavGroup" class="nav-group">
           <button class="nav-button nav-parent" data-tab="ranked-war" type="button" aria-expanded="false">
             <span>Ranked War</span>
@@ -56,11 +90,11 @@
           </button>
           <div class="nav-submenu">
             <button class="nav-button nav-subbutton" data-tab="performance" type="button">Performance</button>
-            <button class="nav-button nav-subbutton" data-tab="wars" type="button">War history</button>
-            <button class="nav-button nav-subbutton" data-tab="current-war" type="button">Current matchup</button>
+            <button class="nav-button nav-subbutton" data-tab="wars" type="button">War archive</button>
           </div>
         </div>
 
+        <div class="nav-section-label nav-section-bottom">System</div>
         <button class="nav-button" data-tab="settings" type="button">Settings</button>
       </nav>
 
@@ -72,7 +106,10 @@
 
     <main class="main">
       <header class="topbar">
-        <h1 id="pageTitle">Overview</h1>
+        <div>
+          <p id="pageContext" class="page-context">Workspace</p>
+          <h1 id="pageTitle">Home</h1>
+        </div>
         <div class="member-controls">
           <button id="syncIntelButton" class="button primary" type="button">Sync faction</button>
           <button id="refreshButton" class="button" type="button">Refresh</button>
@@ -83,16 +120,63 @@
       <div id="syncStatus" class="sync-status hidden"></div>
 
       <section id="overviewTab" class="tab active">
-        <div class="hidden" aria-hidden="true">
-          <span id="metricMembers">—</span>
-          <p id="trackingText"></p>
+        <section class="platform-hero">
+          <div>
+            <p class="eyebrow">RWEngine</p>
+            <h2>One place for your Torn data.</h2>
+            <p class="platform-hero-copy">Faction intelligence and ranked-war analysis live here now. Future tools plug into the same account, data layer and sharing system instead of becoming another stray userscript.</p>
+          </div>
+          <div class="platform-hero-stat">
+            <span>Tracked members</span>
+            <strong id="metricMembers">—</strong>
+            <small id="trackingText">Loading faction coverage…</small>
+          </div>
+        </section>
+
+        <div class="module-grid">
+          <button class="module-card module-card-primary" data-open-module="members" type="button">
+            <span class="module-kicker">Faction</span>
+            <strong>Faction Intel</strong>
+            <p>Roster, activity, battle-stat estimates, xanax use, OC activity and war participation.</p>
+            <span class="module-action">Open module →</span>
+          </button>
+
+          <button class="module-card" data-open-module="ranked-war" type="button">
+            <span class="module-kicker">War</span>
+            <strong>Ranked War Analytics</strong>
+            <p>Performance summaries, contribution data and imported ranked-war history.</p>
+            <span class="module-action">Open module →</span>
+          </button>
+
+          <button class="module-card" data-open-module="performance" type="button">
+            <span class="module-kicker">Analysis</span>
+            <strong>Performance</strong>
+            <p>Compare member output across the selected period with simplified or detailed views.</p>
+            <span class="module-action">Open module →</span>
+          </button>
+
+          <button class="module-card" data-open-module="wars" type="button">
+            <span class="module-kicker">Data</span>
+            <strong>War Archive</strong>
+            <p>Browse imported wars and bring older reports into the shared RWEngine dataset.</p>
+            <span class="module-action">Open module →</span>
+          </button>
         </div>
+
+        <section class="platform-roadmap">
+          <div>
+            <p class="eyebrow">Platform direction</p>
+            <h3>Built to expand without rebuilding the site.</h3>
+          </div>
+          <p>New tools will appear as modules and reuse the same authentication, faction context and stored Torn data. Public sharing will be added at the report/tool level rather than exposing the underlying implementation.</p>
+        </section>
       </section>
 
       <section id="ranked-warTab" class="tab">
         <div class="metric-grid ranked-war-metrics">
           <article class="metric-card"><span>Wars in period</span><strong id="metricWars">—</strong></article>
           <article class="metric-card"><span>Total war hits</span><strong id="metricHits">—</strong></article>
+          <article class="metric-card"><span>Avg hits / war</span><strong id="metricHitsPerWar">—</strong></article>
           <article class="metric-card"><span>Net score</span><strong id="metricNetScore">—</strong></article>
         </div>
 
@@ -100,7 +184,7 @@
           <article class="panel">
             <div class="panel-header">
               <div><p class="eyebrow">Recent history</p><h2>Latest wars</h2></div>
-              <button class="text-button jump-button" data-jump="wars" type="button">View all</button>
+              <button class="text-button jump-button" data-jump="wars" type="button">View archive</button>
             </div>
             <div id="overviewWars" class="stack-list"></div>
           </article>
@@ -137,7 +221,15 @@
       </section>
 
       <section id="membersTab" class="tab">
-        <article class="panel">
+        <div class="intel-summary-grid" aria-label="Faction intel summary">
+          <article><span>Current members</span><strong id="intelCurrentMembers">—</strong></article>
+          <article><span>Median stats</span><strong id="intelMedianStats">—</strong><small>Known estimates</small></article>
+          <article><span>Avg activity / day</span><strong id="intelAvgActivity">—</strong><small>Tracked coverage</small></article>
+          <article><span>Avg Xanax / day</span><strong id="intelAvgXanax">—</strong><small>Tracked coverage</small></article>
+          <article><span>RW participation</span><strong id="intelAvgParticipation">—</strong><small>Selected period</small></article>
+        </div>
+
+        <article class="panel intel-roster-panel">
           <div class="panel-header members-header">
             <div class="member-controls range-controls">
               <label class="compact-control hidden"><span>From</span><input id="intelFrom" type="date" /></label>
@@ -149,7 +241,7 @@
 
           <div class="table-wrap members-table-wrap">
             <table class="members-table">
-              <thead><tr><th>Member</th><th>Position</th><th>Last action</th><th>Stats</th><th>Activity / day</th><th>Xanax / day</th><th>OCs / month</th><th>RW participation</th><th>Avg hits / war</th></tr></thead>
+              <thead><tr><th>Member</th><th>Position</th><th>Last action</th><th>Stats</th><th>Activity / day</th><th>Xanax / day</th><th>RW participation</th><th>Avg hits / war</th></tr></thead>
               <tbody id="membersBody"></tbody>
             </table>
           </div>
@@ -158,8 +250,16 @@
 
       <section id="warsTab" class="tab">
         <article class="panel">
+          <div class="war-archive-toolbar">
+            <div>
+              <p class="eyebrow">Imported reports</p>
+              <strong id="warArchiveCount">— wars</strong>
+            </div>
+            <input id="warArchiveSearch" class="search" type="search" placeholder="Search opponent or war ID…" />
+          </div>
+
           <details class="war-import">
-            <summary><span><strong>Import historical war reports</strong><small>Add finished ranked wars from before RWE started tracking this faction.</small></span></summary>
+            <summary><span><strong>Import historical war reports</strong><small>Add finished ranked wars from before RWEngine started tracking this faction.</small></span></summary>
             <div class="war-import-body">
               <form id="historicalWarImportForm" class="historical-import-form">
                 <label class="historical-import-input"><span>Ranked war report IDs</span><textarea id="historicalWarReportIds" rows="3" placeholder="One or more report IDs, separated by spaces, commas or new lines" required></textarea></label>
@@ -182,18 +282,10 @@
         </article>
       </section>
 
-      <section id="current-warTab" class="tab">
-        <article class="panel feature-placeholder">
-          <p class="eyebrow">Matchup intelligence</p><h2>Current matchup</h2>
-          <p>This module will compare both rosters, surface known history and estimates, and explain why specific opponents are important rather than reducing the matchup to an opaque score.</p>
-          <div class="placeholder-grid"><div><span>Own roster</span><strong>Planned</strong></div><div><span>Opponent roster</span><strong>Planned</strong></div><div><span>Historical context</span><strong>Planned</strong></div><div><span>Explainable threats</span><strong>Planned</strong></div></div>
-        </article>
-      </section>
-
       <section id="settingsTab" class="tab">
         <div class="two-column">
           <article class="panel"><p class="eyebrow">Account</p><h2>Identity</h2><dl class="definition-list"><div><dt>Player</dt><dd id="settingsPlayer">—</dd></div><div><dt>Faction</dt><dd id="settingsFaction">—</dd></div><div><dt>Faction ID</dt><dd id="settingsFactionId">—</dd></div></dl></article>
-          <article class="panel"><p class="eyebrow">Application</p><h2>RWEngine</h2><p class="muted">Faction analytics, member history, ranked-war analytics and matchup information in one place.</p></article>
+          <article class="panel"><p class="eyebrow">Platform</p><h2>RWEngine</h2><p class="muted">Shared Torn tools, faction intelligence and analytics backed by a server-owned data layer.</p></article>
         </div>
       </section>
     </main>
@@ -201,8 +293,9 @@
 
   <script src="/v2/admin-boot-router.js?v=1"></script>
   <script type="module" src="/v2/app.js?v=4"></script>
-  <script type="module" src="/v2/ranked-war-navigation.js?v=3"></script>
+  <script type="module" src="/v2/ranked-war-navigation.js?v=4"></script>
   <script type="module" src="/v2/sync-status.js?v=27"></script>
   <script type="module" src="/v2/war-import.js?v=6"></script>
+  <script type="module" src="/v2/platform-shell.js?v=1"></script>
 </body>
 </html>

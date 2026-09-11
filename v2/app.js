@@ -13,8 +13,14 @@ const state = {
 const loginView = document.querySelector('#loginView');
 const appView = document.querySelector('#appView');
 const loginForm = document.querySelector('#loginForm');
+const registerForm = document.querySelector('#registerForm');
+const showLoginButton = document.querySelector('#showLoginButton');
+const showRegisterButton = document.querySelector('#showRegisterButton');
 const playerIdInput = document.querySelector('#playerIdInput');
 const passwordInput = document.querySelector('#passwordInput');
+const registerApiKeyInput = document.querySelector('#registerApiKeyInput');
+const registerPasswordInput = document.querySelector('#registerPasswordInput');
+const registerConfirmInput = document.querySelector('#registerConfirmInput');
 const loginError = document.querySelector('#loginError');
 const globalError = document.querySelector('#globalError');
 const refreshButton = document.querySelector('#refreshButton');
@@ -28,12 +34,16 @@ const syncStatus = document.querySelector('#syncStatus');
 const membersBody = document.querySelector('#membersBody');
 
 const pageTitles = {
-  overview: 'Overview',
-  members: 'Members',
-  wars: 'Wars',
-  'current-war': 'Current War',
+  overview: 'Home',
+  members: 'Faction Intel',
+  'ranked-war': 'Ranked War',
+  performance: 'Performance',
+  wars: 'War Archive',
   settings: 'Settings'
 };
+
+showLoginButton?.addEventListener('click', () => setAuthMode('login'));
+showRegisterButton?.addEventListener('click', () => setAuthMode('register'));
 
 loginForm.addEventListener('submit', async event => {
   event.preventDefault();
@@ -47,6 +57,27 @@ loginForm.addEventListener('submit', async event => {
 
     state.user = response.user;
     passwordInput.value = '';
+    await enterApp();
+  } catch (error) {
+    setLoginError(error.message);
+  }
+});
+
+registerForm?.addEventListener('submit', async event => {
+  event.preventDefault();
+  setLoginError('');
+
+  try {
+    const response = await api('register', {
+      apiKey: registerApiKeyInput.value.trim(),
+      password: registerPasswordInput.value,
+      confirmPassword: registerConfirmInput.value
+    });
+
+    state.user = response.user;
+    registerApiKeyInput.value = '';
+    registerPasswordInput.value = '';
+    registerConfirmInput.value = '';
     await enterApp();
   } catch (error) {
     setLoginError(error.message);
@@ -110,14 +141,24 @@ async function enterApp() {
   document.querySelector('#settingsFaction').textContent = state.user?.factionName || '—';
   document.querySelector('#settingsFactionId').textContent = state.user?.factionId ?? '—';
 
-  showTab('overview');
+  showTab('overview', { notify: false });
   await loadCoreData(false);
 }
 
 function showLogin() {
   appView.classList.add('hidden');
   loginView.classList.remove('hidden');
+  setAuthMode('login');
   setGlobalError('');
+  setLoginError('');
+}
+
+function setAuthMode(mode) {
+  const registering = mode === 'register';
+  loginForm.classList.toggle('hidden', registering);
+  registerForm?.classList.toggle('hidden', !registering);
+  showLoginButton?.classList.toggle('active', !registering);
+  showRegisterButton?.classList.toggle('active', registering);
   setLoginError('');
 }
 
@@ -171,8 +212,6 @@ async function loadRange(showBusyState = false) {
     syncRangeInputs();
     renderOverview();
     renderMembers();
-    renderWars();
-
     if (state.selectedMemberId) await loadMemberDetail(state.selectedMemberId);
   } catch (error) {
     setGlobalError(`Date range: ${error.message}`);
@@ -252,7 +291,6 @@ async function runFactionSync() {
 function renderAll() {
   renderOverview();
   renderMembers();
-  renderWars();
   renderSyncStatus();
 }
 
@@ -263,8 +301,12 @@ function renderOverview() {
   const netScore = members.reduce((sum, member) => sum + Number(member.netScore || 0), 0);
 
   document.querySelector('#metricMembers').textContent = formatNumber(summary.currentMembers || 0);
-  document.querySelector('#metricWars').textContent = formatNumber(summary.warsInPeriod || 0);
+  const warsInPeriod = Number(summary.warsInPeriod || 0);
+  document.querySelector('#metricWars').textContent = formatNumber(warsInPeriod);
   document.querySelector('#metricHits').textContent = formatNumber(totalHits);
+  document.querySelector('#metricHitsPerWar').textContent = warsInPeriod > 0
+    ? formatNullableDecimal(totalHits / warsInPeriod, 1)
+    : '—';
   document.querySelector('#metricNetScore').textContent = formatSigned(netScore);
 
   const warsContainer = document.querySelector('#overviewWars');
@@ -309,14 +351,17 @@ function renderOverview() {
 }
 
 function renderMembers() {
+  const allMembers = state.range?.members || [];
+  renderIntelSummary(allMembers);
+
   const search = memberSearch.value.trim().toLowerCase();
-  const rows = (state.range?.members || []).filter(member => {
+  const rows = allMembers.filter(member => {
     if (!search) return true;
     return String(member.playerName || '').toLowerCase().includes(search) || String(member.playerId || '').includes(search);
   });
 
   if (!rows.length) {
-    membersBody.innerHTML = '<tr><td colspan="9" class="empty">No matching members in the selected range.</td></tr>';
+    membersBody.innerHTML = '<tr><td colspan="8" class="empty">No matching members in the selected range.</td></tr>';
     return;
   }
 
@@ -333,13 +378,53 @@ function renderMembers() {
         <td>${formatBattleStats(member)}</td>
         <td>${formatActivityPerDay(member.activityPerDaySeconds)}</td>
         <td>${formatNullableDecimal(member.xanaxPerDay, 2)}</td>
-        <td>${formatNullableDecimal(member.ocsPerMonth, 1)}</td>
         <td>${formatPercent(member.participation)}</td>
         <td>${formatNullableDecimal(member.avgHitsPerWar, 1)}</td>
       </tr>
       ${selected ? renderInlineMemberDetail(member) : ''}
     `;
   }).join('');
+}
+
+function renderIntelSummary(members) {
+  const current = members.filter(member => member.current !== false);
+  const statValues = current
+    .map(member => Number(member.battleStatsValue))
+    .filter(value => Number.isFinite(value) && value > 0)
+    .sort((a, b) => a - b);
+  const activityValues = current
+    .map(member => Number(member.activityPerDaySeconds))
+    .filter(value => Number.isFinite(value) && value >= 0);
+  const xanaxValues = current
+    .map(member => Number(member.xanaxPerDay))
+    .filter(value => Number.isFinite(value) && value >= 0);
+  const participationValues = current
+    .map(member => Number(member.participation))
+    .filter(value => Number.isFinite(value) && value >= 0);
+
+  setText('#intelCurrentMembers', formatNumber(current.length));
+  setText('#intelMedianStats', statValues.length ? formatCompactNumber(median(statValues)) : 'Unavailable');
+  setText('#intelAvgActivity', activityValues.length ? formatActivityPerDay(average(activityValues)) : 'Unavailable');
+  setText('#intelAvgXanax', xanaxValues.length ? formatNullableDecimal(average(xanaxValues), 2) : 'Unavailable');
+  setText('#intelAvgParticipation', participationValues.length ? formatPercent(average(participationValues)) : 'Unavailable');
+}
+
+function average(values) {
+  if (!values.length) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function median(values) {
+  if (!values.length) return null;
+  const midpoint = Math.floor(values.length / 2);
+  return values.length % 2
+    ? values[midpoint]
+    : (values[midpoint - 1] + values[midpoint]) / 2;
+}
+
+function setText(selector, value) {
+  const element = document.querySelector(selector);
+  if (element) element.textContent = value;
 }
 
 function renderInlineMemberDetail(summaryMember) {
@@ -355,7 +440,7 @@ function renderInlineMemberDetail(summaryMember) {
 
   return `
     <tr class="member-detail-row">
-      <td colspan="9">
+      <td colspan="8">
         <section class="member-inline-panel">
           <header class="member-inline-header">
             <div>
@@ -451,7 +536,6 @@ function renderMemberDetailContent(member, wars) {
       ${detailCard('Battle stats', formatBattleStats(member), member.battleStatsVerified ? 'Verified by member API' : member.battleStatsValue ? 'Estimate' : 'Unavailable')}
       ${detailCard('Activity / day', formatActivityPerDay(member.activityPerDaySeconds), coverageText(member.coverageDays))}
       ${detailCard('Xanax / day', formatNullableDecimal(member.xanaxPerDay, 2), member.xanaxTaken !== null ? `${formatNumber(member.xanaxTaken)} in range` : 'Unavailable')}
-      ${detailCard('OCs / month', formatNullableDecimal(member.ocsPerMonth, 1), member.ocCount !== null ? `${formatNumber(member.ocCount)} in range` : 'Tracking will be added next')}
     </div>
 
     <section class="member-detail-section">
@@ -542,26 +626,6 @@ function isActiveSync(job) {
   return Boolean(job && ['queued', 'running'].includes(job.status));
 }
 
-function renderWars() {
-  const tbody = document.querySelector('#warsBody');
-  const wars = getWarsInRange();
-
-  if (!wars.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty">No imported wars found in this range.</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = wars.map(war => `
-    <tr>
-      <td>${escapeHtml(war.opponent_faction_name || 'Unknown opponent')}</td>
-      <td>${escapeHtml(String(war.war_id || '—'))}</td>
-      <td>${formatWarDate(war.start_timestamp)}</td>
-      <td>${formatWarDate(war.end_timestamp)}</td>
-      <td>${escapeHtml(formatChainStatus(war))}</td>
-    </tr>
-  `).join('');
-}
-
 function getWarsInRange() {
   const from = Number(state.range?.range?.from || 0);
   const to = Number(state.range?.range?.to || Number.MAX_SAFE_INTEGER);
@@ -572,12 +636,18 @@ function getWarsInRange() {
   });
 }
 
-function showTab(tabName) {
+function showTab(tabName, options = {}) {
+  const target = document.querySelector(`#${CSS.escape(tabName)}Tab`);
+  if (!target) return;
+
   document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
   document.querySelectorAll('.nav-button').forEach(button => button.classList.remove('active'));
-  document.querySelector(`#${CSS.escape(tabName)}Tab`)?.classList.add('active');
+  target.classList.add('active');
   document.querySelector(`.nav-button[data-tab="${CSS.escape(tabName)}"]`)?.classList.add('active');
   document.querySelector('#pageTitle').textContent = pageTitles[tabName] || 'RWEngine';
+  if (options.notify !== false) {
+    window.dispatchEvent(new CustomEvent('rwe:tab-changed', { detail: { tab: tabName } }));
+  }
 }
 
 async function api(action, payload = {}) {
@@ -591,11 +661,22 @@ async function api(action, payload = {}) {
 }
 
 async function intelApi(action, payload = {}) {
-  const response = await fetch('/v2/intel', {
+  const syncActions = new Set(['startSync', 'getSyncStatus', 'syncStep']);
+  const body = { action, ...payload };
+
+  if (syncActions.has(action) && state.user?.isAdmin) {
+    const selectedFactionId = Number(
+      document.querySelector('#adminFactionSelect')?.value ||
+      readLocalStorageNumber('rwengine.adminFactionView')
+    );
+    if (selectedFactionId > 0) body.factionId = selectedFactionId;
+  }
+
+  const response = await fetch(syncActions.has(action) ? '/v2/sync-current' : '/v2/intel', {
     method: 'POST',
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, ...payload })
+    body: JSON.stringify(body)
   });
   return parseApiResponse(response);
 }
@@ -714,11 +795,6 @@ function formatDecimal(value, digits) {
   });
 }
 
-function formatChainStatus(war) {
-  if (!war.chain_adjustment_status) return 'Not adjusted';
-  return war.chain_adjustment_status;
-}
-
 function formatNumber(value) {
   return new Intl.NumberFormat().format(Number(value || 0));
 }
@@ -741,6 +817,15 @@ function setGlobalError(message) {
 
 function sleep(milliseconds) {
   return new Promise(resolve => setTimeout(resolve, milliseconds));
+}
+
+function readLocalStorageNumber(key) {
+  try {
+    const value = Number(window.localStorage.getItem(key) || 0);
+    return Number.isSafeInteger(value) && value > 0 ? value : 0;
+  } catch (_) {
+    return 0;
+  }
 }
 
 function escapeHtml(value) {

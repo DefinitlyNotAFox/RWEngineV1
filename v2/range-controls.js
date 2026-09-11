@@ -85,6 +85,7 @@ function installToolbar() {
   document.querySelectorAll('.nav-button').forEach(button => {
     button.addEventListener('click', updateVisibility);
   });
+  window.addEventListener('rwe:tab-changed', updateVisibility);
 }
 
 async function initializePeriodData() {
@@ -302,7 +303,7 @@ function updateVisibility() {
   const toolbar = document.querySelector('#rangeToolbar');
   if (!toolbar) return;
   const active = document.querySelector('.nav-button.active')?.dataset.tab;
-  toolbar.classList.toggle('hidden', ['current-war', 'settings'].includes(active));
+  toolbar.classList.toggle('hidden', ['overview', 'settings'].includes(active));
 }
 
 async function fetchImportedWars() {

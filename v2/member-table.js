@@ -11,10 +11,12 @@ const sortState = {
 };
 
 const sortColumns = {
+  lastAction: { index: 2, label: 'Last action', parse: parseDuration, defaultDirection: 'asc' },
   stats: { index: 3, label: 'Stats', parse: parseScaledNumber },
   activity: { index: 4, label: 'Activity / day', parse: parseDuration },
   xanax: { index: 5, label: 'Xanax / day', parse: parseNumber },
-  ocs: { index: 6, label: 'OCs / month', parse: parseNumber }
+  participation: { index: 6, label: 'RW participation', parse: parseNumber },
+  avgHits: { index: 7, label: 'Avg hits / war', parse: parseNumber }
 };
 
 if (membersBody && membersTable) {
@@ -87,7 +89,7 @@ function installHeaders() {
       sortState.direction = sortState.direction === 'desc' ? 'asc' : 'desc';
     } else {
       sortState.key = key;
-      sortState.direction = 'desc';
+      sortState.direction = sortColumns[key].defaultDirection || 'desc';
     }
 
     applyPresentation();
@@ -120,12 +122,11 @@ function resetSort() {
 function applyEmptyStates() {
   for (const row of membersBody.querySelectorAll('tr.member-row[data-member-id]')) {
     const cells = row.cells;
-    if (cells.length < 7) continue;
+    if (cells.length < 6) continue;
 
     replaceUnavailable(cells[3], 'Unavailable');
     replaceUnavailable(cells[4], 'Needs 2 snapshots');
     replaceUnavailable(cells[5], 'Needs 2 snapshots');
-    replaceUnavailable(cells[6], 'Not tracked yet');
   }
 }
 
@@ -210,9 +211,11 @@ function parseDuration(text) {
   const lower = String(text || '').toLowerCase();
   let seconds = 0;
   let matched = false;
+  const day = lower.match(/([0-9]+(?:[.,][0-9]+)?)\s*d/);
   const hour = lower.match(/([0-9]+(?:[.,][0-9]+)?)\s*h/);
   const minute = lower.match(/([0-9]+(?:[.,][0-9]+)?)\s*m/);
   const second = lower.match(/([0-9]+(?:[.,][0-9]+)?)\s*s/);
+  if (day) { seconds += Number(day[1].replace(',', '.')) * 86400; matched = true; }
   if (hour) { seconds += Number(hour[1].replace(',', '.')) * 3600; matched = true; }
   if (minute) { seconds += Number(minute[1].replace(',', '.')) * 60; matched = true; }
   if (second) { seconds += Number(second[1].replace(',', '.')); matched = true; }

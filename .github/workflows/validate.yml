@@ -1,0 +1,45 @@
+name: Validate RWEngine
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          printf '{"type":"module"}\n' > package.json
+          find v2 functions -name '*.js' -print0 | xargs -0 -n1 node --check
+          rm package.json
+
+      - name: Check v2 asset references
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          import sys
+
+          html = Path("v2/index.html").read_text(encoding="utf-8")
+          refs = re.findall(r'(?:src|href)="(/v2/[^"?]+)(?:\?[^"]*)?"', html)
+          missing = [ref for ref in refs if not Path(ref.lstrip("/")).exists()]
+
+          if missing:
+              print("Missing referenced assets:")
+              for ref in missing:
+                  print(f" - {ref}")
+              sys.exit(1)
+
+          print(f"Validated {len(refs)} v2 asset references.")

@@ -1,8 +1,6 @@
 const payloadCache = new Map();
-const nativeFetch = window.fetch.bind(window);
-
 installStylesheet();
-installFetchCapture();
+installPayloadListener();
 installInteractionHooks();
 startControlBootstrap();
 
@@ -15,32 +13,19 @@ function installStylesheet() {
   document.head.appendChild(link);
 }
 
-function installFetchCapture() {
-  if (window.__rweWarDetailControlsFetchWrapped) return;
-  window.__rweWarDetailControlsFetchWrapped = true;
+function installPayloadListener() {
+  window.addEventListener('rwe:war-detail-loaded', event => {
+    const payload = event.detail?.payload;
+    if (!payload || payload.success === false || !payload.war) return;
 
-  window.fetch = async (...args) => {
-    const request = args[0];
-    const init = args[1] || {};
-    const url = requestUrl(request);
-    const requestMeta = url.includes('/v2/war-detail') ? parseWarDetailRequest(init.body) : null;
-    const response = await nativeFetch(...args);
-
-    if (requestMeta && response.ok) {
-      response.clone().json().then(payload => {
-        if (!payload || payload.success === false || !payload.war) return;
-        const key = payloadKey(
-          requestMeta.factionId,
-          payload.war.warId || requestMeta.warId,
-          requestMeta.excludeChainBonuses
-        );
-        payloadCache.set(key, payload);
-        scheduleRefresh();
-      }).catch(() => {});
-    }
-
-    return response;
-  };
+    const key = payloadKey(
+      event.detail?.factionId,
+      payload.war.warId,
+      event.detail?.excludeChainBonuses === true
+    );
+    payloadCache.set(key, payload);
+    scheduleRefresh();
+  });
 }
 
 function installInteractionHooks() {
@@ -252,26 +237,6 @@ function currentFactionId() {
 
 function payloadKey(factionId, warId, excludeChain) {
   return `${Number(factionId || 0)}:${String(warId || '')}:${excludeChain ? 1 : 0}`;
-}
-
-function parseWarDetailRequest(body) {
-  if (typeof body !== 'string') return null;
-  try {
-    const parsed = JSON.parse(body);
-    return {
-      warId: String(parsed.warId || ''),
-      factionId: Number(parsed.factionId || currentFactionId() || 0),
-      excludeChainBonuses: parsed.excludeChainBonuses === true
-    };
-  } catch (_) {
-    return null;
-  }
-}
-
-function requestUrl(input) {
-  if (typeof input === 'string') return input;
-  if (input instanceof URL) return input.toString();
-  return String(input?.url || '');
 }
 
 function finite(value) {

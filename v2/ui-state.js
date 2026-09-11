@@ -5,12 +5,13 @@ const VALID_TABS = new Set([
   'ranked-war',
   'performance',
   'wars',
-  'current-war',
   'settings'
 ]);
 
 installUiRefinementStyles();
 bindTabPersistence();
+window.addEventListener('rwe:tab-changed', event => rememberTab(event.detail?.tab));
+window.addEventListener('hashchange', navigateFromHash);
 restoreActiveTab();
 repairAdminFactionLabel();
 
@@ -36,15 +37,39 @@ function bindTabPersistence() {
 function rememberTab(tabName) {
   if (!VALID_TABS.has(tabName)) return;
   try { window.localStorage.setItem(ACTIVE_TAB_KEY, tabName); } catch (_) {}
+
+  const nextHash = tabName === 'overview' ? '#home' : `#${tabName}`;
+  if (window.location.hash !== nextHash) {
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${nextHash}`);
+  }
 }
 
 function readStoredTab() {
+  const hashTab = tabFromHash();
+  if (hashTab) return hashTab;
+
   try {
     const value = window.localStorage.getItem(ACTIVE_TAB_KEY) || '';
     return VALID_TABS.has(value) ? value : 'overview';
   } catch (_) {
     return 'overview';
   }
+}
+
+function tabFromHash() {
+  const raw = String(window.location.hash || '').replace(/^#/, '').trim();
+  if (!raw) return null;
+  if (raw === 'home') return 'overview';
+  return VALID_TABS.has(raw) ? raw : null;
+}
+
+function navigateFromHash() {
+  const tab = tabFromHash();
+  if (!tab) return;
+  const app = document.querySelector('#appView');
+  const button = document.querySelector(`.nav-button[data-tab="${CSS.escape(tab)}"]`);
+  if (!app || app.classList.contains('hidden') || !button) return;
+  button.click();
 }
 
 function restoreActiveTab() {

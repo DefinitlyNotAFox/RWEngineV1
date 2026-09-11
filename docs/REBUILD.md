@@ -1,66 +1,60 @@
-# RWEngine Rebuild
+# RWEngine Platform Direction
 
-## Product direction
+## Product
 
-RWEngine is a faction intelligence hub for Torn.
+RWEngine is a hosted Torn tools and analytics platform.
 
-The original ranked-war analytics remains a first-class feature, but it is one part of a broader faction view. The product should make it possible to move from faction overview -> member -> war -> individual attack without leaving RWEngine.
+Its job is not to replicate Torn inside another website. It should collect reusable Torn data once, keep important calculations server-side, and expose focused tools that are easy to use and easy to share without distributing the underlying implementation.
 
-Initial navigation target:
+Ranked-war analytics is the first mature feature set, not the boundary of the product.
 
-- Overview
-- Members
-- Wars
-- Current War
-- Settings
+## Product rules
 
-Later modules can add Activity, Organized Crimes and other faction systems without coupling them to the war importer.
+1. A feature is a module, not a new application.
+2. Shared data belongs in the common backend and D1 model.
+3. Calculations and API-key handling stay server-side whenever practical.
+4. The UI should be dense when comparing data and simple when navigating.
+5. Do not expose placeholders as navigation. A module appears when it does useful work.
+6. Remove obsolete UI and compatibility code once nothing active depends on it.
+7. Prefer explicit module events and APIs over scripts intercepting each other.
+8. Every important view should eventually support a stable URL or explicit share flow.
+9. Preserve production data. Schema changes are migrations, never resets.
 
-## Rebuild principles
+## Current module structure
 
-1. Preserve production. `main` stays deployable while rebuild work happens on a separate branch.
-2. Keep the existing D1 data. Do not recreate or reset the production database.
-3. Treat faction, members, wars, attacks and historical snapshots as core data entities.
-4. Historical war analytics and Current War matchup intelligence are separate features using shared data.
-5. Prefer drill-down views over one giant table.
-6. Add features only after the underlying data contract is stable.
-7. Keep schema.sql aligned with the schema the application actually expects.
+### Home
+Launcher and platform entry point. Shows available tools rather than pretending to be an analytics dashboard of its own.
 
-## Recovery baseline
+### Faction Intel
+Current roster intelligence:
+- battle-stat estimates or verified values
+- recent activity
+- activity per day
+- Xanax per day
+- ranked-war participation
+- average hits per war
+- per-member drill-down
 
-The rebuild starts from commit `899fd73146212fdd145ce8bd9008ce7a08e993ef` (June 1, 2026), before the large Current War/UI expansion.
+### Ranked War
+High-level selected-period war summary and entry point to deeper war analysis.
 
-## Phase 1: stable faction/war core
+### Performance
+Cross-war member performance with sortable simplified and detailed views.
 
-- Verify authentication/session restore.
-- Verify D1 bindings and application secret handling.
-- Reconcile `schema.sql` with the backend and production database.
-- Verify imported-war listing and dashboard aggregation.
-- Verify attack-summary import.
-- Verify chain-bonus adjustment.
-- Establish one known regression war for calculation checks.
+### War Archive
+Imported ranked-war reports with search, individual war drill-down, chain-bonus controls and historical importing.
 
-## Phase 2: core faction model
+## Platform roadmap
 
-- Overview page.
-- Members directory.
-- Member detail page with historical war performance.
-- War directory.
-- War detail page with faction summary, member breakdown and attack drill-down.
+Near-term work should improve the shared platform rather than multiply features:
 
-## Phase 3: Current War
+- stable share/report model
+- clearer permissions for private, faction and public views
+- reusable player/faction selectors
+- common data freshness indicators
+- module-level URLs and share links
+- API/client cleanup so modules do not wrap global browser behaviour
 
-Current War answers a different question from historical analytics: who are we fighting and what does the matchup look like?
+Future tools can cover player analysis, companies, organized crimes, calculators and other Torn utilities when their data contracts are real.
 
-It should provide:
-
-- Own and opponent rosters.
-- Useful member-level historical context.
-- Battle-stat estimates when available.
-- Participation/activity context.
-- Clear, explainable threat indicators.
-- Matchup summaries based on underlying data rather than opaque scores.
-
-## Phase 4: additional faction intelligence
-
-Potential modules include activity/development trends, Organized Crimes and other faction-management views. These should plug into the same faction/member data model rather than expand the war module itself.
+No placeholder modules should be added merely to advertise that they might exist later.
