@@ -10,7 +10,8 @@ const filters = [
   ['inactive','Inactive 48h+'],
   ['war','Low participation'],
   ['decline','Declining'],
-  ['stats','Stats missing/stale']
+  ['stats','Stats missing/stale'],
+  ['former','Former members']
 ];
 
 const priority = [
@@ -31,6 +32,7 @@ let activeFilter='all';
 let selectedId=null;
 let sortKey='attention';
 let sortDirection='desc';
+let trendDays=90;
 
 init();
 
@@ -68,6 +70,12 @@ function init(){
   });
 
   document.querySelector('#intel2Body').addEventListener('click',event=>{
+    const trendButton=event.target.closest('[data-trend-days]');
+    if(trendButton){
+      trendDays=Number(trendButton.dataset.trendDays)||90;
+      render();
+      return;
+    }
     if(event.target.closest('a'))return;
     const row=event.target.closest('tr[data-member-id]');
     if(!row)return;
@@ -127,6 +135,7 @@ function matchesFilter(member){
   if(activeFilter==='war')return codes.has('low_war_participation')||codes.has('participation_down');
   if(activeFilter==='decline')return codes.has('activity_down')||codes.has('xanax_down')||codes.has('participation_down');
   if(activeFilter==='stats')return codes.has('missing_battle_stats')||codes.has('stale_battle_stats');
+  if(activeFilter==='former')return member.current===false;
   return true;
 }
 
@@ -170,7 +179,7 @@ function detailRow(member){
       <td colspan="8">
         <section class="intel2-detail">
           <header class="intel2-detail-head">
-            <div><h2>${escapeHtml(member.playerName)}</h2><p>${escapeHtml(member.position)} · Lv ${member.level} · ${member.daysInFaction} days in faction</p></div>
+            <div><h2>${escapeHtml(member.playerName)}</h2><p>${escapeHtml(member.position)} · Lv ${member.level} · ${member.current ? `${member.daysInFaction} days in faction` : 'former member'}</p></div>
             <a href="https://www.torn.com/profiles.php?XID=${member.playerId}" target="_blank" rel="noopener noreferrer">Torn profile ↗</a>
           </header>
 
@@ -187,10 +196,17 @@ function detailRow(member){
             ${member.insights.length?member.insights.map(item=>`<div class="intel2-insight ${item.kind}"><b>${escapeHtml(item.label||item.code.replaceAll('_',' '))}</b><span>${escapeHtml(item.text)}</span></div>`).join(''):'<div class="intel2-insight note"><b>No signals</b><span>No current attention signals for this member.</span></div>'}
           </div>
 
+          <div class="intel2-trend-toolbar">
+            <span>Trend window</span>
+            <div>
+              ${[30,60,90].map(days=>`<button type="button" data-trend-days="${days}" class="${trendDays===days?'active':''}">${days}d</button>`).join('')}
+            </div>
+          </div>
+
           <div class="intel2-trends">
-            ${trendBlock('Battle stats','90d',member.history.stats,value=>value==null?'—':formatCompact(value))}
-            ${trendBlock('Activity / day','90d',member.history.activity,formatDuration)}
-            ${trendBlock('Xanax / day','90d',member.history.xanax,value=>formatDecimal(value,2))}
+            ${trendBlock('Battle stats',member.history.stats,value=>value==null?'—':formatCompact(value))}
+            ${trendBlock('Activity / day',member.history.activity,formatDuration)}
+            ${trendBlock('Xanax / day',member.history.xanax,value=>formatDecimal(value,2))}
           </div>
 
           <div class="intel2-wars">
@@ -205,16 +221,31 @@ function detailRow(member){
               </div>
             `).join('')}
           </div>
+
+          <footer class="intel2-coverage">
+            <span>Coverage</span>
+            <b>${formatDecimal(member.coverage.snapshotDays60d,0)} snapshot days</b>
+            <b>${member.coverage.warHistoryAvailable} wars available</b>
+            <b>${member.coverage.battleStatsKnown?'battle stats known':'battle stats unavailable'}</b>
+          </footer>
         </section>
       </td>
     </tr>
   `;
 }
 
-function trendBlock(title,windowLabel,series,formatter){
-  const valid=series.filter(point=>Number.isFinite(Number(point.value)));
+function trendBlock(title,series,formatter){
+  const filtered=filterSeries(series,trendDays);
+  const valid=filtered.filter(point=>Number.isFinite(Number(point.value)));
   const latest=valid.length?valid[valid.length-1].value:null;
-  return `<section class="intel2-trend"><header><strong>${title}</strong><span>${windowLabel} · ${formatter(latest)}</span></header>${sparkline(series)}</section>`;
+  return `<section class="intel2-trend"><header><strong>${title}</strong><span>${trendDays}d · ${formatter(latest)}</span></header>${sparkline(filtered)}</section>`;
+}
+
+function filterSeries(series,days){
+  if(!series.length)return [];
+  const newest=Math.max(...series.map(point=>Number(point.at)||0));
+  const cutoff=newest-days*86400;
+  return series.filter(point=>(Number(point.at)||0)>=cutoff);
 }
 
 function sparkline(series){
