@@ -60,8 +60,8 @@ let overview = null;
 let loadedFactionId = null;
 let activeFilter = 'all';
 let selectedMemberId = null;
-let sortKey = 'attention';
-let sortDirection = 'desc';
+let sortKey = 'member';
+let sortDirection = 'asc';
 let trendDays = 90;
 let loading = false;
 let syncJob = null;
@@ -671,8 +671,8 @@ function performanceKey() {
 
 function ensureSortKey() {
   if (factionColumns.includes(sortKey)) return;
-  sortKey = 'attention';
-  sortDirection = 'desc';
+  sortKey = 'member';
+  sortDirection = 'asc';
 }
 
 function restoreFactionMode() {
