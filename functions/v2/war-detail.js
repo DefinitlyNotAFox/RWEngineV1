@@ -11,17 +11,20 @@ export async function onRequest(context) {
     const body = await readJson(request);
     const user = await getCurrentUser(env, request);
     const factionId = await resolveFactionId(env.DB, user, body.factionId);
+    await ensureAccessSchema(env.DB);
     const warId = String(body.warId || '').trim();
     if (!warId) throw httpError(400, 'Missing war ID.');
 
     const war = await env.DB.prepare(`
       SELECT war_id, report_id, faction_id, faction_name, opponent_faction_id,
-             opponent_faction_name, start_timestamp, end_timestamp, imported_at
+             opponent_faction_name, start_timestamp, end_timestamp, imported_at,
+             imported_by_user_id
       FROM wars
       WHERE faction_id = ? AND war_id = ?
       LIMIT 1
     `).bind(factionId, warId).first();
     if (!war) throw httpError(404, 'Imported war not found for this faction.');
+    await assertWarAccess(env.DB, user, factionId, war);
 
     const performanceResult = await env.DB.prepare(`
       SELECT
@@ -215,6 +218,28 @@ export async function onRequest(context) {
     });
   } catch (error) {
     return json({ success: false, message: error?.message || 'Unexpected war detail error.' }, error?.status || 500);
+  }
+}
+
+async function ensureAccessSchema(db) {
+  await db.prepare(
+    "CREATE TABLE IF NOT EXISTS resource_permissions (permission_id INTEGER PRIMARY KEY AUTOINCREMENT, owner_user_id INTEGER NOT NULL, faction_id INTEGER NOT NULL, resource_type TEXT NOT NULL, resource_key TEXT NOT NULL, visibility TEXT NOT NULL DEFAULT 'faction' CHECK (visibility IN ('private', 'faction', 'public')), created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE(faction_id, resource_type, resource_key), FOREIGN KEY (owner_user_id) REFERENCES users(user_id) ON DELETE CASCADE, FOREIGN KEY (faction_id) REFERENCES factions(faction_id))"
+  ).run();
+}
+
+async function assertWarAccess(db, user, factionId, war) {
+  if (Number(user.is_admin) === 1) return;
+
+  const permission = await db.prepare(
+    'SELECT owner_user_id, visibility FROM resource_permissions WHERE faction_id = ? AND resource_type = ? AND resource_key = ? LIMIT 1'
+  ).bind(factionId, 'war', String(war.war_id)).first();
+
+  const visibility = permission?.visibility || 'faction';
+  if (visibility !== 'private') return;
+
+  const ownerUserId = Number(permission?.owner_user_id || war.imported_by_user_id || 0);
+  if (ownerUserId !== Number(user.user_id)) {
+    throw httpError(403, 'This war report is private.');
   }
 }
 
