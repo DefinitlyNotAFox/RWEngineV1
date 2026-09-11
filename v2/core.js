@@ -232,6 +232,7 @@ export function routeTo(route, options = {}) {
   const valid = new Set(['home','intel','archive','settings']);
   const next = valid.has(route) ? route : 'home';
   state.route = next;
+  try { localStorage.setItem('rwengine.route', next); } catch (_) {}
 
   document.querySelectorAll('[data-view]').forEach(view => {
     view.classList.toggle('active', view.dataset.view === next);
@@ -257,7 +258,14 @@ export function routeFromHash() {
     return 'intel';
   }
 
-  return ['home','intel','archive','settings'].includes(value) ? value : 'home';
+  if (['home','intel','archive','settings'].includes(value)) return value;
+
+  try {
+    const stored = localStorage.getItem('rwengine.route');
+    if (['home','intel','archive','settings'].includes(stored)) return stored;
+  } catch (_) {}
+
+  return 'home';
 }
 
 export function formatNumber(value) {
