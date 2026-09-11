@@ -28,10 +28,11 @@ const syncStatus = document.querySelector('#syncStatus');
 const membersBody = document.querySelector('#membersBody');
 
 const pageTitles = {
-  overview: 'Overview',
-  members: 'Members',
-  wars: 'Wars',
-  'current-war': 'Current War',
+  overview: 'Home',
+  members: 'Faction Intel',
+  'ranked-war': 'Ranked War',
+  performance: 'Performance',
+  wars: 'War Archive',
   settings: 'Settings'
 };
 
@@ -573,11 +574,15 @@ function getWarsInRange() {
 }
 
 function showTab(tabName) {
+  const target = document.querySelector(`#${CSS.escape(tabName)}Tab`);
+  if (!target) return;
+
   document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
   document.querySelectorAll('.nav-button').forEach(button => button.classList.remove('active'));
-  document.querySelector(`#${CSS.escape(tabName)}Tab`)?.classList.add('active');
+  target.classList.add('active');
   document.querySelector(`.nav-button[data-tab="${CSS.escape(tabName)}"]`)?.classList.add('active');
   document.querySelector('#pageTitle').textContent = pageTitles[tabName] || 'RWEngine';
+  window.dispatchEvent(new CustomEvent('rwe:tab-changed', { detail: { tab: tabName } }));
 }
 
 async function api(action, payload = {}) {
