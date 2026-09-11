@@ -439,12 +439,58 @@ function renderInsights(member) {
   const insights = Array.isArray(member.insights) ? member.insights : [];
   if (!insights.length) return '';
 
-  return insights.map(item => `
-    <div class="intel2-insight ${escapeHtml(item.kind || 'note')}">
-      <b>${escapeHtml(signalLabel(item, member))}</b>
-      <span>${escapeHtml(item.text || '')}</span>
+  const positive = insights.filter(item => item.kind === 'positive');
+  const concerns = insights.filter(item => item.kind === 'attention');
+  const notes = insights.filter(item => !['positive','attention'].includes(item.kind));
+
+  return `
+    <div class="intel2-trait-grid">
+      ${renderTraitGroup('positive', '+', 'Positive', positive, member, 'No standout positives')}
+      ${renderTraitGroup('attention', '−', 'Concerns', concerns, member, 'No current concerns')}
     </div>
-  `).join('');
+    ${notes.length ? `
+      <div class="intel2-data-notes">
+        <span>Data</span>
+        ${notes.map(item => `
+          <div class="intel2-data-note">
+            <b>${escapeHtml(traitTitle(item, member))}</b>
+            <span>${escapeHtml(item.text || '')}</span>
+          </div>
+        `).join('')}
+      </div>
+    ` : ''}
+  `;
+}
+
+function renderTraitGroup(kind, symbol, label, items, member, emptyLabel) {
+  return `
+    <section class="intel2-trait-group ${kind}">
+      <header><span>${symbol}</span><strong>${label}</strong></header>
+      <div class="intel2-trait-list">
+        ${items.length ? items.map(item => `
+          <div class="intel2-trait">
+            <b>${escapeHtml(traitTitle(item, member))}</b>
+            <span>${escapeHtml(item.text || '')}</span>
+          </div>
+        `).join('') : `<span class="intel2-trait-empty">${escapeHtml(emptyLabel)}</span>`}
+      </div>
+    </section>
+  `;
+}
+
+function traitTitle(item, member) {
+  if (item.code === 'inactive') return 'Inactive';
+  if (item.code === 'low_war_participation') return 'Low war participation';
+  if (item.code === 'participation_down') return 'Participation declining';
+  if (item.code === 'activity_down') return 'Activity declining';
+  if (item.code === 'activity_up') return 'Activity improving';
+  if (item.code === 'xanax_down') return 'Xanax use declining';
+  if (item.code === 'xanax_up') return 'Xanax use improving';
+  if (item.code === 'missing_battle_stats') return 'Battle stats unavailable';
+  if (item.code === 'stale_battle_stats') return 'Battle stats stale';
+  if (item.code === 'battle_stats_growth') return 'Battle stats growing';
+  if (item.code === 'strong_war_output') return 'Strong war output';
+  return signalLabel(item, member);
 }
 
 function normalizeHistory(history = {}) {
