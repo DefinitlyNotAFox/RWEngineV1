@@ -29,7 +29,9 @@ const detail = {
   warId: null,
   payload: null,
   loading: false,
-  shareUrl: ''
+  shareUrl: '',
+  sortKey: 'netScore',
+  sortDirection: 'desc'
 };
 
 export function initWarViews() {
@@ -59,6 +61,17 @@ export function initWarViews() {
   document.querySelector('#warDetailBack')?.addEventListener('click', closeWar);
   document.querySelector('#warDetailMode')?.addEventListener('change', renderWarDetail);
   document.querySelector('#warDetailSearch')?.addEventListener('input', renderWarDetail);
+  document.querySelector('#warDetailHead')?.addEventListener('click', event => {
+    const button = event.target.closest('[data-war-sort]');
+    if (!button) return;
+    const key = button.dataset.warSort;
+    if (detail.sortKey === key) detail.sortDirection = detail.sortDirection === 'desc' ? 'asc' : 'desc';
+    else {
+      detail.sortKey = key;
+      detail.sortDirection = key === 'member' ? 'asc' : 'desc';
+    }
+    renderWarDetail();
+  });
   document.querySelector('#warDetailChain')?.addEventListener('change', () => {
     if (detail.warId) openWar(detail.warId, true);
   });
@@ -494,14 +507,25 @@ function renderWarDetail() {
     scoreDown:'Score lost', netScore:'Net score'
   };
 
-  document.querySelector('#warDetailHead').innerHTML = `<tr>${columns.map(key => `<th class="${key === 'netScore' ? 'net' : ''}">${labels[key]}</th>`).join('')}</tr>`;
+  if (!columns.includes(detail.sortKey)) {
+    detail.sortKey = 'netScore';
+    detail.sortDirection = 'desc';
+  }
+
+  document.querySelector('#warDetailHead').innerHTML = `<tr>${columns.map(key => `
+    <th class="${key === 'netScore' ? 'net' : ''}">
+      <button type="button" data-war-sort="${key}">
+        ${labels[key]}${detail.sortKey === key ? ` ${detail.sortDirection === 'desc' ? '↓' : '↑'}` : ''}
+      </button>
+    </th>
+  `).join('')}</tr>`;
 
   const query = String(document.querySelector('#warDetailSearch')?.value || '').trim().toLowerCase();
   const rows = members
     .filter(member => !query ||
       String(member.playerName || '').toLowerCase().includes(query) ||
       String(member.playerId || '').includes(query))
-    .sort((a,b) => Number(b.netScore || 0) - Number(a.netScore || 0) || Number(b.hits || 0) - Number(a.hits || 0));
+    .sort(compareWarDetail);
 
   document.querySelector('#warDetailBody').innerHTML = rows.length
     ? rows.map(member => `<tr>${columns.map(key => renderWarCell(member,key)).join('')}</tr>`).join('')
@@ -522,6 +546,30 @@ function renderWarDetail() {
       ).join('')}
     </tr>
   `;
+}
+
+function compareWarDetail(a, b) {
+  const direction = detail.sortDirection === 'asc' ? 1 : -1;
+
+  if (detail.sortKey === 'member') {
+    return String(a.playerName || '').localeCompare(String(b.playerName || '')) * direction;
+  }
+
+  const av = warDetailMetric(a, detail.sortKey);
+  const bv = warDetailMetric(b, detail.sortKey);
+
+  if (av == null && bv == null) return String(a.playerName || '').localeCompare(String(b.playerName || ''));
+  if (av == null) return 1;
+  if (bv == null) return -1;
+  return ((Number(av) - Number(bv)) * direction) || String(a.playerName || '').localeCompare(String(b.playerName || ''));
+}
+
+function warDetailMetric(member, key) {
+  if (key === 'member') return member.playerName || '';
+  const value = member?.[key];
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
 function renderWarCell(member,key) {
