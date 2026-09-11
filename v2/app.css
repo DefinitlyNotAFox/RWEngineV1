@@ -4874,3 +4874,15 @@ body {
 #intelTable.faction-grid .faction-grid-row > :nth-child(13) {
   border-left: 1px solid var(--line) !important;
 }
+
+
+/* Give the aggregate row a clearer visual break from member rows. */
+#intelTable.faction-grid .faction-total-row {
+  background: #0e1011;
+  border-top: 1px solid var(--line);
+  border-bottom: 2px solid var(--line);
+}
+
+#intelTable.faction-grid .faction-total-row .faction-grid-cell {
+  background: #0e1011 !important;
+}
