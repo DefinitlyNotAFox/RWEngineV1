@@ -3934,3 +3934,14 @@ body {
     display: none;
   }
 }
+
+
+/* Reserve status-strip space so loading/errors never shift the roster table. */
+#factionTableContext {
+  min-height: 24px;
+}
+
+#factionTableStatus.hidden {
+  visibility: hidden;
+  display: inline;
+}
