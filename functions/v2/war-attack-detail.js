@@ -111,8 +111,12 @@ async function assertWarAccess(db, user, factionId, war) {
 
   if ((permission?.visibility || 'faction') !== 'private') return;
 
-  const ownerUserId = Number(permission?.owner_user_id || war.imported_by_user_id || 0);
-  if (ownerUserId !== Number(user.user_id)) {
+  const permissionOwnerId = Number(permission?.owner_user_id || 0);
+  const importOwnerId = Number(war.imported_by_user_id || 0);
+  if (
+    permissionOwnerId !== Number(user.user_id) &&
+    importOwnerId !== Number(user.user_id)
+  ) {
     throw httpError(403, 'This war report is private.');
   }
 }
