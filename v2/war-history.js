@@ -101,7 +101,22 @@ function ensureDetailShell() {
         <h2 id="warDetailTitle">War detail</h2>
         <span id="warDetailDate"></span>
       </div>
+      <button class="button war-detail-share-button" type="button" data-war-share-toggle>Share</button>
     </header>
+
+    <section id="warSharePanel" class="war-share-panel hidden" aria-label="Public share link">
+      <div class="war-share-copy">
+        <strong>Public read-only link</strong>
+        <span>Anyone with the link can view this war report.</span>
+      </div>
+      <div class="war-share-controls">
+        <input id="warShareUrl" type="text" readonly placeholder="Generate a link to share this report." />
+        <button class="button primary" type="button" data-war-share-generate>Generate</button>
+        <button class="button hidden" type="button" data-war-share-copy>Copy</button>
+        <button class="text-button" type="button" data-war-share-revoke>Revoke</button>
+      </div>
+      <span id="warShareStatus" class="war-share-status"></span>
+    </section>
 
     <div id="warDetailScore" class="war-detail-score"></div>
     <div id="warDetailMetrics" class="war-detail-metrics"></div>
