@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=4" />
+  <link rel="stylesheet" href="/v2/app.css?v=5" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -106,7 +106,11 @@
 
       <section id="intelView" class="view" data-view="intel">
         <header class="view-head">
-          <div><p class="kicker">Faction</p><h1>Intel</h1><p id="intelFreshness" class="freshness"></p></div>
+          <div>
+            <p class="kicker">Faction</p>
+            <h1>Intel</h1>
+            <p id="intelFreshness" class="freshness"></p>
+          </div>
           <div class="view-actions">
             <button id="syncButton" class="action" type="button">Sync faction</button>
             <button class="action" type="button" data-refresh>Refresh</button>
@@ -115,22 +119,24 @@
 
         <div id="intelSummary" class="metric-line"></div>
         <div id="syncLine" class="status-line hidden"></div>
-        <div class="control-line">
-          <div id="periodControl" class="period-control"></div>
+
+        <div class="intel2-toolbar">
+          <div id="intelFilters" class="intel2-filters"></div>
           <input id="intelSearch" class="search" type="search" placeholder="Search member or ID" />
         </div>
 
         <div class="data-table-wrap">
-          <table class="data-table intel-table">
+          <table id="intelTable" class="data-table intel2-table">
             <thead>
               <tr>
-                <th>Member</th>
-                <th data-intel-sort="lastAction">Last action</th>
-                <th data-intel-sort="stats">Stats</th>
-                <th data-intel-sort="activity">Activity / day</th>
-                <th data-intel-sort="xanax">Xanax / day</th>
-                <th data-intel-sort="participation">RW participation</th>
-                <th data-intel-sort="hits">Hits / war</th>
+                <th data-intel2-sort="member">Member</th>
+                <th data-intel2-sort="lastAction">Last action</th>
+                <th data-intel2-sort="stats">Battle stats</th>
+                <th data-intel2-sort="activity">Activity / day <small>30d</small></th>
+                <th data-intel2-sort="xanax">Xanax / day <small>30d</small></th>
+                <th data-intel2-sort="participation">RW participation <small>last 4</small></th>
+                <th data-intel2-sort="hits">Hits / war <small>last 4</small></th>
+                <th data-intel2-sort="attention">Signal</th>
               </tr>
             </thead>
             <tbody id="intelBody"></tbody>
