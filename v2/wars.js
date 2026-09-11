@@ -110,10 +110,10 @@ export function renderWarOverview() {
   const summary = document.querySelector('#warSummary');
   if (summary) {
     summary.innerHTML = [
-      metric('Wars', formatNumber(warsInPeriod)),
-      metric('War hits', formatNumber(hits)),
-      metric('Hits / war', warsInPeriod ? formatDecimal(hits / warsInPeriod, 1) : '—'),
-      metric('Net score', formatSigned(net, 2))
+      metric('Wars', formatNumber(warsInPeriod), 'in selected period'),
+      metric('War hits', formatNumber(hits), 'all members'),
+      metric('Hits per war', warsInPeriod ? formatDecimal(hits / warsInPeriod, 1) : '—', 'faction average'),
+      metric('Net score', formatSigned(net, 2), 'score gained − lost')
     ].join('');
   }
 
@@ -147,7 +147,7 @@ export function renderWarOverview() {
       ? contributors.map(member => `
           <button class="line-row" type="button" data-open-member="${member.playerId}">
             <div><strong>${escapeHtml(member.playerName || 'Unknown')}</strong><small>${formatNumber(member.warHits)} hits · ${formatNumber(member.assists)} assists</small></div>
-            <b>${escapeHtml(formatSigned(member.netScore, 2))}</b>
+            <b>${escapeHtml(formatSigned(member.netScore, 2))} net</b>
           </button>
         `).join('')
       : '<div class="line-row"><small>No member performance in this period.</small></div>';
@@ -250,9 +250,9 @@ export function renderPerformance() {
     : ['member','wars','hits','assists','netScore'];
 
   const labels = {
-    member:'Member', wars:'Wars', hits:'Hits', assists:'Assists',
-    outsideHits:'Outside', respectEarned:'Respect +', respectLost:'Respect -',
-    scoreUp:'Score +', scoreDown:'Score -', netScore:'Net'
+    member:'Member', wars:'Wars joined', hits:'Hits', assists:'Assists',
+    outsideHits:'Outside hits', respectEarned:'Respect gained', respectLost:'Respect lost',
+    scoreUp:'Score gained', scoreDown:'Score lost', netScore:'Net score'
   };
 
   if (!columns.includes(performance.sortKey)) {
@@ -489,9 +489,9 @@ function renderWarDetail() {
     ? ['member','hits','assists','outsideHits','respectEarned','respectLost','scoreUp','scoreDown','netScore']
     : ['member','hits','assists','netScore'];
   const labels = {
-    member:'Member', hits:'Hits', assists:'Assists', outsideHits:'Outside',
-    respectEarned:'Respect +', respectLost:'Respect -', scoreUp:'Score +',
-    scoreDown:'Score -', netScore:'Net'
+    member:'Member', hits:'Hits', assists:'Assists', outsideHits:'Outside hits',
+    respectEarned:'Respect gained', respectLost:'Respect lost', scoreUp:'Score gained',
+    scoreDown:'Score lost', netScore:'Net score'
   };
 
   document.querySelector('#warDetailHead').innerHTML = `<tr>${columns.map(key => `<th class="${key === 'netScore' ? 'net' : ''}">${labels[key]}</th>`).join('')}</tr>`;

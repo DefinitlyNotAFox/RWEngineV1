@@ -3,8 +3,8 @@
   --line: #2d3032;
   --line-soft: #202325;
   --text: #e7e7e5;
-  --muted: #9a9a96;
-  --dim: #6f716f;
+  --muted: #aaa9a5;
+  --dim: #838581;
   --accent: #b9825d;
   --danger: #d48d8d;
   --max: 1120px;
@@ -259,4 +259,88 @@ tbody tr:hover { background: rgba(255,255,255,.015); }
 
   .summary-item:nth-child(2) { border-right: 0; }
   .summary-item:nth-child(-n+2) { border-bottom: 1px solid var(--line-soft); }
+}
+
+
+/* readability pass */
+
+body {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.topbar span,
+.read-only,
+.report-foot {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: .06em;
+}
+
+.state {
+  font-size: 12px;
+}
+
+.kicker {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: .075em;
+}
+
+h1 {
+  font-size: 23px;
+}
+
+#reportDate {
+  font-size: 11px;
+}
+
+.score-side span {
+  font-size: 11px;
+}
+
+.score-side strong {
+  font-size: 20px;
+}
+
+.score-label {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.summary-item {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.summary-item span {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: .05em;
+}
+
+.summary-item strong {
+  margin-top: 4px;
+  font-size: 17px;
+}
+
+th, td {
+  height: 42px;
+  padding: 7px 9px;
+  font-size: 12px;
+}
+
+th {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: .05em;
+}
+
+.member-link {
+  font-size: 12px;
+}
+
+.member-link small {
+  color: var(--muted);
+  font-size: 10px;
 }

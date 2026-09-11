@@ -6,8 +6,8 @@
   --line: #2d3032;
   --line-soft: #202325;
   --text: #e7e7e5;
-  --muted: #9a9a96;
-  --dim: #6f716f;
+  --muted: #aaa9a5;
+  --dim: #838581;
   --accent: #b9825d;
   --accent-2: #d3a27e;
   --danger: #d48d8d;
@@ -1867,4 +1867,407 @@ button.line-row:hover strong { color: var(--accent-2); }
 
 #intelTable th[data-intel2-sort] {
   cursor: pointer;
+}
+
+
+/* readability pass */
+
+body {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.view-head,
+.home-head {
+  align-items: flex-end;
+  margin-bottom: 24px;
+}
+
+.view-head h1,
+.home-head h1 {
+  font-size: 26px;
+}
+
+.view-description {
+  max-width: 760px;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.kicker {
+  font-size: 10px;
+  letter-spacing: .075em;
+}
+
+.primary-nav button {
+  font-size: 13px;
+}
+
+.context-button,
+.context-select select {
+  font-size: 12px;
+}
+
+.context-select span {
+  font-size: 10px;
+}
+
+.notice {
+  font-size: 11px;
+}
+
+.home-copy {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.index-list strong {
+  font-size: 15px;
+}
+
+.index-list small {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.metric {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.metric span {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: .05em;
+}
+
+.metric strong {
+  margin-top: 5px;
+  font-size: 20px;
+}
+
+.metric small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.status-line {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.period-control button,
+.intel2-filter,
+.check,
+.archive-count,
+.access-select {
+  font-size: 11px;
+}
+
+.search,
+.small-select {
+  height: 34px;
+  font-size: 12px;
+}
+
+.data-table th,
+.data-table td {
+  height: 47px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.data-table th {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: .045em;
+}
+
+.member-name {
+  font-size: 14px;
+}
+
+.member-meta,
+.performance-table .secondary,
+.line-row small,
+.detail-title > span,
+.settings-list dt,
+.access-row small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.stat-source {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.line-row {
+  min-height: 56px;
+}
+
+.line-row strong {
+  font-size: 12px;
+}
+
+.line-row b {
+  font-size: 12px;
+}
+
+.archive-count strong {
+  font-size: 13px;
+}
+
+.import-row {
+  font-size: 11px;
+}
+
+.detail-title h2 {
+  font-size: 20px;
+}
+
+.score-side span,
+.score-versus {
+  font-size: 10px;
+}
+
+.share-panel strong {
+  font-size: 11px;
+}
+
+.share-panel small,
+.share-panel span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.settings-list dt,
+.settings-list dd {
+  font-size: 11px;
+}
+
+.admin-section > header h2,
+.access-section > header h2,
+.database-admin > header h2 {
+  font-size: 14px;
+}
+
+.access-section > header span,
+.database-admin > header span {
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.admin-faction-row strong {
+  font-size: 11px;
+}
+
+.admin-faction-row small,
+.admin-faction-row b {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.admin-key-form p {
+  font-size: 11px;
+}
+
+.freshness {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.access-row strong {
+  font-size: 12px;
+}
+
+.access-empty {
+  font-size: 11px;
+}
+
+/* Intel readability and orientation */
+
+.intel-guide {
+  max-width: 1180px;
+  margin: -1px 0 13px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.intel2-toolbar {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+.intel2-filters {
+  gap: 17px;
+}
+
+.intel2-filter {
+  padding: 4px 0;
+  font-size: 11px;
+}
+
+.intel2-table th small {
+  margin-left: 2px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.trend {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.signal {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.intel2-detail {
+  padding: 18px 10px 21px;
+}
+
+.intel2-detail-head {
+  margin-bottom: 16px;
+}
+
+.intel2-detail-head h2 {
+  font-size: 18px;
+}
+
+.intel2-detail-head p,
+.intel2-detail-head a {
+  font-size: 11px;
+}
+
+.intel2-insight {
+  grid-template-columns: 135px minmax(0,1fr);
+  gap: 16px;
+  padding: 9px 0;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.intel2-insight b {
+  font-size: 10px;
+  letter-spacing: .045em;
+}
+
+.intel2-trend-toolbar {
+  margin-top: 19px;
+  padding-bottom: 8px;
+}
+
+.intel2-trend-toolbar > span {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: .05em;
+}
+
+.intel2-trend-toolbar button {
+  padding: 3px 0;
+  font-size: 11px;
+}
+
+.intel2-trend {
+  padding-top: 14px;
+  padding-bottom: 12px;
+}
+
+.intel2-trend header strong {
+  font-size: 12px;
+}
+
+.intel2-trend header span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.sparkline {
+  height: 64px;
+}
+
+.intel2-wars > header {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: .05em;
+}
+
+.intel2-war {
+  min-height: 47px;
+  font-size: 11px;
+}
+
+.intel2-war strong {
+  font-size: 12px;
+}
+
+.intel2-war small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.intel2-coverage {
+  gap: 20px;
+  padding-top: 11px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+/* Admin diagnostics remain technical, but not microscopic. */
+
+.database-summary strong {
+  font-size: 11px;
+}
+
+.database-summary small,
+.database-summary > b,
+.database-object-list b,
+.database-plan-list header b,
+.database-warning-list span {
+  font-size: 10px;
+}
+
+.database-object-list > div,
+.database-plan-list header strong {
+  font-size: 10px;
+}
+
+.database-plan-list code {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+@media (max-width: 760px) {
+  body {
+    font-size: 14px;
+  }
+
+  .view-description,
+  .home-copy {
+    font-size: 11px;
+  }
+
+  .data-table th,
+  .data-table td {
+    font-size: 12px;
+  }
+
+  .metric strong {
+    font-size: 18px;
+  }
+
+  .intel-guide {
+    font-size: 10px;
+  }
 }

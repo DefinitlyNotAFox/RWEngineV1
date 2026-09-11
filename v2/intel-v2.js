@@ -230,12 +230,12 @@ function renderSummary() {
   }
 
   element.innerHTML = [
-    metric('Members', formatNumber(summary.currentMembers)),
-    metric('Median stats', formatCompact(summary.medianBattleStats), `${formatNumber(summary.knownBattleStats)} known`),
-    metric('Activity / day', formatDuration(summary.avgActivityPerDay30d), '30d average'),
-    metric('Xanax / day', formatDecimal(summary.avgXanaxPerDay30d, 2), '30d average'),
-    metric('RW participation', formatPercent(summary.avgParticipationLast4), 'last 4 wars'),
-    metric('Attention', formatNumber(summary.membersNeedingAttention), 'members')
+    metric('Members', formatNumber(summary.currentMembers), 'current roster'),
+    metric('Median stats', formatCompact(summary.medianBattleStats), `${formatNumber(summary.knownBattleStats)} estimates known`),
+    metric('Activity / day', formatDuration(summary.avgActivityPerDay30d), '30d roster average'),
+    metric('Xanax / day', formatDecimal(summary.avgXanaxPerDay30d, 2), '30d roster average'),
+    metric('War participation', formatPercent(summary.avgParticipationLast4), 'last 4 imported wars'),
+    metric('Attention', formatNumber(summary.membersNeedingAttention), 'actionable signals')
   ].join('');
 }
 
@@ -401,8 +401,8 @@ function renderDetailRow(member) {
             ${metric('Battle stats', detailMember.battleStats?.value == null ? '—' : formatCompact(detailMember.battleStats.value), detailMember.battleStats?.source || 'Unavailable')}
             ${metric('Activity / day', formatDuration(detailMember.activity?.perDay30d), '30d')}
             ${metric('Xanax / day', formatDecimal(detailMember.xanax?.perDay30d, 2), '30d')}
-            ${metric('RW participation', formatPercent(detailMember.war?.last4?.participation), 'last 4')}
-            ${metric('Hits / war', formatDecimal(detailMember.war?.last4?.hitsPerWar, 1), 'last 4')}
+            ${metric('War participation', formatPercent(detailMember.war?.last4?.participation), 'last 4')}
+            ${metric('Hits per war', formatDecimal(detailMember.war?.last4?.hitsPerWar, 1), 'last 4')}
             ${metric('Net score', formatSignedLocal(detailMember.war?.last4?.netScore), 'last 4')}
           </div>
 
