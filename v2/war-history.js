@@ -6,6 +6,9 @@ const adminFactionSelect = document.querySelector('#adminFactionSelect');
 const pageTitle = document.querySelector('#pageTitle');
 const archiveWrap = warsBody?.closest('.table-wrap');
 const importPanel = warsTab?.querySelector('.war-import');
+const archiveToolbar = warsTab?.querySelector('.war-archive-toolbar');
+const archiveSearch = document.querySelector('#warArchiveSearch');
+const archiveCount = document.querySelector('#warArchiveCount');
 
 const SELECTED_WAR_KEY = 'rwengine.selectedWarDetail';
 const DETAIL_MODE_KEY = 'rwengine.warDetailMode';
@@ -55,6 +58,8 @@ if (warsTab && warsBody) {
     if (button === warsNav) return;
     button.addEventListener('click', () => window.setTimeout(syncRangeVisibility, 0));
   });
+
+  archiveSearch?.addEventListener('input', renderWars);
 
   warsBody.addEventListener('click', event => {
     const row = event.target.closest('[data-war-id]');
@@ -224,9 +229,29 @@ function renderWars() {
   normalizeHeader();
   syncRangeVisibility();
 
-  const ordered = [...wars].sort((a, b) => warTimestamp(b) - warTimestamp(a));
-  if (!ordered.length) {
+  const query = String(archiveSearch?.value || '').trim().toLowerCase();
+  const ordered = [...wars]
+    .sort((a, b) => warTimestamp(b) - warTimestamp(a))
+    .filter(war => {
+      if (!query) return true;
+      const opponent = String(war.opponent_faction_name || '').toLowerCase();
+      const warId = String(war.war_id || war.report_id || '').toLowerCase();
+      return opponent.includes(query) || warId.includes(query);
+    });
+
+  if (archiveCount) {
+    archiveCount.textContent = query
+      ? `${formatNumber(ordered.length)} of ${formatNumber(wars.length)} wars`
+      : `${formatNumber(wars.length)} wars`;
+  }
+
+  if (!wars.length) {
     warsBody.innerHTML = '<tr><td colspan="4" class="empty">No imported wars stored for this faction.</td></tr>';
+    return;
+  }
+
+  if (!ordered.length) {
+    warsBody.innerHTML = '<tr><td colspan="4" class="empty">No wars match this search.</td></tr>';
     return;
   }
 
@@ -257,6 +282,7 @@ function openWarDetail(warId, persist = true) {
 
   archiveWrap?.classList.add('hidden');
   importPanel?.classList.add('hidden');
+  archiveToolbar?.classList.add('hidden');
   const detail = document.querySelector('#warDrilldown');
   detail?.classList.remove('hidden');
   if (pageTitle) pageTitle.textContent = `War #${id}`;
@@ -273,9 +299,10 @@ function closeWarDetail(keepStored) {
   document.querySelector('#warDrilldown')?.classList.add('hidden');
   archiveWrap?.classList.remove('hidden');
   importPanel?.classList.remove('hidden');
+  archiveToolbar?.classList.remove('hidden');
   const search = document.querySelector('[data-war-detail-search]');
   if (search) search.value = '';
-  if (pageTitle && warsTab?.classList.contains('active')) pageTitle.textContent = 'War history';
+  if (pageTitle && warsTab?.classList.contains('active')) pageTitle.textContent = 'War Archive';
   renderWars();
 }
 
