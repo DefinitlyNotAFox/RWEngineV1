@@ -3121,3 +3121,213 @@ body {
     gap: 5px;
   }
 }
+
+
+/* Unified faction workspace */
+
+.faction-viewbar {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 2px 0 8px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.faction-presets {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.faction-presets button {
+  border: 0;
+  border-bottom: 1px solid transparent;
+  padding: 7px 0 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 560;
+}
+
+.faction-presets button:hover {
+  color: var(--text);
+}
+
+.faction-presets button.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.faction-period {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 0 0 auto;
+}
+
+.faction-period > span {
+  color: var(--dim);
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+
+.faction-period .period-control {
+  margin: 0;
+}
+
+.faction-table-wrap {
+  overflow-x: auto;
+}
+
+#intelTable {
+  table-layout: auto;
+}
+
+#intelTable th,
+#intelTable td {
+  width: auto !important;
+}
+
+#intelTable th button {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  text-transform: inherit;
+  white-space: nowrap;
+}
+
+#intelTable th button:hover {
+  color: var(--text);
+}
+
+#intelTable th small {
+  margin-left: 2px;
+  color: var(--dim);
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+#intelTable td:not(.col-member):not(.col-lastAction):not(.col-attention) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#intelTable th:not(.col-member):not(.col-lastAction):not(.col-attention) {
+  text-align: right;
+}
+
+#intelTable .col-member {
+  min-width: 215px;
+  text-align: left;
+}
+
+#intelTable .col-lastAction {
+  min-width: 105px;
+  text-align: left;
+}
+
+#intelTable .col-stats,
+#intelTable .col-activity,
+#intelTable .col-xanax {
+  min-width: 118px;
+}
+
+#intelTable .col-participation4,
+#intelTable .col-hits4,
+#intelTable .col-wars,
+#intelTable .col-participation,
+#intelTable .col-hits,
+#intelTable .col-assists,
+#intelTable .col-outsideHits,
+#intelTable .col-respectEarned,
+#intelTable .col-respectLost,
+#intelTable .col-scoreUp,
+#intelTable .col-scoreDown,
+#intelTable .col-netScore {
+  min-width: 100px;
+}
+
+#intelTable .col-attention {
+  min-width: 128px;
+  text-align: right;
+}
+
+#intelTable[data-preset="overview"] {
+  min-width: 1120px;
+}
+
+#intelTable[data-preset="activity"] {
+  min-width: 820px;
+}
+
+#intelTable[data-preset="training"] {
+  min-width: 700px;
+}
+
+#intelTable[data-preset="war"] {
+  min-width: 1060px;
+}
+
+#intelTable[data-preset="all"] {
+  min-width: 1940px;
+}
+
+#intelTable[data-preset="war"] .col-member,
+#intelTable[data-preset="all"] .col-member {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--bg);
+}
+
+#intelTable[data-preset="war"] thead .col-member,
+#intelTable[data-preset="all"] thead .col-member {
+  z-index: 3;
+}
+
+#intelTable[data-preset="war"] tbody tr:hover .col-member,
+#intelTable[data-preset="all"] tbody tr:hover .col-member {
+  background: #0e1011;
+}
+
+#intelTable[data-preset="war"] tbody tr.selected .col-member,
+#intelTable[data-preset="all"] tbody tr.selected .col-member {
+  background: #0f1112;
+}
+
+@media (max-width: 850px) {
+  .faction-viewbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 4px;
+    padding-bottom: 7px;
+  }
+
+  .faction-period {
+    justify-content: space-between;
+  }
+
+  .faction-presets {
+    gap: 14px;
+  }
+}
+
+@media (max-width: 620px) {
+  .faction-period {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+}
