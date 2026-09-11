@@ -690,6 +690,10 @@ function ensureFilterState() {
     timelineRange = restoreTimelineRange(bounds) || defaultTimelineRange(bounds);
   }
 
+  if (bounds.from && timelineRange.from < bounds.from) timelineRange.from = bounds.from;
+  if (bounds.to && timelineRange.to > bounds.to) timelineRange.to = bounds.to;
+  if (timelineRange.from > timelineRange.to) timelineRange = defaultTimelineRange(bounds);
+
   const validWarIds = new Set(sortedWars().map(war => Number(warId(war))));
   selectedWarIds = new Set([...selectedWarIds].filter(id => validWarIds.has(id)));
 
@@ -1061,9 +1065,25 @@ function tableSignalLabel(signal, member) {
 }
 
 function topSignal(member) {
-  const insights = Array.isArray(member.insights) ? member.insights : [];
+  const insights = Array.isArray(member.insights) ? [...member.insights] : [];
+  const performance = performanceMember(member);
+
+  if (
+    performance &&
+    factionPerformance.totalWars > 0 &&
+    Number.isFinite(Number(performance.participation)) &&
+    Number(performance.participation) < 0.5 &&
+    !insights.some(item => item.code === 'low_war_participation')
+  ) {
+    insights.push({
+      code:'low_war_participation',
+      kind:'attention',
+      text:`Participated in ${formatNumber(performance.wars)} of ${formatNumber(factionPerformance.totalWars)} selected wars.`
+    });
+  }
+
   if (!insights.length) return null;
-  return [...insights].sort((a,b) => priorityIndex(a.code) - priorityIndex(b.code))[0];
+  return insights.sort((a,b) => priorityIndex(a.code) - priorityIndex(b.code))[0];
 }
 
 function priorityIndex(code) {
