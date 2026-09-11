@@ -5094,26 +5094,3 @@ body {
   right: 18%;
   background: rgba(185,130,93,.16);
 }
-
-
-/* Page canvas is pure black; keep the table header bands distinct. */
-html,
-body {
-  background: #000;
-}
-
-#intelTable.faction-grid .faction-grid-group.group-roster {
-  background: #101213 !important;
-}
-
-#intelTable.faction-grid .faction-grid-group.group-training {
-  background: #121416 !important;
-}
-
-#intelTable.faction-grid .faction-grid-group.group-war {
-  background: #141719 !important;
-}
-
-#intelTable.faction-grid .faction-grid-group.group-context {
-  background: #111315 !important;
-}
