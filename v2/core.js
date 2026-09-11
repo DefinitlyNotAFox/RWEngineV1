@@ -97,6 +97,14 @@ export async function playerAnalysisApi(action, payload = {}) {
   });
 }
 
+export async function playerReportsApi(action, payload = {}) {
+  return post('/v2/player-reports', {
+    action,
+    ...(usesAdminFaction() ? { factionId: state.selectedFactionId } : {}),
+    ...payload
+  });
+}
+
 export async function freshnessApi() {
   return post('/v2/freshness', {
     ...(usesAdminFaction() ? { factionId: state.selectedFactionId } : {})

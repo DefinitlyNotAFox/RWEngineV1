@@ -325,10 +325,10 @@ async function loadAccessList() {
       ? resources.map(resource => `
           <div class="access-row">
             <div>
-              <strong>${escapeHtml(resource.title || 'War report')}</strong>
-              <small>#${escapeHtml(resource.resourceKey)} · ${escapeHtml(formatDate(resource.endedAt || resource.importedAt))}${resource.publicLinkActive ? ' · public link active' : ''}</small>
+              <strong>${escapeHtml(resource.title || 'Report')}</strong>
+              <small>${escapeHtml(resource.detail || ('#' + resource.resourceKey))} · ${escapeHtml(formatDate(resource.endedAt || resource.importedAt))}${resource.publicLinkActive ? ' · public link active' : ''}</small>
             </div>
-            <select class="access-select" data-access-key="${escapeHtml(resource.resourceKey)}">
+            <select class="access-select" data-access-type="${escapeHtml(resource.resourceType)}" data-access-key="${escapeHtml(resource.resourceKey)}">
               <option value="private"${resource.visibility === 'private' ? ' selected' : ''}>Private</option>
               <option value="faction"${resource.visibility === 'faction' ? ' selected' : ''}>Faction</option>
               <option value="public"${resource.visibility === 'public' ? ' selected' : ''}>Public</option>
@@ -355,8 +355,8 @@ async function handleAccessChange(event) {
 
   try {
     const result = await shareApi('setVisibility', {
-      resourceType: 'war',
-      warId: select.dataset.accessKey,
+      resourceType: select.dataset.accessType || 'war',
+      resourceKey: select.dataset.accessKey,
       visibility: select.value
     });
 

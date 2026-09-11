@@ -19,7 +19,7 @@ export async function onRequest(context) {
 
     if (action === 'analyze') {
       const playerId = positiveInt(body.playerId, 'playerId');
-      return json(await analyzePlayer(env, user, scopeFactionId, playerId));
+      return json(await buildPlayerAnalysis(env, user, scopeFactionId, playerId));
     }
 
     return json({ success:false, message:'Unknown Player Analysis action: ' + action }, 400);
@@ -77,7 +77,7 @@ async function searchPlayers(env, user, scopeFactionId, body) {
   };
 }
 
-async function analyzePlayer(env, user, scopeFactionId, playerId) {
+export async function buildPlayerAnalysis(env, user, scopeFactionId, playerId) {
   const now = unixNow();
   const localMember = scopeFactionId
     ? await env.DB.prepare(

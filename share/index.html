@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex,nofollow" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine · Shared report</title>
-  <link rel="stylesheet" href="/share/share.css?v=3" />
+  <link rel="stylesheet" href="/share/share.css?v=4" />
 </head>
 <body>
   <header class="topbar">
@@ -30,25 +30,37 @@
         <span class="read-only">Read only</span>
       </header>
 
-      <div id="scoreLine" class="score-line"></div>
-      <div id="summaryGrid" class="summary-grid"></div>
+      <section id="warPublicBody">
+        <div id="scoreLine" class="score-line"></div>
+        <div id="summaryGrid" class="summary-grid"></div>
 
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Member</th>
-              <th>Hits</th>
-              <th>Assists</th>
-              <th>Outside</th>
-              <th>Score +</th>
-              <th>Score -</th>
-              <th>Net</th>
-            </tr>
-          </thead>
-          <tbody id="memberRows"></tbody>
-        </table>
-      </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Hits</th>
+                <th>Assists</th>
+                <th>Outside</th>
+                <th>Score +</th>
+                <th>Score -</th>
+                <th>Net</th>
+              </tr>
+            </thead>
+            <tbody id="memberRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="playerPublicBody" class="hidden">
+        <div id="playerSummaryGrid" class="summary-grid"></div>
+        <div id="playerPublicContext" class="public-context"></div>
+        <div id="playerPublicSources" class="public-sources"></div>
+        <section class="public-war-history">
+          <header>Recent wars</header>
+          <div id="playerPublicWars"></div>
+        </section>
+      </section>
 
       <footer class="report-foot">
         <span>RWEngine public link</span>
@@ -57,6 +69,6 @@
     </article>
   </main>
 
-  <script type="module" src="/share/share.js?v=2"></script>
+  <script type="module" src="/share/share.js?v=3"></script>
 </body>
 </html>

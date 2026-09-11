@@ -53,7 +53,7 @@ async function setVisibility(db, request, user, factionId, body) {
     db,
     factionId,
     resource,
-    Number(record.imported_by_user_id || user.user_id),
+    resourceOwnerId(record) || Number(user.user_id),
     visibility,
     now
   );
@@ -77,22 +77,25 @@ async function revokeShare(db, user, factionId, body) {
   assertCanManage(user, record);
 
   const now = unixNow();
+  const nextVisibility = defaultVisibility(resource.type);
   await upsertPermission(
     db,
     factionId,
     resource,
-    Number(record.imported_by_user_id || user.user_id),
-    'faction',
+    resourceOwnerId(record) || Number(user.user_id),
+    nextVisibility,
     now
   );
   await disableResourceLinks(db, factionId, resource, now);
 
   return json({
     success: true,
-    visibility: 'faction',
+    visibility: nextVisibility,
     share: null,
     shareUrl: null,
-    message: 'Public access revoked. Report is faction-only.'
+    message: nextVisibility === 'private'
+      ? 'Public access revoked. Report is private.'
+      : 'Public access revoked. Report is faction-only.'
   });
 }
 
@@ -101,7 +104,7 @@ async function shareStatus(db, user, factionId, body) {
   const record = await getResourceRecord(db, factionId, resource);
   const permission = await getPermission(db, factionId, resource);
   assertCanView(user, record, permission);
-  const visibility = permission?.visibility || 'faction';
+  const visibility = permission?.visibility || defaultVisibility(resource.type);
 
   const share = await db.prepare(
     'SELECT share_id, resource_type, resource_key, is_enabled, created_at, updated_at, last_accessed_at FROM share_links WHERE faction_id = ? AND resource_type = ? AND resource_key = ? AND is_enabled = 1 ORDER BY updated_at DESC LIMIT 1'
@@ -117,35 +120,63 @@ async function shareStatus(db, user, factionId, body) {
 
 async function listResources(db, user, factionId) {
   const isAdmin = Number(user.is_admin) === 1;
-  const sql = isAdmin
-    ? "SELECT w.war_id, w.opponent_faction_name, w.end_timestamp, w.imported_at, w.imported_by_user_id, COALESCE(rp.visibility, 'faction') AS visibility, rp.owner_user_id, (SELECT COUNT(*) FROM share_links sl WHERE sl.faction_id = w.faction_id AND sl.resource_type = 'war' AND sl.resource_key = w.war_id AND sl.is_enabled = 1) AS share_enabled, (SELECT MAX(sl.updated_at) FROM share_links sl WHERE sl.faction_id = w.faction_id AND sl.resource_type = 'war' AND sl.resource_key = w.war_id) AS share_updated_at, (SELECT MAX(sl.last_accessed_at) FROM share_links sl WHERE sl.faction_id = w.faction_id AND sl.resource_type = 'war' AND sl.resource_key = w.war_id) AS last_accessed_at FROM wars w LEFT JOIN resource_permissions rp ON rp.faction_id = w.faction_id AND rp.resource_type = 'war' AND rp.resource_key = w.war_id WHERE w.faction_id = ? ORDER BY COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) DESC LIMIT 100"
-    : "SELECT w.war_id, w.opponent_faction_name, w.end_timestamp, w.imported_at, w.imported_by_user_id, COALESCE(rp.visibility, 'faction') AS visibility, rp.owner_user_id, (SELECT COUNT(*) FROM share_links sl WHERE sl.faction_id = w.faction_id AND sl.resource_type = 'war' AND sl.resource_key = w.war_id AND sl.is_enabled = 1) AS share_enabled, (SELECT MAX(sl.updated_at) FROM share_links sl WHERE sl.faction_id = w.faction_id AND sl.resource_type = 'war' AND sl.resource_key = w.war_id) AS share_updated_at, (SELECT MAX(sl.last_accessed_at) FROM share_links sl WHERE sl.faction_id = w.faction_id AND sl.resource_type = 'war' AND sl.resource_key = w.war_id) AS last_accessed_at FROM wars w LEFT JOIN resource_permissions rp ON rp.faction_id = w.faction_id AND rp.resource_type = 'war' AND rp.resource_key = w.war_id WHERE w.faction_id = ? AND (w.imported_by_user_id = ? OR rp.owner_user_id = ?) ORDER BY COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) DESC LIMIT 100";
 
-  const result = isAdmin
-    ? await db.prepare(sql).bind(factionId).all()
-    : await db.prepare(sql).bind(factionId, Number(user.user_id), Number(user.user_id)).all();
+  const warSql = isAdmin
+    ? "SELECT w.war_id, w.opponent_faction_name, w.end_timestamp, w.imported_at, w.imported_by_user_id, COALESCE(rp.visibility, 'faction') AS visibility, (SELECT COUNT(*) FROM share_links sl WHERE sl.faction_id = w.faction_id AND sl.resource_type = 'war' AND sl.resource_key = w.war_id AND sl.is_enabled = 1) AS share_enabled, (SELECT MAX(sl.updated_at) FROM share_links sl WHERE sl.faction_id = w.faction_id AND sl.resource_type = 'war' AND sl.resource_key = w.war_id) AS share_updated_at, (SELECT MAX(sl.last_accessed_at) FROM share_links sl WHERE sl.faction_id = w.faction_id AND sl.resource_type = 'war' AND sl.resource_key = w.war_id) AS last_accessed_at FROM wars w LEFT JOIN resource_permissions rp ON rp.faction_id = w.faction_id AND rp.resource_type = 'war' AND rp.resource_key = w.war_id WHERE w.faction_id = ? ORDER BY COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) DESC LIMIT 100"
+    : "SELECT w.war_id, w.opponent_faction_name, w.end_timestamp, w.imported_at, w.imported_by_user_id, COALESCE(rp.visibility, 'faction') AS visibility, (SELECT COUNT(*) FROM share_links sl WHERE sl.faction_id = w.faction_id AND sl.resource_type = 'war' AND sl.resource_key = w.war_id AND sl.is_enabled = 1) AS share_enabled, (SELECT MAX(sl.updated_at) FROM share_links sl WHERE sl.faction_id = w.faction_id AND sl.resource_type = 'war' AND sl.resource_key = w.war_id) AS share_updated_at, (SELECT MAX(sl.last_accessed_at) FROM share_links sl WHERE sl.faction_id = w.faction_id AND sl.resource_type = 'war' AND sl.resource_key = w.war_id) AS last_accessed_at FROM wars w LEFT JOIN resource_permissions rp ON rp.faction_id = w.faction_id AND rp.resource_type = 'war' AND rp.resource_key = w.war_id WHERE w.faction_id = ? AND (w.imported_by_user_id = ? OR rp.owner_user_id = ?) ORDER BY COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) DESC LIMIT 100";
 
-  return json({
-    success: true,
-    resources: (result.results || []).map(row => ({
+  const warResult = isAdmin
+    ? await db.prepare(warSql).bind(factionId).all()
+    : await db.prepare(warSql).bind(factionId, Number(user.user_id), Number(user.user_id)).all();
+
+  const snapshotSql = isAdmin
+    ? "SELECT s.snapshot_id, s.owner_user_id, s.target_player_id, s.target_player_name, s.created_at, COALESCE(rp.visibility, 'private') AS visibility, (SELECT COUNT(*) FROM share_links sl WHERE sl.faction_id = s.faction_id AND sl.resource_type = 'player-analysis' AND sl.resource_key = CAST(s.snapshot_id AS TEXT) AND sl.is_enabled = 1) AS share_enabled, (SELECT MAX(sl.updated_at) FROM share_links sl WHERE sl.faction_id = s.faction_id AND sl.resource_type = 'player-analysis' AND sl.resource_key = CAST(s.snapshot_id AS TEXT)) AS share_updated_at, (SELECT MAX(sl.last_accessed_at) FROM share_links sl WHERE sl.faction_id = s.faction_id AND sl.resource_type = 'player-analysis' AND sl.resource_key = CAST(s.snapshot_id AS TEXT)) AS last_accessed_at FROM analysis_snapshots s LEFT JOIN resource_permissions rp ON rp.faction_id = s.faction_id AND rp.resource_type = 'player-analysis' AND rp.resource_key = CAST(s.snapshot_id AS TEXT) WHERE s.faction_id = ? AND s.report_type = 'player-analysis' ORDER BY s.created_at DESC LIMIT 100"
+    : "SELECT s.snapshot_id, s.owner_user_id, s.target_player_id, s.target_player_name, s.created_at, COALESCE(rp.visibility, 'private') AS visibility, (SELECT COUNT(*) FROM share_links sl WHERE sl.faction_id = s.faction_id AND sl.resource_type = 'player-analysis' AND sl.resource_key = CAST(s.snapshot_id AS TEXT) AND sl.is_enabled = 1) AS share_enabled, (SELECT MAX(sl.updated_at) FROM share_links sl WHERE sl.faction_id = s.faction_id AND sl.resource_type = 'player-analysis' AND sl.resource_key = CAST(s.snapshot_id AS TEXT)) AS share_updated_at, (SELECT MAX(sl.last_accessed_at) FROM share_links sl WHERE sl.faction_id = s.faction_id AND sl.resource_type = 'player-analysis' AND sl.resource_key = CAST(s.snapshot_id AS TEXT)) AS last_accessed_at FROM analysis_snapshots s LEFT JOIN resource_permissions rp ON rp.faction_id = s.faction_id AND rp.resource_type = 'player-analysis' AND rp.resource_key = CAST(s.snapshot_id AS TEXT) WHERE s.faction_id = ? AND s.report_type = 'player-analysis' AND s.owner_user_id = ? ORDER BY s.created_at DESC LIMIT 100";
+
+  let snapshotResult = { results: [] };
+  try {
+    snapshotResult = isAdmin
+      ? await db.prepare(snapshotSql).bind(factionId).all()
+      : await db.prepare(snapshotSql).bind(factionId, Number(user.user_id)).all();
+  } catch (_) {
+    snapshotResult = { results: [] };
+  }
+
+  const resources = [
+    ...(warResult.results || []).map(row => ({
       resourceType: 'war',
       resourceKey: String(row.war_id),
       title: row.opponent_faction_name || 'Unknown opponent',
+      detail: 'Ranked war #' + row.war_id,
       endedAt: nullableNumber(row.end_timestamp),
       importedAt: nullableNumber(row.imported_at),
       visibility: normalizeVisibility(row.visibility),
       publicLinkActive: Number(row.share_enabled || 0) > 0,
       shareUpdatedAt: nullableNumber(row.share_updated_at),
       lastAccessedAt: nullableNumber(row.last_accessed_at)
+    })),
+    ...(snapshotResult.results || []).map(row => ({
+      resourceType: 'player-analysis',
+      resourceKey: String(row.snapshot_id),
+      title: row.target_player_name || 'Player ' + row.target_player_id,
+      detail: 'Player analysis [' + row.target_player_id + ']',
+      endedAt: null,
+      importedAt: nullableNumber(row.created_at),
+      visibility: normalizeVisibility(row.visibility),
+      publicLinkActive: Number(row.share_enabled || 0) > 0,
+      shareUpdatedAt: nullableNumber(row.share_updated_at),
+      lastAccessedAt: nullableNumber(row.last_accessed_at)
     }))
-  });
+  ].sort((a,b) => Number(b.importedAt || 0) - Number(a.importedAt || 0));
+
+  return json({ success:true, resources });
 }
 
 async function activatePublicLink(db, request, user, factionId, resource, record) {
   const token = randomToken();
   const tokenHash = await sha256(token);
   const now = unixNow();
-  const ownerUserId = Number(record.imported_by_user_id || user.user_id);
+  const ownerUserId = resourceOwnerId(record) || Number(user.user_id);
 
   await upsertPermission(db, factionId, resource, ownerUserId, 'public', now);
   await disableResourceLinks(db, factionId, resource, now);
@@ -202,6 +233,8 @@ async function handlePublicShare(context) {
   let payload;
   if (link.resource_type === 'war') {
     payload = await buildPublicWar(env.DB, Number(link.faction_id), String(link.resource_key));
+  } else if (link.resource_type === 'player-analysis') {
+    payload = await buildPublicPlayerAnalysis(env.DB, Number(link.faction_id), String(link.resource_key));
   } else {
     throw httpError(404, 'This shared resource type is no longer available.');
   }
@@ -294,15 +327,74 @@ async function buildPublicWar(db, factionId, warId) {
   };
 }
 
-async function getResourceRecord(db, factionId, resource) {
-  if (resource.type !== 'war') throw httpError(400, 'Unsupported shared resource type.');
-
+async function buildPublicPlayerAnalysis(db, factionId, snapshotId) {
   const row = await db.prepare(
-    'SELECT war_id, imported_by_user_id FROM wars WHERE faction_id = ? AND war_id = ? LIMIT 1'
-  ).bind(factionId, resource.key).first();
+    "SELECT snapshot_id, target_player_id, target_player_name, payload_json, created_at FROM analysis_snapshots WHERE faction_id = ? AND snapshot_id = ? AND report_type = 'player-analysis' LIMIT 1"
+  ).bind(factionId, Number(snapshotId)).first();
 
-  if (!row) throw httpError(404, 'Imported war not found for this faction.');
-  return row;
+  if (!row) throw httpError(404, 'The shared player report no longer exists.');
+
+  let analysis;
+  try { analysis = JSON.parse(row.payload_json); }
+  catch (_) { throw httpError(500, 'The shared player report is invalid.'); }
+
+  const publicAnalysis = sanitizePlayerAnalysisForPublic(
+    analysis,
+    Number(row.created_at)
+  );
+
+  return {
+    snapshot: {
+      snapshotId: Number(row.snapshot_id),
+      targetPlayerId: Number(row.target_player_id),
+      targetPlayerName: row.target_player_name,
+      createdAt: Number(row.created_at)
+    },
+    analysis: publicAnalysis
+  };
+}
+
+export function sanitizePlayerAnalysisForPublic(analysis = {}, fallbackGeneratedAt = null) {
+  return {
+    generatedAt: analysis.generatedAt || fallbackGeneratedAt || null,
+    player: analysis.player || null,
+    context: analysis.context ? {
+      localHistoryAvailable: Boolean(analysis.context.localHistoryAvailable),
+      localFactionName: analysis.context.localFactionName || null,
+      currentFactionMember: Boolean(analysis.context.currentFactionMember),
+      observedAt: analysis.context.observedAt || null
+    } : null,
+    battleStats: analysis.battleStats || null,
+    activity: analysis.activity || null,
+    xanax: analysis.xanax || null,
+    war: {
+      last4: analysis.war?.last4 || null,
+      history: Array.isArray(analysis.war?.history) ? analysis.war.history : []
+    },
+    sources: Array.isArray(analysis.sources) ? analysis.sources : []
+  };
+}
+
+async function getResourceRecord(db, factionId, resource) {
+  if (resource.type === 'war') {
+    const row = await db.prepare(
+      'SELECT war_id, imported_by_user_id FROM wars WHERE faction_id = ? AND war_id = ? LIMIT 1'
+    ).bind(factionId, resource.key).first();
+
+    if (!row) throw httpError(404, 'Imported war not found for this faction.');
+    return row;
+  }
+
+  if (resource.type === 'player-analysis') {
+    const row = await db.prepare(
+      "SELECT snapshot_id, owner_user_id, target_player_id, target_player_name, created_at FROM analysis_snapshots WHERE faction_id = ? AND snapshot_id = ? AND report_type = 'player-analysis' LIMIT 1"
+    ).bind(factionId, Number(resource.key)).first();
+
+    if (!row) throw httpError(404, 'Saved player report not found for this faction.');
+    return row;
+  }
+
+  throw httpError(400, 'Unsupported shared resource type.');
 }
 
 async function getPermission(db, factionId, resource) {
@@ -326,22 +418,30 @@ async function disableResourceLinks(db, factionId, resource, now) {
 function assertCanView(user, record, permission) {
   if (Number(user.is_admin) === 1) return;
 
-  const visibility = permission?.visibility || 'faction';
+  const visibility = permission?.visibility || defaultVisibility(record.snapshot_id ? 'player-analysis' : 'war');
   if (visibility !== 'private') return;
 
   const permissionOwnerId = Number(permission?.owner_user_id || 0);
-  const importOwnerId = Number(record.imported_by_user_id || 0);
+  const ownerId = resourceOwnerId(record);
   if (
     permissionOwnerId !== Number(user.user_id) &&
-    importOwnerId !== Number(user.user_id)
+    ownerId !== Number(user.user_id)
   ) {
-    throw httpError(403, 'This war report is private.');
+    throw httpError(403, 'This report is private.');
   }
 }
 
 function canManage(user, record) {
   return Number(user.is_admin) === 1 ||
-    Number(record.imported_by_user_id || 0) === Number(user.user_id);
+    resourceOwnerId(record) === Number(user.user_id);
+}
+
+function resourceOwnerId(record) {
+  return Number(record?.owner_user_id || record?.imported_by_user_id || 0);
+}
+
+function defaultVisibility(resourceType) {
+  return resourceType === 'player-analysis' ? 'private' : 'faction';
 }
 
 function assertCanManage(user, record) {
@@ -352,10 +452,17 @@ function assertCanManage(user, record) {
 
 function normalizeResource(body) {
   const type = String(body.resourceType || 'war').trim().toLowerCase();
-  const key = String(body.resourceKey || body.warId || '').trim();
+  const key = String(
+    body.resourceKey ||
+    body.warId ||
+    body.snapshotId ||
+    ''
+  ).trim();
 
   if (!key) throw httpError(400, 'Missing resource ID.');
-  if (type !== 'war') throw httpError(400, 'Unsupported shared resource type.');
+  if (!['war','player-analysis'].includes(type)) {
+    throw httpError(400, 'Unsupported shared resource type.');
+  }
 
   return { type, key };
 }
