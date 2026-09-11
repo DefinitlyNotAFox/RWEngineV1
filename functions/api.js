@@ -787,28 +787,47 @@ async function handleGetImportedWars(env, request) {
     );
   }
 
+  await ensureResourcePermissionsSchema(env.DB);
+
   const result = await env.DB.prepare(
     `
     SELECT
-      war_id,
-      report_id,
-      faction_id,
-      faction_name,
-      opponent_faction_id,
-      opponent_faction_name,
-      start_timestamp,
-      end_timestamp,
-      imported_at,
-      chain_adjusted_at,
-      chain_adjustment_status,
-      chain_adjustment_message
-    FROM wars
-    WHERE faction_id = ?
-    ORDER BY imported_at DESC
+      w.war_id,
+      w.report_id,
+      w.faction_id,
+      w.faction_name,
+      w.opponent_faction_id,
+      w.opponent_faction_name,
+      w.start_timestamp,
+      w.end_timestamp,
+      w.imported_at,
+      w.chain_adjusted_at,
+      w.chain_adjustment_status,
+      w.chain_adjustment_message,
+      COALESCE(rp.visibility, 'faction') AS visibility
+    FROM wars w
+    LEFT JOIN resource_permissions rp
+      ON rp.faction_id = w.faction_id
+      AND rp.resource_type = 'war'
+      AND rp.resource_key = w.war_id
+    WHERE w.faction_id = ?
+      AND (
+        ? = 1
+        OR rp.visibility IS NULL
+        OR rp.visibility <> 'private'
+        OR rp.owner_user_id = ?
+        OR w.imported_by_user_id = ?
+      )
+    ORDER BY w.imported_at DESC
     LIMIT 50
     `
   )
-    .bind(factionId)
+    .bind(
+      factionId,
+      currentUser.isAdmin ? 1 : 0,
+      Number(currentUser.userId || 0),
+      Number(currentUser.userId || 0)
+    )
     .all();
 
   return json({
@@ -816,6 +835,12 @@ async function handleGetImportedWars(env, request) {
     message: "Imported wars loaded.",
     wars: result.results || []
   });
+}
+
+async function ensureResourcePermissionsSchema(db) {
+  await db.prepare(
+    "CREATE TABLE IF NOT EXISTS resource_permissions (permission_id INTEGER PRIMARY KEY AUTOINCREMENT, owner_user_id INTEGER NOT NULL, faction_id INTEGER NOT NULL, resource_type TEXT NOT NULL, resource_key TEXT NOT NULL, visibility TEXT NOT NULL DEFAULT 'faction' CHECK (visibility IN ('private', 'faction', 'public')), created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE(faction_id, resource_type, resource_key), FOREIGN KEY (owner_user_id) REFERENCES users(user_id) ON DELETE CASCADE, FOREIGN KEY (faction_id) REFERENCES factions(faction_id))"
+  ).run();
 }
 
 async function handleCheckImportStatus(env, request, body) {

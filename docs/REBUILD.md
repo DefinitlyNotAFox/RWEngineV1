@@ -66,3 +66,23 @@ A new module should have:
 4. no dependency on DOM interception from another module.
 
 If a tool does not yet do useful work, it does not appear in navigation.
+
+
+## Shared platform contracts
+
+### Resource visibility
+
+Shareable resources use `resource_permissions` rather than module-specific flags.
+
+Visibility values:
+- `private`: owner/admin only
+- `faction`: authenticated faction members
+- `public`: faction access plus an opaque revocable public token
+
+A missing permission row uses the module's default. Ranked-war reports default to `faction`.
+
+Public tokens never override visibility. A valid token stops working immediately when the resource leaves `public`.
+
+### Freshness
+
+Modules consume `/v2/freshness` instead of inventing their own timestamps. Live-ish datasets may define a stale threshold; immutable/event datasets should expose last-update information without pretending age alone means stale.

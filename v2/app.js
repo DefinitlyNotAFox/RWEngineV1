@@ -1,10 +1,10 @@
 import {
   state, on, emit,
-  api, adminApi, rangeApi, loadWarsApi,
+  api, adminApi, rangeApi, loadWarsApi, freshnessApi, shareApi,
   periodPayload, restorePeriod, setPeriodPreset, renderPeriodControls,
   currentFactionName, currentFactionId,
   routeTo, routeFromHash, setNotice,
-  formatNumber, formatDateTime, escapeHtml
+  formatNumber, formatDate, formatDateTime, formatAge, escapeHtml
 } from './core.js';
 
 import { initIntel, renderIntel, refreshSyncStatus } from './intel.js';
@@ -127,6 +127,8 @@ function bindApplication() {
   document.querySelector('#adminKeyForm')?.addEventListener('submit', saveAdminKey);
   document.querySelector('#adminClearKey')?.addEventListener('click', clearAdminKey);
 
+  document.querySelector('#accessList')?.addEventListener('change', handleAccessChange);
+
   on('request-refresh', () => refreshAll(false));
 
   on('open-member', () => {
@@ -137,7 +139,10 @@ function bindApplication() {
   });
 
   on('route', route => {
-    if (route === 'settings') renderAdminSettings();
+    if (route === 'settings') {
+      renderAdminSettings();
+      loadAccessList();
+    }
   });
 }
 
@@ -199,8 +204,12 @@ async function refreshAll(userInitiated = false) {
   if (userInitiated) setNotice('Refreshing data…');
 
   try {
-    const warsResult = await loadWarsApi();
+    const [warsResult, freshnessResult] = await Promise.all([
+      loadWarsApi(),
+      freshnessApi().catch(() => null)
+    ]);
     state.wars = warsResult.wars || [];
+    state.freshness = freshnessResult || null;
 
     if (!state.period.from && !state.period.to) restorePeriod();
     else setPeriodPreset(state.period.preset);
@@ -214,9 +223,11 @@ async function refreshAll(userInitiated = false) {
     renderIntel();
     renderWarOverview();
     renderArchive();
+    renderFreshness();
     await refreshSyncStatus();
 
     emit('data');
+    if (state.route === 'settings') loadAccessList();
 
     if (userInitiated) setNotice('');
   } catch (error) {
@@ -259,7 +270,122 @@ function renderHome() {
   if (coverage) {
     const tracked = range?.trackingStartedAt ? formatDateTime(range.trackingStartedAt) : 'not started';
     const members = formatNumber(range?.summary?.currentMembers || 0);
-    coverage.textContent = `${members} current members · ${formatNumber(wars)} imported wars · tracking since ${tracked}`;
+    const intel = state.freshness?.datasets?.intel;
+    const freshness = intel?.observedAt
+      ? ` · Intel ${intel.state === 'stale' ? 'stale' : 'updated'} ${formatAge(intel.ageSeconds)}`
+      : '';
+    coverage.textContent = `${members} current members · ${formatNumber(wars)} imported wars · tracking since ${tracked}${freshness}`;
+  }
+}
+
+function renderFreshness() {
+  const intel = state.freshness?.datasets?.intel;
+  const wars = state.freshness?.datasets?.wars;
+
+  setFreshness(
+    '#intelFreshness',
+    intel?.state === 'syncing'
+      ? `Syncing · ${intel.activeSync?.phase || 'updating'}`
+      : intel?.observedAt
+        ? `${intel.state === 'stale' ? 'Stale' : 'Updated'} ${formatAge(intel.ageSeconds)}`
+        : 'No synced Intel data',
+    intel?.state === 'stale'
+  );
+
+  const warText = wars?.warCount
+    ? `${formatNumber(wars.warCount)} imported wars · archive updated ${formatAge(wars.ageSeconds)}`
+    : 'No imported war data';
+
+  setFreshness('#warFreshness', warText, false);
+  setFreshness('#performanceFreshness', warText, false);
+  setFreshness('#archiveFreshness', warText, false);
+}
+
+function setFreshness(selector, message, stale) {
+  const element = document.querySelector(selector);
+  if (!element) return;
+  element.textContent = message || '';
+  element.classList.toggle('stale', Boolean(stale));
+}
+
+async function loadAccessList() {
+  const list = document.querySelector('#accessList');
+  const status = document.querySelector('#accessStatus');
+  if (!list || !state.user) return;
+
+  try {
+    if (status) {
+      status.textContent = '';
+      status.classList.add('hidden');
+    }
+
+    const result = await shareApi('list');
+    const resources = result.resources || [];
+
+    list.innerHTML = resources.length
+      ? resources.map(resource => `
+          <div class="access-row">
+            <div>
+              <strong>${escapeHtml(resource.title || 'War report')}</strong>
+              <small>#${escapeHtml(resource.resourceKey)} · ${escapeHtml(formatDate(resource.endedAt || resource.importedAt))}${resource.publicLinkActive ? ' · public link active' : ''}</small>
+            </div>
+            <select class="access-select" data-access-key="${escapeHtml(resource.resourceKey)}">
+              <option value="private"${resource.visibility === 'private' ? ' selected' : ''}>Private</option>
+              <option value="faction"${resource.visibility === 'faction' ? ' selected' : ''}>Faction</option>
+              <option value="public"${resource.visibility === 'public' ? ' selected' : ''}>Public</option>
+            </select>
+          </div>
+        `).join('')
+      : '<div class="access-empty">No report visibility settings to manage.</div>';
+  } catch (error) {
+    list.innerHTML = '';
+    if (status) {
+      status.textContent = error.message || 'Failed to load report visibility.';
+      status.classList.remove('hidden');
+      status.classList.add('error');
+    }
+  }
+}
+
+async function handleAccessChange(event) {
+  const select = event.target.closest('[data-access-key]');
+  if (!select) return;
+
+  const status = document.querySelector('#accessStatus');
+  select.disabled = true;
+
+  try {
+    const result = await shareApi('setVisibility', {
+      resourceType: 'war',
+      warId: select.dataset.accessKey,
+      visibility: select.value
+    });
+
+    if (result.shareUrl) {
+      try {
+        await navigator.clipboard.writeText(result.shareUrl);
+        if (status) status.textContent = 'Public link created and copied.';
+      } catch (_) {
+        if (status) status.textContent = 'Public link created. Open the report to copy or rotate it.';
+      }
+    } else if (status) {
+      status.textContent = result.message || 'Visibility updated.';
+    }
+
+    if (status) {
+      status.classList.remove('hidden', 'error');
+    }
+
+    await refreshAll(false);
+  } catch (error) {
+    if (status) {
+      status.textContent = error.message || 'Failed to update visibility.';
+      status.classList.remove('hidden');
+      status.classList.add('error');
+    }
+    await loadAccessList();
+  } finally {
+    select.disabled = false;
   }
 }
 
@@ -399,6 +525,7 @@ function resetState() {
   state.selectedFactionId = null;
   state.wars = [];
   state.range = null;
+  state.freshness = null;
   state.period = { preset:'last4', from:null, to:null };
   state.route = 'home';
   setNotice('');

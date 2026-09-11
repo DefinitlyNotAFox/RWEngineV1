@@ -362,3 +362,31 @@ ON share_links(token_hash, is_enabled);
 
 CREATE INDEX IF NOT EXISTS idx_share_links_owner
 ON share_links(owner_user_id, faction_id, resource_type, updated_at DESC);
+
+
+/* =========================
+   RESOURCE VISIBILITY
+========================= */
+
+CREATE TABLE IF NOT EXISTS resource_permissions (
+  permission_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  owner_user_id INTEGER NOT NULL,
+  faction_id INTEGER NOT NULL,
+  resource_type TEXT NOT NULL,
+  resource_key TEXT NOT NULL,
+  visibility TEXT NOT NULL DEFAULT 'faction'
+    CHECK (visibility IN ('private', 'faction', 'public')),
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+
+  UNIQUE(faction_id, resource_type, resource_key),
+
+  FOREIGN KEY (owner_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+  FOREIGN KEY (faction_id) REFERENCES factions(faction_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_resource_permissions_lookup
+ON resource_permissions(faction_id, resource_type, resource_key);
+
+CREATE INDEX IF NOT EXISTS idx_resource_permissions_owner
+ON resource_permissions(owner_user_id, faction_id, updated_at DESC);

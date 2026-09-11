@@ -1224,3 +1224,102 @@ button.line-row:hover strong { color: var(--accent-2); }
     width: auto !important;
   }
 }
+
+
+/* freshness + access */
+
+.freshness {
+  margin: 4px 0 0;
+  color: var(--dim);
+  font-size: 9px;
+}
+
+.freshness.stale {
+  color: var(--warning);
+}
+
+.access-section {
+  max-width: 900px;
+  margin-top: 30px;
+}
+
+.access-section > header {
+  margin-bottom: 8px;
+}
+
+.access-section > header h2 {
+  margin: 2px 0 3px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.access-section > header span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.access-list {
+  border-top: 1px solid var(--line);
+}
+
+.access-row {
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 130px;
+  gap: 18px;
+  align-items: center;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.access-row strong,
+.access-row small {
+  display: block;
+}
+
+.access-row strong {
+  font-size: 11px;
+  font-weight: 620;
+}
+
+.access-row small {
+  margin-top: 2px;
+  color: var(--dim);
+  font-size: 9px;
+}
+
+.access-select {
+  height: 30px;
+  font-size: 10px;
+}
+
+.access-empty {
+  padding: 12px 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.share-panel {
+  grid-template-columns: minmax(150px,.45fr) 110px minmax(220px,1fr) auto auto;
+}
+
+.share-panel .small-select {
+  width: 110px;
+}
+
+@media (max-width: 760px) {
+  .freshness {
+    font-size: 9px;
+  }
+
+  .access-row {
+    grid-template-columns: 1fr 110px;
+  }
+
+  .share-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .share-panel .small-select {
+    width: 100%;
+  }
+}
