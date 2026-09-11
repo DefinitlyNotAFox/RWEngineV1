@@ -4290,3 +4290,33 @@ body {
     flex-basis: 100%;
   }
 }
+
+
+/* Faction aggregates are a normal first body row, never part of sticky headers. */
+#intelTable tbody .faction-total-row td {
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  z-index: auto !important;
+  height: 50px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  background: #0b0d0e !important;
+  color: var(--text);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  box-shadow: none !important;
+}
+
+#intelTable tbody .faction-total-row .member-name,
+#intelTable tbody .faction-total-row strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+#intelTable tbody .faction-total-row .member-meta {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 9px;
+}
