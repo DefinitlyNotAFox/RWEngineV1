@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=6" />
+  <link rel="stylesheet" href="/v2/app.css?v=7" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -165,6 +165,14 @@
         <p id="playerStatus" class="status-line hidden"></p>
         <div id="playerSearchResults" class="player-results hidden"></div>
         <section id="playerAnalysisResult" class="player-analysis-result hidden"></section>
+
+        <section id="playerSavedReports" class="player-saved-reports hidden">
+          <header>
+            <p class="kicker">Saved</p>
+            <h2>Player reports</h2>
+          </header>
+          <div id="playerSavedList"></div>
+        </section>
       </section>
 
       <section id="warView" class="view" data-view="war">
