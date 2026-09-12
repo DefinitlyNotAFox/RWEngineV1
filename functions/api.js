@@ -454,6 +454,14 @@ async function handleLogin(env, body) {
     return json({ success: false, message: "Invalid player ID or password." }, 401);
   }
 
+  if (Number(userRow.is_admin) !== 1 && await isMaintenanceMode(env.DB)) {
+    return json({
+      success:false,
+      maintenance:true,
+      message:"RWEngine is currently under maintenance."
+    }, 503);
+  }
+
   const syncedUserRow = await refreshUserFactionFromStoredApiKey(env, userRow);
 
   const now = nowUnix();
@@ -3448,6 +3456,25 @@ function requireDb(env) {
 function requireSecret(env) {
   if (!env.APP_SECRET) {
     throw new Error("Missing APP_SECRET secret.");
+  }
+}
+
+async function isMaintenanceMode(db) {
+  if (!db) return false;
+  try {
+    const row = await db.prepare(
+      'SELECT value FROM app_meta WHERE key = ? LIMIT 1'
+    ).bind('maintenance_mode').first();
+
+    if (!row) return false;
+
+    let value = row.value;
+    try { value = JSON.parse(String(row.value || '')); } catch (_) {}
+
+    if (value && typeof value === 'object') return Boolean(value.enabled);
+    return ['1','true','on','enabled'].includes(String(value || '').toLowerCase());
+  } catch (_) {
+    return false;
   }
 }
 
