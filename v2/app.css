@@ -5737,3 +5737,70 @@ body {
   border-top: 0;
   margin-bottom: 2px;
 }
+
+
+/* One member-history graph at a time; switch metrics instead of stacking three charts. */
+#intelTable.faction-grid .intel2-history-titlebar {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+#intelTable.faction-grid .intel2-history-metrics {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+#intelTable.faction-grid .intel2-history-metrics button {
+  border: 0;
+  border-bottom: 1px solid transparent;
+  padding: 2px 0 3px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+#intelTable.faction-grid .intel2-history-metrics button:hover {
+  color: var(--text);
+}
+
+#intelTable.faction-grid .intel2-history-metrics button.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+#intelTable.faction-grid .intel2-trends-single {
+  display: block;
+}
+
+#intelTable.faction-grid .intel2-trends-single .intel2-trend,
+#intelTable.faction-grid .intel2-trends-single .intel2-trend + .intel2-trend {
+  width: 100%;
+  padding: 8px 0 7px;
+  border: 0;
+}
+
+#intelTable.faction-grid .intel2-trends-single .sparkline,
+#intelTable.faction-grid .intel2-trends-single .intel2-trend-empty {
+  height: 54px;
+}
+
+@media (max-width: 760px) {
+  #intelTable.faction-grid .intel2-history-head,
+  #intelTable.faction-grid .intel2-history-titlebar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  #intelTable.faction-grid .intel2-history-head {
+    gap: 7px;
+  }
+
+  #intelTable.faction-grid .intel2-history-titlebar {
+    gap: 6px;
+  }
+}
