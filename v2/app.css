@@ -5331,3 +5331,342 @@ body {
     display: flex;
   }
 }
+
+
+/* Member detail v2: compact, table-like, and visually consistent with the faction view. */
+#intelTable.faction-grid .intel2-detail {
+  padding: 0 10px 13px;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--bg);
+}
+
+#intelTable.faction-grid .intel2-detail-headbar {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+#intelTable.faction-grid .intel2-detail-member {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+#intelTable.faction-grid .intel2-detail-member > strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+#intelTable.faction-grid .intel2-detail-member .entity-id {
+  color: var(--dim);
+  font-size: 8px;
+}
+
+#intelTable.faction-grid .intel2-detail-meta {
+  margin-left: 7px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+#intelTable.faction-grid .intel2-detail-headbar > a {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 9px;
+  text-decoration: none;
+}
+
+#intelTable.faction-grid .intel2-detail-headbar > a:hover {
+  color: var(--accent-2);
+}
+
+#intelTable.faction-grid .intel2-signal-strip {
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: 62px minmax(0,1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+#intelTable.faction-grid .intel2-signal-label,
+#intelTable.faction-grid .intel2-history-kicker {
+  color: #aeb5ba;
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+#intelTable.faction-grid .intel2-signal-items {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+#intelTable.faction-grid .intel2-signal {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+  font-size: 9px;
+}
+
+#intelTable.faction-grid .intel2-signal b {
+  font-size: 9px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+#intelTable.faction-grid .intel2-signal small {
+  color: var(--dim);
+  font-size: 8px;
+}
+
+#intelTable.faction-grid .intel2-signal.positive b {
+  color: var(--success);
+}
+
+#intelTable.faction-grid .intel2-signal.attention b {
+  color: var(--warning);
+}
+
+#intelTable.faction-grid .intel2-signal.note b {
+  color: var(--muted);
+}
+
+#intelTable.faction-grid .intel2-signal-empty {
+  color: var(--dim);
+  font-size: 9px;
+}
+
+#intelTable.faction-grid .intel2-history {
+  margin: 0;
+  padding: 10px 0 0;
+  border: 0;
+  background: var(--bg);
+}
+
+#intelTable.faction-grid .intel2-history-head {
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+  margin: 0 0 7px;
+}
+
+#intelTable.faction-grid .intel2-history-window {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#intelTable.faction-grid .intel2-history-window button {
+  border: 0;
+  border-bottom: 1px solid transparent;
+  padding: 1px 0 3px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+#intelTable.faction-grid .intel2-history-window button.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+#intelTable.faction-grid .intel2-trends {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+#intelTable.faction-grid .intel2-trend,
+#intelTable.faction-grid .intel2-trend + .intel2-trend {
+  min-width: 0;
+  padding: 8px 13px 7px;
+  border: 0;
+  border-right: 1px solid var(--line-soft);
+  background: var(--bg);
+}
+
+#intelTable.faction-grid .intel2-trend:first-child {
+  padding-left: 0;
+}
+
+#intelTable.faction-grid .intel2-trend:last-child {
+  padding-right: 0;
+  border-right: 0;
+}
+
+#intelTable.faction-grid .intel2-trend header {
+  margin: 0 0 5px;
+}
+
+#intelTable.faction-grid .intel2-trend header strong {
+  font-size: 10px;
+}
+
+#intelTable.faction-grid .intel2-trend header span {
+  color: var(--dim);
+  font-size: 8px;
+}
+
+#intelTable.faction-grid .sparkline,
+#intelTable.faction-grid .intel2-trend-empty {
+  height: 42px;
+}
+
+#intelTable.faction-grid .intel2-wars {
+  margin: 12px 0 0;
+}
+
+#intelTable.faction-grid .intel2-wars > header {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 0;
+  padding: 6px 0 5px;
+  border-top: 2px solid var(--accent);
+}
+
+#intelTable.faction-grid .intel2-wars > header strong {
+  font-size: 10px;
+  font-weight: 700;
+}
+
+#intelTable.faction-grid .intel2-wars > header span {
+  color: var(--dim);
+  font-size: 8px;
+}
+
+#intelTable.faction-grid .intel2-war-table {
+  width: 100%;
+}
+
+#intelTable.faction-grid .intel2-war {
+  min-height: 30px;
+  display: grid;
+  grid-template-columns: minmax(220px,1fr) repeat(4,82px);
+  gap: 10px;
+  align-items: center;
+  padding: 4px 0;
+  border-top: 1px solid var(--line-soft);
+  font-size: 9px;
+}
+
+#intelTable.faction-grid .intel2-war > span {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#intelTable.faction-grid .intel2-war-head {
+  min-height: 24px;
+  padding: 2px 0 4px;
+  border-top: 0;
+  color: var(--dim);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+#intelTable.faction-grid .intel2-war-head > span:first-child {
+  text-align: left;
+}
+
+#intelTable.faction-grid .intel2-war-name {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+#intelTable.faction-grid .intel2-war-name strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#intelTable.faction-grid .intel2-war-name small {
+  flex: 0 0 auto;
+  color: var(--dim);
+  font-size: 8px;
+}
+
+#intelTable.faction-grid .intel2-war-net {
+  font-weight: 650;
+}
+
+#intelTable.faction-grid .intel2-war-empty {
+  padding: 8px 0;
+  color: var(--dim);
+  font-size: 9px;
+}
+
+@media (max-width: 900px) {
+  #intelTable.faction-grid .intel2-trends {
+    grid-template-columns: 1fr;
+  }
+
+  #intelTable.faction-grid .intel2-trend,
+  #intelTable.faction-grid .intel2-trend + .intel2-trend {
+    padding: 8px 0;
+    border-right: 0;
+    border-top: 1px solid var(--line-soft);
+  }
+
+  #intelTable.faction-grid .intel2-trend:first-child {
+    border-top: 0;
+  }
+
+  #intelTable.faction-grid .intel2-war {
+    grid-template-columns: minmax(150px,1fr) repeat(4,58px);
+    gap: 7px;
+  }
+}
+
+@media (max-width: 620px) {
+  #intelTable.faction-grid .intel2-detail-member {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  #intelTable.faction-grid .intel2-detail-meta {
+    margin-left: 0;
+  }
+
+  #intelTable.faction-grid .intel2-signal-strip {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  #intelTable.faction-grid .intel2-war {
+    grid-template-columns: minmax(120px,1fr) repeat(2,58px);
+  }
+
+  #intelTable.faction-grid .intel2-war > :nth-child(3),
+  #intelTable.faction-grid .intel2-war > :nth-child(4) {
+    display: none;
+  }
+}
