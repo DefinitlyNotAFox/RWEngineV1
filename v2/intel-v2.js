@@ -65,6 +65,7 @@ let selectedMemberId = null;
 let sortKey = 'member';
 let sortDirection = 'asc';
 let trendDays = 90;
+let trendMetric = 'activity';
 let loading = false;
 let syncJob = null;
 let syncing = false;
@@ -229,6 +230,13 @@ export function initIntelV2() {
     const trendButton = event.target.closest('[data-trend-days]');
     if (trendButton) {
       trendDays = Number(trendButton.dataset.trendDays) || 90;
+      renderIntelV2();
+      return;
+    }
+
+    const metricButton = event.target.closest('[data-trend-metric]');
+    if (metricButton) {
+      trendMetric = metricButton.dataset.trendMetric || 'activity';
       renderIntelV2();
       return;
     }
@@ -1418,7 +1426,16 @@ function renderDetailRow(member) {
 
           <section class="intel2-history">
             <header class="intel2-history-head">
-              <span class="intel2-history-kicker">History &amp; trends</span>
+              <div class="intel2-history-titlebar">
+                <span class="intel2-history-kicker">History &amp; trends</span>
+                <div class="intel2-history-metrics" aria-label="Trend metric">
+                  ${[
+                    ['stats','Battle stats'],
+                    ['activity','Activity / day'],
+                    ['xanax','Xanax / day']
+                  ].map(([key,label]) => `<button type="button" data-trend-metric="${key}" class="${trendMetric === key ? 'active' : ''}">${label}</button>`).join('')}
+                </div>
+              </div>
               <div class="intel2-history-tools">
                 <div class="intel2-history-window" aria-label="History window">
                   ${[30,60,90].map(days => `<button type="button" data-trend-days="${days}" class="${trendDays === days ? 'active' : ''}">${days}d</button>`).join('')}
@@ -1427,10 +1444,8 @@ function renderDetailRow(member) {
               </div>
             </header>
 
-            <div class="intel2-trends">
-              ${trendBlock('Battle stats', history.stats, value => value == null ? '' : formatCompact(value))}
-              ${trendBlock('Activity / day', history.activity, formatDuration)}
-              ${trendBlock('Xanax / day', history.xanax, value => formatDecimal(value, 2))}
+            <div class="intel2-trends intel2-trends-single">
+              ${renderSelectedTrend(history)}
             </div>
 
             <section class="intel2-wars">
@@ -1603,6 +1618,16 @@ function trendBlock(title, series, formatter) {
       ${body}
     </section>
   `;
+}
+
+function renderSelectedTrend(history) {
+  if (trendMetric === 'stats') {
+    return trendBlock('Battle stats', history.stats, value => value == null ? '' : formatCompact(value));
+  }
+  if (trendMetric === 'xanax') {
+    return trendBlock('Xanax / day', history.xanax, value => formatDecimal(value, 2));
+  }
+  return trendBlock('Activity / day', history.activity, formatDuration);
 }
 
 function filterSeries(series, days) {
@@ -1820,6 +1845,7 @@ function resetIntelState() {
   syncJob = null;
   activeFilter = 'all';
   trendDays = 90;
+  trendMetric = 'activity';
 
   timelineRange = { from:null, to:null };
   draftTimelineRange = null;
