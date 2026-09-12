@@ -6089,3 +6089,15 @@ body {
 #intelTable.faction-grid .faction-member-row.selected .faction-grid-cell {
   background: #101213;
 }
+
+
+/* Slightly stronger tonal separation for the expanded member workspace. */
+#intelTable.faction-grid .faction-grid-detail-cell,
+#intelTable.faction-grid .intel2-detail,
+#intelTable.faction-grid .intel2-detail-layout {
+  background: #111315 !important;
+}
+
+#intelTable.faction-grid .faction-member-row.selected .faction-grid-cell {
+  background: #131617;
+}
