@@ -1,5 +1,5 @@
 const MANAGED_KEY_CONFIG = 'admin_managed_api_key_v1';
-const PAGE_LIMIT = 1000;
+const PAGE_LIMIT = 250;
 const TIME_PADDING_SECONDS = 60;
 
 export async function onRequest(context) {
