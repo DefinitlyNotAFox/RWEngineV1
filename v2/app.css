@@ -6759,3 +6759,37 @@ body {
     gap: 8px;
   }
 }
+
+
+/* Archive finishing polish. */
+.archive-opponent strong .entity-id {
+  display: inline;
+  margin-left: 4px;
+  color: var(--dim);
+  font-size: 8px;
+  font-weight: 450;
+}
+
+.war-result-win {
+  color: #79c98a !important;
+  border-bottom-color: rgba(121,201,138,.72);
+}
+
+.war-result-loss {
+  color: #e17474 !important;
+  border-bottom-color: rgba(225,116,116,.72);
+}
+
+.archive-import-button {
+  min-height: 30px;
+  height: 30px;
+  padding: 3px 10px;
+  border-color: #3a3e40;
+  color: var(--text);
+  font-size: 10px;
+}
+
+.archive-import-button:hover {
+  border-color: var(--accent);
+  color: var(--accent-2);
+}
