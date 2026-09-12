@@ -171,7 +171,14 @@ async function fetchTornJson(url, apiKey) {
   }
 
   if (payload?.error) {
+    const code = Number(payload.error.code || 0);
     const message = payload.error.error || payload.error.message || 'Unknown Torn API error.';
+    if (code === 7 || /incorrect id-entity relation/i.test(String(message))) {
+      throw httpError(
+        403,
+        'Faction API permission is required for attack detail. The API key configured for this faction cannot access faction attack logs.'
+      );
+    }
     throw httpError(502, `Torn API error: ${message}`);
   }
   if (!response.ok) {
