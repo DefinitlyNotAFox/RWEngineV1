@@ -9,7 +9,7 @@ import {
 
 import { initIntel, renderIntel, refreshSyncStatus } from './intel.js?v=2';
 import { initIntelV2 } from './intel-v2.js?v=28';
-import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=6';
+import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=7';
 
 const legacyIntelMode = new URL(location.href).searchParams.get('legacyIntel') === '1';
 
@@ -327,8 +327,8 @@ function renderFreshness() {
   );
 
   const warText = wars?.warCount
-    ? `${formatNumber(wars.warCount)} imported wars · archive updated ${formatAge(wars.ageSeconds)}`
-    : 'No imported war data';
+    ? `Archive updated ${formatAge(wars.ageSeconds)}`
+    : 'No archive data';
 
   setFreshness('#archiveFreshness', warText, false);
 }
