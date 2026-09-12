@@ -1,7 +1,7 @@
 const MANAGED_KEY_CONFIG = 'admin_managed_api_key_v1';
 const ATTACK_PAGE_SOFT_LIMIT = 100;
 const ATTACK_FETCH_MAX_WINDOWS = 800;
-const ATTACK_FETCH_WINDOWS_PER_STEP = 5;
+const ATTACK_FETCH_WINDOWS_PER_STEP = 3;
 const ATTACK_TIME_PADDING_SECONDS = 60;
 const ATTACK_MIN_SPLIT_SECONDS = 1;
 const CHAIN_REPORT_OVERLAP_PADDING_SECONDS = 3600;
@@ -253,7 +253,6 @@ async function processAttackSummaryStep(db, apiKey, war, state) {
       state.stats.checked += 1;
       state.stats.uniqueAttacksFetched += 1;
       summarizeAttackIntoState(state, attack, war);
-      await storeAttack(db, war, attack);
     }
   }
 
