@@ -5220,3 +5220,29 @@ body {
 #intelTable.faction-grid .faction-grid-group::after {
   display: none !important;
 }
+
+
+/* Center faction column headers on their columns; keep Member left-aligned. */
+#intelTable.faction-grid .faction-grid-header-cell {
+  justify-content: center !important;
+  text-align: center;
+}
+
+#intelTable.faction-grid .faction-grid-header-cell button {
+  text-align: center;
+}
+
+#intelTable.faction-grid .faction-grid-header-cell .sort-label {
+  width: 100%;
+  text-align: center;
+}
+
+#intelTable.faction-grid .faction-grid-header-cell:first-child {
+  justify-content: flex-start !important;
+  text-align: left;
+}
+
+#intelTable.faction-grid .faction-grid-header-cell:first-child button,
+#intelTable.faction-grid .faction-grid-header-cell:first-child .sort-label {
+  text-align: left;
+}
