@@ -173,28 +173,95 @@ export function renderWarOverview() {
 
 export function renderArchive() {
   const search = String(document.querySelector('#archiveSearch')?.value || '').trim().toLowerCase();
-  const wars = [...state.wars]
-    .sort((a,b) => warStamp(b) - warStamp(a))
-    .filter(war => !search ||
-      String(war.opponent_faction_name || '').toLowerCase().includes(search) ||
-      String(war.war_id || war.report_id || '').includes(search));
+  const allWars = [...state.wars].sort((a,b) => warStamp(b) - warStamp(a));
+  const wars = allWars.filter(war => !search ||
+    String(war.opponent_faction_name || '').toLowerCase().includes(search) ||
+    String(war.opponent_faction_id || '').includes(search) ||
+    String(war.war_id || '').includes(search) ||
+    String(war.report_id || '').includes(search));
 
   const count = document.querySelector('#archiveCount');
-  if (count) count.textContent = formatNumber(state.wars.length);
+  const countLabel = document.querySelector('#archiveCountLabel');
+  if (count) count.textContent = formatNumber(search ? wars.length : allWars.length);
+  if (countLabel) {
+    countLabel.textContent = search
+      ? ` of ${formatNumber(allWars.length)} imported wars`
+      : ` imported war${allWars.length === 1 ? '' : 's'}`;
+  }
 
   const body = document.querySelector('#archiveBody');
   if (!body) return;
 
   body.innerHTML = wars.length
-    ? wars.map(war => `
-        <tr data-war-id="${escapeHtml(String(war.war_id || war.report_id || ''))}">
-          <td><span class="member-name">${escapeHtml(war.opponent_faction_name || 'Unknown opponent')}${war.opponent_faction_id ? `<span class="entity-id">[${escapeHtml(war.opponent_faction_id)}]</span>` : ''}</span></td>
-          <td>#${escapeHtml(String(war.war_id || war.report_id || '—'))}</td>
-          <td>${escapeHtml(formatDate(war.start_timestamp))}</td>
-          <td>${escapeHtml(formatDate(war.end_timestamp))}</td>
-        </tr>
-      `).join('')
-    : '<tr class="empty-row"><td colspan="4">No imported wars match this view.</td></tr>';
+    ? wars.map(war => {
+        const warId = String(war.war_id || war.report_id || '');
+        const reportId = String(war.report_id || '');
+        const status = archiveWarStatus(war);
+        const visibility = archiveVisibilityLabel(war.visibility);
+        return `
+          <div class="archive-row" role="row" data-war-id="${escapeHtml(warId)}">
+            <div class="archive-cell archive-opponent" role="cell">
+              <strong>${escapeHtml(war.opponent_faction_name || 'Unknown opponent')}</strong>
+              ${war.opponent_faction_id ? `<span>[${escapeHtml(war.opponent_faction_id)}]</span>` : ''}
+            </div>
+            <div class="archive-cell archive-war-id" role="cell">
+              <strong>#${escapeHtml(warId || 'No data')}</strong>
+              ${reportId && reportId !== warId ? `<span>Report #${escapeHtml(reportId)}</span>` : ''}
+            </div>
+            <div class="archive-cell archive-period" role="cell">
+              <strong>${escapeHtml(formatDate(war.start_timestamp))}</strong>
+              <span>to ${escapeHtml(formatDate(war.end_timestamp))}</span>
+            </div>
+            <div class="archive-cell archive-duration" role="cell">
+              <strong>${escapeHtml(archiveDuration(war.start_timestamp, war.end_timestamp))}</strong>
+            </div>
+            <div class="archive-cell archive-access" role="cell">
+              <strong>${escapeHtml(visibility)}</strong>
+            </div>
+            <div class="archive-cell archive-status" role="cell">
+              <strong>${escapeHtml(status.label)}</strong>
+              <span>${escapeHtml(status.detail)}</span>
+            </div>
+            <div class="archive-cell archive-open" role="cell" aria-hidden="true">→</div>
+          </div>
+        `;
+      }).join('')
+    : '<div class="archive-empty">No imported wars match this view.</div>';
+}
+
+function archiveDuration(startTimestamp, endTimestamp) {
+  const start = Number(startTimestamp || 0);
+  const end = Number(endTimestamp || 0);
+  if (!start || !end || end <= start) return 'No data';
+  const totalMinutes = Math.max(1, Math.round((end - start) / 60));
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  if (days) return `${days}d ${hours}h`;
+  if (hours) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+function archiveVisibilityLabel(value) {
+  if (value === 'private') return 'Private';
+  if (value === 'public') return 'Public';
+  return 'Faction';
+}
+
+function archiveWarStatus(war) {
+  const status = String(war.chain_adjustment_status || '').toLowerCase();
+  const message = String(war.chain_adjustment_message || '').trim();
+
+  if (status === 'failed' || status === 'error') {
+    return { label:'Needs attention', detail:message || 'Chain adjustment failed' };
+  }
+  if (status === 'pending' || status === 'queued' || status === 'running') {
+    return { label:'Processing', detail:'Chain adjustment' };
+  }
+  if (war.chain_adjusted_at || status === 'complete' || status === 'completed' || status === 'done') {
+    return { label:'Ready', detail:'War + chain data' };
+  }
+  return { label:'Imported', detail:'War data available' };
 }
 
 export async function loadPerformance(force = false) {
