@@ -6978,3 +6978,15 @@ body {
     width: min(230px,52vw);
   }
 }
+
+
+/* Keep the war result centered between both faction scores. */
+#warDetailView #warDetailResult {
+  display: none;
+}
+
+#warDetailView .score-versus .war-result {
+  justify-content: center;
+  min-width: 40px;
+  text-align: center;
+}
