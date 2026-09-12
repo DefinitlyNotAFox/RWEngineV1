@@ -523,21 +523,18 @@ function renderFactionTotalRow() {
         <span class="member-meta">${formatNumber(current.length)} members</span>
       </div>
       <div role="cell" class="faction-grid-cell col-stats">
-        <strong>${formatCompact(medianStats)}</strong>
+        <strong>${tableCellText(formatCompact(medianStats))}</strong>
         <span class="member-meta">median · ${formatNumber(knownStats.length)} known</span>
       </div>
       <div role="cell" class="faction-grid-cell col-xanax">
-        <strong>${formatDecimal(avgXanax, 2)}</strong>
+        <strong>${tableCellText(formatDecimal(avgXanax, 2))}</strong>
         <span class="member-meta">avg / day</span>
       </div>
       <div role="cell" class="faction-grid-cell col-activity">
-        <strong>${formatDuration(avgActivity)}</strong>
+        <strong>${tableCellText(formatDuration(avgActivity))}</strong>
         <span class="member-meta">avg / day</span>
       </div>
-      <div role="cell" class="faction-grid-cell col-ocs">
-        <strong>—</strong>
-        <span class="member-meta">placeholder</span>
-      </div>
+      <div role="cell" class="faction-grid-cell col-ocs"></div>
       <div role="cell" class="faction-grid-cell col-participation">
         <strong>${warLoading ? '…' : formatPercent(participation)}</strong>
         <span class="member-meta">${escapeHtml(warScope)}</span>
@@ -555,12 +552,12 @@ function renderFactionTotalRow() {
         <span class="member-meta">${warLoading ? '…' : `${formatDecimal(outsidePerWar, 1)} / war`}</span>
       </div>
       <div role="cell" class="faction-grid-cell col-respect">
-        <strong>${warLoading ? '…' : (respectEarned === null ? '—' : `+${formatDecimal(respectEarned, 2)}`)}</strong>
-        <span class="member-meta">${warLoading ? '…' : (respectLost === null ? '—' : `−${formatDecimal(respectLost, 2)}`)}</span>
+        <strong>${warLoading ? '…' : (respectEarned === null ? '' : `+${formatDecimal(respectEarned, 2)}`)}</strong>
+        <span class="member-meta">${warLoading ? '…' : (respectLost === null ? '' : `−${formatDecimal(respectLost, 2)}`)}</span>
       </div>
       <div role="cell" class="faction-grid-cell col-score">
-        <strong>${warLoading ? '…' : (scoreUp === null ? '—' : `+${formatDecimal(scoreUp, 2)}`)}</strong>
-        <span class="member-meta">${warLoading ? '…' : (scoreDown === null ? '—' : `−${formatDecimal(scoreDown, 2)}`)}</span>
+        <strong>${warLoading ? '…' : (scoreUp === null ? '' : `+${formatDecimal(scoreUp, 2)}`)}</strong>
+        <span class="member-meta">${warLoading ? '…' : (scoreDown === null ? '' : `−${formatDecimal(scoreDown, 2)}`)}</span>
       </div>
       <div role="cell" class="faction-grid-cell col-netScore">
         <strong>${warLoading ? '…' : formatSigned(netScore, 2)}</strong>
@@ -581,7 +578,7 @@ function renderFactionTotalFallback() {
     if (index === 0) {
       return `<div role="cell" class="faction-grid-cell col-member"><span class="member-name">Faction total</span><span class="member-meta">${formatNumber(count)} members</span></div>`;
     }
-    return `<div role="cell" class="faction-grid-cell col-${key}"><strong>—</strong><span class="member-meta">aggregate unavailable</span></div>`;
+    return `<div role="cell" class="faction-grid-cell col-${key}"><span class="member-meta">aggregate unavailable</span></div>`;
   }).join('');
 
   return `<div class="faction-grid-row faction-total-row faction-total-fallback" role="row">${cells}</div>`;
@@ -656,19 +653,19 @@ function renderFactionCell(member, key) {
   }
 
   if (key === 'stats') {
-    return `<div role="cell" class="faction-grid-cell col-stats">${member.battleStats?.value == null ? '—' : escapeHtml(formatCompact(member.battleStats.value))}<span class="trend ${trendClass(member.battleStats?.changePct30d)}">${tableBattleStatsTrend(member)}</span></div>`;
+    return `<div role="cell" class="faction-grid-cell col-stats">${member.battleStats?.value == null ? '' : escapeHtml(formatCompact(member.battleStats.value))}<span class="trend ${trendClass(member.battleStats?.changePct30d)}">${tableBattleStatsTrend(member)}</span></div>`;
   }
 
   if (key === 'activity') {
-    return `<div role="cell" class="faction-grid-cell col-activity">${escapeHtml(formatDuration(member.activity?.perDay30d))}<span class="trend ${trendClass(member.activity?.changePct)}">${escapeHtml(tableTrendLabel(member.activity?.changePct))}</span></div>`;
+    return `<div role="cell" class="faction-grid-cell col-activity">${escapeHtml(tableCellText(formatDuration(member.activity?.perDay30d)))}<span class="trend ${trendClass(member.activity?.changePct)}">${escapeHtml(tableTrendLabel(member.activity?.changePct))}</span></div>`;
   }
 
   if (key === 'xanax') {
-    return `<div role="cell" class="faction-grid-cell col-xanax">${escapeHtml(formatDecimal(member.xanax?.perDay30d, 2))}<span class="trend ${trendClass(member.xanax?.changePct)}">${escapeHtml(tableTrendLabel(member.xanax?.changePct))}</span></div>`;
+    return `<div role="cell" class="faction-grid-cell col-xanax">${escapeHtml(tableCellText(formatDecimal(member.xanax?.perDay30d, 2)))}<span class="trend ${trendClass(member.xanax?.changePct)}">${escapeHtml(tableTrendLabel(member.xanax?.changePct))}</span></div>`;
   }
 
   if (key === 'ocs') {
-    return '<div role="cell" class="faction-grid-cell col-ocs">—</div>';
+    return '<div role="cell" class="faction-grid-cell col-ocs"></div>';
   }
 
   if (key === 'participation4') {
@@ -680,11 +677,11 @@ function renderFactionCell(member, key) {
   }
 
   if (key === 'attention') {
-    return `<div role="cell" class="faction-grid-cell col-attention">${signal ? `<span class="signal ${signal.kind}">${escapeHtml(tableSignalLabel(signal, member))}</span>` : '—'}</div>`;
+    return `<div role="cell" class="faction-grid-cell col-attention">${signal ? `<span class="signal ${signal.kind}">${escapeHtml(tableSignalLabel(signal, member))}</span>` : ''}</div>`;
   }
 
   if (!performance) {
-    return `<div role="cell" class="faction-grid-cell col-${key}">${factionPerformance.loading ? '…' : '—'}</div>`;
+    return `<div role="cell" class="faction-grid-cell col-${key}">${factionPerformance.loading ? '…' : ''}</div>`;
   }
 
   if (key === 'participation') {
@@ -697,7 +694,7 @@ function renderFactionCell(member, key) {
 
   if (key === 'assists') {
     const perWar = Number(performance.wars) > 0 ? Number(performance.assists || 0) / Number(performance.wars) : null;
-    return `<div role="cell" class="faction-grid-cell col-assists"><strong>${formatNumber(performance.assists)}</strong><span class="member-meta">${formatDecimal(perWar, 1)} / war</span></div>`;
+    return `<div role="cell" class="faction-grid-cell col-assists"><strong>${formatNumber(performance.assists)}</strong><span class="member-meta">${perWar === null ? '' : `${formatDecimal(perWar, 1)} / war`}</span></div>`;
   }
 
   if (key === 'outsideHits') return `<div role="cell" class="faction-grid-cell col-outsideHits">${formatNumber(performance.outsideHits)}</div>`;
@@ -711,10 +708,10 @@ function renderFactionCell(member, key) {
 
   if (key === 'netScore') {
     const perWar = Number(performance.wars) > 0 ? Number(performance.netScore || 0) / Number(performance.wars) : null;
-    return `<div role="cell" class="faction-grid-cell col-netScore"><strong>${formatSigned(performance.netScore, 2)}</strong><span class="member-meta">${formatSigned(perWar, 2)} / war</span></div>`;
+    return `<div role="cell" class="faction-grid-cell col-netScore"><strong>${formatSigned(performance.netScore, 2)}</strong><span class="member-meta">${perWar === null ? '' : `${formatSigned(perWar, 2)} / war`}</span></div>`;
   }
 
-  return `<div role="cell" class="faction-grid-cell col-${key}">—</div>`;
+  return `<div role="cell" class="faction-grid-cell col-${key}"></div>`;
 }
 
 function matchesFilter(member) {
@@ -1271,10 +1268,15 @@ function medianNullable(values) {
   return valid.length % 2 ? valid[middle] : (valid[middle - 1] + valid[middle]) / 2;
 }
 
+function tableCellText(value) {
+  if (value === null || value === undefined || value === '' || value === '—') return '';
+  return String(value);
+}
+
 function tableTrendLabel(value) {
-  if (value === null || value === undefined || value === '') return '—';
+  if (value === null || value === undefined || value === '') return '';
   const number = Number(value);
-  if (!Number.isFinite(number)) return '—';
+  if (!Number.isFinite(number)) return '';
   const pct = Math.round(number * 100);
   return `${pct > 0 ? '+' : ''}${pct}%`;
 }
@@ -1282,10 +1284,10 @@ function tableTrendLabel(value) {
 function tableBattleStatsTrend(member) {
   const value = member?.battleStats?.changePct30d;
   if (value === null || value === undefined || value === '') {
-    return member?.battleStats?.value == null ? 'No estimate' : '—';
+    return member?.battleStats?.value == null ? 'No estimate' : '';
   }
   const number = Number(value);
-  if (!Number.isFinite(number)) return '—';
+  if (!Number.isFinite(number)) return '';
   const pct = Math.round(number * 100);
   return `${pct > 0 ? '+' : ''}${pct}%`;
 }
