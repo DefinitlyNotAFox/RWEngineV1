@@ -572,6 +572,7 @@ async function openWar(warId, force = false) {
   detail.warId = String(warId);
   detail.loading = true;
   document.querySelector('#archiveListView')?.classList.add('hidden');
+  document.querySelector('#archiveView')?.classList.add('war-open');
   document.querySelector('#warDetailView')?.classList.remove('hidden');
   setDetailLoading();
 
@@ -605,12 +606,15 @@ function closeWar() {
   detail.shareUrl = '';
   document.querySelector('#warDetailView')?.classList.add('hidden');
   document.querySelector('#archiveListView')?.classList.remove('hidden');
+  document.querySelector('#archiveView')?.classList.remove('war-open');
   resetSharePanel(true);
 }
 
 function setDetailLoading() {
   document.querySelector('#warDetailTitle').textContent = 'Loading war…';
   document.querySelector('#warDetailMeta').textContent = 'Ranked war';
+  const resultEl = document.querySelector('#warDetailResult');
+  if (resultEl) resultEl.innerHTML = '';
   document.querySelector('#warDetailDate').textContent = '';
   document.querySelector('#warDetailScore').innerHTML = '';
   document.querySelector('#warDetailSummary').innerHTML = '';
@@ -639,33 +643,30 @@ function renderWarDetail() {
   const members = Array.isArray(payload.members) ? payload.members : [];
 
   const outcome = warOutcome(summary.officialScoreUp, summary.officialScoreDown);
+  const ownFactionId = Number(payload.factionId || 0) || null;
   document.querySelector('#warDetailMeta').textContent = `Ranked war #${war.warId || '—'}`;
   document.querySelector('#warDetailTitle').textContent = `${war.factionName || 'Faction'} vs ${war.opponentFactionName || 'Opponent'}`;
   document.querySelector('#warDetailDate').textContent = `${formatDate(war.startTimestamp)} – ${formatDate(war.endTimestamp)}`;
 
+  const resultEl = document.querySelector('#warDetailResult');
+  if (resultEl) {
+    resultEl.innerHTML = `<span class="war-result war-result-${outcome}">${warOutcomeLabel(outcome)}</span>`;
+  }
+
   document.querySelector('#warDetailScore').innerHTML = `
     <div class="score-side">
-      <span>${escapeHtml(war.factionName || 'Faction')}</span>
+      <span>${escapeHtml(war.factionName || 'Faction')}${ownFactionId ? ` <span class="entity-id">[${escapeHtml(ownFactionId)}]</span>` : ''}</span>
       <strong>${formatDecimal(summary.displayScoreUp, 2)}</strong>
     </div>
-    <div class="score-versus">
-      <span class="war-result war-result-${outcome}">${warOutcomeLabel(outcome)}</span>
-      <small>RW score</small>
-    </div>
+    <div class="score-versus"><small>RW score</small></div>
     <div class="score-side opponent">
       <strong>${formatDecimal(summary.displayScoreDown, 2)}</strong>
-      <span>${escapeHtml(war.opponentFactionName || 'Opponent')}</span>
+      <span>${escapeHtml(war.opponentFactionName || 'Opponent')}${war.opponentFactionId ? ` <span class="entity-id">[${escapeHtml(war.opponentFactionId)}]</span>` : ''}</span>
     </div>
   `;
 
   const summaryEl = document.querySelector('#warDetailSummary');
-  summaryEl?.classList.add('war-detail-summary');
-  if (summaryEl) summaryEl.innerHTML = [
-    metric('Members', formatNumber(summary.members), 'in report'),
-    metric('War hits', formatNumber(summary.displayHits), 'faction total'),
-    metric('Assists', formatNumber(summary.assists), 'faction total'),
-    metric('Net score', formatSigned(summary.displayNetScore, 2), 'score gained − lost')
-  ].join('');
+  if (summaryEl) summaryEl.innerHTML = '';
 
   const detailNotice = document.querySelector('#warDetailNotice');
   if (detailNotice) {
@@ -703,10 +704,6 @@ function renderWarDetail() {
       String(member.playerId || '').includes(query))
     .sort(compareWarDetail);
 
-  document.querySelector('#warDetailBody').innerHTML = rows.length
-    ? rows.map(member => `<tr>${columns.map(key => renderWarCell(member,key)).join('')}</tr>`).join('')
-    : `<tr class="empty-row"><td colspan="${columns.length}">No members match this view.</td></tr>`;
-
   const totals = members.reduce((sum, member) => {
     for (const key of ['hits','assists','outsideHits','respectEarned','respectLost','scoreUp','scoreDown','netScore']) {
       sum[key] += Number(member[key] || 0);
@@ -714,14 +711,31 @@ function renderWarDetail() {
     return sum;
   }, { hits:0,assists:0,outsideHits:0,respectEarned:0,respectLost:0,scoreUp:0,scoreDown:0,netScore:0 });
 
-  document.querySelector('#warDetailFoot').innerHTML = `
-    <tr>
-      ${columns.map(key => key === 'member'
-        ? `<td><strong>Total</strong><span class="secondary">${formatNumber(members.length)} members</span></td>`
-        : `<td class="${key === 'netScore' ? 'net' : ''}"><strong>${['hits','assists','outsideHits'].includes(key) ? formatNumber(totals[key]) : (key === 'netScore' ? formatSigned(totals[key],2) : formatDecimal(totals[key],2))}</strong></td>`
-      ).join('')}
-    </tr>
-  `;
+  const aggregateValue = key => {
+    if (key === 'hits') return summary.displayHits ?? totals.hits;
+    if (key === 'assists') return summary.assists ?? totals.assists;
+    if (key === 'scoreUp') return summary.displayScoreUp ?? totals.scoreUp;
+    if (key === 'scoreDown') return summary.displayScoreDown ?? totals.scoreDown;
+    if (key === 'netScore') return summary.displayNetScore ?? totals.netScore;
+    return totals[key];
+  };
+
+  const totalRow = `<tr class="war-total-row">${columns.map(key => {
+    if (key === 'member') {
+      return `<td><strong>Faction total</strong><span class="secondary">${formatNumber(summary.members ?? members.length)} members</span></td>`;
+    }
+    const value = aggregateValue(key);
+    const formatted = ['hits','assists','outsideHits'].includes(key)
+      ? formatNumber(value)
+      : (key === 'netScore' ? formatSigned(value,2) : formatDecimal(value,2));
+    return `<td class="${key === 'netScore' ? 'net' : ''}"><strong>${formatted}</strong></td>`;
+  }).join('')}</tr>`;
+
+  document.querySelector('#warDetailBody').innerHTML = totalRow + (rows.length
+    ? rows.map(member => `<tr>${columns.map(key => renderWarCell(member,key)).join('')}</tr>`).join('')
+    : `<tr class="empty-row"><td colspan="${columns.length}">No members match this view.</td></tr>`);
+
+  document.querySelector('#warDetailFoot').innerHTML = '';
 }
 
 function compareWarDetail(a, b) {
@@ -750,7 +764,7 @@ function warDetailMetric(member, key) {
 
 function renderWarCell(member,key) {
   if (key === 'member') {
-    return `<td><a href="https://www.torn.com/profiles.php?XID=${member.playerId}" target="_blank" rel="noopener noreferrer"><span class="member-name">${escapeHtml(member.playerName || `Player ${member.playerId}`)}</span><span class="member-meta">[${member.playerId}]${member.current ? '' : ' · former'}</span></a></td>`;
+    return `<td><a href="https://www.torn.com/profiles.php?XID=${member.playerId}" target="_blank" rel="noopener noreferrer"><span class="member-name">${escapeHtml(member.playerName || `Player ${member.playerId}`)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span>${member.current ? '' : '<span class="member-meta">former</span>'}</a></td>`;
   }
   if (['hits','assists','outsideHits'].includes(key)) return `<td>${formatNumber(member[key])}</td>`;
   if (key === 'netScore') return `<td class="net">${formatSigned(member[key],2)}</td>`;
