@@ -1,0 +1,12 @@
+name = "rwengine-daily-sync"
+main = "worker.js"
+compatibility_date = "2026-09-12"
+
+[vars]
+RWE_BASE_URL = "https://rwenginev1.pages.dev"
+
+[triggers]
+crons = [ "17 * * * *" ]
+
+[observability]
+enabled = true
