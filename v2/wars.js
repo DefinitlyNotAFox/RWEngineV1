@@ -923,6 +923,7 @@ async function handleImport(event) {
     for (let index = 0; index < ids.length; index += 1) {
       const id = ids[index];
       let usedApi = false;
+      let phase = 'Checking';
 
       updateImportRow(rows,id,'','Checking','Checking existing data.');
       try {
@@ -932,6 +933,7 @@ async function handleImport(event) {
           continue;
         }
 
+        phase = 'Import';
         updateImportRow(rows,id,'','Importing','Reading ranked-war report.');
         const imported = await importApi('importRankedWarReport', { rankId:id, overwrite });
         usedApi = true;
@@ -942,9 +944,11 @@ async function handleImport(event) {
         }
 
         const warId = String(imported.war?.warId || imported.war?.war_id || id);
+        phase = 'Attack summary';
         updateImportRow(rows,id,'','Attacks','Building attack summary.');
         const summary = await importAttackSummary(warId, id, rows);
 
+        phase = 'Attack verification';
         updateImportRow(rows,id,'','Verify','Verifying attack coverage.');
         const verified = await importAttackDetail(warId, id, rows);
 
@@ -953,7 +957,12 @@ async function handleImport(event) {
           `${formatNumber(verified.storedTotal || 0)} attack rows · ${formatNumber(verified.assists || 0)} assists · score pass checked ${formatNumber(summary.checked || 0)}.`
         );
       } catch (error) {
-        updateImportRow(rows,id,'error','Failed',error.message || String(error));
+        const message = error.message || String(error);
+        if (usedApi) {
+          updateImportRow(rows,id,'warning','Imported',`${phase} incomplete: ${message}`);
+        } else {
+          updateImportRow(rows,id,'error','Failed',message);
+        }
       }
 
       if (usedApi && index < ids.length - 1) {
