@@ -6201,3 +6201,233 @@ body {
 #intelTable.faction-grid .intel2-trend-stage .intel2-trend-empty {
   height: 82px;
 }
+
+
+/* Archive v2: dense ranked-war history, deliberately not cards. */
+.archive-view-head {
+  margin-bottom: 18px;
+}
+
+.archive-toolbar {
+  min-height: 48px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 22px;
+  padding: 0 0 9px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.archive-summary {
+  min-width: 0;
+}
+
+.archive-count {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.archive-count strong {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 680;
+  font-variant-numeric: tabular-nums;
+}
+
+.archive-summary .freshness {
+  min-height: 14px;
+  margin: 1px 0 0;
+  color: var(--dim);
+  font-size: 9px;
+}
+
+.archive-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.archive-actions .search {
+  width: 260px;
+}
+
+.archive-grid {
+  --archive-columns:
+    minmax(180px,2.1fr)
+    minmax(90px,.8fr)
+    minmax(150px,1.25fr)
+    minmax(75px,.62fr)
+    minmax(70px,.58fr)
+    minmax(130px,1.08fr)
+    22px;
+  width: 100%;
+  margin-top: 18px;
+}
+
+.archive-row {
+  display: grid;
+  grid-template-columns: var(--archive-columns);
+  align-items: center;
+  min-height: 46px;
+}
+
+.archive-head {
+  min-height: 30px;
+  border-bottom: 1px solid var(--line);
+  color: #aeb5ba;
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.archive-head > div {
+  padding: 6px 9px;
+}
+
+.archive-head > div:first-child {
+  padding-left: 8px;
+}
+
+.archive-body .archive-row {
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+}
+
+.archive-body .archive-row:hover {
+  background: rgba(255,255,255,.018);
+}
+
+.archive-cell {
+  min-width: 0;
+  padding: 8px 9px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.archive-cell strong,
+.archive-cell span {
+  display: block;
+  min-width: 0;
+}
+
+.archive-cell strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 630;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.archive-cell span {
+  margin-top: 1px;
+  overflow: hidden;
+  color: var(--dim);
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.archive-opponent {
+  padding-left: 8px;
+}
+
+.archive-opponent strong {
+  font-size: 12px;
+  font-weight: 680;
+}
+
+.archive-war-id strong,
+.archive-duration strong,
+.archive-access strong,
+.archive-status strong {
+  font-size: 10px;
+}
+
+.archive-period strong {
+  font-size: 10px;
+}
+
+.archive-open {
+  padding-left: 0;
+  padding-right: 3px;
+  color: var(--dim);
+  font-size: 12px;
+  text-align: right;
+}
+
+.archive-body .archive-row:hover .archive-opponent strong,
+.archive-body .archive-row:hover .archive-open {
+  color: var(--accent-2);
+}
+
+.archive-empty {
+  min-height: 74px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+#archiveView .import-panel {
+  margin: 0;
+  padding: 14px 0 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  background: transparent;
+}
+
+@media (max-width: 950px) {
+  .archive-grid {
+    --archive-columns:
+      minmax(160px,2fr)
+      minmax(80px,.8fr)
+      minmax(140px,1.25fr)
+      minmax(70px,.65fr)
+      minmax(110px,1fr)
+      22px;
+  }
+
+  .archive-head > :nth-child(5),
+  .archive-row > .archive-access {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .archive-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .archive-actions {
+    justify-content: space-between;
+  }
+
+  .archive-actions .search {
+    width: min(320px,70vw);
+  }
+
+  .archive-grid {
+    --archive-columns:
+      minmax(150px,1.7fr)
+      minmax(78px,.75fr)
+      minmax(130px,1.1fr)
+      minmax(96px,.85fr)
+      20px;
+  }
+
+  .archive-head > :nth-child(4),
+  .archive-row > .archive-duration,
+  .archive-head > :nth-child(5),
+  .archive-row > .archive-access {
+    display: none;
+  }
+}
