@@ -445,11 +445,22 @@ async function handleGetImportedWars(env, body) {
       start_timestamp,
       end_timestamp,
       imported_at,
-      chain_adjusted_at,
-      chain_adjustment_status,
-      chain_adjustment_message
-    FROM wars
-    WHERE faction_id = ?
+      w.chain_adjusted_at,
+      w.chain_adjustment_status,
+      w.chain_adjustment_message,
+      COALESCE(ws.score_up, 0) AS score_up,
+      COALESCE(ws.score_down, 0) AS score_down
+    FROM wars w
+    LEFT JOIN (
+      SELECT faction_id, war_id,
+             SUM(COALESCE(score_up, 0)) AS score_up,
+             SUM(COALESCE(score_down, 0)) AS score_down
+      FROM war_log
+      GROUP BY faction_id, war_id
+    ) ws
+      ON ws.faction_id = w.faction_id
+      AND ws.war_id = w.war_id
+    WHERE w.faction_id = ?
     ORDER BY COALESCE(end_timestamp, start_timestamp, imported_at, 0) DESC
     LIMIT 200
   `).bind(Number(faction.faction_id)).all();
