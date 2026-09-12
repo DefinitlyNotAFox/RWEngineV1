@@ -6166,3 +6166,38 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Final alignment polish for expanded member sections. */
+#intelTable.faction-grid .intel2-context,
+#intelTable.faction-grid .intel2-history,
+#intelTable.faction-grid .intel2-wars {
+  padding-top: 10px;
+}
+
+#intelTable.faction-grid .intel2-context-head,
+#intelTable.faction-grid .intel2-history-head,
+#intelTable.faction-grid .intel2-wars > header {
+  min-height: 24px;
+  align-items: center;
+  margin-bottom: 7px;
+  line-height: 1;
+}
+
+#intelTable.faction-grid .intel2-context-head {
+  justify-content: flex-start;
+  gap: 11px;
+}
+
+#intelTable.faction-grid .intel2-context-head > a {
+  margin-left: 0;
+}
+
+#intelTable.faction-grid .intel2-history-titlebar {
+  gap: 16px;
+}
+
+#intelTable.faction-grid .intel2-trend-stage .sparkline,
+#intelTable.faction-grid .intel2-trend-stage .intel2-trend-empty {
+  height: 82px;
+}
