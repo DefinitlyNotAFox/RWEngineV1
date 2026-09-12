@@ -172,7 +172,10 @@ export function renderWarOverview() {
 }
 
 export function renderArchive() {
-  const search = String(document.querySelector('#archiveSearch')?.value || '').trim().toLowerCase();
+  const searchInput = document.querySelector('#archiveSearch');
+  if (searchInput) searchInput.placeholder = 'Search opponent, faction or war ID';
+
+  const search = String(searchInput?.value || '').trim().toLowerCase();
   const allWars = [...state.wars].sort((a,b) => warStamp(b) - warStamp(a));
   const wars = allWars.filter(war => !search ||
     String(war.opponent_faction_name || '').toLowerCase().includes(search) ||
@@ -183,50 +186,115 @@ export function renderArchive() {
   const count = document.querySelector('#archiveCount');
   const countLabel = document.querySelector('#archiveCountLabel');
   if (count) count.textContent = formatNumber(search ? wars.length : allWars.length);
+
+  const labelText = search
+    ? ` of ${formatNumber(allWars.length)} imported wars`
+    : ` imported war${allWars.length === 1 ? '' : 's'}`;
+
   if (countLabel) {
-    countLabel.textContent = search
-      ? ` of ${formatNumber(allWars.length)} imported wars`
-      : ` imported war${allWars.length === 1 ? '' : 's'}`;
+    countLabel.textContent = labelText;
+  } else {
+    const legacyLabel = document.querySelector('.archive-count span');
+    if (legacyLabel) legacyLabel.textContent = labelText;
   }
 
   const body = document.querySelector('#archiveBody');
   if (!body) return;
 
+  const legacyTable = body.tagName === 'TBODY';
+  if (legacyTable) {
+    const table = body.closest('table');
+    table?.classList.add('archive-table-v2');
+
+    const head = table?.querySelector('thead');
+    if (head) {
+      head.innerHTML = `
+        <tr>
+          <th>Opponent</th>
+          <th>War</th>
+          <th>Period</th>
+          <th>Duration</th>
+          <th>Access</th>
+          <th>Data</th>
+          <th aria-hidden="true"></th>
+        </tr>
+      `;
+    }
+
+    body.innerHTML = wars.length
+      ? wars.map(war => archiveLegacyRow(war)).join('')
+      : '<tr class="empty-row"><td colspan="7">No imported wars match this view.</td></tr>';
+    return;
+  }
+
   body.innerHTML = wars.length
-    ? wars.map(war => {
-        const warId = String(war.war_id || war.report_id || '');
-        const reportId = String(war.report_id || '');
-        const status = archiveWarStatus(war);
-        const visibility = archiveVisibilityLabel(war.visibility);
-        return `
-          <div class="archive-row" role="row" data-war-id="${escapeHtml(warId)}">
-            <div class="archive-cell archive-opponent" role="cell">
-              <strong>${escapeHtml(war.opponent_faction_name || 'Unknown opponent')}</strong>
-              ${war.opponent_faction_id ? `<span>[${escapeHtml(war.opponent_faction_id)}]</span>` : ''}
-            </div>
-            <div class="archive-cell archive-war-id" role="cell">
-              <strong>#${escapeHtml(warId || 'No data')}</strong>
-              ${reportId && reportId !== warId ? `<span>Report #${escapeHtml(reportId)}</span>` : ''}
-            </div>
-            <div class="archive-cell archive-period" role="cell">
-              <strong>${escapeHtml(formatDate(war.start_timestamp))}</strong>
-              <span>to ${escapeHtml(formatDate(war.end_timestamp))}</span>
-            </div>
-            <div class="archive-cell archive-duration" role="cell">
-              <strong>${escapeHtml(archiveDuration(war.start_timestamp, war.end_timestamp))}</strong>
-            </div>
-            <div class="archive-cell archive-access" role="cell">
-              <strong>${escapeHtml(visibility)}</strong>
-            </div>
-            <div class="archive-cell archive-status" role="cell">
-              <strong>${escapeHtml(status.label)}</strong>
-              <span>${escapeHtml(status.detail)}</span>
-            </div>
-            <div class="archive-cell archive-open" role="cell" aria-hidden="true">→</div>
-          </div>
-        `;
-      }).join('')
+    ? wars.map(war => archiveGridRow(war)).join('')
     : '<div class="archive-empty">No imported wars match this view.</div>';
+}
+
+function archiveGridRow(war) {
+  const warId = String(war.war_id || war.report_id || '');
+  const reportId = String(war.report_id || '');
+  const status = archiveWarStatus(war);
+  const visibility = archiveVisibilityLabel(war.visibility);
+
+  return `
+    <div class="archive-row" role="row" data-war-id="${escapeHtml(warId)}">
+      <div class="archive-cell archive-opponent" role="cell">
+        <strong>${escapeHtml(war.opponent_faction_name || 'Unknown opponent')}</strong>
+        ${war.opponent_faction_id ? `<span>[${escapeHtml(war.opponent_faction_id)}]</span>` : ''}
+      </div>
+      <div class="archive-cell archive-war-id" role="cell">
+        <strong>#${escapeHtml(warId || 'No data')}</strong>
+        ${reportId && reportId !== warId ? `<span>Report #${escapeHtml(reportId)}</span>` : ''}
+      </div>
+      <div class="archive-cell archive-period" role="cell">
+        <strong>${escapeHtml(formatDate(war.start_timestamp))}</strong>
+        <span>to ${escapeHtml(formatDate(war.end_timestamp))}</span>
+      </div>
+      <div class="archive-cell archive-duration" role="cell">
+        <strong>${escapeHtml(archiveDuration(war.start_timestamp, war.end_timestamp))}</strong>
+      </div>
+      <div class="archive-cell archive-access" role="cell">
+        <strong>${escapeHtml(visibility)}</strong>
+      </div>
+      <div class="archive-cell archive-status" role="cell">
+        <strong>${escapeHtml(status.label)}</strong>
+        <span>${escapeHtml(status.detail)}</span>
+      </div>
+      <div class="archive-cell archive-open" role="cell" aria-hidden="true">→</div>
+    </div>
+  `;
+}
+
+function archiveLegacyRow(war) {
+  const warId = String(war.war_id || war.report_id || '');
+  const reportId = String(war.report_id || '');
+  const status = archiveWarStatus(war);
+  const visibility = archiveVisibilityLabel(war.visibility);
+
+  return `
+    <tr data-war-id="${escapeHtml(warId)}">
+      <td>
+        <span class="member-name">${escapeHtml(war.opponent_faction_name || 'Unknown opponent')}${war.opponent_faction_id ? `<span class="entity-id">[${escapeHtml(war.opponent_faction_id)}]</span>` : ''}</span>
+      </td>
+      <td>
+        <strong>#${escapeHtml(warId || 'No data')}</strong>
+        ${reportId && reportId !== warId ? `<span class="secondary">Report #${escapeHtml(reportId)}</span>` : ''}
+      </td>
+      <td>
+        <strong>${escapeHtml(formatDate(war.start_timestamp))}</strong>
+        <span class="secondary">to ${escapeHtml(formatDate(war.end_timestamp))}</span>
+      </td>
+      <td><strong>${escapeHtml(archiveDuration(war.start_timestamp, war.end_timestamp))}</strong></td>
+      <td><strong>${escapeHtml(visibility)}</strong></td>
+      <td>
+        <strong>${escapeHtml(status.label)}</strong>
+        <span class="secondary">${escapeHtml(status.detail)}</span>
+      </td>
+      <td>→</td>
+    </tr>
+  `;
 }
 
 function archiveDuration(startTimestamp, endTimestamp) {
