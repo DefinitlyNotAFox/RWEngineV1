@@ -7079,29 +7079,25 @@ body {
 }
 
 .maintenance-panel {
-  width: min(460px,100%);
+  width: min(360px,100%);
 }
 
 .maintenance-panel .brand {
-  margin-bottom: 30px;
-}
-
-.maintenance-panel .kicker {
-  margin: 0 0 4px;
+  margin-bottom: 24px;
 }
 
 .maintenance-panel h1 {
   margin: 0;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 680;
-  letter-spacing: -.03em;
+  letter-spacing: -.025em;
 }
 
-.maintenance-panel > p:not(.kicker) {
-  margin: 8px 0 18px;
+.maintenance-panel > p {
+  margin: 6px 0 16px;
   color: var(--muted);
-  font-size: 12px;
-  line-height: 1.55;
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .maintenance-admin {
