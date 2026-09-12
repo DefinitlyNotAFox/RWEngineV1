@@ -649,16 +649,17 @@ function renderWarDetail() {
   document.querySelector('#warDetailDate').textContent = `${formatDate(war.startTimestamp)} – ${formatDate(war.endTimestamp)}`;
 
   const resultEl = document.querySelector('#warDetailResult');
-  if (resultEl) {
-    resultEl.innerHTML = `<span class="war-result war-result-${outcome}">${warOutcomeLabel(outcome)}</span>`;
-  }
+  if (resultEl) resultEl.innerHTML = '';
 
   document.querySelector('#warDetailScore').innerHTML = `
     <div class="score-side">
       <span>${escapeHtml(war.factionName || 'Faction')}${ownFactionId ? ` <span class="entity-id">[${escapeHtml(ownFactionId)}]</span>` : ''}</span>
       <strong>${formatDecimal(summary.displayScoreUp, 2)}</strong>
     </div>
-    <div class="score-versus"><small>RW score</small></div>
+    <div class="score-versus">
+      <span class="war-result war-result-${outcome}">${warOutcomeLabel(outcome)}</span>
+      <small>RW score</small>
+    </div>
     <div class="score-side opponent">
       <strong>${formatDecimal(summary.displayScoreDown, 2)}</strong>
       <span>${escapeHtml(war.opponentFactionName || 'Opponent')}${war.opponentFactionId ? ` <span class="entity-id">[${escapeHtml(war.opponentFactionId)}]</span>` : ''}</span>
