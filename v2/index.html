@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=73" />
+  <link rel="stylesheet" href="/v2/app.css?v=74" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -195,10 +195,13 @@
 
         <article id="warDetailView" class="war-detail hidden">
           <header class="detail-head">
-            <button id="warDetailBack" class="text-action" type="button">← Archive</button>
+            <button id="warDetailBack" class="text-action detail-back" type="button">← Archive</button>
             <div class="detail-title">
               <p id="warDetailMeta" class="kicker">Ranked war</p>
-              <h2 id="warDetailTitle">War report</h2>
+              <div class="detail-title-line">
+                <h2 id="warDetailTitle">War report</h2>
+                <span id="warDetailResult"></span>
+              </div>
               <span id="warDetailDate"></span>
             </div>
             <button id="shareToggle" class="action" type="button">Share</button>
@@ -292,6 +295,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=54"></script>
+  <script type="module" src="/v2/app.js?v=55"></script>
 </body>
 </html>
