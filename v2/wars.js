@@ -242,8 +242,10 @@ function archiveGridRow(war) {
   return `
     <div class="archive-row" role="row" data-war-id="${escapeHtml(warId)}">
       <div class="archive-cell archive-opponent" role="cell">
-        <strong>${escapeHtml(war.opponent_faction_name || 'Unknown opponent')}</strong>
-        ${war.opponent_faction_id ? `<span>[${escapeHtml(war.opponent_faction_id)}]</span>` : ''}
+        <strong>
+          ${escapeHtml(war.opponent_faction_name || 'Unknown opponent')}
+          ${war.opponent_faction_id ? `<span class="entity-id">[${escapeHtml(war.opponent_faction_id)}]</span>` : ''}
+        </strong>
       </div>
       <div class="archive-cell archive-result" role="cell">
         ${archiveOutcomeMarkup(war)}
