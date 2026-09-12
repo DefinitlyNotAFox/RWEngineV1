@@ -1414,22 +1414,16 @@ function renderDetailRow(member) {
     <div class="intel2-detail-row faction-grid-detail" role="row">
       <div class="faction-grid-detail-cell" role="cell">
         <section class="intel2-detail">
-          <header class="intel2-detail-headbar">
-            <div class="intel2-detail-member">
-              <strong>${escapeHtml(memberName)}</strong>
-              <span class="entity-id">[${escapeHtml(detailMember.playerId)}]</span>
-              <span class="intel2-detail-meta">${escapeHtml(memberPosition)}${memberLevel == null ? '' : ` · Lv ${escapeHtml(memberLevel)}`}</span>
-            </div>
-            <a href="https://www.torn.com/profiles.php?XID=${encodeURIComponent(detailMember.playerId)}" target="_blank" rel="noopener noreferrer">Torn profile ↗</a>
-          </header>
-
           ${insights}
 
           <section class="intel2-history">
             <header class="intel2-history-head">
               <span class="intel2-history-kicker">History &amp; trends</span>
-              <div class="intel2-history-window" aria-label="History window">
-                ${[30,60,90].map(days => `<button type="button" data-trend-days="${days}" class="${trendDays === days ? 'active' : ''}">${days}d</button>`).join('')}
+              <div class="intel2-history-tools">
+                <div class="intel2-history-window" aria-label="History window">
+                  ${[30,60,90].map(days => `<button type="button" data-trend-days="${days}" class="${trendDays === days ? 'active' : ''}">${days}d</button>`).join('')}
+                </div>
+                <a href="https://www.torn.com/profiles.php?XID=${encodeURIComponent(detailMember.playerId)}" target="_blank" rel="noopener noreferrer">Torn profile ↗</a>
               </div>
             </header>
 
@@ -1457,7 +1451,8 @@ function renderInsights(member) {
   const insights = Array.isArray(member.insights) ? member.insights : [];
   const positives = insights.filter(item => item.kind === 'positive');
   const concerns = insights.filter(item => item.kind === 'attention');
-  const notes = insights.filter(item => !['positive','attention'].includes(item.kind));
+
+  if (!positives.length && !concerns.length) return '';
 
   const signal = (item, kind) => `
     <span class="intel2-signal ${kind}">
@@ -1466,21 +1461,14 @@ function renderInsights(member) {
     </span>
   `;
 
-  const items = [
-    ...positives.map(item => signal(item, 'positive')),
-    ...concerns.map(item => signal(item, 'attention')),
-    ...notes.map(item => signal(item, 'note'))
-  ];
-
-  if (!concerns.length) {
-    items.push('<span class="intel2-signal-empty">No current concerns</span>');
-  }
-
   return `
     <div class="intel2-signal-strip">
       <span class="intel2-signal-label">Signals</span>
       <div class="intel2-signal-items">
-        ${items.length ? items.join('') : '<span class="intel2-signal-empty">No notable signals</span>'}
+        ${[
+          ...positives.map(item => signal(item, 'positive')),
+          ...concerns.map(item => signal(item, 'attention'))
+        ].join('')}
       </div>
     </div>
   `;
