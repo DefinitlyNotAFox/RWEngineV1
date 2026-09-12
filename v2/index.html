@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=77" />
+  <link rel="stylesheet" href="/v2/app.css?v=78" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -50,6 +50,16 @@
       </form>
 
       <p id="authError" class="message error hidden"></p>
+    </div>
+  </section>
+
+  <section id="maintenanceView" class="maintenance-view hidden" aria-label="RWEngine maintenance">
+    <div class="maintenance-panel">
+      <div class="brand">RWEngine</div>
+      <p class="kicker">Maintenance</p>
+      <h1>Temporarily unavailable</h1>
+      <p>RWEngine is currently under maintenance. Normal member access and public reports are disabled until maintenance is finished.</p>
+      <button id="maintenanceAdminLogin" class="text-action" type="button">Admin sign in</button>
     </div>
   </section>
 
@@ -268,7 +278,19 @@
         </section>
 
         <section id="adminSection" class="admin-section hidden">
-          <header><p class="kicker">Admin</p><h2>Tracked factions</h2></header>
+          <section class="maintenance-admin">
+            <header>
+              <p class="kicker">Site access</p>
+              <h2>Maintenance</h2>
+              <span>When enabled, only administrators can access RWEngine. Member access and public reports are temporarily blocked.</span>
+            </header>
+            <div class="maintenance-actions">
+              <button id="maintenanceToggle" class="action" type="button">Maintenance: Off</button>
+              <span id="maintenanceStatus">Normal access enabled</span>
+            </div>
+          </section>
+
+          <header class="admin-factions-head"><p class="kicker">Admin</p><h2>Tracked factions</h2></header>
           <div id="adminFactionList" class="admin-faction-list"></div>
           <form id="adminKeyForm" class="admin-key-form hidden">
             <p id="adminKeyHeading"></p>
@@ -295,6 +317,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=58"></script>
+  <script type="module" src="/v2/app.js?v=59"></script>
 </body>
 </html>
