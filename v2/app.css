@@ -7005,3 +7005,66 @@ body {
 #warDetailView #warDetailTable th:first-child button {
   text-align: left;
 }
+
+
+/* Match war-detail table typography and density to the Faction table. */
+#warDetailView #warDetailTable th {
+  height: 36px;
+  padding: 5px 8px;
+  font-size: 11px;
+  line-height: 1.15;
+  font-weight: 750;
+}
+
+#warDetailView #warDetailTable tbody tr:not(.war-total-row) td {
+  height: 46px;
+  padding: 7px 9px;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+#warDetailView #warDetailTable .member-name {
+  font-size: 13px;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+#warDetailView #warDetailTable .member-name .entity-id {
+  font-size: 8px;
+}
+
+#warDetailView #warDetailTable .member-meta,
+#warDetailView #warDetailTable .secondary {
+  margin-top: 3px;
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+#warDetailView #warDetailTable .war-total-row td {
+  height: 52px;
+  padding: 8px 9px;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+#warDetailView #warDetailTable .war-total-row td:first-child strong {
+  font-size: 13px;
+}
+
+@media (max-width: 1150px) {
+  #warDetailView #warDetailTable tbody tr:not(.war-total-row) td,
+  #warDetailView #warDetailTable .war-total-row td {
+    padding-left: 6px;
+    padding-right: 6px;
+    font-size: 12px;
+  }
+
+  #warDetailView #warDetailTable .member-name {
+    font-size: 12px;
+  }
+
+  #warDetailView #warDetailTable .member-meta,
+  #warDetailView #warDetailTable .secondary {
+    font-size: 8px;
+  }
+}
