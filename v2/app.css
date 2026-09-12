@@ -5246,3 +5246,34 @@ body {
 #intelTable.faction-grid .faction-grid-header-cell:first-child .sort-label {
   text-align: left;
 }
+
+
+/* Pull the mode tabs closer to their scope controls and keep the filter cluster truly right-aligned. */
+.faction-modebar {
+  gap: 0;
+}
+
+.faction-modes {
+  margin-bottom: -6px;
+}
+
+.faction-control-row {
+  padding-top: 2px;
+}
+
+.faction-control-row > .intel-filter-options {
+  margin-left: 0 !important;
+}
+
+.faction-control-row .intel2-filters {
+  gap: 10px;
+}
+
+.faction-control-row .intel-filter-options {
+  padding-left: 12px;
+  gap: 10px;
+}
+
+.faction-control-row .search {
+  margin-left: 0;
+}
