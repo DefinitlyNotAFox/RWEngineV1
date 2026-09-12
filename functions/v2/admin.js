@@ -4,6 +4,7 @@ const TASK_BATCH_SIZE = 8;
 const TORN_REQUEST_INTERVAL_MS = 1250;
 const SYNC_LEASE_SECONDS = 180;
 const MANAGED_KEY_CONFIG = 'admin_managed_api_key_v1';
+const MAINTENANCE_KEY = 'maintenance_mode';
 
 export async function onRequest(context) {
   try {
@@ -28,6 +29,8 @@ export async function onRequest(context) {
     if (action === 'syncStep') return handleSyncStep(env, user, body);
     if (action === 'databaseStatus') return handleDatabaseStatus(env, body);
     if (action === 'applyDatabaseMaintenance') return handleApplyDatabaseMaintenance(env, body);
+    if (action === 'getMaintenance') return handleGetMaintenance(env, user);
+    if (action === 'setMaintenance') return handleSetMaintenance(env, user, body);
 
     return json({ success: false, message: `Unknown admin action: ${action}` }, 400);
   } catch (error) {
@@ -36,6 +39,75 @@ export async function onRequest(context) {
       message: error?.message || 'Unexpected admin workspace error.'
     }, error?.status || 500);
   }
+}
+
+async function handleGetMaintenance(env, user) {
+  const state = await readMaintenanceState(env.DB);
+  return json({
+    success:true,
+    enabled:state.enabled,
+    updatedAt:state.updatedAt,
+    updatedByUserId:state.updatedByUserId,
+    currentUserId:Number(user.user_id)
+  });
+}
+
+async function handleSetMaintenance(env, user, body) {
+  const enabled = body.enabled === true;
+  const now = unixNow();
+  const value = JSON.stringify({
+    enabled,
+    updatedByUserId:Number(user.user_id)
+  });
+
+  await env.DB.prepare(`
+    INSERT INTO app_meta (key, value, updated_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(key) DO UPDATE SET
+      value = excluded.value,
+      updated_at = excluded.updated_at
+  `).bind(MAINTENANCE_KEY, value, now).run();
+
+  return json({
+    success:true,
+    enabled,
+    updatedAt:now,
+    updatedByUserId:Number(user.user_id),
+    message:enabled
+      ? 'Maintenance mode enabled. Only administrators can access RWEngine.'
+      : 'Maintenance mode disabled. Normal access restored.'
+  });
+}
+
+async function readMaintenanceState(db) {
+  const row = await db.prepare(
+    'SELECT value, updated_at FROM app_meta WHERE key = ? LIMIT 1'
+  ).bind(MAINTENANCE_KEY).first();
+
+  if (!row) {
+    return {
+      enabled:false,
+      updatedAt:null,
+      updatedByUserId:null
+    };
+  }
+
+  let parsed = null;
+  try { parsed = JSON.parse(String(row.value || '')); } catch (_) {}
+
+  if (parsed && typeof parsed === 'object') {
+    return {
+      enabled:Boolean(parsed.enabled),
+      updatedAt:Number(row.updated_at || 0) || null,
+      updatedByUserId:Number(parsed.updatedByUserId || 0) || null
+    };
+  }
+
+  return {
+    enabled:['1','true','on','enabled'].includes(String(row.value || '').toLowerCase()),
+    updatedAt:Number(row.updated_at || 0) || null,
+    updatedByUserId:null
+  };
 }
 
 const DATABASE_MAINTENANCE_STEPS = [
