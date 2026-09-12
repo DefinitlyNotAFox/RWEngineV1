@@ -944,17 +944,13 @@ async function handleImport(event) {
         }
 
         const warId = String(imported.war?.warId || imported.war?.war_id || id);
-        phase = 'Attack summary';
-        updateImportRow(rows,id,'','Attacks','Building attack summary.');
-        const summary = await importAttackSummary(warId, id, rows);
-
         phase = 'Attack verification';
-        updateImportRow(rows,id,'','Verify','Verifying attack coverage.');
+        updateImportRow(rows,id,'','Verify','Importing and verifying attack detail.');
         const verified = await importAttackDetail(warId, id, rows);
 
         updateImportRow(
           rows,id,'','Complete',
-          `${formatNumber(verified.storedTotal || 0)} attack rows · ${formatNumber(verified.assists || 0)} assists · score pass checked ${formatNumber(summary.checked || 0)}.`
+          `${formatNumber(verified.storedTotal || 0)} attack rows · ${formatNumber(verified.assists || 0)} assists · metrics rebuilt.`
         );
       } catch (error) {
         const message = error.message || String(error);
