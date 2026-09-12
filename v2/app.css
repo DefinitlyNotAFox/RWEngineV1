@@ -5161,3 +5161,62 @@ body {
   padding-right: 10px;
   text-align: left;
 }
+
+
+/* Compact faction controls: scope left, filters/options/search grouped on the right. */
+.faction-control-row {
+  gap: 14px;
+}
+
+.faction-control-row .faction-scope-row {
+  margin-right: auto;
+}
+
+.faction-control-row .intel-filter-block {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+.faction-control-row .intel-filter-label {
+  margin-bottom: 4px;
+}
+
+.faction-control-row .intel2-filters {
+  width: auto;
+  gap: 12px;
+}
+
+.faction-control-row .intel-filter-options {
+  margin-left: 0;
+  padding-left: 14px;
+  gap: 12px;
+}
+
+.faction-control-row .search {
+  width: 225px;
+  flex-basis: 225px;
+  margin-left: 2px;
+}
+
+/* Group labels sit on the page canvas, without horizontal rules. */
+#intelTable.faction-grid .faction-group-row,
+#intelTable.faction-grid .faction-grid-group,
+#intelTable.faction-grid .faction-grid-group.group-roster,
+#intelTable.faction-grid .faction-grid-group.group-training,
+#intelTable.faction-grid .faction-grid-group.group-war,
+#intelTable.faction-grid .faction-grid-group.group-context {
+  background: var(--bg) !important;
+}
+
+#intelTable.faction-grid .faction-grid-group {
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  color: #aeb5ba;
+  font-size: 9px;
+  font-weight: 780;
+}
+
+#intelTable.faction-grid .faction-grid-group::after {
+  display: none !important;
+}
