@@ -16,6 +16,7 @@ const legacyIntelMode = new URL(location.href).searchParams.get('legacyIntel') =
 let loading = false;
 let adminKeyFactionId = null;
 let databaseBusy = false;
+let maintenanceBusy = false;
 
 init();
 
@@ -71,7 +72,11 @@ function bindAuth() {
       state.user = result.user;
       await enterApp();
     } catch (error) {
-      setAuthError(error.message);
+      if (Number(error?.status) === 503) {
+        showMaintenance();
+      } else {
+        setAuthError(error.message);
+      }
     }
   });
 
@@ -118,9 +123,11 @@ function bindApplication() {
   window.addEventListener('hashchange', () => routeTo(routeFromHash(), { updateHash:false }));
 
   document.querySelector('#logoutButton')?.addEventListener('click', async () => {
+    const maintenanceActive = Boolean(state.maintenanceMode);
     try { await api('logout'); } catch (_) {}
     resetState();
-    showAuth();
+    if (maintenanceActive) showMaintenance();
+    else showAuth();
   });
 
   document.querySelector('#adminFactionSelect')?.addEventListener('change', async event => {
@@ -156,6 +163,8 @@ function bindApplication() {
   document.querySelector('#adminClearKey')?.addEventListener('click', clearAdminKey);
   document.querySelector('#databaseCheck')?.addEventListener('click', checkDatabaseStatus);
   document.querySelector('#databaseApply')?.addEventListener('click', applyDatabaseMaintenance);
+  document.querySelector('#maintenanceToggle')?.addEventListener('click', toggleMaintenance);
+  document.querySelector('#maintenanceAdminLogin')?.addEventListener('click', () => showAuth(true));
 
   document.querySelector('#accessList')?.addEventListener('change', handleAccessChange);
 
@@ -181,8 +190,9 @@ async function boot() {
     const result = await api('me');
     state.user = result.user;
     await enterApp();
-  } catch (_) {
-    showAuth();
+  } catch (error) {
+    if (Number(error?.status) === 503) showMaintenance();
+    else showAuth();
   }
 }
 
@@ -205,11 +215,19 @@ async function enterApp() {
   await refreshAll(false);
 }
 
-function showAuth() {
+function showAuth(adminOnly = false) {
   document.querySelector('#appView')?.classList.add('hidden');
+  document.querySelector('#maintenanceView')?.classList.add('hidden');
   document.querySelector('#authView')?.classList.remove('hidden');
+  document.querySelector('[data-auth-mode="register"]')?.classList.toggle('hidden', adminOnly);
   setAuthMode('login');
   setAuthError('');
+}
+
+function showMaintenance() {
+  document.querySelector('#appView')?.classList.add('hidden');
+  document.querySelector('#authView')?.classList.add('hidden');
+  document.querySelector('#maintenanceView')?.classList.remove('hidden');
 }
 
 function setAuthMode(mode) {
@@ -615,8 +633,13 @@ function setRefreshStatus(message = '', error = false) {
 
 
 async function loadAdminFactions() {
-  const result = await adminApi('listFactions');
+  const [result, maintenance] = await Promise.all([
+    adminApi('listFactions'),
+    adminApi('getMaintenance')
+  ]);
   state.adminFactions = result.factions || [];
+  state.maintenanceMode = Boolean(maintenance?.enabled);
+  state.maintenanceUpdatedAt = Number(maintenance?.updatedAt || 0) || null;
 
   let stored = 0;
   try { stored = Number(localStorage.getItem('rwengine.adminFaction') || 0); } catch (_) {}
@@ -666,6 +689,46 @@ function renderAdminSettings() {
   }
 
   renderAdminKeyForm();
+  renderMaintenanceControl();
+}
+
+function renderMaintenanceControl() {
+  const button = document.querySelector('#maintenanceToggle');
+  const status = document.querySelector('#maintenanceStatus');
+  if (!button || !status || !state.user?.isAdmin) return;
+
+  const enabled = Boolean(state.maintenanceMode);
+  button.textContent = enabled ? 'Maintenance: On' : 'Maintenance: Off';
+  button.classList.toggle('maintenance-active', enabled);
+  button.disabled = maintenanceBusy;
+
+  const updatedAt = Number(state.maintenanceUpdatedAt || 0);
+  const age = updatedAt
+    ? formatAge(Math.max(0, Math.floor(Date.now() / 1000) - updatedAt))
+    : null;
+
+  status.textContent = enabled
+    ? `Admin-only access enabled${age ? ` · changed ${age}` : ''}`
+    : `Normal access enabled${age ? ` · changed ${age}` : ''}`;
+}
+
+async function toggleMaintenance() {
+  if (maintenanceBusy || !state.user?.isAdmin) return;
+  maintenanceBusy = true;
+  renderMaintenanceControl();
+
+  try {
+    const result = await adminApi('setMaintenance', {
+      enabled:!Boolean(state.maintenanceMode)
+    });
+    state.maintenanceMode = Boolean(result.enabled);
+    state.maintenanceUpdatedAt = Number(result.updatedAt || 0) || null;
+  } catch (error) {
+    setNotice(error.message || 'Failed to change maintenance mode.', 'error');
+  } finally {
+    maintenanceBusy = false;
+    renderMaintenanceControl();
+  }
 }
 
 function adminSyncLabel(faction) {
@@ -742,6 +805,8 @@ function resetState() {
   state.wars = [];
   state.range = null;
   state.freshness = null;
+  state.maintenanceMode = false;
+  state.maintenanceUpdatedAt = null;
   state.period = { preset:'last4', from:null, to:null };
   state.route = 'home';
   setNotice('');
