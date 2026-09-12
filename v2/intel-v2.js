@@ -505,6 +505,8 @@ function renderFactionTotalRow() {
   const medianStats = medianNullable(knownStats);
   const avgXanax = averageNullable(current.map(member => member.xanax?.perDay30d));
   const avgActivity = averageNullable(current.map(member => member.activity?.perDay30d));
+  const totalOcs = sumNullable(current.map(member => member.ocs || {}), 'total');
+  const avgOcsPerDay = averageNullable(current.map(member => member.ocs?.perDay));
   const participation = averageNullable(currentPerformance.map(row => row.participation));
   const notes = current.filter(member => Boolean(topSignal(member))).length;
 
@@ -542,7 +544,10 @@ function renderFactionTotalRow() {
         <strong>${tableCellText(formatDuration(avgActivity))}</strong>
         <span class="member-meta">avg / day</span>
       </div>
-      <div role="cell" class="faction-grid-cell col-ocs"><strong>No data</strong></div>
+      <div role="cell" class="faction-grid-cell col-ocs">
+        <strong>${tableCellText(formatNumber(totalOcs))}</strong>
+        <span class="member-meta">${avgOcsPerDay === null ? '' : `${formatDecimal(avgOcsPerDay, 2)} avg / day`}</span>
+      </div>
       <div role="cell" class="faction-grid-cell col-participation">
         <strong>${warLoading ? '…' : formatPercent(participation)}</strong>
         <span class="member-meta">${escapeHtml(warScope)}</span>
@@ -632,10 +637,6 @@ function renderHeaders() {
     const [label, detail] = columnLabels[key] || [key,''];
     const active = key === sortKey;
 
-    if (key === 'ocs') {
-      return `<div role="columnheader" class="faction-grid-header-cell col-ocs"><span class="sort-label">${escapeHtml(label)}</span></div>`;
-    }
-
     return `
       <div role="columnheader" class="faction-grid-header-cell col-${key}${active ? ' sorted' : ''}">
         <button type="button" data-intel2-sort="${key}">
@@ -673,7 +674,9 @@ function renderFactionCell(member, key) {
   }
 
   if (key === 'ocs') {
-    return '<div role="cell" class="faction-grid-cell col-ocs">No data</div>';
+    const total = nullable(member.ocs?.total);
+    const perDay = nullable(member.ocs?.perDay);
+    return `<div role="cell" class="faction-grid-cell col-ocs"><strong>${total === null ? 'No data' : formatNumber(total)}</strong><span class="member-meta">${perDay === null ? '' : `${formatDecimal(perDay, 2)} / day`}</span></div>`;
   }
 
   if (key === 'participation4') {
@@ -766,7 +769,7 @@ function sortValue(member, key) {
   if (key === 'stats') return nullable(member.battleStats?.value);
   if (key === 'activity') return nullable(member.activity?.perDay30d);
   if (key === 'xanax') return nullable(member.xanax?.perDay30d);
-  if (key === 'ocs') return null;
+  if (key === 'ocs') return nullable(member.ocs?.perDay);
   if (key === 'participation4') return nullable(member.war?.last4?.participation);
   if (key === 'hits4') return nullable(member.war?.last4?.hitsPerWar);
   if (key === 'participation') return nullable(performance?.participation);
@@ -1428,7 +1431,8 @@ function renderDetailRow(member) {
                     ${[
                       ['stats','BS'],
                       ['activity','Activity'],
-                      ['xanax','Xanax']
+                      ['xanax','Xanax'],
+                      ['ocs','OCs']
                     ].map(([key,label]) => `<button type="button" data-trend-metric="${key}" class="${trendMetric === key ? 'active' : ''}">${label}</button>`).join('')}
                   </div>
                 </div>
@@ -1537,6 +1541,7 @@ function normalizeHistory(history = {}) {
     xanax:xanaxStored.length >= 2
       ? xanaxStored
       : deriveRateSeries(snapshots, 'xanaxTakenTotal'),
+    ocs:deriveRateSeries(snapshots, 'organizedCrimesTotal'),
     wars:Array.isArray(history.wars) ? history.wars : []
   };
 }
@@ -1550,7 +1555,9 @@ function deriveRateSeries(snapshots, key) {
     ? 86400
     : key === 'xanaxTakenTotal'
       ? 10
-      : Infinity;
+      : key === 'organizedCrimesTotal'
+        ? 50
+        : Infinity;
 
   const series = [];
   for (let index = 1; index < rows.length; index++) {
@@ -1616,6 +1623,9 @@ function renderSelectedTrend(history) {
   }
   if (trendMetric === 'xanax') {
     return trendBlock('Xanax / day', history.xanax, value => formatDecimal(value, 2));
+  }
+  if (trendMetric === 'ocs') {
+    return trendBlock('OCs / day', history.ocs, value => formatDecimal(value, 2));
   }
   return trendBlock('Activity / day', history.activity, formatDuration);
 }
