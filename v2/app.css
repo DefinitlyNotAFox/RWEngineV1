@@ -6069,3 +6069,23 @@ body {
     border-top: 1px solid var(--line-soft);
   }
 }
+
+
+/* Give the expanded member workspace a subtle tonal block without boxing it in. */
+#intelTable.faction-grid .faction-grid-detail-cell,
+#intelTable.faction-grid .intel2-detail,
+#intelTable.faction-grid .intel2-detail-layout {
+  background: #0d0f10 !important;
+}
+
+#intelTable.faction-grid .intel2-context,
+#intelTable.faction-grid .intel2-history,
+#intelTable.faction-grid .intel2-wars,
+#intelTable.faction-grid .intel2-trend,
+#intelTable.faction-grid .intel2-trend-stage .intel2-trend {
+  background: transparent !important;
+}
+
+#intelTable.faction-grid .faction-member-row.selected .faction-grid-cell {
+  background: #101213;
+}
