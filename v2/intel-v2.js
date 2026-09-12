@@ -1414,10 +1414,6 @@ function renderDetailRow(member) {
   const detailMember = payload.member;
   const history = normalizeHistory(payload.history);
   const insights = renderInsights(detailMember);
-  const memberName = detailMember.playerName || member.playerName || 'Unknown';
-  const memberPosition = detailMember.position || member.position || 'Member';
-  const memberLevel = detailMember.level ?? member.level;
-
   return `
     <div class="intel2-detail-row faction-grid-detail" role="row">
       <div class="faction-grid-detail-cell" role="cell">
@@ -1430,9 +1426,9 @@ function renderDetailRow(member) {
                 <span class="intel2-history-kicker">History &amp; trends</span>
                 <div class="intel2-history-metrics" aria-label="Trend metric">
                   ${[
-                    ['stats','Battle stats'],
-                    ['activity','Activity / day'],
-                    ['xanax','Xanax / day']
+                    ['stats','BS'],
+                    ['activity','Activity'],
+                    ['xanax','Xanax']
                   ].map(([key,label]) => `<button type="button" data-trend-metric="${key}" class="${trendMetric === key ? 'active' : ''}">${label}</button>`).join('')}
                 </div>
               </div>
@@ -1444,7 +1440,7 @@ function renderDetailRow(member) {
               </div>
             </header>
 
-            <div class="intel2-trends intel2-trends-single">
+            <div class="intel2-trend-stage">
               ${renderSelectedTrend(history)}
             </div>
 
@@ -1467,25 +1463,14 @@ function renderInsights(member) {
   const positives = insights.filter(item => item.kind === 'positive');
   const concerns = insights.filter(item => item.kind === 'attention');
 
-  if (!positives.length && !concerns.length) return '';
-
-  const signal = (item, kind) => `
-    <span class="intel2-signal ${kind}">
-      <b>${escapeHtml(traitTitle(item, member))}</b>
-      ${item.text ? `<small>${escapeHtml(item.text)}</small>` : ''}
-    </span>
-  `;
-
   return `
-    <div class="intel2-signal-strip">
-      <span class="intel2-signal-label">Signals</span>
-      <div class="intel2-signal-items">
-        ${[
-          ...positives.map(item => signal(item, 'positive')),
-          ...concerns.map(item => signal(item, 'attention'))
-        ].join('')}
+    <section class="intel2-context">
+      <span class="intel2-context-kicker">Context</span>
+      <div class="intel2-context-grid">
+        ${renderTraitGroup('positive', '+', 'Positive', positives, member, 'No standout positives')}
+        ${renderTraitGroup('attention', '−', 'Concerns', concerns, member, 'No current concerns')}
       </div>
-    </div>
+    </section>
   `;
 }
 
