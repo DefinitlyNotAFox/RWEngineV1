@@ -211,6 +211,7 @@ export function renderArchive() {
       head.innerHTML = `
         <tr>
           <th>Opponent</th>
+          <th>Result</th>
           <th>War</th>
           <th>Period</th>
           <th>Duration</th>
@@ -223,7 +224,7 @@ export function renderArchive() {
 
     body.innerHTML = wars.length
       ? wars.map(war => archiveLegacyRow(war)).join('')
-      : '<tr class="empty-row"><td colspan="7">No imported wars match this view.</td></tr>';
+      : '<tr class="empty-row"><td colspan="8">No imported wars match this view.</td></tr>';
     return;
   }
 
@@ -278,6 +279,7 @@ function archiveLegacyRow(war) {
       <td>
         <span class="member-name">${escapeHtml(war.opponent_faction_name || 'Unknown opponent')}${war.opponent_faction_id ? `<span class="entity-id">[${escapeHtml(war.opponent_faction_id)}]</span>` : ''}</span>
       </td>
+      <td>${archiveOutcomeMarkup(war)}</td>
       <td>
         <strong>#${escapeHtml(warId || 'No data')}</strong>
         ${reportId && reportId !== warId ? `<span class="secondary">Report #${escapeHtml(reportId)}</span>` : ''}
@@ -295,6 +297,28 @@ function archiveLegacyRow(war) {
       <td>→</td>
     </tr>
   `;
+}
+
+function warOutcome(scoreUp, scoreDown) {
+  const own = Number(scoreUp);
+  const opponent = Number(scoreDown);
+  if (!Number.isFinite(own) || !Number.isFinite(opponent)) return 'unknown';
+  if (own === 0 && opponent === 0) return 'unknown';
+  if (own > opponent) return 'win';
+  if (own < opponent) return 'loss';
+  return 'draw';
+}
+
+function warOutcomeLabel(outcome) {
+  if (outcome === 'win') return 'Win';
+  if (outcome === 'loss') return 'Loss';
+  if (outcome === 'draw') return 'Draw';
+  return 'No data';
+}
+
+function archiveOutcomeMarkup(war) {
+  const outcome = warOutcome(war.score_up, war.score_down);
+  return `<span class="war-result war-result-${outcome}">${warOutcomeLabel(outcome)}</span>`;
 }
 
 function archiveDuration(startTimestamp, endTimestamp) {
@@ -609,21 +633,33 @@ function renderWarDetail() {
   const summary = payload.summary || {};
   const members = Array.isArray(payload.members) ? payload.members : [];
 
+  const outcome = warOutcome(summary.officialScoreUp, summary.officialScoreDown);
   document.querySelector('#warDetailMeta').textContent = `Ranked war #${war.warId || '—'}`;
   document.querySelector('#warDetailTitle').textContent = `${war.factionName || 'Faction'} vs ${war.opponentFactionName || 'Opponent'}`;
   document.querySelector('#warDetailDate').textContent = `${formatDate(war.startTimestamp)} – ${formatDate(war.endTimestamp)}`;
 
   document.querySelector('#warDetailScore').innerHTML = `
-    <div class="score-side"><span>${escapeHtml(war.factionName || 'Faction')}</span><strong>${formatDecimal(summary.displayScoreUp, 2)}</strong></div>
-    <div class="score-versus">RW score</div>
-    <div class="score-side opponent"><strong>${formatDecimal(summary.displayScoreDown, 2)}</strong><span>${escapeHtml(war.opponentFactionName || 'Opponent')}</span></div>
+    <div class="score-side">
+      <span>${escapeHtml(war.factionName || 'Faction')}</span>
+      <strong>${formatDecimal(summary.displayScoreUp, 2)}</strong>
+    </div>
+    <div class="score-versus">
+      <span class="war-result war-result-${outcome}">${warOutcomeLabel(outcome)}</span>
+      <small>RW score</small>
+    </div>
+    <div class="score-side opponent">
+      <strong>${formatDecimal(summary.displayScoreDown, 2)}</strong>
+      <span>${escapeHtml(war.opponentFactionName || 'Opponent')}</span>
+    </div>
   `;
 
-  document.querySelector('#warDetailSummary').innerHTML = [
-    metric('Members', formatNumber(summary.members)),
-    metric('War hits', formatNumber(summary.displayHits)),
-    metric('Assists', formatNumber(summary.assists)),
-    metric('Net score', formatSigned(summary.displayNetScore, 2))
+  const summaryEl = document.querySelector('#warDetailSummary');
+  summaryEl?.classList.add('war-detail-summary');
+  if (summaryEl) summaryEl.innerHTML = [
+    metric('Members', formatNumber(summary.members), 'in report'),
+    metric('War hits', formatNumber(summary.displayHits), 'faction total'),
+    metric('Assists', formatNumber(summary.assists), 'faction total'),
+    metric('Net score', formatSigned(summary.displayNetScore, 2), 'score gained − lost')
   ].join('');
 
   const detailNotice = document.querySelector('#warDetailNotice');
@@ -713,7 +749,7 @@ function renderWarCell(member,key) {
   }
   if (['hits','assists','outsideHits'].includes(key)) return `<td>${formatNumber(member[key])}</td>`;
   if (key === 'netScore') return `<td class="net">${formatSigned(member[key],2)}</td>`;
-  return `<td>${member[key] == null ? '—' : formatDecimal(member[key],2)}</td>`;
+  return `<td>${member[key] == null ? 'No data' : formatDecimal(member[key],2)}</td>`;
 }
 
 async function toggleShare() {
