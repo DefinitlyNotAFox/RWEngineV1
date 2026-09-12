@@ -40,35 +40,47 @@ function renderWar(data) {
   setText('#reportDate', formatRange(war.startTimestamp, war.endTimestamp));
   setText('#sharedAt', data.sharedAt ? `Link issued ${formatDate(data.sharedAt)}` : '');
 
+  const outcome = warOutcome(summary.scoreUp, summary.scoreDown);
   const scoreLine = document.querySelector('#scoreLine');
   scoreLine.innerHTML = `
     <div class="score-side">
-      <span>${escapeHtml(war.factionName || 'Faction')}</span>
+      <span>${escapeHtml(war.factionName || 'Faction')}${war.factionId ? ` <span class="entity-id">[${escapeHtml(war.factionId)}]</span>` : ''}</span>
       <strong>${formatDecimal(summary.scoreUp)}</strong>
     </div>
-    <div class="score-label">Final RW score</div>
+    <div class="score-versus">
+      <span class="war-result war-result-${outcome}">${warOutcomeLabel(outcome)}</span>
+      <small>RW score</small>
+    </div>
     <div class="score-side opponent">
       <strong>${formatDecimal(summary.scoreDown)}</strong>
-      <span>${escapeHtml(war.opponentFactionName || 'Opponent')}</span>
+      <span>${escapeHtml(war.opponentFactionName || 'Opponent')}${war.opponentFactionId ? ` <span class="entity-id">[${escapeHtml(war.opponentFactionId)}]</span>` : ''}</span>
     </div>
   `;
 
-  const summaryGrid = document.querySelector('#summaryGrid');
-  summaryGrid.innerHTML = [
-    summaryItem('Members', formatNumber(summary.members)),
-    summaryItem('War hits', formatNumber(summary.hits)),
-    summaryItem('Assists', formatNumber(summary.assists)),
-    summaryItem('Net score', formatSigned(summary.netScore))
-  ].join('');
-
   const rows = document.querySelector('#memberRows');
-  rows.innerHTML = members.length
+  const totalOutside = members.reduce((sum, member) => sum + Number(member.outsideHits || 0), 0);
+  const totalRow = `
+    <tr class="report-total-row">
+      <td>
+        <strong>Faction total</strong>
+        <small>${formatNumber(summary.members)} members</small>
+      </td>
+      <td><strong>${formatNumber(summary.hits)}</strong></td>
+      <td><strong>${formatNumber(summary.assists)}</strong></td>
+      <td><strong>${formatNumber(totalOutside)}</strong></td>
+      <td><strong>${formatDecimal(summary.scoreUp)}</strong></td>
+      <td><strong>${formatDecimal(summary.scoreDown)}</strong></td>
+      <td class="net"><strong>${formatSigned(summary.netScore)}</strong></td>
+    </tr>
+  `;
+
+  rows.innerHTML = totalRow + (members.length
     ? members.map(member => `
         <tr>
           <td>
             <a class="member-link" href="https://www.torn.com/profiles.php?XID=${encodeURIComponent(member.playerId)}" target="_blank" rel="noopener noreferrer">
-              ${escapeHtml(member.playerName || `Player ${member.playerId}`)}
-              <small>[${escapeHtml(member.playerId)}]${member.current ? ' · current' : ''}</small>
+              <span class="member-name">${escapeHtml(member.playerName || `Player ${member.playerId}`)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span>
+              ${member.current ? '' : '<small>former</small>'}
             </a>
           </td>
           <td>${formatNumber(member.hits)}</td>
@@ -79,15 +91,27 @@ function renderWar(data) {
           <td class="net">${formatSigned(member.netScore)}</td>
         </tr>
       `).join('')
-    : '<tr><td colspan="7">No member performance stored for this report.</td></tr>';
+    : '<tr class="empty-row"><td colspan="7">No member performance stored for this report.</td></tr>');
 
   loadingState.classList.add('hidden');
   errorState.classList.add('hidden');
   reportView.classList.remove('hidden');
 }
 
-function summaryItem(label, value) {
-  return `<div class="summary-item"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+function warOutcome(scoreUp, scoreDown) {
+  const own = Number(scoreUp);
+  const opponent = Number(scoreDown);
+  if (!Number.isFinite(own) || !Number.isFinite(opponent) || (own === 0 && opponent === 0)) return 'unknown';
+  if (own > opponent) return 'win';
+  if (own < opponent) return 'loss';
+  return 'draw';
+}
+
+function warOutcomeLabel(outcome) {
+  if (outcome === 'win') return 'Win';
+  if (outcome === 'loss') return 'Loss';
+  if (outcome === 'draw') return 'Draw';
+  return 'No data';
 }
 
 function showError(message) {
