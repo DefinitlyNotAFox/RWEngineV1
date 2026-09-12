@@ -436,32 +436,31 @@ async function handleGetImportedWars(env, body) {
   const faction = await requireTrackedFaction(env.DB, body.factionId);
   const result = await env.DB.prepare(`
     SELECT
-      war_id,
-      report_id,
-      faction_id,
-      faction_name,
-      opponent_faction_id,
-      opponent_faction_name,
-      start_timestamp,
-      end_timestamp,
-      imported_at,
+      w.war_id,
+      w.report_id,
+      w.faction_id,
+      w.faction_name,
+      w.opponent_faction_id,
+      w.opponent_faction_name,
+      w.start_timestamp,
+      w.end_timestamp,
+      w.imported_at,
       w.chain_adjusted_at,
       w.chain_adjustment_status,
       w.chain_adjustment_message,
-      COALESCE(ws.score_up, 0) AS score_up,
-      COALESCE(ws.score_down, 0) AS score_down
+      COALESCE((
+        SELECT SUM(COALESCE(wl.score_up, 0))
+        FROM war_log wl
+        WHERE wl.faction_id = w.faction_id AND wl.war_id = w.war_id
+      ), 0) AS score_up,
+      COALESCE((
+        SELECT SUM(COALESCE(wl.score_down, 0))
+        FROM war_log wl
+        WHERE wl.faction_id = w.faction_id AND wl.war_id = w.war_id
+      ), 0) AS score_down
     FROM wars w
-    LEFT JOIN (
-      SELECT faction_id, war_id,
-             SUM(COALESCE(score_up, 0)) AS score_up,
-             SUM(COALESCE(score_down, 0)) AS score_down
-      FROM war_log
-      GROUP BY faction_id, war_id
-    ) ws
-      ON ws.faction_id = w.faction_id
-      AND ws.war_id = w.war_id
     WHERE w.faction_id = ?
-    ORDER BY COALESCE(end_timestamp, start_timestamp, imported_at, 0) DESC
+    ORDER BY COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) DESC
     LIMIT 200
   `).bind(Number(faction.faction_id)).all();
 
