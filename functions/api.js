@@ -825,19 +825,18 @@ async function handleGetImportedWars(env, request) {
       w.chain_adjusted_at,
       w.chain_adjustment_status,
       w.chain_adjustment_message,
-      COALESCE(ws.score_up, 0) AS score_up,
-      COALESCE(ws.score_down, 0) AS score_down,
+      COALESCE((
+        SELECT SUM(COALESCE(wl.score_up, 0))
+        FROM war_log wl
+        WHERE wl.faction_id = w.faction_id AND wl.war_id = w.war_id
+      ), 0) AS score_up,
+      COALESCE((
+        SELECT SUM(COALESCE(wl.score_down, 0))
+        FROM war_log wl
+        WHERE wl.faction_id = w.faction_id AND wl.war_id = w.war_id
+      ), 0) AS score_down,
       COALESCE(rp.visibility, 'faction') AS visibility
     FROM wars w
-    LEFT JOIN (
-      SELECT faction_id, war_id,
-             SUM(COALESCE(score_up, 0)) AS score_up,
-             SUM(COALESCE(score_down, 0)) AS score_down
-      FROM war_log
-      GROUP BY faction_id, war_id
-    ) ws
-      ON ws.faction_id = w.faction_id
-      AND ws.war_id = w.war_id
     LEFT JOIN resource_permissions rp
       ON rp.faction_id = w.faction_id
       AND rp.resource_type = 'war'
