@@ -5670,3 +5670,70 @@ body {
     display: none;
   }
 }
+
+
+/* Member detail cleanup: remove duplicated profile chrome and excess rules. */
+#intelTable.faction-grid .intel2-detail {
+  padding-top: 0;
+  border-bottom: 0;
+}
+
+#intelTable.faction-grid .intel2-signal-strip {
+  min-height: 30px;
+  padding: 4px 0 5px;
+  border-bottom: 0;
+}
+
+#intelTable.faction-grid .intel2-history {
+  padding-top: 7px;
+}
+
+#intelTable.faction-grid .intel2-history-head {
+  min-height: 24px;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+#intelTable.faction-grid .intel2-history-tools {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-left: auto;
+}
+
+#intelTable.faction-grid .intel2-history-tools > a {
+  color: var(--muted);
+  font-size: 9px;
+  text-decoration: none;
+}
+
+#intelTable.faction-grid .intel2-history-tools > a:hover {
+  color: var(--accent-2);
+}
+
+#intelTable.faction-grid .intel2-trends {
+  border-top: 0;
+  border-bottom: 0;
+}
+
+#intelTable.faction-grid .intel2-trend,
+#intelTable.faction-grid .intel2-trend + .intel2-trend {
+  border-right-color: rgba(255,255,255,.055);
+}
+
+#intelTable.faction-grid .intel2-wars {
+  margin-top: 10px;
+}
+
+#intelTable.faction-grid .intel2-war {
+  border-top: 0;
+}
+
+#intelTable.faction-grid .intel2-war + .intel2-war {
+  margin-top: 1px;
+}
+
+#intelTable.faction-grid .intel2-war-head {
+  border-top: 0;
+  margin-bottom: 2px;
+}
