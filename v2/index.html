@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=69" />
+  <link rel="stylesheet" href="/v2/app.css?v=70" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -145,16 +145,22 @@
       </section>
 
       <section id="archiveView" class="view" data-view="archive">
-        <header class="view-head">
-          <div><p class="kicker">Ranked War</p><h1>Archive</h1><p class="view-description">Open individual ranked-war performance reports, import history and manage shared links.</p><p id="archiveFreshness" class="freshness"></p></div>
+        <header class="view-head archive-view-head">
+          <div>
+            <h1>Archive</h1>
+            <p class="view-description">Open individual ranked-war reports, inspect imported history and manage report access.</p>
+          </div>
         </header>
 
         <div id="archiveListView">
-          <div class="control-line">
-            <div class="archive-count"><strong id="archiveCount">0</strong><span> imported wars</span></div>
-            <div class="control-cluster">
+          <div class="archive-toolbar">
+            <div class="archive-summary">
+              <div class="archive-count"><strong id="archiveCount">0</strong><span id="archiveCountLabel"> imported wars</span></div>
+              <p id="archiveFreshness" class="freshness"></p>
+            </div>
+            <div class="archive-actions">
               <button id="importToggle" class="text-action" type="button">Import reports</button>
-              <input id="archiveSearch" class="search" type="search" placeholder="Opponent or war ID" />
+              <input id="archiveSearch" class="search" type="search" placeholder="Search opponent, faction or war ID" />
             </div>
           </div>
 
@@ -172,11 +178,17 @@
             <div id="importProgress" class="import-progress hidden"></div>
           </section>
 
-          <div class="data-table-wrap">
-            <table class="data-table archive-table">
-              <thead><tr><th>Opponent</th><th>War ID</th><th>Started</th><th>Ended</th></tr></thead>
-              <tbody id="archiveBody"></tbody>
-            </table>
+          <div id="archiveGrid" class="archive-grid" role="table" aria-label="Imported ranked wars">
+            <div class="archive-row archive-head" role="row">
+              <div role="columnheader">Opponent</div>
+              <div role="columnheader">War</div>
+              <div role="columnheader">Period</div>
+              <div role="columnheader">Duration</div>
+              <div role="columnheader">Access</div>
+              <div role="columnheader">Data</div>
+              <div aria-hidden="true"></div>
+            </div>
+            <div id="archiveBody" class="archive-body" role="rowgroup"></div>
           </div>
         </div>
 
@@ -279,6 +291,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=46"></script>
+  <script type="module" src="/v2/app.js?v=47"></script>
 </body>
 </html>
