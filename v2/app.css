@@ -5804,3 +5804,98 @@ body {
     gap: 6px;
   }
 }
+
+
+/* Member detail: restore compact +/- context and enforce a single trend graph. */
+#intelTable.faction-grid .intel2-context {
+  display: grid;
+  grid-template-columns: 62px minmax(0,1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 7px 0 5px;
+}
+
+#intelTable.faction-grid .intel2-context-kicker {
+  padding-top: 2px;
+  color: #aeb5ba;
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+#intelTable.faction-grid .intel2-context-grid {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 24px;
+}
+
+#intelTable.faction-grid .intel2-context .intel2-trait-group {
+  padding: 0;
+}
+
+#intelTable.faction-grid .intel2-context .intel2-trait-group > header {
+  margin-bottom: 3px;
+}
+
+#intelTable.faction-grid .intel2-context .intel2-trait-group > header span {
+  width: 12px;
+  font-size: 11px;
+}
+
+#intelTable.faction-grid .intel2-context .intel2-trait-group > header strong {
+  font-size: 9px;
+}
+
+#intelTable.faction-grid .intel2-context .intel2-trait {
+  min-height: 22px;
+  grid-template-columns: 130px minmax(0,1fr);
+  padding: 2px 0;
+}
+
+#intelTable.faction-grid .intel2-context .intel2-trait b,
+#intelTable.faction-grid .intel2-context .intel2-trait span,
+#intelTable.faction-grid .intel2-context .intel2-trait-empty {
+  font-size: 9px;
+}
+
+#intelTable.faction-grid .intel2-trend-stage {
+  display: block;
+  width: 100%;
+}
+
+#intelTable.faction-grid .intel2-trend-stage .intel2-trend {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 0 7px;
+  border: 0;
+  background: var(--bg);
+}
+
+#intelTable.faction-grid .intel2-trend-stage .sparkline,
+#intelTable.faction-grid .intel2-trend-stage .intel2-trend-empty {
+  width: 100%;
+  height: 58px;
+}
+
+#intelTable.faction-grid .intel2-history-metrics {
+  gap: 10px;
+}
+
+#intelTable.faction-grid .intel2-history-metrics button {
+  min-width: 0;
+  padding: 2px 1px 3px;
+  font-size: 9px;
+}
+
+@media (max-width: 760px) {
+  #intelTable.faction-grid .intel2-context {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  #intelTable.faction-grid .intel2-context-grid {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+}
