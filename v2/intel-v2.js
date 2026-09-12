@@ -1406,31 +1406,35 @@ function renderDetailRow(member) {
   const detailMember = payload.member;
   const history = normalizeHistory(payload.history);
   const insights = renderInsights(detailMember);
+  const memberName = detailMember.playerName || member.playerName || 'Unknown';
+  const memberPosition = detailMember.position || member.position || 'Member';
+  const memberLevel = detailMember.level ?? member.level;
 
   return `
     <div class="intel2-detail-row faction-grid-detail" role="row">
       <div class="faction-grid-detail-cell" role="cell">
         <section class="intel2-detail">
-          <div class="intel2-detail-tools">
-            <span>Member context</span>
+          <header class="intel2-detail-headbar">
+            <div class="intel2-detail-member">
+              <strong>${escapeHtml(memberName)}</strong>
+              <span class="entity-id">[${escapeHtml(detailMember.playerId)}]</span>
+              <span class="intel2-detail-meta">${escapeHtml(memberPosition)}${memberLevel == null ? '' : ` · Lv ${escapeHtml(memberLevel)}`}</span>
+            </div>
             <a href="https://www.torn.com/profiles.php?XID=${encodeURIComponent(detailMember.playerId)}" target="_blank" rel="noopener noreferrer">Torn profile ↗</a>
-          </div>
+          </header>
 
-          ${insights ? `<div class="intel2-insights">${insights}</div>` : ''}
+          ${insights}
 
           <section class="intel2-history">
             <header class="intel2-history-head">
-              <div>
-                <span class="intel2-history-kicker">History &amp; trends</span>
-                <p>How this member has changed over time, plus the wars behind the summary above.</p>
-              </div>
+              <span class="intel2-history-kicker">History &amp; trends</span>
               <div class="intel2-history-window" aria-label="History window">
                 ${[30,60,90].map(days => `<button type="button" data-trend-days="${days}" class="${trendDays === days ? 'active' : ''}">${days}d</button>`).join('')}
               </div>
             </header>
 
             <div class="intel2-trends">
-              ${trendBlock('Battle stats', history.stats, value => value == null ? '—' : formatCompact(value))}
+              ${trendBlock('Battle stats', history.stats, value => value == null ? '' : formatCompact(value))}
               ${trendBlock('Activity / day', history.activity, formatDuration)}
               ${trendBlock('Xanax / day', history.xanax, value => formatDecimal(value, 2))}
             </div>
@@ -1442,7 +1446,6 @@ function renderDetailRow(member) {
               </header>
               ${renderWarHistory(history.wars)}
             </section>
-
           </section>
         </section>
       </div>
@@ -1452,27 +1455,34 @@ function renderDetailRow(member) {
 
 function renderInsights(member) {
   const insights = Array.isArray(member.insights) ? member.insights : [];
-
-  const positive = insights.filter(item => item.kind === 'positive');
+  const positives = insights.filter(item => item.kind === 'positive');
   const concerns = insights.filter(item => item.kind === 'attention');
   const notes = insights.filter(item => !['positive','attention'].includes(item.kind));
 
+  const signal = (item, kind) => `
+    <span class="intel2-signal ${kind}">
+      <b>${escapeHtml(traitTitle(item, member))}</b>
+      ${item.text ? `<small>${escapeHtml(item.text)}</small>` : ''}
+    </span>
+  `;
+
+  const items = [
+    ...positives.map(item => signal(item, 'positive')),
+    ...concerns.map(item => signal(item, 'attention')),
+    ...notes.map(item => signal(item, 'note'))
+  ];
+
+  if (!concerns.length) {
+    items.push('<span class="intel2-signal-empty">No current concerns</span>');
+  }
+
   return `
-    <div class="intel2-trait-grid">
-      ${renderTraitGroup('positive', '+', 'Positive', positive, member, 'No standout positives')}
-      ${renderTraitGroup('attention', '−', 'Concerns', concerns, member, 'No current concerns')}
-    </div>
-    ${notes.length ? `
-      <div class="intel2-data-notes">
-        <span>Data</span>
-        ${notes.map(item => `
-          <div class="intel2-data-note">
-            <b>${escapeHtml(traitTitle(item, member))}</b>
-            <span>${escapeHtml(item.text || '')}</span>
-          </div>
-        `).join('')}
+    <div class="intel2-signal-strip">
+      <span class="intel2-signal-label">Signals</span>
+      <div class="intel2-signal-items">
+        ${items.length ? items.join('') : '<span class="intel2-signal-empty">No notable signals</span>'}
       </div>
-    ` : ''}
+    </div>
   `;
 }
 
@@ -1641,20 +1651,31 @@ function sparkline(series) {
 }
 
 function renderWarHistory(wars) {
-  if (!wars.length) return '<div class="line-row"><small>No imported war history available.</small></div>';
+  if (!wars.length) return '<div class="intel2-war-empty">No imported war history available.</div>';
 
-  return wars.map(war => `
-    <div class="intel2-war">
-      <div>
-        <strong>${escapeHtml(war.opponentFactionName || war.opponent || 'Unknown opponent')}</strong>
-        <small>#${escapeHtml(war.warId)}</small>
+  return `
+    <div class="intel2-war-table" role="table" aria-label="Recent ranked wars">
+      <div class="intel2-war intel2-war-head" role="row">
+        <span role="columnheader">War</span>
+        <span role="columnheader">Hits</span>
+        <span role="columnheader">Assists</span>
+        <span role="columnheader">Outside</span>
+        <span role="columnheader">Net</span>
       </div>
-      <span>${formatNumber(war.hits)} hits</span>
-      <span>${formatNumber(war.assists)} assists</span>
-      <span>${formatNumber(war.outsideHits)} outside</span>
-      <span>${formatSignedLocal(war.netScore)} net</span>
+      ${wars.map(war => `
+        <div class="intel2-war" role="row">
+          <div class="intel2-war-name" role="cell">
+            <strong>${escapeHtml(war.opponentFactionName || war.opponent || 'Unknown opponent')}</strong>
+            <small>#${escapeHtml(war.warId)}</small>
+          </div>
+          <span role="cell">${formatNumber(war.hits)}</span>
+          <span role="cell">${formatNumber(war.assists)}</span>
+          <span role="cell">${formatNumber(war.outsideHits)}</span>
+          <span role="cell" class="intel2-war-net">${formatSignedLocal(war.netScore)}</span>
+        </div>
+      `).join('')}
     </div>
-  `).join('');
+  `;
 }
 
 async function refreshSyncStatus() {
