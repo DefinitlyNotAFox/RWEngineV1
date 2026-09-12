@@ -542,7 +542,7 @@ function renderFactionTotalRow() {
         <strong>${tableCellText(formatDuration(avgActivity))}</strong>
         <span class="member-meta">avg / day</span>
       </div>
-      <div role="cell" class="faction-grid-cell col-ocs"></div>
+      <div role="cell" class="faction-grid-cell col-ocs"><strong>No data</strong></div>
       <div role="cell" class="faction-grid-cell col-participation">
         <strong>${warLoading ? '…' : formatPercent(participation)}</strong>
         <span class="member-meta">${escapeHtml(warScope)}</span>
@@ -661,7 +661,7 @@ function renderFactionCell(member, key) {
   }
 
   if (key === 'stats') {
-    return `<div role="cell" class="faction-grid-cell col-stats">${member.battleStats?.value == null ? '' : escapeHtml(formatCompact(member.battleStats.value))}<span class="trend ${trendClass(member.battleStats?.changePct30d)}">${tableBattleStatsTrend(member)}</span></div>`;
+    return `<div role="cell" class="faction-grid-cell col-stats">${member.battleStats?.value == null ? 'No data' : escapeHtml(formatCompact(member.battleStats.value))}<span class="trend ${trendClass(member.battleStats?.changePct30d)}">${tableBattleStatsTrend(member)}</span></div>`;
   }
 
   if (key === 'activity') {
@@ -673,7 +673,7 @@ function renderFactionCell(member, key) {
   }
 
   if (key === 'ocs') {
-    return '<div role="cell" class="faction-grid-cell col-ocs"></div>';
+    return '<div role="cell" class="faction-grid-cell col-ocs">No data</div>';
   }
 
   if (key === 'participation4') {
@@ -689,7 +689,7 @@ function renderFactionCell(member, key) {
   }
 
   if (!performance) {
-    return `<div role="cell" class="faction-grid-cell col-${key}">${factionPerformance.loading ? '…' : ''}</div>`;
+    return `<div role="cell" class="faction-grid-cell col-${key}">${factionPerformance.loading ? '…' : 'No data'}</div>`;
   }
 
   if (key === 'participation') {
@@ -828,7 +828,8 @@ function adjustedPerformance(row) {
 }
 
 function analysisPayload() {
-  const range = effectiveRange();
+  ensureFilterState();
+  const range = timelineRange;
   return range?.from && range?.to ? { from:range.from, to:range.to } : {};
 }
 
@@ -841,8 +842,8 @@ function performancePayload() {
 
 function analysisKey() {
   const factionId = Number(state.selectedFactionId || state.user?.factionId || 0);
-  const range = effectiveRange();
-  return `${factionId}:${range?.from || ''}:${range?.to || ''}`;
+  ensureFilterState();
+  return `${factionId}:timeline:${timelineRange?.from || ''}:${timelineRange?.to || ''}`;
 }
 
 function performanceKey() {
@@ -1277,7 +1278,7 @@ function medianNullable(values) {
 }
 
 function tableCellText(value) {
-  if (value === null || value === undefined || value === '' || value === '—') return '';
+  if (value === null || value === undefined || value === '' || value === '—') return 'No data';
   return String(value);
 }
 
@@ -1291,9 +1292,7 @@ function tableTrendLabel(value) {
 
 function tableBattleStatsTrend(member) {
   const value = member?.battleStats?.changePct30d;
-  if (value === null || value === undefined || value === '') {
-    return member?.battleStats?.value == null ? 'No estimate' : '';
-  }
+  if (value === null || value === undefined || value === '') return '';
   const number = Number(value);
   if (!Number.isFinite(number)) return '';
   const pct = Math.round(number * 100);
@@ -1587,20 +1586,24 @@ function trendBlock(title, series, formatter) {
         (Number(valid[valid.length - 1].at) - Number(valid[0].at)) / 86400
       ))
     : 0;
-  const windowLabel = availableDays > 0
-    ? (availableDays < trendDays ? `${availableDays}d available` : `${trendDays}d`)
-    : 'No trend data';
-  const latestLabel = latest === null || latest === undefined ? '—' : formatter(latest);
+  const windowLabel = valid.length
+    ? (availableDays > 0
+      ? (availableDays < trendDays ? `${availableDays}d available` : `${trendDays}d`)
+      : '1 point available')
+    : 'No data';
+  const latestLabel = latest === null || latest === undefined ? '' : formatter(latest);
 
-  const body = valid.length < 2
-    ? '<div class="intel2-trend-empty">No history available</div>'
-    : sparkline(filtered);
+  const body = valid.length === 0
+    ? '<div class="intel2-trend-empty">No data</div>'
+    : valid.length === 1
+      ? '<div class="intel2-trend-empty">Not enough history</div>'
+      : sparkline(filtered);
 
   return `
     <section class="intel2-trend">
       <header>
         <strong>${escapeHtml(title)}</strong>
-        <span>${escapeHtml(windowLabel)} · ${escapeHtml(latestLabel)}</span>
+        <span>${escapeHtml(latestLabel ? `${windowLabel} · ${latestLabel}` : windowLabel)}</span>
       </header>
       ${body}
     </section>
@@ -1651,7 +1654,7 @@ function sparkline(series) {
 }
 
 function renderWarHistory(wars) {
-  if (!wars.length) return '<div class="intel2-war-empty">No imported war history available.</div>';
+  if (!wars.length) return '<div class="intel2-war-empty">No data</div>';
 
   return `
     <div class="intel2-war-table" role="table" aria-label="Recent ranked wars">
