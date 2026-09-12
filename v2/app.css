@@ -6101,3 +6101,68 @@ body {
 #intelTable.faction-grid .faction-member-row.selected .faction-grid-cell {
   background: #131617;
 }
+
+
+/* Expanded member readability: side-by-side context and slightly larger type. */
+#intelTable.faction-grid .intel2-context-grid {
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 10px;
+}
+
+#intelTable.faction-grid .intel2-context .intel2-trait-group > header {
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+#intelTable.faction-grid .intel2-context .intel2-trait-group > header span {
+  width: 11px;
+  font-size: 12px;
+}
+
+#intelTable.faction-grid .intel2-context .intel2-trait-group > header strong,
+#intelTable.faction-grid .intel2-context .intel2-trait b,
+#intelTable.faction-grid .intel2-context .intel2-trait span,
+#intelTable.faction-grid .intel2-context .intel2-trait-empty {
+  font-size: 10px;
+}
+
+#intelTable.faction-grid .intel2-context .intel2-trait span {
+  line-height: 1.35;
+}
+
+#intelTable.faction-grid .intel2-context-kicker,
+#intelTable.faction-grid .intel2-history-kicker,
+#intelTable.faction-grid .intel2-wars > header strong {
+  font-size: 10px;
+}
+
+#intelTable.faction-grid .intel2-context-head > a,
+#intelTable.faction-grid .intel2-history-metrics button,
+#intelTable.faction-grid .intel2-history-window button,
+#intelTable.faction-grid .intel2-trend header span,
+#intelTable.faction-grid .intel2-wars > header span,
+#intelTable.faction-grid .intel2-war-head {
+  font-size: 9px;
+}
+
+#intelTable.faction-grid .intel2-trend header strong,
+#intelTable.faction-grid .intel2-war-name strong {
+  font-size: 11px;
+}
+
+#intelTable.faction-grid .intel2-war,
+#intelTable.faction-grid .intel2-war-name small {
+  font-size: 9px;
+}
+
+@media (max-width: 1050px) {
+  #intelTable.faction-grid .intel2-context-grid {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  #intelTable.faction-grid .intel2-context-grid {
+    grid-template-columns: 1fr;
+  }
+}
