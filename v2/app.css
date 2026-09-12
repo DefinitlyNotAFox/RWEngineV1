@@ -6990,3 +6990,18 @@ body {
   min-width: 40px;
   text-align: center;
 }
+
+
+/* Align war-detail headers with the values beneath them. */
+#warDetailView #warDetailTable th {
+  text-align: right;
+}
+
+#warDetailView #warDetailTable th button {
+  text-align: right;
+}
+
+#warDetailView #warDetailTable th:first-child,
+#warDetailView #warDetailTable th:first-child button {
+  text-align: left;
+}
