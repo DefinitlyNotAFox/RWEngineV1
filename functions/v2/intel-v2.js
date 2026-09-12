@@ -654,6 +654,13 @@ function coverageAcross(rows, from, to) {
   return Math.max(0, (Number(inRange[inRange.length - 1].snapshot_at) - Number(inRange[0].snapshot_at)) / DAY);
 }
 
+function parseJson(value) {
+  if (!value) return null;
+  if (typeof value === 'object') return value;
+  try { return JSON.parse(String(value)); }
+  catch (_) { return null; }
+}
+
 function extractMemberJson(row) {
   try { return JSON.parse(row.status_json || '{}') || {}; }
   catch (_) { return {}; }
