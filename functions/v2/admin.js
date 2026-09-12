@@ -304,6 +304,8 @@ async function handleListFactions(env, user) {
       (SELECT COUNT(*) FROM faction_members fm WHERE fm.faction_id = f.faction_id AND fm.is_current = 1) AS current_members,
       (SELECT COUNT(*) FROM wars w WHERE w.faction_id = f.faction_id) AS war_count,
       (SELECT status FROM faction_sync_jobs sj WHERE sj.faction_id = f.faction_id ORDER BY sj.job_id DESC LIMIT 1) AS last_sync_status,
+      (SELECT trigger_type FROM faction_sync_jobs sj WHERE sj.faction_id = f.faction_id ORDER BY sj.job_id DESC LIMIT 1) AS last_sync_trigger,
+      (SELECT tasks_failed FROM faction_sync_jobs sj WHERE sj.faction_id = f.faction_id ORDER BY sj.job_id DESC LIMIT 1) AS last_sync_failed_tasks,
       (SELECT COALESCE(finished_at, updated_at) FROM faction_sync_jobs sj WHERE sj.faction_id = f.faction_id ORDER BY sj.job_id DESC LIMIT 1) AS last_sync_at,
       c.config_value AS managed_key_config
     FROM factions f
@@ -343,6 +345,8 @@ async function handleListFactions(env, user) {
       currentMembers: Number(row.current_members || 0),
       warCount: Number(row.war_count || 0),
       lastSyncStatus: row.last_sync_status || null,
+      lastSyncTrigger: row.last_sync_trigger || null,
+      lastSyncFailedTasks: Number(row.last_sync_failed_tasks || 0),
       lastSyncAt: nullableNumber(row.last_sync_at),
       hasApiKey: keySource !== 'missing',
       keySource,
