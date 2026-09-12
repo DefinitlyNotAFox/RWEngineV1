@@ -276,6 +276,7 @@ async function buildPublicWar(db, factionId, warId) {
     war: {
       warId: String(war.war_id),
       reportId: String(war.report_id || war.war_id),
+      factionId,
       factionName: war.faction_name || 'Faction ' + factionId,
       opponentFactionId: Number(war.opponent_faction_id || 0) || null,
       opponentFactionName: war.opponent_faction_name || 'Unknown opponent',
