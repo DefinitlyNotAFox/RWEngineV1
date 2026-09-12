@@ -6431,3 +6431,331 @@ body {
     display: none;
   }
 }
+
+
+/* Archive result + hierarchy polish. */
+.archive-grid {
+  --archive-columns:
+    minmax(190px,2.1fr)
+    minmax(62px,.48fr)
+    minmax(88px,.72fr)
+    minmax(150px,1.22fr)
+    minmax(74px,.6fr)
+    minmax(68px,.56fr)
+    minmax(125px,1fr)
+    22px;
+}
+
+.archive-opponent strong {
+  font-size: 13px;
+  font-weight: 720;
+}
+
+.archive-access strong,
+.archive-status strong {
+  color: var(--muted);
+  font-weight: 560;
+}
+
+.archive-status span {
+  color: #737774;
+}
+
+.archive-result {
+  display: flex;
+  align-items: center;
+}
+
+.war-result {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  min-width: 37px;
+  padding: 1px 0 2px;
+  border-bottom: 1px solid transparent;
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+
+.war-result-win {
+  color: var(--success);
+  border-bottom-color: rgba(142,174,148,.55);
+}
+
+.war-result-loss {
+  color: var(--danger);
+  border-bottom-color: rgba(212,141,141,.55);
+}
+
+.war-result-draw {
+  color: var(--warning);
+  border-bottom-color: rgba(200,164,107,.5);
+}
+
+.war-result-unknown {
+  color: var(--dim);
+}
+
+.archive-table-v2 th:nth-child(2),
+.archive-table-v2 td:nth-child(2) {
+  text-align: left;
+}
+
+@media (max-width: 950px) {
+  .archive-grid {
+    --archive-columns:
+      minmax(165px,1.85fr)
+      minmax(58px,.5fr)
+      minmax(78px,.68fr)
+      minmax(138px,1.15fr)
+      minmax(68px,.58fr)
+      minmax(108px,.92fr)
+      20px;
+  }
+
+  .archive-head > :nth-child(6),
+  .archive-row > .archive-access {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .archive-grid {
+    --archive-columns:
+      minmax(150px,1.65fr)
+      minmax(55px,.5fr)
+      minmax(76px,.7fr)
+      minmax(128px,1.1fr)
+      minmax(96px,.82fr)
+      20px;
+  }
+
+  .archive-head > :nth-child(5),
+  .archive-row > .archive-duration,
+  .archive-head > :nth-child(6),
+  .archive-row > .archive-access {
+    display: none;
+  }
+}
+
+/* War detail v2: same dense, flat language as Faction and Archive. */
+#warDetailView {
+  margin-top: 0;
+}
+
+#warDetailView .detail-head {
+  display: grid;
+  grid-template-columns: 92px minmax(0,1fr) auto;
+  align-items: end;
+  gap: 18px;
+  margin: 0 0 14px;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+#warDetailView .detail-title {
+  min-width: 0;
+}
+
+#warDetailView .detail-title h2 {
+  margin: 1px 0 1px;
+  font-size: 20px;
+  font-weight: 680;
+  letter-spacing: -.025em;
+}
+
+#warDetailView .detail-title > span {
+  font-size: 9px;
+}
+
+#warDetailView #warDetailBack {
+  align-self: center;
+}
+
+#warDetailView #shareToggle {
+  min-height: 30px;
+  height: 30px;
+  padding: 3px 10px;
+  font-size: 10px;
+}
+
+#warDetailView .score-line {
+  min-height: 54px;
+  grid-template-columns: minmax(0,1fr) 86px minmax(0,1fr);
+  gap: 18px;
+  align-items: center;
+  margin: 0;
+  padding: 8px 10px;
+  border: 0;
+  border-bottom: 2px solid var(--accent);
+  background: #0d0f10;
+}
+
+#warDetailView .score-side {
+  gap: 10px;
+}
+
+#warDetailView .score-side span {
+  font-size: 10px;
+}
+
+#warDetailView .score-side strong {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+#warDetailView .score-versus {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 2px;
+  text-align: center;
+}
+
+#warDetailView .score-versus small {
+  color: var(--dim);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+#warDetailView .score-versus .war-result {
+  justify-content: center;
+}
+
+#warDetailView .war-detail-summary {
+  margin: 0 0 12px;
+  border-top: 0;
+  border-bottom: 1px solid var(--line-soft);
+  background: #0d0f10;
+}
+
+#warDetailView .war-detail-summary .metric {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+#warDetailView .war-detail-summary .metric strong {
+  margin-top: 2px;
+  font-size: 15px;
+}
+
+#warDetailView .war-detail-summary .metric span {
+  font-size: 8px;
+}
+
+#warDetailView .war-detail-summary .metric small {
+  font-size: 8px;
+}
+
+#warDetailView > .control-line {
+  min-height: 38px;
+  margin: 0 0 8px;
+  padding: 0;
+}
+
+#warDetailView > .control-line .control-cluster {
+  gap: 14px;
+}
+
+#warDetailView .share-panel {
+  margin: 0 0 10px;
+  padding: 8px 0;
+  border-top: 0;
+  border-bottom: 1px solid var(--line-soft);
+  background: transparent;
+}
+
+#warDetailView .data-table-wrap {
+  overflow-x: auto;
+  border-top: 0;
+  border-bottom: 0;
+}
+
+#warDetailView #warDetailTable {
+  table-layout: fixed;
+  min-width: 0;
+}
+
+#warDetailView #warDetailTable th,
+#warDetailView #warDetailTable td {
+  height: 40px;
+  padding: 6px 8px;
+}
+
+#warDetailView #warDetailTable th {
+  position: static;
+  background: var(--bg);
+  color: #c6cbce;
+  font-size: 9px;
+  font-weight: 730;
+  text-transform: none;
+  letter-spacing: 0;
+  text-align: center;
+  border-bottom: 1px solid var(--line);
+}
+
+#warDetailView #warDetailTable th:first-child,
+#warDetailView #warDetailTable td:first-child {
+  width: 22%;
+  text-align: left;
+}
+
+#warDetailView #warDetailTable th button {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-align: center;
+}
+
+#warDetailView #warDetailTable th:first-child button {
+  text-align: left;
+}
+
+#warDetailView #warDetailTable tbody td {
+  border-bottom-color: var(--line-soft);
+  font-size: 11px;
+}
+
+#warDetailView #warDetailTable tbody tr:hover {
+  background: rgba(255,255,255,.018);
+}
+
+#warDetailView #warDetailTable tfoot td {
+  height: 44px;
+  border-top: 2px solid var(--accent);
+  border-bottom: 0;
+  background: #0d0f10;
+  font-size: 11px;
+}
+
+#warDetailView #warDetailTable .member-name {
+  font-size: 12px;
+}
+
+#warDetailView #warDetailTable .member-meta,
+#warDetailView #warDetailTable .secondary {
+  color: var(--dim);
+  font-size: 8px;
+}
+
+@media (max-width: 760px) {
+  #warDetailView .detail-head {
+    grid-template-columns: 1fr auto;
+  }
+
+  #warDetailView .detail-title {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  #warDetailView .score-line {
+    grid-template-columns: 1fr 66px 1fr;
+    gap: 8px;
+  }
+}
