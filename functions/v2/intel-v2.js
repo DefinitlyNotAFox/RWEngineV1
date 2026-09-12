@@ -223,6 +223,17 @@ function buildMemberOverview({ row, snapshots, warRows, wars, now, range = null 
       previousCoverageDays:previousWindow.coverageDays
     },
 
+    ocs:{
+      total:currentWindow.organizedCrimes,
+      perDay:currentWindow.organizedCrimesPerDay,
+      perDayPrevious:previousWindow.organizedCrimesPerDay,
+      changePct:hasComparisonCoverage(currentWindow, previousWindow, requiredCoverage)
+        ? percentChange(currentWindow.organizedCrimesPerDay, previousWindow.organizedCrimesPerDay)
+        : null,
+      coverageDays:currentWindow.coverageDays,
+      previousCoverageDays:previousWindow.coverageDays
+    },
+
     war:{
       last4,
       previous4
@@ -287,26 +298,50 @@ function buildCumulativeWindow(snapshots, from, to) {
     .sort((a,b) => Number(a.snapshot_at) - Number(b.snapshot_at));
 
   if (usable.length < 2) {
-    return { activityPerDay:null, xanaxPerDay:null, coverageDays:0 };
+    return {
+      activityPerDay:null,
+      xanaxPerDay:null,
+      organizedCrimes:null,
+      organizedCrimesPerDay:null,
+      coverageDays:0
+    };
   }
 
   const start = nearestSnapshot(usable, from);
   const end = nearestSnapshot(usable, to, start);
   if (!start || !end || start === end) {
-    return { activityPerDay:null, xanaxPerDay:null, coverageDays:0 };
+    return {
+      activityPerDay:null,
+      xanaxPerDay:null,
+      organizedCrimes:null,
+      organizedCrimesPerDay:null,
+      coverageDays:0
+    };
   }
 
   const elapsed = (Number(end.snapshot_at) - Number(start.snapshot_at)) / DAY;
   if (!(elapsed > 0)) {
-    return { activityPerDay:null, xanaxPerDay:null, coverageDays:0 };
+    return {
+      activityPerDay:null,
+      xanaxPerDay:null,
+      organizedCrimes:null,
+      organizedCrimesPerDay:null,
+      coverageDays:0
+    };
   }
 
   const activityDelta = monotonicDelta(end.activity_total_seconds, start.activity_total_seconds);
   const xanaxDelta = monotonicDelta(end.xanax_taken_total, start.xanax_taken_total);
+  const organizedCrimesDelta = monotonicDelta(
+    snapshotOrganizedCrimes(end),
+    snapshotOrganizedCrimes(start)
+  );
 
   return {
     activityPerDay:activityDelta === null ? null : activityDelta / elapsed,
     xanaxPerDay:xanaxDelta === null ? null : xanaxDelta / elapsed,
+    organizedCrimes:organizedCrimesDelta,
+    organizedCrimesPerDay:organizedCrimesDelta === null ? null : organizedCrimesDelta / elapsed,
     coverageDays:elapsed
   };
 }
@@ -459,6 +494,7 @@ function snapshotHistoryPoint(row) {
     activityPerDaySeconds:numberOrNull(row.activity_per_day_seconds),
     xanaxTakenTotal:numberOrNull(row.xanax_taken_total),
     xanaxPerDay:numberOrNull(row.xanax_per_day),
+    organizedCrimesTotal:snapshotOrganizedCrimes(row),
     battleStatsValue:numberOrNull(row.battle_stats_estimate),
     battleStatsSource:row.battle_stats_source || null,
     battleStatsObservedAt:nullableNumber(row.battle_stats_observed_at),
@@ -520,6 +556,51 @@ function nearestSnapshot(rows, target, exclude = null) {
 
 function nearestObservation(rows, target, exclude = null) {
   return nearestSnapshot(rows, target, exclude);
+}
+
+function snapshotOrganizedCrimes(row) {
+  if (!row) return null;
+  const raw = parseJson(row.raw_json);
+  const direct = numberOrNull(raw?.rwe?.organizedCrimesTotal);
+  if (direct !== null) return direct;
+
+  const personal = raw?.personalstats ?? raw;
+  return findNestedStatNumber(personal, [
+    'organizedcrimes',
+    'organized_crimes',
+    'organisedcrimes',
+    'organised_crimes'
+  ]);
+}
+
+function findNestedStatNumber(value, aliases) {
+  if (!value || typeof value !== 'object') return null;
+  const wanted = new Set(aliases.map(alias => String(alias).toLowerCase().replace(/[^a-z0-9]/g, '')));
+
+  if (Array.isArray(value)) {
+    for (const record of value) {
+      if (!record || typeof record !== 'object') continue;
+      const key = String(record.name ?? record.stat ?? record.key ?? '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+      if (wanted.has(key)) {
+        const found = numberOrNull(record.value ?? record.amount ?? record.total ?? record.current);
+        if (found !== null) return found;
+      }
+    }
+  }
+
+  for (const [key, child] of Object.entries(value)) {
+    const normalized = String(key).toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (wanted.has(normalized)) {
+      const found = numberOrNull(child);
+      if (found !== null) return found;
+    }
+    const nested = findNestedStatNumber(child, aliases);
+    if (nested !== null) return nested;
+  }
+
+  return null;
 }
 
 function monotonicDelta(current, previous) {
