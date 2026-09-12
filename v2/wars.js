@@ -954,7 +954,19 @@ async function handleImport(event) {
         );
       } catch (error) {
         const message = error.message || String(error);
-        if (usedApi) {
+        const permissionLimited =
+          /faction api permission/i.test(message) ||
+          /incorrect id-entity relation/i.test(message);
+
+        if (usedApi && permissionLimited) {
+          updateImportRow(
+            rows,
+            id,
+            'warning',
+            'Imported',
+            'War report imported. Attack details unavailable: the configured API key needs faction API access.'
+          );
+        } else if (usedApi) {
           updateImportRow(rows,id,'warning','Imported',`${phase} incomplete: ${message}`);
         } else {
           updateImportRow(rows,id,'error','Failed',message);
