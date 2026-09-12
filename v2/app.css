@@ -6799,3 +6799,182 @@ body {
 .import-row.warning span {
   color: var(--warning);
 }
+
+
+/* War detail polish: treat the opened report as the page, not a subsection of Archive. */
+#archiveView.war-open > .archive-view-head {
+  display: none;
+}
+
+#archiveView.war-open {
+  padding-top: 0;
+}
+
+#warDetailView .detail-head {
+  grid-template-columns: minmax(0,1fr) auto;
+  grid-template-areas:
+    "back share"
+    "title share";
+  align-items: end;
+  gap: 4px 18px;
+  margin: 0 0 12px;
+  padding: 0 0 10px;
+}
+
+#warDetailView .detail-back {
+  grid-area: back;
+  justify-self: start;
+  min-height: 20px;
+  padding: 0;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+#warDetailView .detail-title {
+  grid-area: title;
+}
+
+#warDetailView #shareToggle {
+  grid-area: share;
+  align-self: end;
+  margin-bottom: 1px;
+}
+
+#warDetailView .detail-title-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+#warDetailView .detail-title-line h2 {
+  margin: 0;
+}
+
+#warDetailView #warDetailResult {
+  flex: 0 0 auto;
+}
+
+#warDetailView .score-line {
+  min-height: 48px;
+  padding: 6px 12px;
+  background: #111315;
+}
+
+#warDetailView .score-side span {
+  font-size: 10px;
+}
+
+#warDetailView .score-side span .entity-id {
+  display: inline;
+  margin-left: 3px;
+  color: var(--dim);
+  font-size: 8px;
+  font-weight: 450;
+}
+
+#warDetailView .score-side strong {
+  font-size: 19px;
+}
+
+#warDetailView .score-versus {
+  min-width: 62px;
+}
+
+#warDetailView .war-detail-summary {
+  display: none;
+}
+
+#warDetailView > .control-line {
+  min-height: 34px;
+  align-items: center;
+  margin: 8px 0 5px;
+}
+
+#warDetailView > .control-line .control-cluster {
+  gap: 12px;
+}
+
+#warDetailView #warDetailMode {
+  min-width: 96px;
+}
+
+#warDetailView #warDetailSearch {
+  width: 225px;
+  margin-left: auto;
+}
+
+#warDetailView #warDetailTable th,
+#warDetailView #warDetailTable td {
+  height: 38px;
+  padding: 5px 8px;
+}
+
+#warDetailView #warDetailTable th {
+  height: 30px;
+  color: #dde1e3;
+  font-size: 10px;
+  font-weight: 740;
+  border-bottom-color: #2e3234;
+}
+
+#warDetailView #warDetailTable th:first-child,
+#warDetailView #warDetailTable td:first-child {
+  width: 23%;
+}
+
+#warDetailView #warDetailTable tbody td {
+  font-size: 11px;
+}
+
+#warDetailView #warDetailTable .member-name {
+  display: inline;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+#warDetailView #warDetailTable .member-name .entity-id {
+  display: inline;
+  margin-left: 4px;
+  color: var(--dim);
+  font-size: 8px;
+  font-weight: 450;
+}
+
+#warDetailView #warDetailTable .member-meta {
+  margin-top: 1px;
+}
+
+#warDetailView #warDetailTable .war-total-row td {
+  height: 42px;
+  border-top: 0;
+  border-bottom: 2px solid var(--accent);
+  background: #111315;
+  font-size: 11px;
+}
+
+#warDetailView #warDetailTable .war-total-row td:first-child strong {
+  font-size: 12px;
+}
+
+#warDetailView #warDetailTable .war-total-row .secondary {
+  display: block;
+  margin-top: 1px;
+}
+
+#warDetailView #warDetailTable tfoot {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  #warDetailView .detail-head {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "back share"
+      "title title";
+  }
+
+  #warDetailView #warDetailSearch {
+    width: min(230px,52vw);
+  }
+}
