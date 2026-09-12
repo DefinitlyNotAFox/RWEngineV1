@@ -6793,3 +6793,9 @@ body {
   border-color: var(--accent);
   color: var(--accent-2);
 }
+
+
+/* Imported base report succeeded, but a supplemental pass needs retrying. */
+.import-row.warning span {
+  color: var(--warning);
+}
