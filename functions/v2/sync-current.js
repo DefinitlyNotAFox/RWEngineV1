@@ -2,6 +2,8 @@ const TASK_BATCH_SIZE = 6;
 const REQUEST_INTERVAL_MS = 750;
 const LEASE_SECONDS = 180;
 const MANAGED_KEY_CONFIG = 'admin_managed_api_key_v1';
+const CRON_RETRY_DELAY_SECONDS = 6 * 60 * 60;
+const CRON_MAX_ATTEMPTS_PER_DAY = 3;
 
 export async function onRequest(context) {
   try {
@@ -11,9 +13,16 @@ export async function onRequest(context) {
     if (!env.APP_SECRET) throw new Error('Missing APP_SECRET secret.');
 
     const body = await readJson(request);
+    const action = String(body.action || 'getSyncStatus');
+
+    if (action === 'cronPlan' || action === 'cronStep') {
+      requireCronSecret(env, request);
+      if (action === 'cronPlan') return cronPlan(env);
+      return cronStep(env, body);
+    }
+
     const user = await currentUser(env, request);
     const factionId = await resolveFaction(env.DB, user, body.factionId);
-    const action = String(body.action || 'getSyncStatus');
 
     if (action === 'startSync') return startSync(env, user, factionId);
     if (action === 'getSyncStatus') return syncStatus(env.DB, factionId, body.jobId);
@@ -22,6 +31,165 @@ export async function onRequest(context) {
   } catch (error) {
     return respond({ success: false, message: error?.message || 'Faction sync failed.' }, error?.status || 500);
   }
+}
+
+async function cronPlan(env) {
+  const now = unixNow();
+  const today = utcDate(now);
+  const dayStart = Math.floor(now / 86400) * 86400;
+  const factionsResult = await env.DB.prepare(`
+    SELECT faction_id, faction_name
+    FROM factions
+    WHERE enabled = 1
+    ORDER BY faction_id
+  `).all();
+
+  const jobs = [];
+  const skipped = [];
+
+  for (const faction of factionsResult.results || []) {
+    const factionId = Number(faction.faction_id);
+    const factionName = String(faction.faction_name || `Faction ${factionId}`);
+
+    const active = await activeJob(env.DB, factionId);
+    if (active) {
+      jobs.push({ factionId, factionName, reason: 'continue', job: active });
+      continue;
+    }
+
+    const coverage = await env.DB.prepare(`
+      SELECT
+        (SELECT COUNT(*) FROM faction_members
+         WHERE faction_id = ? AND is_current = 1) AS members,
+        (SELECT COUNT(*)
+         FROM member_snapshots ms
+         JOIN faction_members fm
+           ON fm.faction_id = ms.faction_id
+          AND fm.player_id = ms.player_id
+         WHERE ms.faction_id = ?
+           AND ms.snapshot_date = ?
+           AND fm.is_current = 1) AS snapshots
+    `).bind(factionId, factionId, today).first();
+
+    const members = Number(coverage?.members || 0);
+    const snapshots = Number(coverage?.snapshots || 0);
+    if (members > 0 && snapshots >= members) {
+      skipped.push({ factionId, factionName, reason: 'up-to-date', members, snapshots });
+      continue;
+    }
+
+    const attempts = await env.DB.prepare(`
+      SELECT COUNT(*) AS count, MAX(created_at) AS latest
+      FROM faction_sync_jobs
+      WHERE faction_id = ?
+        AND trigger_type = 'scheduled'
+        AND created_at >= ?
+    `).bind(factionId, dayStart).first();
+
+    const attemptCount = Number(attempts?.count || 0);
+    const latestAttempt = Number(attempts?.latest || 0);
+    if (attemptCount >= CRON_MAX_ATTEMPTS_PER_DAY) {
+      skipped.push({ factionId, factionName, reason: 'retry-limit', attempts: attemptCount });
+      continue;
+    }
+    if (latestAttempt && latestAttempt > now - CRON_RETRY_DELAY_SECONDS) {
+      skipped.push({
+        factionId,
+        factionName,
+        reason: 'retry-cooldown',
+        retryAfter: latestAttempt + CRON_RETRY_DELAY_SECONDS
+      });
+      continue;
+    }
+
+    const user = await serviceUserForFaction(env.DB, factionId);
+    if (!user) {
+      skipped.push({ factionId, factionName, reason: 'no-service-user' });
+      continue;
+    }
+
+    try {
+      await factionKey(env, factionId, user);
+    } catch (error) {
+      skipped.push({
+        factionId,
+        factionName,
+        reason: 'no-api-key',
+        error: error?.message || String(error)
+      });
+      continue;
+    }
+
+    let job;
+    try {
+      const result = await env.DB.prepare(`
+        INSERT INTO faction_sync_jobs (
+          faction_id, requested_by_user_id, trigger_type, status, phase,
+          seed_history, created_at, updated_at
+        ) VALUES (?, ?, 'scheduled', 'queued', 'initializing', 0, ?, ?)
+      `).bind(factionId, Number(user.user_id), now, now).run();
+      job = await jobById(env.DB, Number(result.meta?.last_row_id));
+    } catch (error) {
+      job = await activeJob(env.DB, factionId);
+      if (!job) throw error;
+    }
+
+    jobs.push({ factionId, factionName, reason: attemptCount ? 'retry' : 'daily', job });
+  }
+
+  return respond({
+    success: true,
+    message: 'Scheduled faction sync plan prepared.',
+    date: today,
+    jobs,
+    skipped
+  });
+}
+
+async function cronStep(env, body) {
+  const factionId = Number(body.factionId || 0);
+  const jobId = Number(body.jobId || 0);
+  if (!Number.isSafeInteger(factionId) || factionId <= 0) {
+    throw httpError(400, 'Missing or invalid faction ID.');
+  }
+  if (!Number.isSafeInteger(jobId) || jobId <= 0) {
+    throw httpError(400, 'Missing or invalid sync job ID.');
+  }
+
+  const faction = await env.DB.prepare(`
+    SELECT faction_id FROM factions WHERE faction_id = ? AND enabled = 1
+  `).bind(factionId).first();
+  if (!faction) throw httpError(404, 'That faction is not tracked by RWE.');
+
+  const user = await serviceUserForFaction(env.DB, factionId);
+  if (!user) throw httpError(400, 'No active service user is available for this faction.');
+
+  return syncStep(env, user, factionId, jobId);
+}
+
+async function serviceUserForFaction(db, factionId) {
+  return db.prepare(`
+    SELECT
+      user_id, player_id, player_name, faction_id, faction_name,
+      api_key_encrypted, api_key_iv, is_admin, is_disabled
+    FROM users
+    WHERE is_disabled = 0
+      AND (faction_id = ? OR is_admin = 1)
+    ORDER BY
+      CASE WHEN faction_id = ? THEN 0 ELSE 1 END,
+      CASE WHEN api_key_encrypted IS NOT NULL AND api_key_iv IS NOT NULL THEN 0 ELSE 1 END,
+      is_admin DESC,
+      COALESCE(last_login_at, 0) DESC,
+      user_id ASC
+    LIMIT 1
+  `).bind(factionId, factionId).first();
+}
+
+function requireCronSecret(env, request) {
+  const expected = String(env.CRON_SECRET || '');
+  if (!expected) throw httpError(503, 'CRON_SECRET is not configured.');
+  const supplied = String(request.headers.get('X-RWE-Cron-Secret') || '');
+  if (!supplied || supplied !== expected) throw httpError(403, 'Invalid cron credentials.');
 }
 
 async function startSync(env, user, factionId) {
@@ -128,7 +296,7 @@ async function convertLegacyJob(db, jobId) {
     UPDATE faction_sync_tasks SET status='pending', error_text=NULL, updated_at=?
     WHERE job_id=? AND historical_timestamp IS NULL AND status='failed'
   `).bind(unixNow(), jobId).run();
-  await db.prepare(`UPDATE faction_sync_jobs SET seed_history=0, trigger_type='manual', updated_at=? WHERE job_id=?`)
+  await db.prepare(`UPDATE faction_sync_jobs SET seed_history=0, updated_at=? WHERE job_id=?`)
     .bind(unixNow(), jobId).run();
   await refreshCounts(db, jobId, false);
 }
