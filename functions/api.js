@@ -991,6 +991,9 @@ async function handleImportRankedWarReport(env, request, body) {
   }
 
   await deleteAttackSummaryState(env, normalized.factionId, normalized.warId);
+  await env.DB.prepare(
+    'DELETE FROM app_meta WHERE key = ?'
+  ).bind(`war_attack_accumulator_v1:${normalized.factionId}:${normalized.warId}`).run();
 
   const now = nowUnix();
 
