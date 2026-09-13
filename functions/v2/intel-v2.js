@@ -559,48 +559,7 @@ function nearestObservation(rows, target, exclude = null) {
 }
 
 function snapshotOrganizedCrimes(row) {
-  if (!row) return null;
-  const raw = parseJson(row.raw_json);
-  const direct = numberOrNull(raw?.rwe?.organizedCrimesTotal);
-  if (direct !== null) return direct;
-
-  const personal = raw?.personalstats ?? raw;
-  return findNestedStatNumber(personal, [
-    'organizedcrimes',
-    'organized_crimes',
-    'organisedcrimes',
-    'organised_crimes'
-  ]);
-}
-
-function findNestedStatNumber(value, aliases) {
-  if (!value || typeof value !== 'object') return null;
-  const wanted = new Set(aliases.map(alias => String(alias).toLowerCase().replace(/[^a-z0-9]/g, '')));
-
-  if (Array.isArray(value)) {
-    for (const record of value) {
-      if (!record || typeof record !== 'object') continue;
-      const key = String(record.name ?? record.stat ?? record.key ?? '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '');
-      if (wanted.has(key)) {
-        const found = numberOrNull(record.value ?? record.amount ?? record.total ?? record.current);
-        if (found !== null) return found;
-      }
-    }
-  }
-
-  for (const [key, child] of Object.entries(value)) {
-    const normalized = String(key).toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (wanted.has(normalized)) {
-      const found = numberOrNull(child);
-      if (found !== null) return found;
-    }
-    const nested = findNestedStatNumber(child, aliases);
-    if (nested !== null) return nested;
-  }
-
-  return null;
+  return numberOrNull(row?.organized_crimes_total);
 }
 
 function monotonicDelta(current, previous) {
@@ -652,13 +611,6 @@ function coverageAcross(rows, from, to) {
   const inRange = rows.filter(row => Number(row.snapshot_at || 0) >= from && Number(row.snapshot_at || 0) <= to);
   if (inRange.length < 2) return 0;
   return Math.max(0, (Number(inRange[inRange.length - 1].snapshot_at) - Number(inRange[0].snapshot_at)) / DAY);
-}
-
-function parseJson(value) {
-  if (!value) return null;
-  if (typeof value === 'object') return value;
-  try { return JSON.parse(String(value)); }
-  catch (_) { return null; }
 }
 
 function extractMemberJson(row) {
