@@ -121,6 +121,14 @@ CREATE TABLE IF NOT EXISTS war_log (
   chain_bonus_score REAL NOT NULL DEFAULT 0,
   chain_bonus_hits INTEGER NOT NULL DEFAULT 0,
 
+  respect_earned REAL,
+  respect_lost REAL,
+  attack_detail_complete INTEGER NOT NULL DEFAULT 0,
+  attack_detail_rows INTEGER NOT NULL DEFAULT 0,
+  chain_bonus_hits_in INTEGER NOT NULL DEFAULT 0,
+  chain_bonus_score_in REAL NOT NULL DEFAULT 0,
+  chain_bonus_respect_lost_in REAL NOT NULL DEFAULT 0,
+
   synced_at INTEGER NOT NULL,
 
   UNIQUE(war_id, player_id),
