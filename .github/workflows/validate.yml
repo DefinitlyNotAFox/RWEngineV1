@@ -58,7 +58,7 @@ jobs:
           for js_file in js_files:
               source = js_file.read_text(encoding="utf-8")
               for rel in re.findall(r"from\s+['\"](\./[^'\"]+)['\"]", source):
-                  target = (js_file.parent / rel).resolve()
+                  target = (js_file.parent / rel.split("?", 1)[0]).resolve()
                   if not target.exists():
                       missing_imports.append(f"{js_file}: {rel}")
 
