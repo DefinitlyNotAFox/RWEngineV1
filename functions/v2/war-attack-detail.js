@@ -1,6 +1,8 @@
 const MANAGED_KEY_CONFIG = 'admin_managed_api_key_v1';
 const PAGE_LIMIT = 250;
 const TIME_PADDING_SECONDS = 60;
+const STATE_PREFIX = 'war_attack_accumulator_v1';
+const CHAIN_MILESTONES = new Set([10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000]);
 
 export async function onRequest(context) {
   try {
@@ -15,6 +17,8 @@ export async function onRequest(context) {
     const user = await getCurrentUser(env, request);
     const factionId = await resolveFactionId(env.DB, user, body.factionId);
     await ensureAccessSchema(env.DB);
+    await ensureAggregateSchema(env.DB);
+
     const warId = String(body.warId || '').trim();
     if (!warId) throw httpError(400, 'Missing war ID.');
 
@@ -30,69 +34,145 @@ export async function onRequest(context) {
       throw httpError(400, 'Imported war is missing start/end timestamps.');
     }
 
+    let state = await loadAccumulator(env.DB, factionId, warId);
+
     if (body.finalize === true) {
-      const metricAdjustment = await rebuildWarMetrics(env.DB, war);
-      const totals = await getStoredTotals(env.DB, factionId, warId);
+      if (!state) {
+        const finalized = await readFinalizedTotals(env.DB, factionId, warId);
+        if (finalized.complete) {
+          return json({
+            success:true,
+            done:true,
+            finalized:true,
+            warId,
+            fetchedThisPage:0,
+            storedThisPage:0,
+            processedThisPage:0,
+            storedTotal:finalized.processedTotal,
+            processedTotal:finalized.processedTotal,
+            membersWithDetail:finalized.membersWithDetail,
+            assists:finalized.assists,
+            respectEarned:finalized.respectEarned,
+            respectLost:finalized.respectLost,
+            scoreAdjustment:finalized.scoreAdjustment,
+            metricAdjustment:finalized.scoreAdjustment,
+            nextUrl:null,
+            source:'v2-faction-attacksfull-aggregate'
+          });
+        }
+
+        state = createAccumulator(war);
+        await seedAccumulatorFromLegacyRows(env.DB, war, state);
+      }
+
+      const metricAdjustment = await finalizeAccumulator(env.DB, war, state);
+      const totals = summarizeAccumulator(state);
+      await deleteAccumulator(env.DB, factionId, warId);
+
       return json({
-        success: true,
-        done: true,
-        finalized: true,
+        success:true,
+        done:true,
+        finalized:true,
         warId,
-        fetchedThisPage: 0,
-        storedThisPage: 0,
-        storedTotal: totals.attackRows,
-        membersWithDetail: totals.membersWithDetail,
-        assists: totals.assists,
-        respectEarned: totals.respectEarned,
-        respectLost: totals.respectLost,
-        scoreAdjustment: metricAdjustment,
+        fetchedThisPage:0,
+        storedThisPage:0,
+        processedThisPage:0,
+        storedTotal:totals.processedTotal,
+        processedTotal:totals.processedTotal,
+        membersWithDetail:totals.membersWithDetail,
+        assists:totals.assists,
+        respectEarned:totals.respectEarned,
+        respectLost:totals.respectLost,
+        scoreAdjustment:metricAdjustment,
         metricAdjustment,
-        nextUrl: null,
-        source: 'v2-faction-attacksfull'
+        nextUrl:null,
+        source:'v2-faction-attacksfull-aggregate'
+      });
+    }
+
+    if (!state) {
+      state = createAccumulator(war);
+      // Compatibility for an import that started on the previous code version:
+      // seed the compact accumulator from already-stored rows once, then stop
+      // creating new attack rows.
+      if (body.nextUrl) {
+        await seedAccumulatorFromLegacyRows(env.DB, war, state);
+      }
+    }
+
+    if (state.done) {
+      const totals = summarizeAccumulator(state);
+      return json({
+        success:true,
+        done:true,
+        finalized:false,
+        warId,
+        fetchedThisPage:0,
+        storedThisPage:0,
+        processedThisPage:0,
+        storedTotal:totals.processedTotal,
+        processedTotal:totals.processedTotal,
+        membersWithDetail:totals.membersWithDetail,
+        assists:totals.assists,
+        respectEarned:totals.respectEarned,
+        respectLost:totals.respectLost,
+        nextUrl:null,
+        source:'v2-faction-attacksfull-aggregate'
       });
     }
 
     const apiKey = await requireFactionApiKey(env, factionId);
-    const requestUrl = body.nextUrl
-      ? sanitizeNextUrl(body.nextUrl)
-      : buildInitialUrl(war);
+    const requestUrl = state.nextUrl
+      ? sanitizeNextUrl(state.nextUrl)
+      : body.nextUrl
+        ? sanitizeNextUrl(body.nextUrl)
+        : buildInitialUrl(war);
 
     const payload = await fetchTornJson(requestUrl, apiKey);
     const rawAttacks = Array.isArray(payload?.attacks) ? payload.attacks : [];
     const exactStart = Number(war.start_timestamp);
     const exactEnd = Number(war.end_timestamp);
-    const normalized = rawAttacks
-      .map(normalizeAttack)
-      .filter(attack => attack.attackId)
-      .filter(attack => attackOverlapsWar(attack, exactStart, exactEnd));
+    const seen = new Set(state.seenAttackIds || []);
+    let processedThisPage = 0;
 
-    if (normalized.length) {
-      await storeAttackBatch(env.DB, war, normalized);
+    for (const attack of rawAttacks.map(normalizeAttack)) {
+      if (!attack.attackId || seen.has(attack.attackId)) continue;
+      seen.add(attack.attackId);
+      if (!attackOverlapsWar(attack, exactStart, exactEnd)) continue;
+      accumulateAttack(state, war, attack);
+      processedThisPage += 1;
+      state.processedTotal += 1;
     }
 
-    const nextUrl = sanitizeOptionalNextUrl(payload?._metadata?.links?.next);
-    const done = !nextUrl;
-    const totals = await getStoredTotals(env.DB, factionId, warId);
+    state.seenAttackIds = [...seen];
+    state.rawFetched = Number(state.rawFetched || 0) + rawAttacks.length;
+    state.nextUrl = sanitizeOptionalNextUrl(payload?._metadata?.links?.next);
+    state.done = !state.nextUrl;
+    state.updatedAt = unixNow();
+    await saveAccumulator(env.DB, factionId, warId, state);
 
+    const totals = summarizeAccumulator(state);
     return json({
-      success: true,
-      done,
-      finalized: false,
+      success:true,
+      done:state.done,
+      finalized:false,
       warId,
-      fetchedThisPage: rawAttacks.length,
-      storedThisPage: normalized.length,
-      storedTotal: totals.attackRows,
-      membersWithDetail: totals.membersWithDetail,
-      assists: totals.assists,
-      respectEarned: totals.respectEarned,
-      respectLost: totals.respectLost,
-      nextUrl: done ? null : nextUrl,
-      source: 'v2-faction-attacksfull'
+      fetchedThisPage:rawAttacks.length,
+      storedThisPage:processedThisPage,
+      processedThisPage,
+      storedTotal:totals.processedTotal,
+      processedTotal:totals.processedTotal,
+      membersWithDetail:totals.membersWithDetail,
+      assists:totals.assists,
+      respectEarned:totals.respectEarned,
+      respectLost:totals.respectLost,
+      nextUrl:state.done ? null : state.nextUrl,
+      source:'v2-faction-attacksfull-aggregate'
     });
   } catch (error) {
     return json({
-      success: false,
-      message: error?.message || 'Unexpected attack-detail supplement error.'
+      success:false,
+      message:error?.message || 'Unexpected attack-detail supplement error.'
     }, error?.status || 500);
   }
 }
@@ -101,6 +181,29 @@ async function ensureAccessSchema(db) {
   await db.prepare(
     "CREATE TABLE IF NOT EXISTS resource_permissions (permission_id INTEGER PRIMARY KEY AUTOINCREMENT, owner_user_id INTEGER NOT NULL, faction_id INTEGER NOT NULL, resource_type TEXT NOT NULL, resource_key TEXT NOT NULL, visibility TEXT NOT NULL DEFAULT 'faction' CHECK (visibility IN ('private', 'faction', 'public')), created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE(faction_id, resource_type, resource_key), FOREIGN KEY (owner_user_id) REFERENCES users(user_id) ON DELETE CASCADE, FOREIGN KEY (faction_id) REFERENCES factions(faction_id))"
   ).run();
+}
+
+async function ensureAggregateSchema(db) {
+  const columns = await db.prepare("PRAGMA table_info(war_log)").all();
+  const found = new Set((columns.results || []).map(row => String(row.name)));
+  const additions = [
+    ['respect_earned', 'ALTER TABLE war_log ADD COLUMN respect_earned REAL'],
+    ['respect_lost', 'ALTER TABLE war_log ADD COLUMN respect_lost REAL'],
+    ['attack_detail_complete', 'ALTER TABLE war_log ADD COLUMN attack_detail_complete INTEGER NOT NULL DEFAULT 0'],
+    ['attack_detail_rows', 'ALTER TABLE war_log ADD COLUMN attack_detail_rows INTEGER NOT NULL DEFAULT 0'],
+    ['chain_bonus_hits_in', 'ALTER TABLE war_log ADD COLUMN chain_bonus_hits_in INTEGER NOT NULL DEFAULT 0'],
+    ['chain_bonus_score_in', 'ALTER TABLE war_log ADD COLUMN chain_bonus_score_in REAL NOT NULL DEFAULT 0'],
+    ['chain_bonus_respect_lost_in', 'ALTER TABLE war_log ADD COLUMN chain_bonus_respect_lost_in REAL NOT NULL DEFAULT 0']
+  ];
+
+  for (const [name, sql] of additions) {
+    if (found.has(name)) continue;
+    try {
+      await db.prepare(sql).run();
+    } catch (error) {
+      if (!/duplicate column|already exists/i.test(String(error?.message || error || ''))) throw error;
+    }
+  }
 }
 
 async function assertWarAccess(db, user, factionId, war) {
@@ -114,21 +217,18 @@ async function assertWarAccess(db, user, factionId, war) {
 
   const permissionOwnerId = Number(permission?.owner_user_id || 0);
   const importOwnerId = Number(war.imported_by_user_id || 0);
-  if (
-    permissionOwnerId !== Number(user.user_id) &&
-    importOwnerId !== Number(user.user_id)
-  ) {
+  if (permissionOwnerId !== Number(user.user_id) && importOwnerId !== Number(user.user_id)) {
     throw httpError(403, 'This war report is private.');
   }
 }
 
 function buildInitialUrl(war) {
   const query = new URLSearchParams({
-    limit: String(PAGE_LIMIT),
-    sort: 'ASC',
-    from: String(Number(war.start_timestamp) - TIME_PADDING_SECONDS),
-    to: String(Number(war.end_timestamp) + TIME_PADDING_SECONDS),
-    comment: 'RWEngineWarDetail'
+    limit:String(PAGE_LIMIT),
+    sort:'ASC',
+    from:String(Number(war.start_timestamp) - TIME_PADDING_SECONDS),
+    to:String(Number(war.end_timestamp) + TIME_PADDING_SECONDS),
+    comment:'RWEngineWarDetail'
   });
   return `https://api.torn.com/v2/faction/attacksfull?${query}`;
 }
@@ -145,7 +245,6 @@ function sanitizeNextUrl(value) {
   } catch (_) {
     throw httpError(400, 'Torn returned an invalid attack pagination URL.');
   }
-
   if (url.protocol !== 'https:' || url.hostname !== 'api.torn.com') {
     throw httpError(400, 'Rejected invalid Torn attack pagination host.');
   }
@@ -157,18 +256,12 @@ function sanitizeNextUrl(value) {
 
 async function fetchTornJson(url, apiKey) {
   const response = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-      Authorization: `ApiKey ${apiKey}`
-    }
+    headers:{ Accept:'application/json', Authorization:`ApiKey ${apiKey}` }
   });
 
   let payload;
-  try {
-    payload = await response.json();
-  } catch (_) {
-    throw httpError(502, `Torn returned HTTP ${response.status} without valid JSON.`);
-  }
+  try { payload = await response.json(); }
+  catch (_) { throw httpError(502, `Torn returned HTTP ${response.status} without valid JSON.`); }
 
   if (payload?.error) {
     const code = Number(payload.error.code || 0);
@@ -181,38 +274,34 @@ async function fetchTornJson(url, apiKey) {
     }
     throw httpError(502, `Torn API error: ${message}`);
   }
-  if (!response.ok) {
-    throw httpError(502, `Torn request failed with HTTP ${response.status}.`);
-  }
+  if (!response.ok) throw httpError(502, `Torn request failed with HTTP ${response.status}.`);
   return payload;
 }
 
 function normalizeAttack(attack) {
   const attacker = attack?.attacker || {};
   const defender = attack?.defender || {};
-  const isRankedWar =
-    attack?.is_ranked_war === true ||
-    attack?.isRankedWar === true ||
-    Number(attack?.is_ranked_war || attack?.isRankedWar || 0) === 1;
-
   return {
-    attackId: String(attack?.id || attack?.attack_id || ''),
-    attackerId: nullableNumber(attacker?.id ?? attack?.attacker_id),
-    defenderId: nullableNumber(defender?.id ?? attack?.defender_id),
-    attackerFactionId: factionIdFrom(
+    attackId:String(attack?.id || attack?.attack_id || ''),
+    attackerId:nullableNumber(attacker?.id ?? attack?.attacker_id),
+    defenderId:nullableNumber(defender?.id ?? attack?.defender_id),
+    attackerFactionId:factionIdFrom(
       attacker?.faction_id ?? attacker?.faction ?? attack?.attacker_faction_id ?? attack?.attacker_faction
     ),
-    defenderFactionId: factionIdFrom(
+    defenderFactionId:factionIdFrom(
       defender?.faction_id ?? defender?.faction ?? attack?.defender_faction_id ?? attack?.defender_faction
     ),
-    result: String(attack?.result || ''),
-    respectGain: finiteNumber(attack?.respect_gain),
-    respectLoss: finiteNumber(attack?.respect_loss),
-    chain: nullableNumber(attack?.chain),
-    isRankedWar,
-    timestampStarted: nullableNumber(attack?.started ?? attack?.timestamp_started),
-    timestampEnded: nullableNumber(attack?.ended ?? attack?.timestamp_ended),
-    raw: attack || {}
+    result:String(attack?.result || ''),
+    respectGain:finiteNumber(attack?.respect_gain),
+    respectLoss:Math.abs(finiteNumber(attack?.respect_loss)),
+    chain:nullableNumber(attack?.chain),
+    chainModifier:finiteNumber(attack?.modifiers?.chain ?? attack?.modifier?.chain),
+    isRankedWar:
+      attack?.is_ranked_war === true ||
+      attack?.isRankedWar === true ||
+      Number(attack?.is_ranked_war || attack?.isRankedWar || 0) === 1,
+    timestampStarted:nullableNumber(attack?.started ?? attack?.timestamp_started),
+    timestampEnded:nullableNumber(attack?.ended ?? attack?.timestamp_ended)
   };
 }
 
@@ -220,180 +309,224 @@ function attackOverlapsWar(attack, exactStart, exactEnd) {
   const started = Number(attack.timestampStarted || 0);
   const ended = Number(attack.timestampEnded || 0);
   if (!started && !ended) return true;
-
-  // Torn marks an attack as part of a ranked war based on when the attack
-  // started. The finishing action can land a few seconds after the war end.
   const effectiveStart = started || ended;
   const effectiveEnd = ended || started;
   return effectiveStart <= exactEnd && effectiveEnd >= exactStart;
 }
 
-async function storeAttackBatch(db, war, attacks) {
-  const factionId = Number(war.faction_id);
-  const opponentId = Number(war.opponent_faction_id || 0);
-  const statement = db.prepare(`
-    INSERT INTO attacks (
-      attack_id, war_id, faction_id,
-      attacker_id, attacker_name, defender_id, defender_name,
-      attacker_faction_id, defender_faction_id, result,
-      respect_gain, respect_loss, chain, is_ranked_war,
-      timestamp_started, timestamp_ended, raw_json, created_at
-    ) VALUES (?, ?, ?, ?, NULL, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(attack_id) DO UPDATE SET
-      war_id = excluded.war_id,
-      faction_id = excluded.faction_id,
-      attacker_id = COALESCE(excluded.attacker_id, attacks.attacker_id),
-      defender_id = COALESCE(excluded.defender_id, attacks.defender_id),
-      attacker_faction_id = COALESCE(excluded.attacker_faction_id, attacks.attacker_faction_id),
-      defender_faction_id = COALESCE(excluded.defender_faction_id, attacks.defender_faction_id),
-      result = CASE WHEN excluded.result != '' THEN excluded.result ELSE attacks.result END,
-      respect_gain = excluded.respect_gain,
-      respect_loss = excluded.respect_loss,
-      chain = COALESCE(excluded.chain, attacks.chain),
-      is_ranked_war = MAX(attacks.is_ranked_war, excluded.is_ranked_war),
-      timestamp_started = COALESCE(excluded.timestamp_started, attacks.timestamp_started),
-      timestamp_ended = COALESCE(excluded.timestamp_ended, attacks.timestamp_ended),
-      raw_json = excluded.raw_json
-  `);
-
-  for (let index = 0; index < attacks.length; index += 75) {
-    const chunk = attacks.slice(index, index + 75).map(attack => {
-      const betweenWarFactions = opponentId > 0 && (
-        (Number(attack.attackerFactionId || 0) === factionId && Number(attack.defenderFactionId || 0) === opponentId) ||
-        (Number(attack.attackerFactionId || 0) === opponentId && Number(attack.defenderFactionId || 0) === factionId)
-      );
-
-      return statement.bind(
-        attack.attackId,
-        String(war.war_id),
-        factionId,
-        attack.attackerId,
-        attack.defenderId,
-        attack.attackerFactionId,
-        attack.defenderFactionId,
-        attack.result,
-        attack.respectGain,
-        attack.respectLoss,
-        attack.chain,
-        attack.isRankedWar || betweenWarFactions ? 1 : 0,
-        attack.timestampStarted,
-        attack.timestampEnded,
-        JSON.stringify(attack.raw || {}),
-        unixNow()
-      );
-    });
-    await db.batch(chunk);
-  }
-}
-
-async function getStoredTotals(db, factionId, warId) {
-  const row = await db.prepare(`
-    SELECT
-      COUNT(*) AS attack_rows,
-      COUNT(DISTINCT CASE
-        WHEN is_ranked_war = 1
-         AND EXISTS (
-           SELECT 1 FROM war_log wl
-           WHERE wl.war_id = attacks.war_id
-             AND wl.faction_id = attacks.faction_id
-             AND (wl.player_id = attacks.attacker_id OR wl.player_id = attacks.defender_id)
-         )
-        THEN COALESCE(attacker_id, defender_id) END
-      ) AS members_with_detail,
-      SUM(CASE
-        WHEN is_ranked_war = 1
-         AND EXISTS (
-           SELECT 1 FROM war_log wl
-           WHERE wl.war_id = attacks.war_id
-             AND wl.faction_id = attacks.faction_id
-             AND wl.player_id = attacks.attacker_id
-         )
-         AND LOWER(TRIM(COALESCE(result, ''))) LIKE '%assist%'
-        THEN 1 ELSE 0 END
-      ) AS assists,
-      SUM(CASE
-        WHEN is_ranked_war = 1
-         AND EXISTS (
-           SELECT 1 FROM war_log wl
-           WHERE wl.war_id = attacks.war_id
-             AND wl.faction_id = attacks.faction_id
-             AND wl.player_id = attacks.attacker_id
-         )
-         AND LOWER(TRIM(COALESCE(result, ''))) NOT LIKE '%assist%'
-        THEN COALESCE(respect_gain, 0) ELSE 0 END
-      ) AS respect_earned,
-      SUM(CASE
-        WHEN is_ranked_war = 1
-         AND EXISTS (
-           SELECT 1 FROM war_log wl
-           WHERE wl.war_id = attacks.war_id
-             AND wl.faction_id = attacks.faction_id
-             AND wl.player_id = attacks.defender_id
-         )
-         AND LOWER(TRIM(COALESCE(result, ''))) NOT LIKE '%assist%'
-        THEN ABS(COALESCE(respect_loss, 0)) ELSE 0 END
-      ) AS respect_lost
-    FROM attacks
-    WHERE faction_id = ? AND war_id = ?
-  `).bind(factionId, warId).first();
-
+function createAccumulator(war) {
   return {
-    attackRows: Number(row?.attack_rows || 0),
-    membersWithDetail: Number(row?.members_with_detail || 0),
-    assists: Number(row?.assists || 0),
-    respectEarned: Number(row?.respect_earned || 0),
-    respectLost: Number(row?.respect_lost || 0)
+    version:1,
+    warId:String(war.war_id),
+    factionId:Number(war.faction_id),
+    opponentFactionId:Number(war.opponent_faction_id || 0),
+    processedTotal:0,
+    rawFetched:0,
+    seenAttackIds:[],
+    players:{},
+    nextUrl:null,
+    done:false,
+    verifiedOutgoingScore:0,
+    createdAt:unixNow(),
+    updatedAt:unixNow()
   };
 }
 
-async function rebuildWarMetrics(db, war) {
+function emptyPlayerMetric(playerId) {
+  return {
+    playerId:Number(playerId),
+    assists:0,
+    outsideHits:0,
+    scoreDown:0,
+    respectEarned:0,
+    respectLost:0,
+    attackRows:0,
+    chainBonusHitsOut:0,
+    chainBonusScoreOut:0,
+    chainBonusHitsIn:0,
+    chainBonusScoreIn:0,
+    chainBonusRespectLostIn:0
+  };
+}
+
+function playerMetric(state, playerId) {
+  const id = Number(playerId || 0);
+  if (!id) return null;
+  const key = String(id);
+  if (!state.players[key]) state.players[key] = emptyPlayerMetric(id);
+  return state.players[key];
+}
+
+function accumulateAttack(state, war, attack) {
   const factionId = Number(war.faction_id);
   const opponentId = Number(war.opponent_faction_id || 0);
+  const attackerFactionId = Number(attack.attackerFactionId || 0);
+  const defenderFactionId = Number(attack.defenderFactionId || 0);
+  const ownOutgoing = attackerFactionId === factionId;
+  const ownIncoming = defenderFactionId === factionId;
+  const betweenWarFactions = opponentId > 0 && (
+    (attackerFactionId === factionId && defenderFactionId === opponentId) ||
+    (attackerFactionId === opponentId && defenderFactionId === factionId)
+  );
+  const ranked = Boolean(attack.isRankedWar || betweenWarFactions);
+  const assist = /assist/i.test(String(attack.result || ''));
+  const milestone = ranked && !assist && isMilestoneAttack(attack);
 
-  const rowsResult = await db.prepare(`
-    SELECT
-      wl.player_id,
-      COALESCE(NULLIF(wl.score_up_official, 0), wl.score_up, 0) AS official_score_up,
-      (
-        SELECT COUNT(*)
-        FROM attacks a
-        WHERE a.war_id = wl.war_id
-          AND a.faction_id = wl.faction_id
-          AND a.attacker_id = wl.player_id
-          AND LOWER(TRIM(COALESCE(a.result, ''))) LIKE '%assist%'
-      ) AS assists,
-      (
-        SELECT COUNT(*)
-        FROM attacks a
-        WHERE a.war_id = wl.war_id
-          AND a.faction_id = wl.faction_id
-          AND a.attacker_id = wl.player_id
-          AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
-          AND (? = 0 OR COALESCE(a.defender_faction_id, 0) <> ?)
-      ) AS outside_hits,
-      (
-        SELECT SUM(COALESCE(a.respect_gain, 0))
-        FROM attacks a
-        WHERE a.war_id = wl.war_id
-          AND a.faction_id = wl.faction_id
-          AND a.defender_id = wl.player_id
-          AND a.is_ranked_war = 1
-          AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
-      ) AS score_down
-    FROM war_log wl
-    WHERE wl.war_id = ? AND wl.faction_id = ?
-  `).bind(opponentId, opponentId, String(war.war_id), factionId).all();
+  if (ownOutgoing) {
+    const metric = playerMetric(state, attack.attackerId);
+    if (metric) {
+      if (ranked) {
+        metric.attackRows += 1;
+        if (assist) metric.assists += 1;
+        else {
+          metric.respectEarned += Number(attack.respectGain || 0);
+          state.verifiedOutgoingScore += Number(attack.respectGain || 0);
+          if (milestone) {
+            metric.chainBonusHitsOut += 1;
+            metric.chainBonusScoreOut += Number(attack.respectGain || 0);
+          }
+        }
+      }
+
+      if (!assist && (opponentId === 0 || defenderFactionId !== opponentId)) {
+        metric.outsideHits += 1;
+      }
+    }
+  }
+
+  if (ownIncoming && ranked) {
+    const metric = playerMetric(state, attack.defenderId);
+    if (metric) {
+      metric.attackRows += 1;
+      if (!assist) {
+        metric.scoreDown += Number(attack.respectGain || 0);
+        metric.respectLost += Math.abs(Number(attack.respectLoss || 0));
+        if (milestone) {
+          metric.chainBonusHitsIn += 1;
+          metric.chainBonusScoreIn += Number(attack.respectGain || 0);
+          metric.chainBonusRespectLostIn += Math.abs(Number(attack.respectLoss || 0));
+        }
+      }
+    }
+  }
+}
+
+function isMilestoneAttack(attack) {
+  return CHAIN_MILESTONES.has(Number(attack.chain || 0)) || Number(attack.chainModifier || 0) >= 2;
+}
+
+function accumulatorKey(factionId, warId) {
+  return `${STATE_PREFIX}:${factionId}:${warId}`;
+}
+
+async function loadAccumulator(db, factionId, warId) {
+  const row = await db.prepare('SELECT value FROM app_meta WHERE key = ?')
+    .bind(accumulatorKey(factionId, warId)).first();
+  if (!row?.value) return null;
+  try {
+    const state = JSON.parse(row.value);
+    if (!state || typeof state !== 'object') return null;
+    state.players = state.players && typeof state.players === 'object' ? state.players : {};
+    state.seenAttackIds = Array.isArray(state.seenAttackIds) ? state.seenAttackIds : [];
+    state.processedTotal = Number(state.processedTotal || 0);
+    state.rawFetched = Number(state.rawFetched || 0);
+    state.verifiedOutgoingScore = Number(state.verifiedOutgoingScore || 0);
+    return state;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function saveAccumulator(db, factionId, warId, state) {
+  await db.prepare(`
+    INSERT INTO app_meta (key, value, updated_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+  `).bind(accumulatorKey(factionId, warId), JSON.stringify(state), unixNow()).run();
+}
+
+async function deleteAccumulator(db, factionId, warId) {
+  await db.prepare('DELETE FROM app_meta WHERE key = ?')
+    .bind(accumulatorKey(factionId, warId)).run();
+}
+
+async function seedAccumulatorFromLegacyRows(db, war, state) {
+  const result = await db.prepare(`
+    SELECT attack_id, attacker_id, defender_id, attacker_faction_id, defender_faction_id,
+           result, respect_gain, respect_loss, chain, is_ranked_war,
+           timestamp_started, timestamp_ended, raw_json
+    FROM attacks
+    WHERE faction_id = ? AND war_id = ?
+    ORDER BY timestamp_started, attack_id
+  `).bind(Number(war.faction_id), String(war.war_id)).all();
+
+  const seen = new Set(state.seenAttackIds || []);
+  for (const row of result.results || []) {
+    const attackId = String(row.attack_id || '');
+    if (!attackId || seen.has(attackId)) continue;
+    seen.add(attackId);
+
+    let raw = null;
+    try { raw = row.raw_json ? JSON.parse(row.raw_json) : null; } catch (_) {}
+    const attack = {
+      attackId,
+      attackerId:nullableNumber(row.attacker_id),
+      defenderId:nullableNumber(row.defender_id),
+      attackerFactionId:nullableNumber(row.attacker_faction_id),
+      defenderFactionId:nullableNumber(row.defender_faction_id),
+      result:String(row.result || ''),
+      respectGain:finiteNumber(row.respect_gain),
+      respectLoss:Math.abs(finiteNumber(row.respect_loss)),
+      chain:nullableNumber(row.chain),
+      chainModifier:finiteNumber(raw?.modifiers?.chain ?? raw?.modifier?.chain),
+      isRankedWar:Number(row.is_ranked_war || 0) === 1,
+      timestampStarted:nullableNumber(row.timestamp_started),
+      timestampEnded:nullableNumber(row.timestamp_ended)
+    };
+    accumulateAttack(state, war, attack);
+    state.processedTotal += 1;
+  }
+  state.seenAttackIds = [...seen];
+}
+
+function summarizeAccumulator(state) {
+  const metrics = Object.values(state.players || {});
+  return {
+    processedTotal:Number(state.processedTotal || 0),
+    membersWithDetail:metrics.filter(metric => Number(metric.attackRows || 0) > 0).length,
+    assists:metrics.reduce((sum, metric) => sum + Number(metric.assists || 0), 0),
+    respectEarned:metrics.reduce((sum, metric) => sum + Number(metric.respectEarned || 0), 0),
+    respectLost:metrics.reduce((sum, metric) => sum + Number(metric.respectLost || 0), 0)
+  };
+}
+
+async function finalizeAccumulator(db, war, state) {
+  const factionId = Number(war.faction_id);
+  const warId = String(war.war_id);
+  const rows = await db.prepare(`
+    SELECT player_id, COALESCE(NULLIF(score_up_official, 0), score_up, 0) AS official_score_up
+    FROM war_log
+    WHERE faction_id = ? AND war_id = ?
+  `).bind(factionId, warId).all();
 
   const update = db.prepare(`
     UPDATE war_log
-    SET
-      assists = ?,
-      outside_hits = ?,
-      score_up_official = ?,
-      score_up_adjusted = ?,
-      score_up = ?,
-      score_down = ?,
-      synced_at = ?
+    SET assists = ?,
+        outside_hits = ?,
+        score_up_official = ?,
+        score_up_adjusted = ?,
+        score_up = ?,
+        score_down = ?,
+        respect_earned = ?,
+        respect_lost = ?,
+        attack_detail_complete = 1,
+        attack_detail_rows = ?,
+        chain_bonus_hits = ?,
+        chain_bonus_score = ?,
+        chain_bonus_hits_in = ?,
+        chain_bonus_score_in = ?,
+        chain_bonus_respect_lost_in = ?,
+        synced_at = ?
     WHERE war_id = ? AND faction_id = ? AND player_id = ?
   `);
 
@@ -403,27 +536,33 @@ async function rebuildWarMetrics(db, war) {
   let assists = 0;
   let outsideHits = 0;
 
-  const statements = (rowsResult.results || []).map(row => {
+  const statements = (rows.results || []).map(row => {
     const playerId = Number(row.player_id);
+    const metric = state.players?.[String(playerId)] || emptyPlayerMetric(playerId);
     const officialUp = Number(row.official_score_up || 0);
-    const memberAssists = Number(row.assists || 0);
-    const memberOutsideHits = Number(row.outside_hits || 0);
-    const down = Number(row.score_down || 0);
 
     scoreUp += officialUp;
-    scoreDown += down;
-    assists += memberAssists;
-    outsideHits += memberOutsideHits;
+    scoreDown += Number(metric.scoreDown || 0);
+    assists += Number(metric.assists || 0);
+    outsideHits += Number(metric.outsideHits || 0);
 
     return update.bind(
-      memberAssists,
-      memberOutsideHits,
+      Number(metric.assists || 0),
+      Number(metric.outsideHits || 0),
       officialUp,
       officialUp,
       officialUp,
-      down,
+      Number(metric.scoreDown || 0),
+      Number(metric.respectEarned || 0),
+      Number(metric.respectLost || 0),
+      Number(metric.attackRows || 0),
+      Number(metric.chainBonusHitsOut || 0),
+      Number(metric.chainBonusScoreOut || 0),
+      Number(metric.chainBonusHitsIn || 0),
+      Number(metric.chainBonusScoreIn || 0),
+      Number(metric.chainBonusRespectLostIn || 0),
       now,
-      String(war.war_id),
+      warId,
       factionId,
       playerId
     );
@@ -433,46 +572,67 @@ async function rebuildWarMetrics(db, war) {
     await db.batch(statements.slice(index, index + 50));
   }
 
-  const outgoingVerification = await db.prepare(`
-    SELECT SUM(COALESCE(a.respect_gain, 0)) AS score
-    FROM attacks a
-    WHERE a.war_id = ?
-      AND a.faction_id = ?
-      AND a.is_ranked_war = 1
-      AND LOWER(TRIM(COALESCE(a.result, ''))) NOT LIKE '%assist%'
-      AND EXISTS (
-        SELECT 1 FROM war_log wl
-        WHERE wl.war_id = a.war_id
-          AND wl.faction_id = a.faction_id
-          AND wl.player_id = a.attacker_id
-      )
-  `).bind(String(war.war_id), factionId).first();
-
-  const verifiedOutgoingScore = Number(outgoingVerification?.score || 0);
   const summary = {
     scoreUp,
     scoreDown,
     assists,
     outsideHits,
-    verifiedOutgoingScore,
-    outgoingDelta: scoreUp - verifiedOutgoingScore,
-    chainBonusesIncluded: true,
-    scoreSource: 'official-report-plus-verified-attack-detail'
+    verifiedOutgoingScore:Number(state.verifiedOutgoingScore || 0),
+    outgoingDelta:scoreUp - Number(state.verifiedOutgoingScore || 0),
+    chainBonusesIncluded:true,
+    scoreSource:'official-report-plus-aggregated-attack-detail'
   };
 
   await db.prepare(`
     INSERT INTO app_meta (key, value, updated_at)
     VALUES (?, ?, ?)
-    ON CONFLICT(key) DO UPDATE SET
-      value = excluded.value,
-      updated_at = excluded.updated_at
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
   `).bind(
-    `war_score_adjustment:${factionId}:${war.war_id}`,
+    `war_score_adjustment:${factionId}:${warId}`,
     JSON.stringify(summary),
     now
   ).run();
 
   return summary;
+}
+
+async function readFinalizedTotals(db, factionId, warId) {
+  const row = await db.prepare(`
+    SELECT
+      MIN(COALESCE(attack_detail_complete, 0)) AS all_complete,
+      SUM(COALESCE(attack_detail_rows, 0)) AS processed_total,
+      SUM(CASE WHEN COALESCE(attack_detail_rows, 0) > 0 THEN 1 ELSE 0 END) AS members_with_detail,
+      SUM(COALESCE(assists, 0)) AS assists,
+      SUM(COALESCE(respect_earned, 0)) AS respect_earned,
+      SUM(COALESCE(respect_lost, 0)) AS respect_lost,
+      SUM(COALESCE(score_up_official, score_up, 0)) AS score_up,
+      SUM(COALESCE(score_down, 0)) AS score_down,
+      SUM(COALESCE(outside_hits, 0)) AS outside_hits
+    FROM war_log
+    WHERE faction_id = ? AND war_id = ?
+  `).bind(factionId, warId).first();
+
+  const complete = Number(row?.all_complete || 0) === 1;
+  const scoreAdjustment = complete ? {
+    scoreUp:Number(row?.score_up || 0),
+    scoreDown:Number(row?.score_down || 0),
+    assists:Number(row?.assists || 0),
+    outsideHits:Number(row?.outside_hits || 0),
+    verifiedOutgoingScore:null,
+    outgoingDelta:null,
+    chainBonusesIncluded:true,
+    scoreSource:'stored-aggregate'
+  } : null;
+
+  return {
+    complete,
+    processedTotal:Number(row?.processed_total || 0),
+    membersWithDetail:Number(row?.members_with_detail || 0),
+    assists:Number(row?.assists || 0),
+    respectEarned:Number(row?.respect_earned || 0),
+    respectLost:Number(row?.respect_lost || 0),
+    scoreAdjustment
+  };
 }
 
 function factionIdFrom(value) {
