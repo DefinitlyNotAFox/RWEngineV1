@@ -1022,7 +1022,6 @@ async function importAttackSummary(warId, reportId, rows) {
 
 async function importAttackDetail(warId, reportId, rows) {
   let nextUrl = null;
-  let previousTotal = -1;
   const seen = new Set();
   let latest = null;
 
@@ -1038,12 +1037,11 @@ async function importAttackDetail(warId, reportId, rows) {
     if (!candidate) throw new Error('Torn did not provide the next attack page.');
 
     const key = canonicalPage(candidate);
-    if (seen.has(key) || (step > 0 && total <= previousTotal)) {
-      return finalizeAttackDetail(warId,result);
+    if (seen.has(key)) {
+      throw new Error('Torn repeated the same attack-detail page.');
     }
 
     seen.add(key);
-    previousTotal = total;
     nextUrl = candidate;
     await sleep(DETAIL_STEP_DELAY);
   }
