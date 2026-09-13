@@ -306,6 +306,8 @@ async function initializeJob(env, job, client) {
   const now = unixNow();
   const before = client.requestCount;
 
+  await ensureOrganizedCrimesColumn(env.DB);
+
   const membersPayload = await client.request(`/faction/${encodeURIComponent(factionId)}/members?comment=RWEngineFactionSync`);
   const basicPayload = await client.request(`/faction/${encodeURIComponent(factionId)}/basic?comment=RWEngineFactionSync`).catch(() => null);
   const members = normalizeMembers(membersPayload);
@@ -368,18 +370,17 @@ async function collectSnapshot(env, client, job, task) {
   } catch (_) {}
 
   const raw = JSON.stringify({
-    personalstats: payload,
-    rwe: { organizedCrimesTotal: Number.isFinite(stats.organizedCrimesTotal) ? stats.organizedCrimesTotal : null }
+    personalstats: payload
   });
 
   await env.DB.prepare(`
     INSERT INTO member_snapshots (
       faction_id,player_id,snapshot_date,snapshot_at,player_name,level,position_name,
       last_action_at,last_action_status,status_state,status_until,
-      activity_total_seconds,xanax_taken_total,
+      activity_total_seconds,xanax_taken_total,organized_crimes_total,
       battle_stats_estimate,battle_stats_source,battle_stats_observed_at,
       error_text,raw_json,created_at
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(faction_id,player_id,snapshot_date) DO UPDATE SET
       snapshot_at=excluded.snapshot_at,
       player_name=excluded.player_name,
@@ -391,6 +392,7 @@ async function collectSnapshot(env, client, job, task) {
       status_until=COALESCE(excluded.status_until,member_snapshots.status_until),
       activity_total_seconds=COALESCE(excluded.activity_total_seconds,member_snapshots.activity_total_seconds),
       xanax_taken_total=COALESCE(excluded.xanax_taken_total,member_snapshots.xanax_taken_total),
+      organized_crimes_total=COALESCE(excluded.organized_crimes_total,member_snapshots.organized_crimes_total),
       battle_stats_estimate=COALESCE(excluded.battle_stats_estimate,member_snapshots.battle_stats_estimate),
       battle_stats_source=COALESCE(excluded.battle_stats_source,member_snapshots.battle_stats_source),
       battle_stats_observed_at=COALESCE(excluded.battle_stats_observed_at,member_snapshots.battle_stats_observed_at),
@@ -401,6 +403,7 @@ async function collectSnapshot(env, client, job, task) {
     lastAction?.timestamp ?? null, lastAction?.status ?? null, status?.state ?? null, status?.until ?? null,
     Number.isFinite(stats.activityTotalSeconds) ? stats.activityTotalSeconds : null,
     Number.isFinite(stats.xanaxTakenTotal) ? stats.xanaxTakenTotal : null,
+    Number.isFinite(stats.organizedCrimesTotal) ? stats.organizedCrimesTotal : null,
     Number.isFinite(exactStats) ? exactStats : null,
     Number.isFinite(exactStats) ? 'verified-api' : null,
     Number.isFinite(exactStats) ? unixNow() : null,
@@ -607,6 +610,14 @@ function normalizeMembers(payload) {
     level:nullableNumber(m?.level),position:String(m?.position?.name ?? m?.position_name ?? m?.position ?? ''),
     daysInFaction:nullableNumber(m?.days_in_faction),status:m?.status ?? null,lastAction:m?.last_action ?? m?.lastAction ?? null
   })).filter(m => Number.isSafeInteger(m.id) && m.id > 0);
+}
+
+async function ensureOrganizedCrimesColumn(db) {
+  const columns = await db.prepare("PRAGMA table_info(member_snapshots)").all();
+  const hasColumn = (columns.results || []).some(row => String(row.name) === 'organized_crimes_total');
+  if (!hasColumn) {
+    await db.prepare('ALTER TABLE member_snapshots ADD COLUMN organized_crimes_total INTEGER').run();
+  }
 }
 
 function extractPersonalStats(payload) {
