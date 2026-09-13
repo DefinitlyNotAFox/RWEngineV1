@@ -965,7 +965,7 @@ async function handleImport(event) {
 
         updateImportRow(
           rows,id,'','Complete',
-          `${formatNumber(verified.storedTotal || 0)} attack rows · ${formatNumber(verified.assists || 0)} assists · metrics rebuilt.`
+          `${formatNumber(verified.processedTotal ?? verified.storedTotal ?? 0)} attacks · ${formatNumber(verified.assists || 0)} assists · metrics saved.`
         );
       } catch (error) {
         const message = error.message || String(error);
@@ -1029,8 +1029,8 @@ async function importAttackDetail(warId, reportId, rows) {
   for (let step = 0; step < DETAIL_STEP_LIMIT; step++) {
     const result = await attackDetailApi({ warId, ...(nextUrl ? { nextUrl } : {}) });
     latest = result;
-    const total = Number(result.storedTotal || 0);
-    updateImportRow(rows,reportId,'','Verify',`${formatNumber(total)} unique attack rows verified.`);
+    const total = Number(result.processedTotal ?? result.storedTotal ?? 0);
+    updateImportRow(rows,reportId,'','Verify',`${formatNumber(total)} attacks processed.`);
 
     if (result.done) return finalizeAttackDetail(warId,result);
 
@@ -1048,7 +1048,7 @@ async function importAttackDetail(warId, reportId, rows) {
     await sleep(DETAIL_STEP_DELAY);
   }
 
-  throw new Error(`Attack verification exceeded ${DETAIL_STEP_LIMIT} pages${latest ? ` after ${formatNumber(latest.storedTotal || 0)} rows` : ''}.`);
+  throw new Error(`Attack verification exceeded ${DETAIL_STEP_LIMIT} pages${latest ? ` after ${formatNumber(latest.processedTotal ?? latest.storedTotal ?? 0)} attacks` : ''}.`);
 }
 
 async function finalizeAttackDetail(warId,result) {
