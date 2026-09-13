@@ -15,6 +15,7 @@ export async function onRequest(context) {
     const body = await readJson(request);
     const user = await getCurrentUser(env, request);
     const factionId = await resolveFactionId(env.DB, user, body.factionId);
+    await ensureWarAggregateSchema(env.DB);
     const action = String(body.action || 'overview');
 
     if (action === 'overview') {
@@ -445,7 +446,7 @@ async function loadWarMetricsFromWarLog(db, factionId, warIds, playerId) {
   const params = [factionId, ...warIds, ...(playerId ? [playerId] : [])];
 
   const result = await db.prepare(
-    'SELECT war_id, player_id, player_name, COALESCE(war_hits,0) AS war_hits, COALESCE(outside_hits,0) AS outside_hits, COALESCE(assists,0) AS assists, NULL AS respect_earned, NULL AS respect_lost, COALESCE(score_up_adjusted, score_up, 0) AS score_up, COALESCE(score_down,0) AS score_down FROM war_log WHERE faction_id = ? AND war_id IN (' + placeholders + ')' + playerClause
+    'SELECT war_id, player_id, player_name, COALESCE(war_hits,0) AS war_hits, COALESCE(outside_hits,0) AS outside_hits, COALESCE(assists,0) AS assists, CASE WHEN COALESCE(attack_detail_complete,0)=1 THEN COALESCE(respect_earned,0) ELSE NULL END AS respect_earned, CASE WHEN COALESCE(attack_detail_complete,0)=1 THEN COALESCE(respect_lost,0) ELSE NULL END AS respect_lost, COALESCE(score_up_adjusted, score_up, 0) AS score_up, COALESCE(score_down,0) AS score_down FROM war_log WHERE faction_id = ? AND war_id IN (' + placeholders + ')' + playerClause
   ).bind(...params).all();
 
   return (result.results || []).map(row => normalizeWarMetricRow(row));
@@ -500,6 +501,28 @@ function snapshotHistoryPoint(row) {
     battleStatsObservedAt:nullableNumber(row.battle_stats_observed_at),
     lastActionAt:nullableNumber(row.last_action_at)
   };
+}
+
+async function ensureWarAggregateSchema(db) {
+  const columns = await db.prepare("PRAGMA table_info(war_log)").all();
+  const found = new Set((columns.results || []).map(row => String(row.name)));
+  const additions = [
+    ['respect_earned', 'ALTER TABLE war_log ADD COLUMN respect_earned REAL'],
+    ['respect_lost', 'ALTER TABLE war_log ADD COLUMN respect_lost REAL'],
+    ['attack_detail_complete', 'ALTER TABLE war_log ADD COLUMN attack_detail_complete INTEGER NOT NULL DEFAULT 0'],
+    ['attack_detail_rows', 'ALTER TABLE war_log ADD COLUMN attack_detail_rows INTEGER NOT NULL DEFAULT 0'],
+    ['chain_bonus_hits_in', 'ALTER TABLE war_log ADD COLUMN chain_bonus_hits_in INTEGER NOT NULL DEFAULT 0'],
+    ['chain_bonus_score_in', 'ALTER TABLE war_log ADD COLUMN chain_bonus_score_in REAL NOT NULL DEFAULT 0'],
+    ['chain_bonus_respect_lost_in', 'ALTER TABLE war_log ADD COLUMN chain_bonus_respect_lost_in REAL NOT NULL DEFAULT 0']
+  ];
+
+  for (const [name, sql] of additions) {
+    if (found.has(name)) continue;
+    try { await db.prepare(sql).run(); }
+    catch (error) {
+      if (!/duplicate column|already exists/i.test(String(error?.message || error || ''))) throw error;
+    }
+  }
 }
 
 async function loadFaction(db, factionId) {
