@@ -104,8 +104,13 @@ async function handleImportRankedWarReport(env, user, faction, body) {
 
   await env.DB.prepare(`DELETE FROM war_log WHERE war_id = ? AND faction_id = ?`)
     .bind(normalized.warId, factionId).run();
+  // Old imports may still have persisted attack rows. Re-importing a war clears
+  // those legacy rows and any in-progress aggregate state; new imports do not
+  // create attack rows.
   await env.DB.prepare(`DELETE FROM attacks WHERE war_id = ? AND faction_id = ?`)
     .bind(normalized.warId, factionId).run();
+  await env.DB.prepare(`DELETE FROM app_meta WHERE key = ?`)
+    .bind(`war_attack_accumulator_v1:${factionId}:${normalized.warId}`).run();
 
   const insert = env.DB.prepare(`
     INSERT INTO war_log (
@@ -259,43 +264,6 @@ async function processAttackSummaryStep(db, apiKey, war, state) {
   state.seenAttackIds = [...seen];
   state.updatedAt = unixNow();
   return calls;
-}
-
-async function storeAttack(db, war, attack) {
-  const factionId = Number(war.faction_id);
-  const opponentId = Number(war.opponent_faction_id || 0);
-  const outgoing = Number(attack.attackerFactionId || 0) === factionId;
-  const incoming = Number(attack.defenderFactionId || 0) === factionId;
-  const fromOpponent = opponentId && Number(attack.attackerFactionId || 0) === opponentId;
-  const respectGain = outgoing && !attack.isAssist ? Number(attack.scoreGain || 0) : 0;
-  const respectLoss = incoming && fromOpponent && !attack.isAssist ? Number(attack.scoreGain || 0) : 0;
-
-  await db.prepare(`
-    INSERT INTO attacks (
-      attack_id, war_id, faction_id, attacker_id, attacker_name, defender_id,
-      defender_name, attacker_faction_id, defender_faction_id, result,
-      respect_gain, respect_loss, chain, is_ranked_war, timestamp_started,
-      timestamp_ended, raw_json, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)
-    ON CONFLICT(attack_id) DO UPDATE SET
-      war_id = excluded.war_id, faction_id = excluded.faction_id,
-      attacker_id = excluded.attacker_id, attacker_name = excluded.attacker_name,
-      defender_id = excluded.defender_id, defender_name = excluded.defender_name,
-      attacker_faction_id = excluded.attacker_faction_id,
-      defender_faction_id = excluded.defender_faction_id, result = excluded.result,
-      respect_gain = excluded.respect_gain, respect_loss = excluded.respect_loss,
-      is_ranked_war = excluded.is_ranked_war,
-      timestamp_started = excluded.timestamp_started,
-      timestamp_ended = excluded.timestamp_ended, raw_json = excluded.raw_json
-  `).bind(
-    attack.attackId, String(war.war_id), factionId,
-    nullableNumber(attack.attackerId), attack.attackerName || null,
-    nullableNumber(attack.defenderId), attack.defenderName || null,
-    nullableNumber(attack.attackerFactionId), nullableNumber(attack.defenderFactionId),
-    attack.result || '', respectGain, respectLoss, attack.isRankedWar ? 1 : 0,
-    nullableNumber(attack.timestampStarted), nullableNumber(attack.timestampEnded),
-    JSON.stringify(attack.raw || {}), unixNow()
-  ).run();
 }
 
 function summarizeAttackIntoState(state, attack, war) {
