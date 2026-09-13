@@ -375,10 +375,13 @@ function accumulateAttack(state, war, attack) {
   if (ownOutgoing) {
     const metric = playerMetric(state, attack.attackerId);
     if (metric) {
+      // The existing war_log definition counts assists across the exact war
+      // window, while respect verification is ranked-war only.
+      if (assist) metric.assists += 1;
+
       if (ranked) {
         metric.attackRows += 1;
-        if (assist) metric.assists += 1;
-        else {
+        if (!assist) {
           metric.respectEarned += Number(attack.respectGain || 0);
           state.verifiedOutgoingScore += Number(attack.respectGain || 0);
           if (milestone) {
