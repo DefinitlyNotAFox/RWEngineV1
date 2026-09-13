@@ -246,6 +246,7 @@ async function syncStep(env, user, factionId, requestedJobId) {
   try {
     const factionApiKey = await factionKey(env, factionId, user);
     const client = new TornClient(factionApiKey);
+    await ensureOrganizedCrimesColumn(env.DB);
 
     if (job.phase === 'initializing' || job.status === 'queued') {
       await initializeJob(env, job, client);
@@ -305,8 +306,6 @@ async function initializeJob(env, job, client) {
   const factionId = Number(job.factionId);
   const now = unixNow();
   const before = client.requestCount;
-
-  await ensureOrganizedCrimesColumn(env.DB);
 
   const membersPayload = await client.request(`/faction/${encodeURIComponent(factionId)}/members?comment=RWEngineFactionSync`);
   const basicPayload = await client.request(`/faction/${encodeURIComponent(factionId)}/basic?comment=RWEngineFactionSync`).catch(() => null);
@@ -615,8 +614,15 @@ function normalizeMembers(payload) {
 async function ensureOrganizedCrimesColumn(db) {
   const columns = await db.prepare("PRAGMA table_info(member_snapshots)").all();
   const hasColumn = (columns.results || []).some(row => String(row.name) === 'organized_crimes_total');
-  if (!hasColumn) {
+  if (hasColumn) return;
+
+  try {
     await db.prepare('ALTER TABLE member_snapshots ADD COLUMN organized_crimes_total INTEGER').run();
+  } catch (error) {
+    // Two faction jobs can initialize at the same time. If another request
+    // added the column between PRAGMA and ALTER, the schema is already ready.
+    const message = String(error?.message || error || '');
+    if (!/duplicate column|already exists/i.test(message)) throw error;
   }
 }
 
