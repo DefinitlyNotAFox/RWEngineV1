@@ -12,6 +12,8 @@ export async function onRequest(context) {
     const user = await getCurrentUser(env, request);
     const factionId = await resolveFactionId(env.DB, user, body.factionId);
     await ensureAccessSchema(env.DB);
+    await ensureAggregateSchema(env.DB);
+    await backfillLegacyAttackAggregates(env.DB, factionId);
     const warId = String(body.warId || '').trim();
     if (!warId) throw httpError(400, 'Missing war ID.');
 
@@ -35,7 +37,16 @@ export async function onRequest(context) {
         COALESCE(wl.outside_hits, 0) AS outside_hits,
         COALESCE(wl.assists, 0) AS stored_assists,
         COALESCE(wl.score_up, 0) AS score_up,
-        COALESCE(wl.score_down, 0) AS score_down
+        COALESCE(wl.score_down, 0) AS score_down,
+        COALESCE(wl.attack_detail_complete, 0) AS attack_detail_complete,
+        COALESCE(wl.attack_detail_rows, 0) AS attack_rows,
+        wl.respect_earned AS respect_earned,
+        wl.respect_lost AS respect_lost,
+        COALESCE(wl.chain_bonus_hits, 0) AS chain_bonus_hits_out,
+        COALESCE(wl.chain_bonus_score, 0) AS chain_bonus_score_out,
+        COALESCE(wl.chain_bonus_hits_in, 0) AS chain_bonus_hits_in,
+        COALESCE(wl.chain_bonus_score_in, 0) AS chain_bonus_score_in,
+        COALESCE(wl.chain_bonus_respect_lost_in, 0) AS chain_bonus_respect_lost_in
       FROM war_log wl
       LEFT JOIN faction_members fm
         ON fm.faction_id = wl.faction_id
@@ -44,89 +55,8 @@ export async function onRequest(context) {
       ORDER BY wl.player_name COLLATE NOCASE
     `).bind(factionId, warId).all();
 
-    const attackMetricsResult = await env.DB.prepare(`
-      WITH outgoing AS (
-        SELECT
-          attacker_id AS player_id,
-          SUM(CASE
-            WHEN LOWER(TRIM(COALESCE(result, ''))) LIKE '%assist%'
-            THEN 1 ELSE 0 END
-          ) AS assists,
-          SUM(CASE
-            WHEN LOWER(TRIM(COALESCE(result, ''))) NOT LIKE '%assist%'
-            THEN COALESCE(respect_gain, 0) ELSE 0 END
-          ) AS respect_earned,
-          COUNT(*) AS outgoing_rows
-        FROM attacks
-        WHERE faction_id = ?
-          AND war_id = ?
-          AND is_ranked_war = 1
-          AND attacker_id IS NOT NULL
-        GROUP BY attacker_id
-      ),
-      incoming AS (
-        SELECT
-          defender_id AS player_id,
-          SUM(CASE
-            WHEN LOWER(TRIM(COALESCE(result, ''))) NOT LIKE '%assist%'
-            THEN ABS(COALESCE(respect_loss, 0)) ELSE 0 END
-          ) AS respect_lost,
-          COUNT(*) AS incoming_rows
-        FROM attacks
-        WHERE faction_id = ?
-          AND war_id = ?
-          AND is_ranked_war = 1
-          AND defender_id IS NOT NULL
-        GROUP BY defender_id
-      )
-      SELECT
-        own.player_id,
-        COALESCE(o.assists, 0) AS assists,
-        COALESCE(o.respect_earned, 0) AS respect_earned,
-        COALESCE(i.respect_lost, 0) AS respect_lost,
-        COALESCE(o.outgoing_rows, 0) + COALESCE(i.incoming_rows, 0) AS attack_rows
-      FROM war_log own
-      LEFT JOIN outgoing o ON o.player_id = own.player_id
-      LEFT JOIN incoming i ON i.player_id = own.player_id
-      WHERE own.faction_id = ? AND own.war_id = ?
-      GROUP BY own.player_id
-    `).bind(
-      factionId,
-      warId,
-      factionId,
-      warId,
-      factionId,
-      warId
-    ).all();
-
-    const attackMetricsByPlayer = new Map((attackMetricsResult.results || []).map(row => [
-      Number(row.player_id),
-      {
-        assists: Number(row.assists || 0),
-        respectEarned: Number(row.respect_earned || 0),
-        respectLost: Number(row.respect_lost || 0),
-        attackRows: Number(row.attack_rows || 0)
-      }
-    ]));
-
-    let chainAnnotation = { members: {}, outgoingHits: 0, incomingHits: 0 };
-    let chainSource = 'not-requested';
-    if (body.excludeChainBonuses === true) {
-      if (!env.APP_SECRET) throw new Error('Missing APP_SECRET secret.');
-      const cacheKey = `${CHAIN_CACHE_PREFIX}:${factionId}:${warId}`;
-      chainAnnotation = body.forceChainRefresh === true
-        ? null
-        : await readCachedAnnotation(env.DB, cacheKey);
-
-      if (chainAnnotation) {
-        chainSource = 'cache';
-      } else {
-        const apiKey = await requireFactionApiKey(env, factionId);
-        chainAnnotation = await buildWarAnnotation(env.DB, apiKey, war);
-        await writeCachedAnnotation(env.DB, cacheKey, chainAnnotation);
-        chainSource = 'chain-reports';
-      }
-    }
+    const excludeMilestones = body.excludeChainBonuses === true;
+    const chainSource = excludeMilestones ? 'stored-aggregate' : 'not-requested';
 
     let officialScoreUp = 0;
     let officialScoreDown = 0;
@@ -138,39 +68,37 @@ export async function onRequest(context) {
 
     const members = (performanceResult.results || []).map(row => {
       const playerId = Number(row.player_id);
-      const attackMetrics = attackMetricsByPlayer.get(playerId);
-      const hasAttackDetails = Number(attackMetrics?.attackRows || 0) > 0;
+      const hasAttackDetails = Number(row.attack_detail_complete || 0) === 1;
       const baseHits = Number(row.hits || 0);
       const baseScoreUp = Number(row.score_up || 0);
       const baseScoreDown = Number(row.score_down || 0);
-      const baseRespectEarned = hasAttackDetails ? Number(attackMetrics.respectEarned || 0) : null;
-      const baseRespectLost = hasAttackDetails ? Number(attackMetrics.respectLost || 0) : null;
-      const assists = hasAttackDetails ? Number(attackMetrics.assists || 0) : Number(row.stored_assists || 0);
-      const chain = chainAnnotation.members?.[String(playerId)] || {};
+      const baseRespectEarned = hasAttackDetails ? Number(row.respect_earned || 0) : null;
+      const baseRespectLost = hasAttackDetails ? Number(row.respect_lost || 0) : null;
+      const assists = Number(row.stored_assists || 0);
 
-      const chainBonusHitsOut = Number(chain.chainBonusHitsOut || 0);
-      const chainBonusScoreOut = Number(chain.chainBonusScoreOut || 0);
-      const chainBonusHitsIn = Number(chain.chainBonusHitsIn || 0);
-      const chainBonusScoreIn = Number(chain.chainBonusScoreIn || 0);
-      const chainBonusRespectLostIn = Number(chain.chainBonusRespectLostIn || 0);
+      const chainBonusHitsOut = Number(row.chain_bonus_hits_out || 0);
+      const chainBonusScoreOut = Number(row.chain_bonus_score_out || 0);
+      const chainBonusHitsIn = Number(row.chain_bonus_hits_in || 0);
+      const chainBonusScoreIn = Number(row.chain_bonus_score_in || 0);
+      const chainBonusRespectLostIn = Number(row.chain_bonus_respect_lost_in || 0);
 
-      const hits = body.excludeChainBonuses === true
+      const hits = excludeMilestones
         ? Math.max(0, baseHits - chainBonusHitsOut)
         : baseHits;
-      const scoreUp = body.excludeChainBonuses === true
+      const scoreUp = excludeMilestones
         ? Math.max(0, baseScoreUp - chainBonusScoreOut)
         : baseScoreUp;
-      const scoreDown = body.excludeChainBonuses === true
+      const scoreDown = excludeMilestones
         ? Math.max(0, baseScoreDown - chainBonusScoreIn)
         : baseScoreDown;
       const respectEarned = baseRespectEarned === null
         ? null
-        : body.excludeChainBonuses === true
+        : excludeMilestones
           ? Math.max(0, baseRespectEarned - chainBonusScoreOut)
           : baseRespectEarned;
       const respectLost = baseRespectLost === null
         ? null
-        : body.excludeChainBonuses === true
+        : excludeMilestones
           ? Math.max(0, baseRespectLost - chainBonusRespectLostIn)
           : baseRespectLost;
 
@@ -216,11 +144,11 @@ export async function onRequest(context) {
         endTimestamp: Number(war.end_timestamp || 0) || null,
         importedAt: Number(war.imported_at || 0) || null
       },
-      excludedChainBonuses: body.excludeChainBonuses === true,
+      excludedChainBonuses: excludeMilestones,
       chainSource,
       chainBonusSummary: {
-        outgoingHits: Number(chainAnnotation.outgoingHits || 0),
-        incomingHits: Number(chainAnnotation.incomingHits || 0)
+        outgoingHits: members.reduce((sum, member) => sum + Number(member.chainBonusHitsOut || 0), 0),
+        incomingHits: members.reduce((sum, member) => sum + Number(member.chainBonusHitsIn || 0), 0)
       },
       summary: {
         members: members.length,
@@ -247,6 +175,105 @@ async function ensureAccessSchema(db) {
   ).run();
 }
 
+async function ensureAggregateSchema(db) {
+  const columns = await db.prepare("PRAGMA table_info(war_log)").all();
+  const found = new Set((columns.results || []).map(row => String(row.name)));
+  const additions = [
+    ['respect_earned', 'ALTER TABLE war_log ADD COLUMN respect_earned REAL'],
+    ['respect_lost', 'ALTER TABLE war_log ADD COLUMN respect_lost REAL'],
+    ['attack_detail_complete', 'ALTER TABLE war_log ADD COLUMN attack_detail_complete INTEGER NOT NULL DEFAULT 0'],
+    ['attack_detail_rows', 'ALTER TABLE war_log ADD COLUMN attack_detail_rows INTEGER NOT NULL DEFAULT 0'],
+    ['chain_bonus_hits_in', 'ALTER TABLE war_log ADD COLUMN chain_bonus_hits_in INTEGER NOT NULL DEFAULT 0'],
+    ['chain_bonus_score_in', 'ALTER TABLE war_log ADD COLUMN chain_bonus_score_in REAL NOT NULL DEFAULT 0'],
+    ['chain_bonus_respect_lost_in', 'ALTER TABLE war_log ADD COLUMN chain_bonus_respect_lost_in REAL NOT NULL DEFAULT 0']
+  ];
+
+  for (const [name, sql] of additions) {
+    if (found.has(name)) continue;
+    try { await db.prepare(sql).run(); }
+    catch (error) {
+      if (!/duplicate column|already exists/i.test(String(error?.message || error || ''))) throw error;
+    }
+  }
+}
+
+async function backfillLegacyAttackAggregates(db, factionId) {
+  await db.prepare(`
+    UPDATE war_log
+    SET
+      respect_earned = COALESCE((
+        SELECT SUM(CASE WHEN a.is_ranked_war = 1 AND LOWER(TRIM(COALESCE(a.result,''))) NOT LIKE '%assist%'
+          THEN COALESCE(a.respect_gain,0) ELSE 0 END)
+        FROM attacks a
+        WHERE a.faction_id = war_log.faction_id AND a.war_id = war_log.war_id AND a.attacker_id = war_log.player_id
+      ),0),
+      respect_lost = COALESCE((
+        SELECT SUM(CASE WHEN a.is_ranked_war = 1 AND LOWER(TRIM(COALESCE(a.result,''))) NOT LIKE '%assist%'
+          THEN ABS(COALESCE(a.respect_loss,0)) ELSE 0 END)
+        FROM attacks a
+        WHERE a.faction_id = war_log.faction_id AND a.war_id = war_log.war_id AND a.defender_id = war_log.player_id
+      ),0),
+      attack_detail_rows = COALESCE((
+        SELECT COUNT(*) FROM attacks a
+        WHERE a.faction_id = war_log.faction_id AND a.war_id = war_log.war_id
+          AND a.is_ranked_war = 1
+          AND (a.attacker_id = war_log.player_id OR a.defender_id = war_log.player_id)
+      ),0),
+      chain_bonus_hits = COALESCE((
+        SELECT SUM(CASE WHEN a.is_ranked_war = 1
+          AND LOWER(TRIM(COALESCE(a.result,''))) NOT LIKE '%assist%'
+          AND (a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+            OR COALESCE(CAST(json_extract(a.raw_json,'$.modifiers.chain') AS REAL),0) >= 2)
+          THEN 1 ELSE 0 END)
+        FROM attacks a
+        WHERE a.faction_id = war_log.faction_id AND a.war_id = war_log.war_id AND a.attacker_id = war_log.player_id
+      ),0),
+      chain_bonus_score = COALESCE((
+        SELECT SUM(CASE WHEN a.is_ranked_war = 1
+          AND LOWER(TRIM(COALESCE(a.result,''))) NOT LIKE '%assist%'
+          AND (a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+            OR COALESCE(CAST(json_extract(a.raw_json,'$.modifiers.chain') AS REAL),0) >= 2)
+          THEN COALESCE(a.respect_gain,0) ELSE 0 END)
+        FROM attacks a
+        WHERE a.faction_id = war_log.faction_id AND a.war_id = war_log.war_id AND a.attacker_id = war_log.player_id
+      ),0),
+      chain_bonus_hits_in = COALESCE((
+        SELECT SUM(CASE WHEN a.is_ranked_war = 1
+          AND LOWER(TRIM(COALESCE(a.result,''))) NOT LIKE '%assist%'
+          AND (a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+            OR COALESCE(CAST(json_extract(a.raw_json,'$.modifiers.chain') AS REAL),0) >= 2)
+          THEN 1 ELSE 0 END)
+        FROM attacks a
+        WHERE a.faction_id = war_log.faction_id AND a.war_id = war_log.war_id AND a.defender_id = war_log.player_id
+      ),0),
+      chain_bonus_score_in = COALESCE((
+        SELECT SUM(CASE WHEN a.is_ranked_war = 1
+          AND LOWER(TRIM(COALESCE(a.result,''))) NOT LIKE '%assist%'
+          AND (a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+            OR COALESCE(CAST(json_extract(a.raw_json,'$.modifiers.chain') AS REAL),0) >= 2)
+          THEN COALESCE(a.respect_gain,0) ELSE 0 END)
+        FROM attacks a
+        WHERE a.faction_id = war_log.faction_id AND a.war_id = war_log.war_id AND a.defender_id = war_log.player_id
+      ),0),
+      chain_bonus_respect_lost_in = COALESCE((
+        SELECT SUM(CASE WHEN a.is_ranked_war = 1
+          AND LOWER(TRIM(COALESCE(a.result,''))) NOT LIKE '%assist%'
+          AND (a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
+            OR COALESCE(CAST(json_extract(a.raw_json,'$.modifiers.chain') AS REAL),0) >= 2)
+          THEN ABS(COALESCE(a.respect_loss,0)) ELSE 0 END)
+        FROM attacks a
+        WHERE a.faction_id = war_log.faction_id AND a.war_id = war_log.war_id AND a.defender_id = war_log.player_id
+      ),0),
+      attack_detail_complete = 1
+    WHERE faction_id = ?
+      AND COALESCE(attack_detail_complete,0) = 0
+      AND EXISTS (
+        SELECT 1 FROM attacks a
+        WHERE a.faction_id = war_log.faction_id AND a.war_id = war_log.war_id
+      )
+  `).bind(factionId).run();
+}
+
 async function assertWarAccess(db, user, factionId, war) {
   if (Number(user.is_admin) === 1) return;
 
@@ -265,147 +292,6 @@ async function assertWarAccess(db, user, factionId, war) {
   ) {
     throw httpError(403, 'This war report is private.');
   }
-}
-
-async function buildWarAnnotation(db, apiKey, war) {
-  const factionId = Number(war.faction_id);
-  const opponentId = Number(war.opponent_faction_id || 0);
-  const start = Number(war.start_timestamp || 0);
-  const end = Number(war.end_timestamp || 0);
-  if (!start || !end) return { members: {}, outgoingHits: 0, incomingHits: 0 };
-
-  const attacksResult = await db.prepare(`
-    SELECT attack_id, attacker_id, defender_id, respect_gain, respect_loss, chain
-    FROM attacks
-    WHERE faction_id = ? AND war_id = ? AND is_ranked_war = 1
-  `).bind(factionId, String(war.war_id)).all();
-
-  const attacks = (attacksResult.results || []).map(row => ({
-    attackId: String(row.attack_id || ''),
-    attackerId: nullableNumber(row.attacker_id),
-    defenderId: nullableNumber(row.defender_id),
-    respectGain: finiteNumber(row.respect_gain),
-    respectLoss: Math.abs(finiteNumber(row.respect_loss)),
-    chain: nullableNumber(row.chain)
-  }));
-
-  const members = {};
-  const usedAttackIds = new Set();
-  let outgoingHits = 0;
-  let incomingHits = 0;
-
-  const ownBonuses = await fetchFactionBonuses(apiKey, factionId, start, end);
-  for (const bonus of ownBonuses) {
-    const match = matchBonusAttack(attacks, bonus, 'outgoing', usedAttackIds);
-    if (!match) continue;
-    const metric = ensureMetric(members, bonus.attackerId);
-    metric.chainBonusHitsOut += 1;
-    metric.chainBonusScoreOut += finiteNumber(match.respectGain || bonus.respect);
-    outgoingHits += 1;
-    usedAttackIds.add(match.attackId);
-  }
-
-  if (opponentId > 0) {
-    const opponentBonuses = await fetchFactionBonuses(apiKey, opponentId, start, end);
-    for (const bonus of opponentBonuses) {
-      const match = matchBonusAttack(attacks, bonus, 'incoming', usedAttackIds);
-      if (!match || !bonus.defenderId) continue;
-      const metric = ensureMetric(members, bonus.defenderId);
-      metric.chainBonusHitsIn += 1;
-      metric.chainBonusScoreIn += finiteNumber(match.respectGain || bonus.respect);
-      metric.chainBonusRespectLostIn += finiteNumber(match.respectLoss);
-      incomingHits += 1;
-      usedAttackIds.add(match.attackId);
-    }
-  }
-
-  return { members, outgoingHits, incomingHits };
-}
-
-async function fetchFactionBonuses(apiKey, factionId, warStart, warEnd) {
-  const from = Math.max(0, warStart - CHAIN_PADDING_SECONDS);
-  const to = warEnd + CHAIN_PADDING_SECONDS;
-  const chainsUrl = `https://api.torn.com/v2/faction/${encodeURIComponent(factionId)}/chains?from=${from}&to=${to}&limit=100&comment=RWEngineWarDetail`;
-  const chainsPayload = await fetchTornJson(chainsUrl, apiKey);
-  const chains = normalizeChains(chainsPayload).filter(chain => chain.start <= warEnd && chain.end >= warStart);
-  const bonuses = [];
-
-  for (const chain of chains) {
-    const reportUrl = `https://api.torn.com/v2/faction/${encodeURIComponent(chain.id)}/chainreport?comment=RWEngineWarDetail`;
-    const reportPayload = await fetchTornJson(reportUrl, apiKey);
-    for (const bonus of normalizeBonuses(reportPayload)) bonuses.push(bonus);
-  }
-  return bonuses;
-}
-
-function normalizeChains(payload) {
-  const source = payload?.chains || payload?.chain || {};
-  const entries = Array.isArray(source)
-    ? source.map(item => [String(item?.id ?? item?.chain_id ?? item?.chain ?? ''), item])
-    : Object.entries(source || {});
-
-  return entries.map(([key, value]) => ({
-    id: Number(value?.id ?? value?.chain_id ?? key),
-    start: Number(value?.start ?? value?.started ?? value?.start_timestamp ?? 0),
-    end: Number(value?.end ?? value?.ended ?? value?.end_timestamp ?? 0)
-  })).filter(item => item.id > 0 && item.start > 0 && item.end > 0);
-}
-
-function normalizeBonuses(payload) {
-  const report = payload?.chainreport || payload?.chain_report || payload?.report || payload || {};
-  const source = report?.bonuses || report?.bonus_hits || report?.bonusHits || [];
-  const values = Array.isArray(source) ? source : Object.values(source || {});
-  return values.map(value => ({
-    attackerId: nullableNumber(typeof value?.attacker === 'object' ? value.attacker?.id : value?.attacker ?? value?.attacker_id),
-    defenderId: nullableNumber(typeof value?.defender === 'object' ? value.defender?.id : value?.defender ?? value?.defender_id),
-    chain: nullableNumber(value?.chain ?? value?.chain_number),
-    respect: finiteNumber(value?.respect ?? value?.score ?? value?.respect_gain)
-  })).filter(item => item.attackerId && item.defenderId && item.respect > 0);
-}
-
-function matchBonusAttack(attacks, bonus, direction, used) {
-  let candidates = attacks.filter(attack => !used.has(attack.attackId));
-  if (direction === 'outgoing') {
-    candidates = candidates.filter(attack => attack.attackerId === bonus.attackerId && attack.defenderId === bonus.defenderId);
-  } else {
-    candidates = candidates.filter(attack => attack.defenderId === bonus.defenderId && (!attack.attackerId || attack.attackerId === bonus.attackerId));
-  }
-
-  const exactChain = bonus.chain ? candidates.find(attack => attack.chain === bonus.chain) : null;
-  if (exactChain) return exactChain;
-  const exactRespect = candidates.find(attack => Math.abs(attack.respectGain - bonus.respect) < 0.01);
-  return exactRespect || null;
-}
-
-function ensureMetric(target, playerId) {
-  const key = String(playerId);
-  if (!target[key]) target[key] = emptyMetric(Number(playerId));
-  return target[key];
-}
-
-function emptyMetric(playerId) {
-  return {
-    playerId,
-    chainBonusHitsOut: 0,
-    chainBonusScoreOut: 0,
-    chainBonusHitsIn: 0,
-    chainBonusScoreIn: 0,
-    chainBonusRespectLostIn: 0
-  };
-}
-
-async function readCachedAnnotation(db, key) {
-  const row = await db.prepare('SELECT value FROM app_meta WHERE key = ?').bind(key).first();
-  if (!row?.value) return null;
-  try { return JSON.parse(row.value); } catch (_) { return null; }
-}
-
-async function writeCachedAnnotation(db, key, annotation) {
-  await db.prepare(`
-    INSERT INTO app_meta (key, value, updated_at)
-    VALUES (?, ?, ?)
-    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-  `).bind(key, JSON.stringify(annotation), unixNow()).run();
 }
 
 async function fetchTornJson(url, apiKey) {
