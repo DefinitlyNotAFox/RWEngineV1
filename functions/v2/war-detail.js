@@ -1,7 +1,3 @@
-const MANAGED_KEY_CONFIG = 'admin_managed_api_key_v1';
-const CHAIN_CACHE_PREFIX = 'performance_chain_bonus_v1';
-const CHAIN_PADDING_SECONDS = 3600;
-
 export async function onRequest(context) {
   try {
     const { request, env } = context;
@@ -13,7 +9,6 @@ export async function onRequest(context) {
     const factionId = await resolveFactionId(env.DB, user, body.factionId);
     await ensureAccessSchema(env.DB);
     await ensureAggregateSchema(env.DB);
-    await backfillLegacyAttackAggregates(env.DB, factionId);
     const warId = String(body.warId || '').trim();
     if (!warId) throw httpError(400, 'Missing war ID.');
 
@@ -197,83 +192,6 @@ async function ensureAggregateSchema(db) {
   }
 }
 
-async function backfillLegacyAttackAggregates(db, factionId) {
-  await db.prepare(`
-    UPDATE war_log
-    SET
-      respect_earned = COALESCE((
-        SELECT SUM(CASE WHEN a.is_ranked_war = 1 AND LOWER(TRIM(COALESCE(a.result,''))) NOT LIKE '%assist%'
-          THEN COALESCE(a.respect_gain,0) ELSE 0 END)
-        FROM attacks a
-        WHERE a.faction_id = war_log.faction_id AND a.war_id = war_log.war_id AND a.attacker_id = war_log.player_id
-      ),0),
-      respect_lost = COALESCE((
-        SELECT SUM(CASE WHEN a.is_ranked_war = 1 AND LOWER(TRIM(COALESCE(a.result,''))) NOT LIKE '%assist%'
-          THEN ABS(COALESCE(a.respect_loss,0)) ELSE 0 END)
-        FROM attacks a
-        WHERE a.faction_id = war_log.faction_id AND a.war_id = war_log.war_id AND a.defender_id = war_log.player_id
-      ),0),
-      attack_detail_rows = COALESCE((
-        SELECT COUNT(*) FROM attacks a
-        WHERE a.faction_id = war_log.faction_id AND a.war_id = war_log.war_id
-          AND a.is_ranked_war = 1
-          AND (a.attacker_id = war_log.player_id OR a.defender_id = war_log.player_id)
-      ),0),
-      chain_bonus_hits = COALESCE((
-        SELECT SUM(CASE WHEN a.is_ranked_war = 1
-          AND LOWER(TRIM(COALESCE(a.result,''))) NOT LIKE '%assist%'
-          AND (a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
-            OR COALESCE(CAST(json_extract(a.raw_json,'$.modifiers.chain') AS REAL),0) >= 2)
-          THEN 1 ELSE 0 END)
-        FROM attacks a
-        WHERE a.faction_id = war_log.faction_id AND a.war_id = war_log.war_id AND a.attacker_id = war_log.player_id
-      ),0),
-      chain_bonus_score = COALESCE((
-        SELECT SUM(CASE WHEN a.is_ranked_war = 1
-          AND LOWER(TRIM(COALESCE(a.result,''))) NOT LIKE '%assist%'
-          AND (a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
-            OR COALESCE(CAST(json_extract(a.raw_json,'$.modifiers.chain') AS REAL),0) >= 2)
-          THEN COALESCE(a.respect_gain,0) ELSE 0 END)
-        FROM attacks a
-        WHERE a.faction_id = war_log.faction_id AND a.war_id = war_log.war_id AND a.attacker_id = war_log.player_id
-      ),0),
-      chain_bonus_hits_in = COALESCE((
-        SELECT SUM(CASE WHEN a.is_ranked_war = 1
-          AND LOWER(TRIM(COALESCE(a.result,''))) NOT LIKE '%assist%'
-          AND (a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
-            OR COALESCE(CAST(json_extract(a.raw_json,'$.modifiers.chain') AS REAL),0) >= 2)
-          THEN 1 ELSE 0 END)
-        FROM attacks a
-        WHERE a.faction_id = war_log.faction_id AND a.war_id = war_log.war_id AND a.defender_id = war_log.player_id
-      ),0),
-      chain_bonus_score_in = COALESCE((
-        SELECT SUM(CASE WHEN a.is_ranked_war = 1
-          AND LOWER(TRIM(COALESCE(a.result,''))) NOT LIKE '%assist%'
-          AND (a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
-            OR COALESCE(CAST(json_extract(a.raw_json,'$.modifiers.chain') AS REAL),0) >= 2)
-          THEN COALESCE(a.respect_gain,0) ELSE 0 END)
-        FROM attacks a
-        WHERE a.faction_id = war_log.faction_id AND a.war_id = war_log.war_id AND a.defender_id = war_log.player_id
-      ),0),
-      chain_bonus_respect_lost_in = COALESCE((
-        SELECT SUM(CASE WHEN a.is_ranked_war = 1
-          AND LOWER(TRIM(COALESCE(a.result,''))) NOT LIKE '%assist%'
-          AND (a.chain IN (10,25,50,100,250,500,1000,2500,5000,10000,25000,50000,100000)
-            OR COALESCE(CAST(json_extract(a.raw_json,'$.modifiers.chain') AS REAL),0) >= 2)
-          THEN ABS(COALESCE(a.respect_loss,0)) ELSE 0 END)
-        FROM attacks a
-        WHERE a.faction_id = war_log.faction_id AND a.war_id = war_log.war_id AND a.defender_id = war_log.player_id
-      ),0),
-      attack_detail_complete = 1
-    WHERE faction_id = ?
-      AND COALESCE(attack_detail_complete,0) = 0
-      AND EXISTS (
-        SELECT 1 FROM attacks a
-        WHERE a.faction_id = war_log.faction_id AND a.war_id = war_log.war_id
-      )
-  `).bind(factionId).run();
-}
-
 async function assertWarAccess(db, user, factionId, war) {
   if (Number(user.is_admin) === 1) return;
 
@@ -294,18 +212,6 @@ async function assertWarAccess(db, user, factionId, war) {
   }
 }
 
-async function fetchTornJson(url, apiKey) {
-  const response = await fetch(url, {
-    headers: { Accept: 'application/json', Authorization: `ApiKey ${apiKey}` }
-  });
-  let payload;
-  try { payload = await response.json(); }
-  catch (_) { throw httpError(502, `Torn returned HTTP ${response.status} without JSON.`); }
-  if (payload?.error) throw httpError(502, `Torn API error: ${payload.error.error || payload.error.message || 'Unknown error'}`);
-  if (!response.ok) throw httpError(502, `Torn request failed with HTTP ${response.status}.`);
-  return payload;
-}
-
 async function resolveFactionId(db, user, requestedValue) {
   const accountFactionId = Number(user.faction_id || 0);
   const requestedFactionId = Number(requestedValue || accountFactionId);
@@ -314,30 +220,6 @@ async function resolveFactionId(db, user, requestedValue) {
   const faction = await db.prepare('SELECT faction_id, enabled FROM factions WHERE faction_id = ?').bind(requestedFactionId).first();
   if (!faction || Number(faction.enabled) !== 1) throw httpError(404, 'That faction is not currently tracked by RWE.');
   return requestedFactionId;
-}
-
-async function requireFactionApiKey(env, factionId) {
-  const managedRow = await env.DB.prepare(`
-    SELECT config_value FROM faction_config WHERE faction_id = ? AND config_key = ?
-  `).bind(factionId, MANAGED_KEY_CONFIG).first();
-  const managed = parseManagedKey(managedRow?.config_value);
-  if (managed?.ciphertext && managed?.iv) return decryptText(env.APP_SECRET, managed.ciphertext, managed.iv);
-
-  const owner = await env.DB.prepare(`
-    SELECT api_key_encrypted, api_key_iv
-    FROM users
-    WHERE faction_id = ? AND is_disabled = 0
-      AND api_key_encrypted IS NOT NULL AND api_key_iv IS NOT NULL
-    ORDER BY is_admin DESC, last_login_at DESC, user_id ASC LIMIT 1
-  `).bind(factionId).first();
-  if (owner?.api_key_encrypted && owner?.api_key_iv) return decryptText(env.APP_SECRET, owner.api_key_encrypted, owner.api_key_iv);
-  throw httpError(400, 'No usable API key is configured for this faction.');
-}
-
-function parseManagedKey(value) {
-  if (!value) return null;
-  try { const parsed = JSON.parse(value); return parsed && typeof parsed === 'object' ? parsed : null; }
-  catch (_) { return null; }
 }
 
 async function getCurrentUser(env, request) {
@@ -352,34 +234,6 @@ async function getCurrentUser(env, request) {
   if (!row) throw httpError(401, 'Session expired or invalid.');
   if (Number(row.is_disabled) === 1) throw httpError(403, 'This account is disabled.');
   return row;
-}
-
-async function decryptText(secret, ciphertextBase64, ivBase64) {
-  const encoder = new TextEncoder();
-  const material = await crypto.subtle.importKey('raw', encoder.encode(secret), 'PBKDF2', false, ['deriveKey']);
-  const key = await crypto.subtle.deriveKey({
-    name: 'PBKDF2', salt: encoder.encode('rwengine-v2-api-key-encryption'), iterations: 100000, hash: 'SHA-256'
-  }, material, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
-  const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(ivBase64) }, key, base64ToBytes(ciphertextBase64));
-  return new TextDecoder().decode(plaintext);
-}
-
-function base64ToBytes(value) {
-  const binary = atob(String(value || ''));
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-  return bytes;
-}
-
-function nullableNumber(value) {
-  if (value === null || value === undefined || value === '') return null;
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
-}
-
-function finiteNumber(value) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
 }
 
 function getCookie(request, name) {

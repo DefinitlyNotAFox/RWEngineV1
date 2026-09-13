@@ -530,8 +530,7 @@ function renderDatabaseDiagnostics(result) {
     ['Permissions table', required.resourcePermissionsTable],
     ['Permission lookup index', required.resourcePermissionLookupIndex],
     ['Permission owner index', required.resourcePermissionOwnerIndex],
-    ['Attack attacker index', required.attackerIndex],
-    ['Attack defender index', required.defenderIndex],
+    ['Attack aggregates', required.attackAggregates],
     ['Snapshot history index', required.snapshotIndex],
     ['War-log player index', required.warLogIndex]
   ];

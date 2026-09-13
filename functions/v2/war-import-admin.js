@@ -104,11 +104,6 @@ async function handleImportRankedWarReport(env, user, faction, body) {
 
   await env.DB.prepare(`DELETE FROM war_log WHERE war_id = ? AND faction_id = ?`)
     .bind(normalized.warId, factionId).run();
-  // Old imports may still have persisted attack rows. Re-importing a war clears
-  // those legacy rows and any in-progress aggregate state; new imports do not
-  // create attack rows.
-  await env.DB.prepare(`DELETE FROM attacks WHERE war_id = ? AND faction_id = ?`)
-    .bind(normalized.warId, factionId).run();
   await env.DB.prepare(`DELETE FROM app_meta WHERE key = ?`)
     .bind(`war_attack_accumulator_v1:${factionId}:${normalized.warId}`).run();
 
@@ -168,7 +163,6 @@ async function handleApplyAttackSummary(env, faction, body) {
 
   if (reset) {
     await deleteAttackSummaryState(env.DB, factionId, warId);
-    await env.DB.prepare(`DELETE FROM attacks WHERE war_id = ? AND faction_id = ?`).bind(warId, factionId).run();
     await env.DB.prepare(`
       UPDATE war_log SET outside_hits = 0, assists = 0, score_down = 0, synced_at = ?
       WHERE war_id = ? AND faction_id = ?

@@ -3,16 +3,9 @@ PRAGMA foreign_keys = ON;
 /*
   Analytics access paths.
 
-  The application reads attack metrics by faction + imported war and then
-  groups by attacker or defender. These indexes avoid falling back to broad
-  faction scans as the attacks table grows.
+  Raw attacks are no longer persisted. Analytics read finalized member totals
+  from war_log and roster history from member_snapshots.
 */
-
-CREATE INDEX IF NOT EXISTS idx_attacks_faction_war_attacker
-ON attacks(faction_id, war_id, attacker_id);
-
-CREATE INDEX IF NOT EXISTS idx_attacks_faction_war_defender
-ON attacks(faction_id, war_id, defender_id);
 
 CREATE INDEX IF NOT EXISTS idx_member_snapshots_faction_player_time
 ON member_snapshots(faction_id, player_id, snapshot_at);

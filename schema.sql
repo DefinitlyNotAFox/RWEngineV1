@@ -137,39 +137,6 @@ CREATE TABLE IF NOT EXISTS war_log (
   FOREIGN KEY (faction_id) REFERENCES factions(faction_id)
 );
 
-CREATE TABLE IF NOT EXISTS attacks (
-  attack_id TEXT PRIMARY KEY,
-
-  war_id TEXT,
-  faction_id INTEGER,
-
-  attacker_id INTEGER,
-  attacker_name TEXT,
-
-  defender_id INTEGER,
-  defender_name TEXT,
-
-  attacker_faction_id INTEGER,
-  defender_faction_id INTEGER,
-
-  result TEXT,
-  respect_gain REAL,
-  respect_loss REAL,
-
-  chain INTEGER,
-  is_ranked_war INTEGER NOT NULL DEFAULT 0,
-
-  timestamp_started INTEGER,
-  timestamp_ended INTEGER,
-
-  raw_json TEXT,
-
-  created_at INTEGER NOT NULL,
-
-  FOREIGN KEY (war_id) REFERENCES wars(war_id) ON DELETE CASCADE,
-  FOREIGN KEY (faction_id) REFERENCES factions(faction_id)
-);
-
 /* =========================
    FACTION INTELLIGENCE CORE
 ========================= */
@@ -305,27 +272,6 @@ ON war_log(faction_id);
 
 CREATE INDEX IF NOT EXISTS idx_war_log_player_id
 ON war_log(player_id);
-
-CREATE INDEX IF NOT EXISTS idx_attacks_war_id
-ON attacks(war_id);
-
-CREATE INDEX IF NOT EXISTS idx_attacks_faction_id
-ON attacks(faction_id);
-
-CREATE INDEX IF NOT EXISTS idx_attacks_attacker_id
-ON attacks(attacker_id);
-
-CREATE INDEX IF NOT EXISTS idx_attacks_defender_id
-ON attacks(defender_id);
-
-CREATE INDEX IF NOT EXISTS idx_attacks_timestamp_started
-ON attacks(timestamp_started);
-
-CREATE INDEX IF NOT EXISTS idx_attacks_faction_war_attacker
-ON attacks(faction_id, war_id, attacker_id);
-
-CREATE INDEX IF NOT EXISTS idx_attacks_faction_war_defender
-ON attacks(faction_id, war_id, defender_id);
 
 CREATE INDEX IF NOT EXISTS idx_faction_members_faction_current
 ON faction_members(faction_id, is_current);

@@ -132,16 +132,6 @@ const DATABASE_MAINTENANCE_STEPS = [
     sql: "INSERT OR IGNORE INTO resource_permissions (owner_user_id, faction_id, resource_type, resource_key, visibility, created_at, updated_at) SELECT COALESCE(w.imported_by_user_id, sl.owner_user_id), sl.faction_id, sl.resource_type, sl.resource_key, 'public', sl.created_at, sl.updated_at FROM share_links sl LEFT JOIN wars w ON w.faction_id = sl.faction_id AND w.war_id = sl.resource_key WHERE sl.is_enabled = 1 AND sl.resource_type = 'war'"
   },
   {
-    key: 'attacks_attacker_index',
-    label: 'Create faction / war / attacker index',
-    sql: 'CREATE INDEX IF NOT EXISTS idx_attacks_faction_war_attacker ON attacks(faction_id, war_id, attacker_id)'
-  },
-  {
-    key: 'attacks_defender_index',
-    label: 'Create faction / war / defender index',
-    sql: 'CREATE INDEX IF NOT EXISTS idx_attacks_faction_war_defender ON attacks(faction_id, war_id, defender_id)'
-  },
-  {
     key: 'snapshots_player_time_index',
     label: 'Create faction / player / snapshot index',
     sql: 'CREATE INDEX IF NOT EXISTS idx_member_snapshots_faction_player_time ON member_snapshots(faction_id, player_id, snapshot_at)'
@@ -194,8 +184,6 @@ async function handleDatabaseStatus(env, body) {
     'resource_permissions',
     'idx_resource_permissions_lookup',
     'idx_resource_permissions_owner',
-    'idx_attacks_faction_war_attacker',
-    'idx_attacks_faction_war_defender',
     'idx_member_snapshots_faction_player_time',
     'idx_war_log_faction_war_player'
   ];
@@ -206,6 +194,19 @@ async function handleDatabaseStatus(env, body) {
   ).bind(...names).all();
 
   const found = new Set((objectsResult.results || []).map(row => String(row.name)));
+  const warLogColumnsResult = await env.DB.prepare('PRAGMA table_info(war_log)').all();
+  const warLogColumns = new Set(
+    (warLogColumnsResult.results || []).map(row => String(row.name))
+  );
+  const aggregateColumns = [
+    'respect_earned',
+    'respect_lost',
+    'attack_detail_complete',
+    'attack_detail_rows',
+    'chain_bonus_hits_in',
+    'chain_bonus_score_in',
+    'chain_bonus_respect_lost_in'
+  ];
   const latestWar = await env.DB.prepare(
     'SELECT war_id, opponent_faction_name, start_timestamp, end_timestamp, imported_at FROM wars WHERE faction_id = ? ORDER BY COALESCE(end_timestamp, start_timestamp, imported_at, 0) DESC LIMIT 1'
   ).bind(factionId).first();
@@ -221,18 +222,11 @@ async function handleDatabaseStatus(env, body) {
   if (warId) {
     plans.push(await explainPlan(
       env.DB,
-      'Outgoing attacks by war',
-      'EXPLAIN QUERY PLAN SELECT attacker_id, COUNT(*) AS outgoing_rows, SUM(COALESCE(respect_gain, 0)) AS respect_earned FROM attacks WHERE faction_id = ? AND war_id = ? AND attacker_id IS NOT NULL GROUP BY attacker_id',
+      'Stored attack aggregates by war',
+      'EXPLAIN QUERY PLAN SELECT player_id, attack_detail_rows, respect_earned, respect_lost FROM war_log WHERE faction_id = ? AND war_id = ? ORDER BY player_id',
       [factionId, warId],
-      ['attacks']
-    ));
-
-    plans.push(await explainPlan(
-      env.DB,
-      'Incoming attacks by war',
-      'EXPLAIN QUERY PLAN SELECT defender_id, COUNT(*) AS incoming_rows, SUM(ABS(COALESCE(respect_loss, 0))) AS respect_lost FROM attacks WHERE faction_id = ? AND war_id = ? AND defender_id IS NOT NULL GROUP BY defender_id',
-      [factionId, warId],
-      ['attacks']
+      ['war_log'],
+      ['idx_war_log_faction_war_player']
     ));
   }
 
@@ -262,51 +256,24 @@ async function handleDatabaseStatus(env, body) {
     env.DB,
     'Intel selected-war respect aggregation',
     `EXPLAIN QUERY PLAN
-      WITH selected_wars AS (
-        SELECT war_id
-        FROM wars
-        WHERE faction_id = ?
-          AND COALESCE(end_timestamp, start_timestamp, imported_at, 0) BETWEEN ? AND ?
-      ),
-      metrics AS (
-        SELECT
-          a.attacker_id AS player_id,
-          SUM(COALESCE(a.respect_gain, 0)) AS respect_earned,
-          0 AS respect_lost
-        FROM selected_wars sw
-        CROSS JOIN attacks a INDEXED BY idx_attacks_faction_war_attacker
-        WHERE a.faction_id = ?
-          AND a.war_id = sw.war_id
-          AND a.attacker_id IS NOT NULL
-        GROUP BY a.attacker_id
-
-        UNION ALL
-
-        SELECT
-          a.defender_id AS player_id,
-          0 AS respect_earned,
-          SUM(ABS(COALESCE(a.respect_loss, 0))) AS respect_lost
-        FROM selected_wars sw
-        CROSS JOIN attacks a INDEXED BY idx_attacks_faction_war_defender
-        WHERE a.faction_id = ?
-          AND a.war_id = sw.war_id
-          AND a.defender_id IS NOT NULL
-        GROUP BY a.defender_id
-      )
-      SELECT player_id, SUM(respect_earned), SUM(respect_lost)
-      FROM metrics
-      GROUP BY player_id`,
-    [factionId, rangeFrom, rangeTo, factionId, factionId],
-    ['attacks'],
-    ['idx_attacks_faction_war_attacker', 'idx_attacks_faction_war_defender']
+      SELECT
+        wl.player_id,
+        SUM(COALESCE(wl.respect_earned, 0)),
+        SUM(COALESCE(wl.respect_lost, 0))
+      FROM war_log wl
+      JOIN wars w ON w.war_id = wl.war_id
+      WHERE wl.faction_id = ?
+        AND COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) BETWEEN ? AND ?
+      GROUP BY wl.player_id`,
+    [factionId, rangeFrom, rangeTo],
+    ['war_log']
   ));
 
   const required = {
     resourcePermissionsTable: found.has('resource_permissions'),
     resourcePermissionLookupIndex: found.has('idx_resource_permissions_lookup'),
     resourcePermissionOwnerIndex: found.has('idx_resource_permissions_owner'),
-    attackerIndex: found.has('idx_attacks_faction_war_attacker'),
-    defenderIndex: found.has('idx_attacks_faction_war_defender'),
+    attackAggregates: aggregateColumns.every(column => warLogColumns.has(column)),
     snapshotIndex: found.has('idx_member_snapshots_faction_player_time'),
     warLogIndex: found.has('idx_war_log_faction_war_player')
   };
@@ -595,50 +562,16 @@ async function getRange(db, factionId, body) {
   `).bind(factionId, range.from, range.to).first();
 
   const respectMetricsResult = await db.prepare(`
-    WITH selected_wars AS (
-      SELECT war_id
-      FROM wars
-      WHERE faction_id = ?
-        AND COALESCE(end_timestamp, start_timestamp, imported_at, 0) BETWEEN ? AND ?
-    ),
-    metrics AS (
-      SELECT
-        a.attacker_id AS player_id,
-        SUM(COALESCE(a.respect_gain, 0)) AS respect_earned,
-        0 AS respect_lost
-      FROM selected_wars sw
-      CROSS JOIN attacks a INDEXED BY idx_attacks_faction_war_attacker
-      WHERE a.faction_id = ?
-        AND a.war_id = sw.war_id
-        AND a.attacker_id IS NOT NULL
-      GROUP BY a.attacker_id
-
-      UNION ALL
-
-      SELECT
-        a.defender_id AS player_id,
-        0 AS respect_earned,
-        SUM(ABS(COALESCE(a.respect_loss, 0))) AS respect_lost
-      FROM selected_wars sw
-      CROSS JOIN attacks a INDEXED BY idx_attacks_faction_war_defender
-      WHERE a.faction_id = ?
-        AND a.war_id = sw.war_id
-        AND a.defender_id IS NOT NULL
-      GROUP BY a.defender_id
-    )
     SELECT
-      player_id,
-      SUM(respect_earned) AS respect_earned,
-      SUM(respect_lost) AS respect_lost
-    FROM metrics
-    GROUP BY player_id
-  `).bind(
-    factionId,
-    range.from,
-    range.to,
-    factionId,
-    factionId
-  ).all();
+      wl.player_id,
+      SUM(COALESCE(wl.respect_earned, 0)) AS respect_earned,
+      SUM(COALESCE(wl.respect_lost, 0)) AS respect_lost
+    FROM war_log wl
+    JOIN wars w ON w.war_id = wl.war_id
+    WHERE wl.faction_id = ?
+      AND COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) BETWEEN ? AND ?
+    GROUP BY wl.player_id
+  `).bind(factionId, range.from, range.to).all();
 
   const snapshotsByPlayer = groupBy(snapshotsResult.results || [], row => Number(row.player_id));
   const warsByPlayer = new Map((warResult.results || []).map(row => [Number(row.player_id), row]));
@@ -742,15 +675,15 @@ async function handleGetMemberDetail(env, body) {
       wl.assists,
       wl.score_up,
       wl.score_down,
-      COALESCE((SELECT SUM(COALESCE(a.respect_gain, 0)) FROM attacks a WHERE a.war_id = w.war_id AND a.attacker_id = ?), 0) AS respect_earned,
-      COALESCE((SELECT SUM(ABS(COALESCE(a.respect_loss, 0))) FROM attacks a WHERE a.war_id = w.war_id AND a.defender_id = ?), 0) AS respect_lost
+      COALESCE(wl.respect_earned, 0) AS respect_earned,
+      COALESCE(wl.respect_lost, 0) AS respect_lost
     FROM war_log wl
     JOIN wars w ON w.war_id = wl.war_id
     WHERE wl.faction_id = ?
       AND wl.player_id = ?
       AND COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) BETWEEN ? AND ?
     ORDER BY COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) DESC
-  `).bind(playerId, playerId, factionId, playerId, range.from, range.to).all();
+  `).bind(factionId, playerId, range.from, range.to).all();
 
   return json({
     success: true,
@@ -800,7 +733,9 @@ async function getRangeDataForMember(db, factionId, playerId, range, trackingSta
       SUM(wl.outside_hits) AS outside_hits,
       SUM(wl.assists) AS assists,
       SUM(wl.score_up) AS score_up,
-      SUM(wl.score_down) AS score_down
+      SUM(wl.score_down) AS score_down,
+      SUM(COALESCE(wl.respect_earned, 0)) AS respect_earned,
+      SUM(COALESCE(wl.respect_lost, 0)) AS respect_lost
     FROM war_log wl
     JOIN wars w ON w.war_id = wl.war_id
     WHERE wl.faction_id = ? AND wl.player_id = ?
@@ -811,18 +746,6 @@ async function getRangeDataForMember(db, factionId, playerId, range, trackingSta
     SELECT COUNT(*) AS count FROM wars
     WHERE faction_id = ? AND COALESCE(end_timestamp, start_timestamp, imported_at, 0) BETWEEN ? AND ?
   `).bind(factionId, range.from, range.to).first();
-
-  const respectEarned = await db.prepare(`
-    SELECT SUM(COALESCE(respect_gain, 0)) AS value FROM attacks
-    WHERE faction_id = ? AND war_id IS NOT NULL AND attacker_id = ?
-      AND COALESCE(timestamp_ended, timestamp_started, 0) BETWEEN ? AND ?
-  `).bind(factionId, playerId, range.from, range.to).first();
-
-  const respectLost = await db.prepare(`
-    SELECT SUM(ABS(COALESCE(respect_loss, 0))) AS value FROM attacks
-    WHERE faction_id = ? AND war_id IS NOT NULL AND defender_id = ?
-      AND COALESCE(timestamp_ended, timestamp_started, 0) BETWEEN ? AND ?
-  `).bind(factionId, playerId, range.from, range.to).first();
 
   const wars = Number(war?.wars || 0);
   const hits = Number(war?.hits || 0);
@@ -857,8 +780,8 @@ async function getRangeDataForMember(db, factionId, playerId, range, trackingSta
     avgHitsPerWar: wars > 0 ? hits / wars : null,
     outsideHits: Number(war?.outside_hits || 0),
     assists: Number(war?.assists || 0),
-    respectEarned: Number(respectEarned?.value || 0),
-    respectLost: Number(respectLost?.value || 0),
+    respectEarned: Number(war?.respect_earned || 0),
+    respectLost: Number(war?.respect_lost || 0),
     scoreUp,
     scoreDown,
     netScore: scoreUp - scoreDown

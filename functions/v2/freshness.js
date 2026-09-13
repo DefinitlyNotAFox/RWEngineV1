@@ -33,8 +33,8 @@ export async function onRequest(context) {
       'SELECT COUNT(*) AS war_count, MAX(updated_at) AS observed_at, MAX(COALESCE(end_timestamp, start_timestamp, imported_at, 0)) AS latest_war_at FROM wars WHERE faction_id = ?'
     ).bind(factionId).first();
 
-    const attacks = await env.DB.prepare(
-      'SELECT MAX(created_at) AS observed_at FROM attacks WHERE faction_id = ? AND war_id IS NOT NULL'
+    const attackDetails = await env.DB.prepare(
+      'SELECT MAX(synced_at) AS observed_at FROM war_log WHERE faction_id = ? AND attack_detail_complete = 1'
     ).bind(factionId).first();
 
     const rosterAt = nullableNumber(roster?.observed_at);
@@ -44,7 +44,7 @@ export async function onRequest(context) {
     const intelAge = intelObservedAt ? Math.max(0, now - intelObservedAt) : null;
 
     const archiveObservedAt = nullableNumber(wars?.observed_at);
-    const attackObservedAt = nullableNumber(attacks?.observed_at);
+    const attackObservedAt = nullableNumber(attackDetails?.observed_at);
 
     return json({
       success: true,

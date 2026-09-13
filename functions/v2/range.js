@@ -67,50 +67,16 @@ async function getRange(db, factionId, body) {
   `).bind(factionId, range.from, range.to).first();
 
   const respectMetricsResult = await db.prepare(`
-    WITH selected_wars AS (
-      SELECT war_id
-      FROM wars
-      WHERE faction_id = ?
-        AND COALESCE(end_timestamp, start_timestamp, imported_at, 0) BETWEEN ? AND ?
-    ),
-    metrics AS (
-      SELECT
-        a.attacker_id AS player_id,
-        SUM(COALESCE(a.respect_gain, 0)) AS respect_earned,
-        0 AS respect_lost
-      FROM selected_wars sw
-      CROSS JOIN attacks a INDEXED BY idx_attacks_faction_war_attacker
-      WHERE a.faction_id = ?
-        AND a.war_id = sw.war_id
-        AND a.attacker_id IS NOT NULL
-      GROUP BY a.attacker_id
-
-      UNION ALL
-
-      SELECT
-        a.defender_id AS player_id,
-        0 AS respect_earned,
-        SUM(ABS(COALESCE(a.respect_loss, 0))) AS respect_lost
-      FROM selected_wars sw
-      CROSS JOIN attacks a INDEXED BY idx_attacks_faction_war_defender
-      WHERE a.faction_id = ?
-        AND a.war_id = sw.war_id
-        AND a.defender_id IS NOT NULL
-      GROUP BY a.defender_id
-    )
     SELECT
-      player_id,
-      SUM(respect_earned) AS respect_earned,
-      SUM(respect_lost) AS respect_lost
-    FROM metrics
-    GROUP BY player_id
-  `).bind(
-    factionId,
-    range.from,
-    range.to,
-    factionId,
-    factionId
-  ).all();
+      wl.player_id,
+      SUM(COALESCE(wl.respect_earned, 0)) AS respect_earned,
+      SUM(COALESCE(wl.respect_lost, 0)) AS respect_lost
+    FROM war_log wl
+    JOIN wars w ON w.war_id = wl.war_id
+    WHERE wl.faction_id = ?
+      AND COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) BETWEEN ? AND ?
+    GROUP BY wl.player_id
+  `).bind(factionId, range.from, range.to).all();
 
   const snapshotsByPlayer = groupBy(snapshotsResult.results || [], row => Number(row.player_id));
   const warsByPlayer = new Map((warResult.results || []).map(row => [Number(row.player_id), row]));
@@ -210,23 +176,15 @@ async function getMemberDetail(db, factionId, body) {
       wl.assists,
       wl.score_up,
       wl.score_down,
-      COALESCE((
-        SELECT SUM(COALESCE(a.respect_gain, 0))
-        FROM attacks a
-        WHERE a.war_id = w.war_id AND a.attacker_id = ?
-      ), 0) AS respect_earned,
-      COALESCE((
-        SELECT SUM(ABS(COALESCE(a.respect_loss, 0)))
-        FROM attacks a
-        WHERE a.war_id = w.war_id AND a.defender_id = ?
-      ), 0) AS respect_lost
+      COALESCE(wl.respect_earned, 0) AS respect_earned,
+      COALESCE(wl.respect_lost, 0) AS respect_lost
     FROM war_log wl
     JOIN wars w ON w.war_id = wl.war_id
     WHERE wl.faction_id = ?
       AND wl.player_id = ?
       AND COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) BETWEEN ? AND ?
     ORDER BY COALESCE(w.end_timestamp, w.start_timestamp, w.imported_at, 0) DESC
-  `).bind(playerId, playerId, factionId, playerId, range.from, range.to).all();
+  `).bind(factionId, playerId, range.from, range.to).all();
 
   return json({
     success: true,
@@ -278,7 +236,9 @@ async function getRangeDataForMember(db, factionId, playerId, range, trackingSta
       SUM(wl.outside_hits) AS outside_hits,
       SUM(wl.assists) AS assists,
       SUM(wl.score_up) AS score_up,
-      SUM(wl.score_down) AS score_down
+      SUM(wl.score_down) AS score_down,
+      SUM(COALESCE(wl.respect_earned, 0)) AS respect_earned,
+      SUM(COALESCE(wl.respect_lost, 0)) AS respect_lost
     FROM war_log wl
     JOIN wars w ON w.war_id = wl.war_id
     WHERE wl.faction_id = ? AND wl.player_id = ?
@@ -289,18 +249,6 @@ async function getRangeDataForMember(db, factionId, playerId, range, trackingSta
     SELECT COUNT(*) AS count FROM wars
     WHERE faction_id = ? AND COALESCE(end_timestamp, start_timestamp, imported_at, 0) BETWEEN ? AND ?
   `).bind(factionId, range.from, range.to).first();
-
-  const respectEarned = await db.prepare(`
-    SELECT SUM(COALESCE(respect_gain, 0)) AS value FROM attacks
-    WHERE faction_id = ? AND war_id IS NOT NULL AND attacker_id = ?
-      AND COALESCE(timestamp_ended, timestamp_started, 0) BETWEEN ? AND ?
-  `).bind(factionId, playerId, range.from, range.to).first();
-
-  const respectLost = await db.prepare(`
-    SELECT SUM(ABS(COALESCE(respect_loss, 0))) AS value FROM attacks
-    WHERE faction_id = ? AND war_id IS NOT NULL AND defender_id = ?
-      AND COALESCE(timestamp_ended, timestamp_started, 0) BETWEEN ? AND ?
-  `).bind(factionId, playerId, range.from, range.to).first();
 
   const wars = Number(war?.wars || 0);
   const hits = Number(war?.hits || 0);
@@ -333,8 +281,8 @@ async function getRangeDataForMember(db, factionId, playerId, range, trackingSta
     avgHitsPerWar: wars > 0 ? hits / wars : null,
     outsideHits: Number(war?.outside_hits || 0),
     assists: Number(war?.assists || 0),
-    respectEarned: Number(respectEarned?.value || 0),
-    respectLost: Number(respectLost?.value || 0),
+    respectEarned: Number(war?.respect_earned || 0),
+    respectLost: Number(war?.respect_lost || 0),
     scoreUp,
     scoreDown,
     netScore: scoreUp - scoreDown

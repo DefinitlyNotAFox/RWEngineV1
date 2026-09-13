@@ -61,8 +61,10 @@ export async function onRequest(context) {
           });
         }
 
-        state = createAccumulator(war);
-        await seedAccumulatorFromLegacyRows(env.DB, war, state);
+        throw httpError(
+          409,
+          'No attack-detail import is in progress. Start processing before finalizing.'
+        );
       }
 
       const metricAdjustment = await finalizeAccumulator(env.DB, war, state);
@@ -92,12 +94,6 @@ export async function onRequest(context) {
 
     if (!state) {
       state = createAccumulator(war);
-      // Compatibility for an import that started on the previous code version:
-      // seed the compact accumulator from already-stored rows once, then stop
-      // creating new attack rows.
-      if (body.nextUrl) {
-        await seedAccumulatorFromLegacyRows(env.DB, war, state);
-      }
     }
 
     if (state.done) {
@@ -124,9 +120,7 @@ export async function onRequest(context) {
     const apiKey = await requireFactionApiKey(env, factionId);
     const requestUrl = state.nextUrl
       ? sanitizeNextUrl(state.nextUrl)
-      : body.nextUrl
-        ? sanitizeNextUrl(body.nextUrl)
-        : buildInitialUrl(war);
+      : buildInitialUrl(war);
 
     const payload = await fetchTornJson(requestUrl, apiKey);
     const rawAttacks = Array.isArray(payload?.attacks) ? payload.attacks : [];
@@ -453,45 +447,6 @@ async function deleteAccumulator(db, factionId, warId) {
     .bind(accumulatorKey(factionId, warId)).run();
 }
 
-async function seedAccumulatorFromLegacyRows(db, war, state) {
-  const result = await db.prepare(`
-    SELECT attack_id, attacker_id, defender_id, attacker_faction_id, defender_faction_id,
-           result, respect_gain, respect_loss, chain, is_ranked_war,
-           timestamp_started, timestamp_ended, raw_json
-    FROM attacks
-    WHERE faction_id = ? AND war_id = ?
-    ORDER BY timestamp_started, attack_id
-  `).bind(Number(war.faction_id), String(war.war_id)).all();
-
-  const seen = new Set(state.seenAttackIds || []);
-  for (const row of result.results || []) {
-    const attackId = String(row.attack_id || '');
-    if (!attackId || seen.has(attackId)) continue;
-    seen.add(attackId);
-
-    let raw = null;
-    try { raw = row.raw_json ? JSON.parse(row.raw_json) : null; } catch (_) {}
-    const attack = {
-      attackId,
-      attackerId:nullableNumber(row.attacker_id),
-      defenderId:nullableNumber(row.defender_id),
-      attackerFactionId:nullableNumber(row.attacker_faction_id),
-      defenderFactionId:nullableNumber(row.defender_faction_id),
-      result:String(row.result || ''),
-      respectGain:finiteNumber(row.respect_gain),
-      respectLoss:Math.abs(finiteNumber(row.respect_loss)),
-      chain:nullableNumber(row.chain),
-      chainModifier:finiteNumber(raw?.modifiers?.chain ?? raw?.modifier?.chain),
-      isRankedWar:Number(row.is_ranked_war || 0) === 1,
-      timestampStarted:nullableNumber(row.timestamp_started),
-      timestampEnded:nullableNumber(row.timestamp_ended)
-    };
-    accumulateAttack(state, war, attack);
-    state.processedTotal += 1;
-  }
-  state.seenAttackIds = [...seen];
-}
-
 function summarizeAccumulator(state) {
   const metrics = Object.values(state.players || {});
   return {
@@ -585,16 +540,6 @@ async function finalizeAccumulator(db, war, state) {
     chainBonusesIncluded:true,
     scoreSource:'official-report-plus-aggregated-attack-detail'
   };
-
-  await db.prepare(`
-    INSERT INTO app_meta (key, value, updated_at)
-    VALUES (?, ?, ?)
-    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-  `).bind(
-    `war_score_adjustment:${factionId}:${warId}`,
-    JSON.stringify(summary),
-    now
-  ).run();
 
   return summary;
 }
