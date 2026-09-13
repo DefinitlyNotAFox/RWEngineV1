@@ -206,6 +206,7 @@ CREATE TABLE IF NOT EXISTS member_snapshots (
 
   activity_total_seconds INTEGER,
   xanax_taken_total INTEGER,
+  organized_crimes_total INTEGER,
 
   battle_stats_estimate REAL,
   battle_stats_source TEXT,
