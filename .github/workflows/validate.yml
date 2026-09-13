@@ -26,6 +26,7 @@ jobs:
           node tests/intel-insights.test.mjs
           node tests/intel-contract.test.mjs
           node tests/no-raw-attacks.test.mjs
+          node tests/attack-pagination.test.mjs
           rm package.json
 
       - name: Check v2 asset references

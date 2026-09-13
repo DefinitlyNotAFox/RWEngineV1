@@ -944,7 +944,25 @@ async function handleImport(event) {
       try {
         const status = await importApi('checkImportStatus', { rankId:id });
         if (status.exists && !overwrite) {
-          updateImportRow(rows,id,'','Skipped','Already imported.');
+          const existingWar = status.war || {};
+          const detailComplete = Number(
+            existingWar.attack_detail_complete ?? existingWar.attackDetailComplete ?? 0
+          ) === 1;
+
+          if (detailComplete) {
+            updateImportRow(rows,id,'','Skipped','Already imported.');
+            continue;
+          }
+
+          const existingWarId = String(existingWar.war_id || existingWar.warId || id);
+          usedApi = true;
+          phase = 'Attack verification';
+          updateImportRow(rows,id,'','Resume','Resuming incomplete attack verification.');
+          const verified = await importAttackDetail(existingWarId, id, rows);
+          updateImportRow(
+            rows,id,'','Complete',
+            `${formatNumber(verified.processedTotal ?? verified.storedTotal ?? 0)} attacks · ${formatNumber(verified.assists || 0)} assists · metrics saved.`
+          );
           continue;
         }
 
@@ -1038,7 +1056,10 @@ async function importAttackDetail(warId, reportId, rows) {
 
     const key = canonicalPage(candidate);
     if (seen.has(key)) {
-      throw new Error('Torn repeated the same attack-detail page.');
+      return finalizeAttackDetail(warId, {
+        ...result,
+        paginationStopReason:'repeated-link'
+      });
     }
 
     seen.add(key);
@@ -1059,6 +1080,7 @@ function canonicalPage(value) {
     const url = new URL(String(value), location.origin);
     url.searchParams.delete('key');
     url.searchParams.delete('comment');
+    url.searchParams.delete('timestamp');
     return `${url.origin}${url.pathname}?${[...url.searchParams.entries()].sort().map(([k,v]) => `${k}=${v}`).join('&')}`;
   } catch (_) {
     return String(value);

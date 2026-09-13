@@ -1422,7 +1422,13 @@ async function getExistingImportedWar(env, factionId, rankId) {
       opponent_faction_name,
       start_timestamp,
       end_timestamp,
-      imported_at
+      imported_at,
+      COALESCE((
+        SELECT MIN(COALESCE(wl.attack_detail_complete, 0))
+        FROM war_log wl
+        WHERE wl.faction_id = wars.faction_id
+          AND wl.war_id = wars.war_id
+      ), 0) AS attack_detail_complete
     FROM wars
     WHERE faction_id = ?
       AND (war_id = ? OR report_id = ?)

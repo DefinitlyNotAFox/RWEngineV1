@@ -56,6 +56,7 @@ export async function onRequest(context) {
             respectLost:finalized.respectLost,
             scoreAdjustment:finalized.scoreAdjustment,
             metricAdjustment:finalized.scoreAdjustment,
+            paginationStopReason:null,
             nextUrl:null,
             source:'v2-faction-attacksfull-aggregate'
           });
@@ -69,6 +70,7 @@ export async function onRequest(context) {
 
       const metricAdjustment = await finalizeAccumulator(env.DB, war, state);
       const totals = summarizeAccumulator(state);
+      const paginationStopReason = state.paginationStopReason || null;
       await deleteAccumulator(env.DB, factionId, warId);
 
       return json({
@@ -87,6 +89,7 @@ export async function onRequest(context) {
         respectLost:totals.respectLost,
         scoreAdjustment:metricAdjustment,
         metricAdjustment,
+        paginationStopReason,
         nextUrl:null,
         source:'v2-faction-attacksfull-aggregate'
       });
@@ -112,6 +115,7 @@ export async function onRequest(context) {
         assists:totals.assists,
         respectEarned:totals.respectEarned,
         respectLost:totals.respectLost,
+        paginationStopReason:state.paginationStopReason || null,
         nextUrl:null,
         source:'v2-faction-attacksfull-aggregate'
       });
@@ -122,7 +126,7 @@ export async function onRequest(context) {
       ? sanitizeNextUrl(state.nextUrl)
       : buildInitialUrl(war);
 
-    const payload = await fetchTornJson(requestUrl, apiKey);
+    const payload = await fetchTornJson(withCacheBuster(requestUrl), apiKey);
     const rawAttacks = Array.isArray(payload?.attacks) ? payload.attacks : [];
     const exactStart = Number(war.start_timestamp);
     const exactEnd = Number(war.end_timestamp);
@@ -140,8 +144,11 @@ export async function onRequest(context) {
 
     state.seenAttackIds = [...seen];
     state.rawFetched = Number(state.rawFetched || 0) + rawAttacks.length;
-    state.nextUrl = sanitizeOptionalNextUrl(payload?._metadata?.links?.next);
-    state.done = !state.nextUrl;
+    applyAttackPagination(
+      state,
+      requestUrl,
+      sanitizeOptionalNextUrl(payload?._metadata?.links?.next)
+    );
     state.updatedAt = unixNow();
     await saveAccumulator(env.DB, factionId, warId, state);
 
@@ -160,6 +167,7 @@ export async function onRequest(context) {
       assists:totals.assists,
       respectEarned:totals.respectEarned,
       respectLost:totals.respectLost,
+      paginationStopReason:state.paginationStopReason || null,
       nextUrl:state.done ? null : state.nextUrl,
       source:'v2-faction-attacksfull-aggregate'
     });
@@ -245,7 +253,47 @@ function sanitizeNextUrl(value) {
   if (!url.pathname.startsWith('/v2/faction/attacksfull')) {
     throw httpError(400, 'Rejected invalid Torn attack pagination path.');
   }
+  url.searchParams.delete('key');
   return url.toString();
+}
+
+function withCacheBuster(value) {
+  const url = new URL(sanitizeNextUrl(value));
+  url.searchParams.set('timestamp', String(Date.now()));
+  return url.toString();
+}
+
+export function canonicalAttackPage(value) {
+  try {
+    const url = new URL(String(value), 'https://api.torn.com');
+    url.searchParams.delete('key');
+    url.searchParams.delete('comment');
+    url.searchParams.delete('timestamp');
+    const entries = [...url.searchParams.entries()]
+      .map(([key, item]) => [key, key === 'sort' ? item.toLowerCase() : item])
+      .sort(([leftKey, leftValue], [rightKey, rightValue]) =>
+        leftKey.localeCompare(rightKey) || leftValue.localeCompare(rightValue)
+      );
+    const query = new URLSearchParams(entries).toString();
+    return `${url.origin}${url.pathname}${query ? `?${query}` : ''}`;
+  } catch (_) {
+    return String(value || '');
+  }
+}
+
+export function applyAttackPagination(state, requestUrl, nextUrl) {
+  const seenPages = new Set(
+    Array.isArray(state.seenPageKeys) ? state.seenPageKeys.map(String) : []
+  );
+  seenPages.add(canonicalAttackPage(requestUrl));
+
+  const nextPageKey = nextUrl ? canonicalAttackPage(nextUrl) : '';
+  const repeated = Boolean(nextPageKey && seenPages.has(nextPageKey));
+  state.seenPageKeys = [...seenPages];
+  state.nextUrl = repeated ? null : nextUrl;
+  state.done = !state.nextUrl;
+  state.paginationStopReason = repeated ? 'repeated-link' : null;
+  return repeated;
 }
 
 async function fetchTornJson(url, apiKey) {
@@ -317,6 +365,7 @@ function createAccumulator(war) {
     processedTotal:0,
     rawFetched:0,
     seenAttackIds:[],
+    seenPageKeys:[],
     players:{},
     nextUrl:null,
     done:false,
@@ -425,6 +474,7 @@ async function loadAccumulator(db, factionId, warId) {
     if (!state || typeof state !== 'object') return null;
     state.players = state.players && typeof state.players === 'object' ? state.players : {};
     state.seenAttackIds = Array.isArray(state.seenAttackIds) ? state.seenAttackIds : [];
+    state.seenPageKeys = Array.isArray(state.seenPageKeys) ? state.seenPageKeys : [];
     state.processedTotal = Number(state.processedTotal || 0);
     state.rawFetched = Number(state.rawFetched || 0);
     state.verifiedOutgoingScore = Number(state.verifiedOutgoingScore || 0);
