@@ -1,18 +1,18 @@
 import {
   state, on, emit,
-  api, adminApi, rangeApi, loadWarsApi, freshnessApi, shareApi,
+  api, adminApi, rangeApi, loadWarsApi, freshnessApi, shareApi, rolesApi,
   periodPayload, restorePeriod, setPeriodPreset, renderPeriodControls,
   currentFactionName, currentFactionId,
   actualUserRole, availableViewRoles, currentViewRole,
-  isPlatformAdminView, isRolePreviewActive, restoreRolePreview,
+  canEditFactionView, isPlatformAdminView, isRolePreviewActive, restoreRolePreview,
   roleLabel, setRolePreview,
   routeTo, routeFromHash, setNotice,
   formatNumber, formatDate, formatDateTime, formatAge, escapeHtml
-} from './core.js?v=2';
+} from './core.js?v=3';
 
-import { initIntel, renderIntel, refreshSyncStatus } from './intel.js?v=3';
-import { initIntelV2 } from './intel-v2.js?v=32';
-import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=16';
+import { initIntel, renderIntel, refreshSyncStatus } from './intel.js?v=4';
+import { initIntelV2 } from './intel-v2.js?v=33';
+import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=17';
 
 const legacyIntelMode = new URL(location.href).searchParams.get('legacyIntel') === '1';
 
@@ -20,6 +20,8 @@ let loading = false;
 let adminKeyFactionId = null;
 let databaseBusy = false;
 let maintenanceBusy = false;
+let personalApiKeyBusy = false;
+let factionRolesLoading = false;
 
 init();
 
@@ -167,6 +169,7 @@ function bindApplication() {
   });
 
   document.querySelector('#adminKeyForm')?.addEventListener('submit', saveAdminKey);
+  document.querySelector('#personalApiKeyForm')?.addEventListener('submit', savePersonalApiKey);
   document.querySelector('#adminClearKey')?.addEventListener('click', clearAdminKey);
   document.querySelector('#databaseCheck')?.addEventListener('click', checkDatabaseStatus);
   document.querySelector('#databaseApply')?.addEventListener('click', applyDatabaseMaintenance);
@@ -174,6 +177,7 @@ function bindApplication() {
   document.querySelector('#maintenanceAdminLogin')?.addEventListener('click', () => showAuth(true));
 
   document.querySelector('#accessList')?.addEventListener('change', handleAccessChange);
+  document.querySelector('#factionRolesList')?.addEventListener('change', handleFactionRoleChange);
 
   on('request-refresh', () => refreshAll(false));
 
@@ -186,18 +190,23 @@ function bindApplication() {
 
   on('route', route => {
     if (route === 'settings') {
+      renderSettingsPermissions();
       renderAdminSettings();
       loadAccessList();
+      loadFactionRoles();
     }
   });
 
   on('role-preview', () => {
     renderRolePreview();
     renderIdentity();
+    renderSettingsPermissions();
     renderAdminContext();
-    renderHome();
     renderArchive();
-    if (state.route === 'settings') loadAccessList();
+    if (state.route === 'settings') {
+      loadAccessList();
+      loadFactionRoles();
+    }
   });
 }
 
@@ -227,8 +236,7 @@ async function enterApp() {
   renderIdentity();
   renderAdminContext();
 
-  // Restore the previous workspace immediately so reloads do not flash Home
-  // while faction data is still refreshing.
+  // Restore the previous view while faction data refreshes.
   routeTo(routeFromHash(), { updateHash:false });
   await refreshAll(false);
 }
@@ -289,14 +297,16 @@ async function refreshAll(userInitiated = false) {
 
     renderPeriodControls();
     renderIdentity();
-    renderHome();
     if (legacyIntelMode) renderIntel();
     renderArchive();
     renderFreshness();
     if (legacyIntelMode) await refreshSyncStatus();
 
     emit('data');
-    if (state.route === 'settings') loadAccessList();
+    if (state.route === 'settings') {
+      loadAccessList();
+      loadFactionRoles();
+    }
 
     if (userInitiated) setRefreshStatus('');
   } catch (error) {
@@ -314,7 +324,6 @@ async function loadRangeOnly() {
   try {
     state.range = await rangeApi('getRange', periodPayload());
     renderPeriodControls();
-    renderHome();
     renderIntel();
     emit('data');
   } catch (error) {
@@ -322,29 +331,6 @@ async function loadRangeOnly() {
   } finally {
     loading = false;
     setRefreshBusy(false);
-  }
-}
-
-function renderHome() {
-  const faction = currentFactionName();
-  const range = state.range;
-  const wars = state.wars.length;
-
-  const factionEl = document.querySelector('#homeFaction');
-  if (factionEl) factionEl.textContent = faction;
-
-  const coverage = document.querySelector('#homeCoverage');
-  if (coverage) {
-    const intel = state.freshness?.datasets?.intel;
-    const members = formatNumber(
-      legacyIntelMode
-        ? range?.summary?.currentMembers || 0
-        : intel?.memberCount || 0
-    );
-    const freshness = intel?.observedAt
-      ? ` · faction data ${intel.state === 'stale' ? 'stale' : 'updated'} ${formatAge(intel.ageSeconds)}`
-      : '';
-    coverage.textContent = `${members} current members · ${formatNumber(wars)} imported wars${freshness}`;
   }
 }
 
@@ -381,6 +367,16 @@ async function loadAccessList() {
   const status = document.querySelector('#accessStatus');
   if (!list || !state.user) return;
 
+  renderSettingsPermissions();
+  if (!canEditFactionView()) {
+    list.innerHTML = '';
+    if (status) {
+      status.textContent = '';
+      status.classList.add('hidden');
+    }
+    return;
+  }
+
   try {
     if (status) {
       status.textContent = '';
@@ -388,11 +384,7 @@ async function loadAccessList() {
     }
 
     const result = await shareApi('list');
-    const resources = (result.resources || []).filter(resource =>
-      isPlatformAdminView() ||
-      resource.canManageAsOwner === true ||
-      !state.user?.isAdmin
-    );
+    const resources = result.resources || [];
 
     list.innerHTML = resources.length
       ? resources.map(resource => `
@@ -420,6 +412,7 @@ async function loadAccessList() {
 }
 
 async function handleAccessChange(event) {
+  if (!canEditFactionView()) return;
   const select = event.target.closest('[data-access-key]');
   if (!select) return;
 
@@ -638,6 +631,53 @@ function renderIdentity() {
   document.querySelector('#settingsRole').textContent = isRolePreviewActive()
     ? `${roleLabel(actualRole)} · viewing as ${roleLabel(viewRole)}`
     : roleLabel(actualRole);
+
+  renderPersonalApiKeyStatus();
+  renderSettingsPermissions();
+}
+
+function renderPersonalApiKeyStatus(message = '', error = false) {
+  const status = document.querySelector('#personalApiKeyStatus');
+  if (!status || personalApiKeyBusy && !message) return;
+
+  status.textContent = message || (
+    state.user?.hasApiKey
+      ? 'A verified personal API key is stored.'
+      : 'No personal API key is stored.'
+  );
+  status.classList.toggle('error', Boolean(error));
+}
+
+function renderSettingsPermissions() {
+  const reportSection = document.querySelector('#reportAccessSection');
+  const rolesSection = document.querySelector('#factionRolesSection');
+  const canManageReports = canEditFactionView();
+  const canManageRoles = canManageFactionRolesView();
+
+  reportSection?.classList.toggle('hidden', !canManageReports);
+  rolesSection?.classList.toggle('hidden', !canManageRoles);
+
+  if (!canManageReports) {
+    const list = document.querySelector('#accessList');
+    if (list) list.innerHTML = '';
+  }
+  if (!canManageRoles) {
+    const list = document.querySelector('#factionRolesList');
+    if (list) list.innerHTML = '';
+  }
+}
+
+function canManageFactionRolesView() {
+  if (!state.user) return false;
+  if (state.user.isAdmin && isPlatformAdminView()) return true;
+
+  const sameFaction = Number(state.user.factionId || 0) === Number(currentFactionId() || 0);
+  const leadership = String(state.user.factionLeadershipRole || '');
+  const leadershipCanManage = ['leader','co_leader'].includes(leadership);
+  const loweredPreview = isRolePreviewActive() &&
+    !['platform_admin','faction_admin'].includes(currentViewRole());
+
+  return sameFaction && leadershipCanManage && !loweredPreview;
 }
 
 function renderRolePreview() {
@@ -676,6 +716,156 @@ function setRefreshStatus(message = '', error = false) {
     setNotice('');
   } else {
     setNotice(message || '', error ? 'error' : '');
+  }
+}
+
+async function savePersonalApiKey(event) {
+  event.preventDefault();
+  if (personalApiKeyBusy) return;
+
+  const input = document.querySelector('#personalApiKey');
+  const apiKey = String(input?.value || '').trim();
+  if (!apiKey) {
+    renderPersonalApiKeyStatus('Enter a Torn API key first.', true);
+    return;
+  }
+
+  personalApiKeyBusy = true;
+  setPersonalApiKeyBusy(true);
+  renderPersonalApiKeyStatus('Verifying this key with Torn…');
+
+  try {
+    const previousFactionId = Number(state.user?.factionId || 0);
+    const result = await api('updateApiKey', { apiKey });
+    state.user = result.user;
+    if (input) input.value = '';
+
+    if (state.user?.isAdmin) {
+      await loadAdminFactions();
+    } else {
+      state.selectedFactionId = Number(state.user?.factionId || 0) || null;
+    }
+
+    restoreRolePreview();
+    renderRolePreview();
+    renderIdentity();
+    renderAdminContext();
+
+    if (previousFactionId !== Number(state.user?.factionId || 0)) {
+      emit('faction', state.user?.factionId || null);
+    }
+    await refreshAll(false);
+    renderPersonalApiKeyStatus(result.message || 'Personal Torn API key saved.');
+  } catch (error) {
+    renderPersonalApiKeyStatus(error.message || 'Failed to save that API key.', true);
+  } finally {
+    personalApiKeyBusy = false;
+    setPersonalApiKeyBusy(false);
+  }
+}
+
+function setPersonalApiKeyBusy(busy) {
+  const input = document.querySelector('#personalApiKey');
+  const button = document.querySelector('#personalApiKeySave');
+  if (input) input.disabled = busy;
+  if (button) button.disabled = busy;
+}
+
+async function loadFactionRoles() {
+  const list = document.querySelector('#factionRolesList');
+  const status = document.querySelector('#factionRolesStatus');
+  renderSettingsPermissions();
+  if (!list || !canManageFactionRolesView() || factionRolesLoading) return;
+
+  factionRolesLoading = true;
+  if (status) {
+    status.textContent = '';
+    status.classList.add('hidden');
+    status.classList.remove('error');
+  }
+
+  try {
+    const result = await rolesApi('list');
+    renderFactionRoles(result);
+  } catch (error) {
+    list.innerHTML = '';
+    if (status) {
+      status.textContent = error.message || 'Failed to load faction roles.';
+      status.classList.remove('hidden');
+      status.classList.add('error');
+    }
+  } finally {
+    factionRolesLoading = false;
+  }
+}
+
+function renderFactionRoles(result) {
+  const list = document.querySelector('#factionRolesList');
+  if (!list) return;
+
+  const permissions = result.permissions || {};
+  const accounts = Array.isArray(result.accounts) ? result.accounts : [];
+  list.innerHTML = accounts.length
+    ? accounts.map(account => {
+        const protectedAccount = Boolean(account.protected);
+        const coCannotChangeAdmin = !permissions.canGrantAdmin && account.role === 'faction_admin';
+        const disabled = protectedAccount || coCannotChangeAdmin;
+        const choices = account.platformAdmin
+          ? ['platform_admin']
+          : permissions.canGrantAdmin
+            ? ['member','assistant','faction_admin']
+          : account.role === 'faction_admin'
+            ? ['faction_admin']
+            : ['member','assistant'];
+        const leadership = account.leadershipRole === 'leader'
+          ? 'Leader · protected'
+          : account.leadershipRole === 'co_leader'
+            ? 'Co-leader'
+            : '';
+        const platform = account.platformAdmin ? 'Platform admin · protected' : '';
+        const meta = [leadership, platform].filter(Boolean).join(' · ') || 'Registered account';
+
+        return `
+          <div class="access-row role-access-row">
+            <div>
+              <strong>${escapeHtml(account.playerName || `Player ${account.playerId}`)}</strong>
+              <small>[${escapeHtml(account.playerId)}] · ${escapeHtml(meta)}</small>
+            </div>
+            <select class="access-select" data-role-user-id="${escapeHtml(account.userId)}"${disabled ? ' disabled' : ''}>
+              ${choices.map(role => `
+                <option value="${role}"${role === account.role ? ' selected' : ''}>${escapeHtml(roleLabel(role))}</option>
+              `).join('')}
+            </select>
+          </div>
+        `;
+      }).join('')
+    : '<div class="access-empty">No registered faction accounts are available.</div>';
+}
+
+async function handleFactionRoleChange(event) {
+  const select = event.target.closest('[data-role-user-id]');
+  if (!select || !canManageFactionRolesView()) return;
+
+  const status = document.querySelector('#factionRolesStatus');
+  let feedback = '';
+  let failed = false;
+  select.disabled = true;
+  try {
+    const result = await rolesApi('setRole', {
+      userId:Number(select.dataset.roleUserId || 0),
+      role:select.value
+    });
+    feedback = result.message || 'Faction role updated.';
+  } catch (error) {
+    feedback = error.message || 'Failed to update faction role.';
+    failed = true;
+  } finally {
+    await loadFactionRoles();
+    if (status && feedback) {
+      status.textContent = feedback;
+      status.classList.remove('hidden');
+      status.classList.toggle('error', failed);
+    }
   }
 }
 
@@ -857,6 +1047,6 @@ function resetState() {
   state.maintenanceMode = false;
   state.maintenanceUpdatedAt = null;
   state.period = { preset:'last4', from:null, to:null };
-  state.route = 'home';
+  state.route = 'intel';
   setNotice('');
 }

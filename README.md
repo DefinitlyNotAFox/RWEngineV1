@@ -16,9 +16,15 @@ Primary views:
 - Account / admin settings
 
 Ranked-war reports use the shared resource-access model:
-- private — report owner and RWEngine admins
+- private — report owner, Assistants and faction/platform administrators
 - faction — authenticated members of the faction
 - public — faction access plus a revocable public URL under `/share/`
+
+Faction permissions follow Torn leadership while remaining independently manageable:
+- the official Leader and Co-leader begin as faction administrators
+- only the official Leader can grant or revoke faction-admin status; the Leader is protected from revocation
+- the Leader and Co-leader can grant or revoke Assistant status
+- Assistants can edit member notes/tags and manage report visibility
 
 The same visibility model is intended for future shareable modules.
 

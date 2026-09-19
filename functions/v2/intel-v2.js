@@ -1,7 +1,8 @@
 import { buildIntelInsights } from './intel-insights.js';
 import {
   factionLeadershipRole,
-  loadFactionLeadership
+  loadFactionLeadership,
+  loadFactionPermissions
 } from './faction-leadership.js';
 
 const DAY = 86400;
@@ -36,7 +37,7 @@ export async function onRequest(context) {
 
     if (action === 'saveMemberNotes') {
       if (!canEditMemberNotes) {
-        throw httpError(403, 'Faction admin access is required to edit member notes.');
+        throw httpError(403, 'Assistant or faction-admin access is required to edit member notes.');
       }
 
       const playerId = positiveInt(body.playerId, 'playerId');
@@ -603,19 +604,8 @@ async function ensureMemberNotesSchema(db) {
 
 async function canEditFactionNotes(db, user, factionId) {
   if (Number(user?.is_admin) === 1) return true;
-
-  const userId = Number(user?.user_id || 0);
-  const accountFactionId = Number(user?.faction_id || 0);
-  if (!userId || accountFactionId !== Number(factionId)) return false;
-
-  const role = await db.prepare(`
-    SELECT 1 AS allowed
-    FROM faction_user_roles
-    WHERE faction_id = ? AND user_id = ? AND role = 'faction_admin'
-    LIMIT 1
-  `).bind(factionId, userId).first();
-
-  return Boolean(role?.allowed);
+  const permissions = await loadFactionPermissions(db, user, factionId);
+  return permissions.isFactionAdmin || permissions.isAssistant;
 }
 
 async function loadFactionMemberNotes(db, factionId) {

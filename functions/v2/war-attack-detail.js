@@ -1,3 +1,5 @@
+import { loadFactionPermissions } from './faction-leadership.js';
+
 const MANAGED_KEY_CONFIG = 'admin_managed_api_key_v1';
 const PAGE_LIMIT = 250;
 const TIME_PADDING_SECONDS = 60;
@@ -234,6 +236,9 @@ async function ensureAggregateSchema(db) {
 
 async function assertWarAccess(db, user, factionId, war) {
   if (Number(user.is_admin) === 1) return;
+
+  const factionPermissions = await loadFactionPermissions(db, user, factionId);
+  if (factionPermissions.isFactionAdmin || factionPermissions.isAssistant) return;
 
   const permission = await db.prepare(
     'SELECT owner_user_id, visibility FROM resource_permissions WHERE faction_id = ? AND resource_type = ? AND resource_key = ? LIMIT 1'
@@ -729,7 +734,7 @@ async function getCurrentUser(env, request) {
 
   const tokenHash = await sha256Hex(token);
   const row = await env.DB.prepare(`
-    SELECT u.user_id, u.faction_id, u.is_admin, u.is_disabled
+    SELECT u.user_id, u.player_id, u.faction_id, u.is_admin, u.is_disabled
     FROM sessions s
     JOIN users u ON u.user_id = s.user_id
     WHERE s.token_hash = ? AND s.expires_at > ?

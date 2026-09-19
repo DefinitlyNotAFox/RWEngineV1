@@ -1,7 +1,7 @@
 import {
   formatNumber, formatCompact, formatDecimal, formatPercent,
   formatDuration, formatRelative, formatDate, escapeHtml, metric
-} from './core.js?v=2';
+} from './core.js?v=3';
 import { intelFixture } from './fixtures/intel-v2.js';
 
 let data = intelFixture;

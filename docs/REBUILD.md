@@ -75,7 +75,7 @@ If a tool does not yet do useful work, it does not appear in navigation.
 Shareable resources use `resource_permissions` rather than module-specific flags.
 
 Visibility values:
-- `private`: owner/admin only
+- `private`: report owner, Assistants, and faction/platform administrators
 - `faction`: authenticated faction members
 - `public`: faction access plus an opaque revocable public token
 

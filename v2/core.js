@@ -7,7 +7,7 @@ export const state = {
   range: null,
   freshness: null,
   period: { preset: 'last4', from: null, to: null },
-  route: 'home'
+  route: 'intel'
 };
 
 const listeners = new Map();
@@ -77,6 +77,14 @@ export async function attackDetailApi(payload = {}) {
 
 export async function shareApi(action, payload = {}) {
   return post('/v2/share', {
+    action,
+    ...(usesAdminFaction() ? { factionId: state.selectedFactionId } : {}),
+    ...payload
+  });
+}
+
+export async function rolesApi(action, payload = {}) {
+  return post('/v2/roles', {
     action,
     ...(usesAdminFaction() ? { factionId: state.selectedFactionId } : {}),
     ...payload
@@ -154,13 +162,15 @@ export function currentFactionId() {
 export function actualUserRole(user = state.user) {
   if (user?.isAdmin) return 'platform_admin';
   if (user?.isFactionAdmin) return 'faction_admin';
+  if (user?.isAssistant) return 'assistant';
   return 'member';
 }
 
 export function availableViewRoles(user = state.user) {
   const actual = actualUserRole(user);
-  if (actual === 'platform_admin') return ['platform_admin','faction_admin','member'];
-  if (actual === 'faction_admin') return ['faction_admin','member'];
+  if (actual === 'platform_admin') return ['platform_admin','faction_admin','assistant','member'];
+  if (actual === 'faction_admin') return ['faction_admin','assistant','member'];
+  if (actual === 'assistant') return ['assistant','member'];
   return ['member'];
 }
 
@@ -207,12 +217,13 @@ export function isPlatformAdminView() {
 }
 
 export function canEditFactionView() {
-  return ['platform_admin','faction_admin'].includes(currentViewRole());
+  return ['platform_admin','faction_admin','assistant'].includes(currentViewRole());
 }
 
 export function roleLabel(role) {
   if (role === 'platform_admin') return 'Platform admin';
   if (role === 'faction_admin') return 'Faction admin';
+  if (role === 'assistant') return 'Assistant';
   return 'Member';
 }
 
@@ -310,8 +321,8 @@ export function routeTo(route, options = {}) {
     route = 'intel';
   }
 
-  const valid = new Set(['home','intel','archive','settings']);
-  const next = valid.has(route) ? route : 'home';
+  const valid = new Set(['intel','archive','settings']);
+  const next = valid.has(route) ? route : 'intel';
   state.route = next;
   try { localStorage.setItem('rwengine.route', next); } catch (_) {}
 
@@ -324,7 +335,7 @@ export function routeTo(route, options = {}) {
   });
 
   if (options.updateHash !== false) {
-    const hash = next === 'home' ? '#home' : `#${next}`;
+    const hash = `#${next}`;
     if (location.hash !== hash) history.replaceState(null, '', `${location.pathname}${location.search}${hash}`);
   }
 
@@ -339,14 +350,14 @@ export function routeFromHash() {
     return 'intel';
   }
 
-  if (['home','intel','archive','settings'].includes(value)) return value;
+  if (['intel','archive','settings'].includes(value)) return value;
 
   try {
     const stored = localStorage.getItem('rwengine.route');
-    if (['home','intel','archive','settings'].includes(stored)) return stored;
+    if (['intel','archive','settings'].includes(stored)) return stored;
   } catch (_) {}
 
-  return 'home';
+  return 'intel';
 }
 
 export function formatNumber(value) {

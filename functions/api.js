@@ -1,5 +1,6 @@
 import {
   factionLeadershipRole,
+  loadFactionPermissions,
   saveFactionLeadership
 } from './v2/faction-leadership.js';
 
@@ -52,6 +53,10 @@ export async function onRequest(context) {
 
     if (action === "me") {
       return await handleMe(env, request);
+    }
+
+    if (action === "updateApiKey") {
+      return await handleUpdateApiKey(env, request, body);
     }
 
     if (action === "logout") {
@@ -279,6 +284,8 @@ async function handleRegister(env, body) {
       player_name,
       faction_id,
       faction_name,
+      api_key_encrypted,
+      api_key_iv,
       is_admin,
       is_disabled
     FROM users
@@ -359,17 +366,22 @@ async function attachStoredFactionRole(db, userRow) {
   const userId = Number(userRow?.user_id || 0);
   const factionId = Number(userRow?.faction_id || 0);
   if (!Number.isSafeInteger(userId) || userId <= 0 || !Number.isSafeInteger(factionId) || factionId <= 0) {
-    return { ...userRow, is_faction_admin: 0 };
+    return {
+      ...userRow,
+      is_faction_admin:0,
+      is_faction_assistant:0,
+      faction_leadership_role:null
+    };
   }
 
-  const role = await db.prepare(`
-    SELECT 1 AS allowed
-    FROM faction_user_roles
-    WHERE user_id = ? AND faction_id = ? AND role = 'faction_admin'
-    LIMIT 1
-  `).bind(userId, factionId).first();
+  const permissions = await loadFactionPermissions(db, userRow, factionId);
 
-  return { ...userRow, is_faction_admin: role?.allowed ? 1 : 0 };
+  return {
+    ...userRow,
+    is_faction_admin:permissions.isFactionAdmin ? 1 : 0,
+    is_faction_assistant:permissions.isAssistant ? 1 : 0,
+    faction_leadership_role:permissions.leadershipRole
+  };
 }
 
 async function syncFactionLeadershipRole(env, userRow, apiKey, options = {}) {
@@ -381,17 +393,27 @@ async function syncFactionLeadershipRole(env, userRow, apiKey, options = {}) {
   const profileVerified = options.profileVerified === true;
 
   if (!Number.isSafeInteger(userId) || userId <= 0) {
-    return { ...userRow, is_faction_admin: 0 };
+    return {
+      ...userRow,
+      is_faction_admin:0,
+      is_faction_assistant:0,
+      faction_leadership_role:null
+    };
   }
 
   if (!Number.isSafeInteger(factionId) || factionId <= 0) {
     if (profileVerified) {
       await env.DB.prepare(`
         DELETE FROM faction_user_roles
-        WHERE user_id = ? AND role = 'faction_admin' AND source = 'torn_leadership'
+        WHERE user_id = ?
       `).bind(userId).run();
     }
-    return { ...userRow, is_faction_admin: 0 };
+    return {
+      ...userRow,
+      is_faction_admin:0,
+      is_faction_assistant:0,
+      faction_leadership_role:null
+    };
   }
 
   try {
@@ -403,9 +425,33 @@ async function syncFactionLeadershipRole(env, userRow, apiKey, options = {}) {
       leadership,
       now
     );
-    const leader = Boolean(factionLeadershipRole(storedLeadership, playerId));
+    const leadershipRole = factionLeadershipRole(storedLeadership, playerId);
+    const revoked = leadershipRole === 'co_leader'
+      ? await env.DB.prepare(`
+          SELECT 1 AS revoked
+          FROM faction_user_roles
+          WHERE faction_id = ? AND user_id = ? AND role = 'faction_admin_revoked'
+          LIMIT 1
+        `).bind(factionId, userId).first()
+      : null;
+    const shouldHaveAdmin = leadershipRole === 'leader' ||
+      (leadershipRole === 'co_leader' && !revoked?.revoked);
 
-    if (leader) {
+    if (leadershipRole === 'leader') {
+      await env.DB.prepare(`
+        DELETE FROM faction_user_roles
+        WHERE faction_id = ? AND user_id = ? AND role = 'faction_admin_revoked'
+      `).bind(factionId, userId).run();
+    }
+
+    if (!leadershipRole) {
+      await env.DB.prepare(`
+        DELETE FROM faction_user_roles
+        WHERE faction_id = ? AND user_id = ? AND role = 'faction_admin_revoked'
+      `).bind(factionId, userId).run();
+    }
+
+    if (shouldHaveAdmin) {
       await env.DB.prepare(`
         INSERT INTO faction_user_roles (
           faction_id, user_id, role, source, verified_at, created_at, updated_at
@@ -418,7 +464,7 @@ async function syncFactionLeadershipRole(env, userRow, apiKey, options = {}) {
           verified_at = excluded.verified_at,
           updated_at = excluded.updated_at
       `).bind(factionId, userId, now, now, now).run();
-    } else {
+    } else if (!leadershipRole || leadershipRole === 'co_leader') {
       await env.DB.prepare(`
         DELETE FROM faction_user_roles
         WHERE faction_id = ?
@@ -432,8 +478,7 @@ async function syncFactionLeadershipRole(env, userRow, apiKey, options = {}) {
       DELETE FROM faction_user_roles
       WHERE user_id = ?
         AND faction_id <> ?
-        AND role = 'faction_admin'
-        AND source = 'torn_leadership'
+        AND role IN ('faction_admin', 'assistant', 'faction_admin_revoked')
     `).bind(userId, factionId).run();
   } catch (_) {
     // Preserve the last verified role when Torn is temporarily unavailable.
@@ -480,6 +525,14 @@ async function fetchFactionLeadership(factionId, apiKey) {
 
 export function isFactionLeader(factionBasic, playerId) {
   return Boolean(factionLeadershipRole(factionBasic, playerId));
+}
+
+export function apiKeyBelongsToUser(tornProfile, userRow) {
+  const verifiedPlayerId = Number(tornProfile?.player_id || tornProfile?.id || 0);
+  const accountPlayerId = Number(userRow?.player_id || userRow?.playerId || 0);
+  return Number.isSafeInteger(verifiedPlayerId) &&
+    verifiedPlayerId > 0 &&
+    verifiedPlayerId === accountPlayerId;
 }
 
 async function refreshUserFactionFromStoredApiKey(env, userRow, options = {}) {
@@ -737,6 +790,102 @@ async function handleMe(env, request) {
   });
 }
 
+async function handleUpdateApiKey(env, request, body) {
+  requireDb(env);
+  requireSecret(env);
+
+  const apiKey = String(body.apiKey || "").trim();
+  if (!apiKey) {
+    return json({ success: false, message: "Enter a Torn API key." }, 400);
+  }
+  if (apiKey.length > 256) {
+    return json({ success: false, message: "That Torn API key is too long." }, 400);
+  }
+
+  const userRow = await getCurrentUserPrivate(env, request);
+  let tornProfile;
+  try {
+    tornProfile = await verifyTornApiKey(apiKey);
+  } catch (error) {
+    return json({
+      success: false,
+      message: error?.message || "Torn could not verify that API key."
+    }, 400);
+  }
+
+  if (!apiKeyBelongsToUser(tornProfile, userRow)) {
+    return json({
+      success: false,
+      message: "That API key belongs to a different Torn player."
+    }, 403);
+  }
+
+  const playerName = String(tornProfile.name || userRow.player_name || "").trim();
+  const faction = normalizeFaction(tornProfile);
+  const now = nowUnix();
+
+  if (faction.factionId) {
+    await env.DB.prepare(`
+      INSERT INTO factions (
+        faction_id, faction_name, enabled, created_at, updated_at
+      ) VALUES (?, ?, 1, ?, ?)
+      ON CONFLICT(faction_id) DO UPDATE SET
+        faction_name = excluded.faction_name,
+        enabled = 1,
+        updated_at = excluded.updated_at
+    `).bind(
+      faction.factionId,
+      faction.factionName || "Unknown faction",
+      now,
+      now
+    ).run();
+  }
+
+  const encryptedApiKey = await encryptText(env.APP_SECRET, apiKey);
+  await env.DB.prepare(`
+    UPDATE users
+    SET
+      player_name = ?,
+      faction_id = ?,
+      faction_name = ?,
+      api_key_encrypted = ?,
+      api_key_iv = ?,
+      updated_at = ?
+    WHERE user_id = ?
+  `).bind(
+    playerName || userRow.player_name,
+    faction.factionId || null,
+    faction.factionName || null,
+    encryptedApiKey.ciphertext,
+    encryptedApiKey.iv,
+    now,
+    Number(userRow.user_id)
+  ).run();
+
+  const updatedUser = {
+    ...userRow,
+    player_name:playerName || userRow.player_name,
+    faction_id:faction.factionId || null,
+    faction_name:faction.factionName || null,
+    api_key_encrypted:encryptedApiKey.ciphertext,
+    api_key_iv:encryptedApiKey.iv
+  };
+  const roleAwareUser = await syncFactionLeadershipRole(
+    env,
+    updatedUser,
+    apiKey,
+    { profileVerified:true }
+  );
+
+  await queueInitialFactionSync(env.DB, roleAwareUser, now);
+
+  return json({
+    success:true,
+    message:"Personal Torn API key verified and saved.",
+    user:rowToPublicUser(roleAwareUser)
+  });
+}
+
 async function handleLogout(env, request) {
   requireDb(env);
 
@@ -970,7 +1119,7 @@ async function getCurrentUser(env, request) {
     throw new Error("This account is disabled.");
   }
 
-  return rowToPublicUser(row);
+  return rowToPublicUser(await attachStoredFactionRole(env.DB, row));
 }
 
 /* =========================
@@ -994,6 +1143,12 @@ async function handleGetImportedWars(env, request) {
   }
 
   await ensureResourcePermissionsSchema(env.DB);
+
+  const canManageReports = Boolean(
+    currentUser.isAdmin ||
+    currentUser.isFactionAdmin ||
+    currentUser.isAssistant
+  );
 
   const result = await env.DB.prepare(
     `
@@ -1040,7 +1195,7 @@ async function handleGetImportedWars(env, request) {
   )
     .bind(
       factionId,
-      currentUser.isAdmin ? 1 : 0,
+      canManageReports ? 1 : 0,
       Number(currentUser.userId || 0),
       Number(currentUser.userId || 0)
     )
@@ -3443,7 +3598,10 @@ function rowToPublicUser(row) {
     factionId: row.faction_id,
     factionName: row.faction_name,
     isAdmin: Number(row.is_admin) === 1,
-    isFactionAdmin: Number(row.is_faction_admin) === 1 || row.is_faction_admin === true
+    isFactionAdmin: Number(row.is_faction_admin) === 1 || row.is_faction_admin === true,
+    isAssistant: Number(row.is_faction_assistant) === 1 || row.is_faction_assistant === true,
+    factionLeadershipRole:row.faction_leadership_role || null,
+    hasApiKey:Boolean(row.api_key_encrypted && row.api_key_iv)
   };
 }
 

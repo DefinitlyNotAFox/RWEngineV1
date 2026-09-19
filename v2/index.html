@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=81" />
+  <link rel="stylesheet" href="/v2/app.css?v=82" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -65,7 +65,7 @@
   <div id="appView" class="app hidden">
     <header class="appbar">
       <div class="appbar-inner">
-        <button class="brand brand-button" type="button" data-route="home">RWEngine</button>
+        <button class="brand brand-button" type="button" data-route="intel">RWEngine</button>
 
         <nav class="primary-nav" aria-label="Primary">
           <button type="button" data-route="intel">Faction</button>
@@ -90,27 +90,7 @@
     <div id="notice" class="notice hidden"></div>
 
     <main class="workspace">
-      <section id="homeView" class="view active" data-view="home">
-        <header class="home-head">
-          <div>
-            <p class="kicker">Workspace</p>
-            <h1 id="homeFaction">Faction</h1>
-            <p class="view-description">Choose a workspace below. Data is scoped to the selected faction.</p>
-          </div>
-          <p id="homeCoverage" class="home-copy">Loading data coverage…</p>
-        </header>
-
-        <nav class="index-list" aria-label="RWEngine tools">
-          <button type="button" data-route="intel">
-            <span>01</span><strong>Faction</strong><small>Compare roster, activity, training and war performance in one table.</small><b>→</b>
-          </button>
-          <button type="button" data-route="archive">
-            <span>02</span><strong>Archive</strong><small>Individual ranked-war reports, imports and public sharing.</small><b>→</b>
-          </button>
-        </nav>
-      </section>
-
-      <section id="intelView" class="view" data-view="intel">
+      <section id="intelView" class="view active" data-view="intel">
         <header class="view-head">
           <div>
             <h1>Faction</h1>
@@ -260,7 +240,7 @@
 
       <section id="settingsView" class="view" data-view="settings">
         <header class="view-head">
-          <div><p class="kicker">Account</p><h1>Settings</h1><p class="view-description">Account, report access and administrative controls.</p></div>
+          <div><p class="kicker">Account</p><h1>Settings</h1><p class="view-description">Account, Torn API access and administrative controls.</p></div>
           <button id="logoutButton" class="action" type="button">Log out</button>
         </header>
 
@@ -271,11 +251,37 @@
           <div><dt>Role</dt><dd id="settingsRole">Member</dd></div>
         </dl>
 
-        <section class="access-section">
+        <section class="account-api-section">
+          <header>
+            <p class="kicker">Torn access</p>
+            <h2>Personal API key</h2>
+            <span>Replace your own key here. It is verified against your Torn player ID, encrypted, and never displayed after saving.</span>
+          </header>
+          <form id="personalApiKeyForm" class="personal-api-form">
+            <label>
+              <span>Torn API key</span>
+              <input id="personalApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Enter a new key" />
+            </label>
+            <button id="personalApiKeySave" class="action primary" type="submit">Verify &amp; save</button>
+            <small id="personalApiKeyStatus" role="status">Checking saved key…</small>
+          </form>
+        </section>
+
+        <section id="factionRolesSection" class="access-section hidden">
+          <header>
+            <p class="kicker">Faction permissions</p>
+            <h2>Account roles</h2>
+            <span>Leader and Co-leader may manage Assistants. Only the Leader may grant or revoke faction-admin status. The official Leader is protected.</span>
+          </header>
+          <div id="factionRolesList" class="access-list"></div>
+          <p id="factionRolesStatus" class="status-line hidden"></p>
+        </section>
+
+        <section id="reportAccessSection" class="access-section hidden">
           <header>
             <p class="kicker">Access</p>
             <h2>Report visibility</h2>
-            <span>Private is owner/admin only. Faction is the default. Public creates a revocable link.</span>
+            <span>Assistants and faction administrators control private, faction and public report access.</span>
           </header>
           <div id="accessList" class="access-list"></div>
           <p id="accessStatus" class="status-line hidden"></p>
@@ -321,6 +327,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=67"></script>
+  <script type="module" src="/v2/app.js?v=68"></script>
 </body>
 </html>

@@ -2,10 +2,10 @@ import {
   state, on, emit, post,
   performanceApi, warDetailApi, attackDetailApi, shareApi, importApi,
   periodPayload, currentFactionId,
-  isPlatformAdminView, renderLeadershipMarker,
+  canEditFactionView, renderLeadershipMarker,
   metric, formatNumber, formatDecimal, formatSigned, formatPercent,
   formatDate, escapeHtml, sleep, warStamp
-} from './core.js?v=2';
+} from './core.js?v=3';
 
 const ATTACK_STEP_DELAY = 6000;
 const DETAIL_STEP_DELAY = 1200;
@@ -637,6 +637,10 @@ function setDetailLoading() {
 }
 
 function renderWarDetail() {
+  const canManageAccess = canEditFactionView();
+  document.querySelector('#shareToggle')?.classList.toggle('hidden', !canManageAccess);
+  if (!canManageAccess) resetSharePanel(true);
+
   const payload = detail.payload;
   if (!payload) return;
 
@@ -781,6 +785,7 @@ function renderWarCell(member,key) {
 }
 
 async function toggleShare() {
+  if (!canEditFactionView()) return;
   const panel = document.querySelector('#sharePanel');
   if (!panel || !detail.warId) return;
 
@@ -799,7 +804,7 @@ async function toggleShare() {
 }
 
 async function updateShareVisibility() {
-  if (!detail.warId) return;
+  if (!detail.warId || !canEditFactionView()) return;
 
   const select = document.querySelector('#shareVisibility');
   const visibility = select?.value || 'faction';
@@ -812,7 +817,7 @@ async function updateShareVisibility() {
       warId:detail.warId,
       visibility
     });
-    applyShareState({ ...result, canManage:true, canManageAsOwner:true });
+    applyShareState({ ...result, canManage:true });
   } catch (error) {
     setShareStatus(error.message, true);
     try {
@@ -825,7 +830,7 @@ async function updateShareVisibility() {
 }
 
 async function generateShare() {
-  if (!detail.warId) return;
+  if (!detail.warId || !canEditFactionView()) return;
 
   const button = document.querySelector('#shareGenerate');
   if (button) button.disabled = true;
@@ -833,7 +838,7 @@ async function generateShare() {
 
   try {
     const result = await shareApi('create', { resourceType:'war', warId:detail.warId });
-    applyShareState({ ...result, canManage:true, canManageAsOwner:true });
+    applyShareState({ ...result, canManage:true });
   } catch (error) {
     setShareStatus(error.message, true);
   } finally {
@@ -856,10 +861,7 @@ async function copyShare() {
 
 function applyShareState(result) {
   const visibility = result.visibility || 'faction';
-  const canManageActual = result.canManage !== false;
-  const canManageAsOwner = result.canManageAsOwner === true ||
-    (!state.user?.isAdmin && canManageActual);
-  const canManage = isPlatformAdminView() ? canManageActual : canManageAsOwner;
+  const canManage = canEditFactionView() && result.canManage === true;
   const select = document.querySelector('#shareVisibility');
   const url = document.querySelector('#shareUrl');
   const generate = document.querySelector('#shareGenerate');
@@ -880,8 +882,8 @@ function applyShareState(result) {
   if (!canManage) {
     setShareStatus(
       visibility === 'private'
-        ? 'Private report. Only its owner or an admin can change access.'
-        : 'You can view this report, but only its owner or an admin can change access.'
+        ? 'Private report. Only Assistants or faction admins can change access.'
+        : 'You can view this report, but only Assistants or faction admins can change access.'
     );
     return;
   }
@@ -895,7 +897,7 @@ function applyShareState(result) {
           : 'Public access enabled.'
     );
   } else if (visibility === 'private') {
-    setShareStatus('Private · owner and admins only.');
+    setShareStatus('Private · owner and faction management only.');
   } else {
     setShareStatus('Faction · authenticated faction members can view.');
   }

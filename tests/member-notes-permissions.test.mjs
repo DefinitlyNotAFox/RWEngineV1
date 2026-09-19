@@ -1,12 +1,21 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { isFactionLeader } from '../functions/api.js';
-import { factionLeadershipRole } from '../functions/v2/faction-leadership.js';
+import { apiKeyBelongsToUser, isFactionLeader } from '../functions/api.js';
+import {
+  factionLeadershipRole,
+  resolveFactionPermissions
+} from '../functions/v2/faction-leadership.js';
 import {
   normalizeMemberNote,
   normalizeMemberTags
 } from '../functions/v2/intel-v2.js';
+import {
+  canSetFactionRole,
+  roleGrantCapabilities
+} from '../functions/v2/roles.js';
+import { canManageReportVisibility } from '../functions/v2/share.js';
 import {
   actualUserRole,
   availableViewRoles,
@@ -27,19 +36,92 @@ test('leader and co-leader IDs receive faction leadership status', () => {
 });
 
 test('role preview can only reduce or retain actual authority', () => {
-  const platformAdmin = { isAdmin:true, isFactionAdmin:false };
-  const factionAdmin = { isAdmin:false, isFactionAdmin:true };
-  const member = { isAdmin:false, isFactionAdmin:false };
+  const platformAdmin = { isAdmin:true, isFactionAdmin:false, isAssistant:false };
+  const factionAdmin = { isAdmin:false, isFactionAdmin:true, isAssistant:false };
+  const assistant = { isAdmin:false, isFactionAdmin:false, isAssistant:true };
+  const member = { isAdmin:false, isFactionAdmin:false, isAssistant:false };
 
   assert.equal(actualUserRole(platformAdmin), 'platform_admin');
   assert.deepEqual(
     availableViewRoles(platformAdmin),
-    ['platform_admin','faction_admin','member']
+    ['platform_admin','faction_admin','assistant','member']
   );
-  assert.deepEqual(availableViewRoles(factionAdmin), ['faction_admin','member']);
+  assert.deepEqual(availableViewRoles(factionAdmin), ['faction_admin','assistant','member']);
+  assert.deepEqual(availableViewRoles(assistant), ['assistant','member']);
   assert.deepEqual(availableViewRoles(member), ['member']);
   assert.equal(normalizeViewRole('platform_admin', factionAdmin), 'faction_admin');
+  assert.equal(normalizeViewRole('faction_admin', assistant), 'assistant');
   assert.equal(normalizeViewRole('faction_admin', member), 'member');
+});
+
+test('leadership creates protected and revocable faction-admin states', () => {
+  const leadership = { leaderPlayerId:101, coLeaderPlayerId:102 };
+
+  const leader = resolveFactionPermissions(leadership, 101, { adminRevoked:true });
+  assert.equal(leader.leadershipRole, 'leader');
+  assert.equal(leader.role, 'faction_admin');
+  assert.equal(leader.isFactionAdmin, true);
+
+  const coLeader = resolveFactionPermissions(leadership, 102);
+  assert.equal(coLeader.role, 'faction_admin');
+
+  const revokedCoLeader = resolveFactionPermissions(leadership, 102, {
+    adminRevoked:true,
+    isAssistant:true
+  });
+  assert.equal(revokedCoLeader.role, 'assistant');
+  assert.equal(revokedCoLeader.isFactionAdmin, false);
+
+  assert.equal(
+    resolveFactionPermissions(leadership, 103, { isFactionAdmin:true }).role,
+    'faction_admin'
+  );
+});
+
+test('leader and co-leader role-management authority is bounded', () => {
+  const leadership = { leaderPlayerId:101, coLeaderPlayerId:102 };
+  const leader = roleGrantCapabilities({ player_id:101, faction_id:7 }, leadership, 7);
+  const coLeader = roleGrantCapabilities({ player_id:102, faction_id:7 }, leadership, 7);
+  const member = roleGrantCapabilities({ player_id:103, faction_id:7 }, leadership, 7);
+
+  assert.deepEqual(
+    { admin:leader.canGrantAdmin, assistant:leader.canGrantAssistant },
+    { admin:true, assistant:true }
+  );
+  assert.deepEqual(
+    { admin:coLeader.canGrantAdmin, assistant:coLeader.canGrantAssistant },
+    { admin:false, assistant:true }
+  );
+  assert.equal(member.canGrantAdmin, false);
+  assert.equal(member.canGrantAssistant, false);
+
+  assert.equal(canSetFactionRole(leader, { protected:true, role:'faction_admin' }, 'member'), false);
+  assert.equal(canSetFactionRole(leader, { protected:false, role:'member' }, 'faction_admin'), true);
+  assert.equal(canSetFactionRole(coLeader, { protected:false, role:'member' }, 'assistant'), true);
+  assert.equal(canSetFactionRole(coLeader, { protected:false, role:'member' }, 'faction_admin'), false);
+  assert.equal(canSetFactionRole(coLeader, { protected:false, role:'faction_admin' }, 'assistant'), false);
+});
+
+test('report visibility changes require faction management', () => {
+  assert.equal(canManageReportVisibility({ isAdmin:true }, 7), true);
+  assert.equal(canManageReportVisibility({ factionId:7, isFactionAdmin:true }, 7), true);
+  assert.equal(canManageReportVisibility({ factionId:7, isAssistant:true }, 7), true);
+  assert.equal(canManageReportVisibility({ factionId:7 }, 7), false);
+  assert.equal(canManageReportVisibility({ factionId:8, isAssistant:true }, 7), false);
+});
+
+test('personal API replacement is bound to the logged-in player', () => {
+  assert.equal(apiKeyBelongsToUser({ player_id:101 }, { player_id:101 }), true);
+  assert.equal(apiKeyBelongsToUser({ player_id:102 }, { player_id:101 }), false);
+  assert.equal(apiKeyBelongsToUser({}, { player_id:101 }), false);
+});
+
+test('the obsolete Workspace route is absent and Settings exposes personal API access', () => {
+  const html = readFileSync(new URL('../v2/index.html', import.meta.url), 'utf8');
+  assert.doesNotMatch(html, /data-view=["']home["']/);
+  assert.doesNotMatch(html, />Workspace</);
+  assert.match(html, /id="personalApiKeyForm"/);
+  assert.match(html, /id="factionRolesSection"/);
 });
 
 test('member notes are trimmed and bounded', () => {

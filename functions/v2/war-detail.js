@@ -1,6 +1,7 @@
 import {
   factionLeadershipRole,
-  loadFactionLeadership
+  loadFactionLeadership,
+  loadFactionPermissions
 } from './faction-leadership.js';
 
 export async function onRequest(context) {
@@ -202,6 +203,9 @@ async function ensureAggregateSchema(db) {
 async function assertWarAccess(db, user, factionId, war) {
   if (Number(user.is_admin) === 1) return;
 
+  const factionPermissions = await loadFactionPermissions(db, user, factionId);
+  if (factionPermissions.isFactionAdmin || factionPermissions.isAssistant) return;
+
   const permission = await db.prepare(
     'SELECT owner_user_id, visibility FROM resource_permissions WHERE faction_id = ? AND resource_type = ? AND resource_key = ? LIMIT 1'
   ).bind(factionId, 'war', String(war.war_id)).first();
@@ -234,7 +238,7 @@ async function getCurrentUser(env, request) {
   if (!token) throw httpError(401, 'Not logged in.');
   const tokenHash = await sha256Hex(token);
   const row = await env.DB.prepare(`
-    SELECT u.user_id, u.faction_id, u.is_admin, u.is_disabled
+    SELECT u.user_id, u.player_id, u.faction_id, u.is_admin, u.is_disabled
     FROM sessions s JOIN users u ON u.user_id = s.user_id
     WHERE s.token_hash = ? AND s.expires_at > ?
   `).bind(tokenHash, unixNow()).first();

@@ -3,7 +3,7 @@ import {
   canEditFactionView, renderLeadershipMarker,
   formatNumber, formatCompact, formatDecimal, formatPercent, formatSigned,
   formatDuration, formatRelative, escapeHtml, sleep
-} from './core.js?v=2';
+} from './core.js?v=3';
 
 const filters = [
   ['all','All'],

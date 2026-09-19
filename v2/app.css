@@ -99,6 +99,7 @@ a { color: inherit; }
 
 .auth-form label,
 .admin-key-form label,
+.personal-api-form label,
 .import-panel label {
   display: grid;
   gap: 5px;
@@ -106,6 +107,7 @@ a { color: inherit; }
 
 .auth-form label > span,
 .admin-key-form label > span,
+.personal-api-form label > span,
 .import-panel label > span {
   color: var(--muted);
   font-size: 10px;
@@ -116,6 +118,7 @@ a { color: inherit; }
 
 .auth-form small,
 .admin-key-form small,
+.personal-api-form small,
 .import-panel small {
   color: var(--dim);
   font-size: 9px;
@@ -1243,19 +1246,54 @@ button.line-row:hover strong { color: var(--accent-2); }
   margin-top: 30px;
 }
 
-.access-section > header {
+.account-api-section {
+  max-width: 720px;
+  margin-top: 30px;
+}
+
+.access-section > header,
+.account-api-section > header {
   margin-bottom: 8px;
 }
 
-.access-section > header h2 {
+.access-section > header h2,
+.account-api-section > header h2 {
   margin: 2px 0 3px;
   font-size: 13px;
   font-weight: 650;
 }
 
-.access-section > header span {
+.access-section > header span,
+.account-api-section > header span {
   color: var(--muted);
   font-size: 9px;
+}
+
+.personal-api-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: end;
+  max-width: 620px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.personal-api-form small {
+  grid-column: 1 / -1;
+}
+
+.personal-api-form small.error {
+  color: var(--danger);
+}
+
+.role-access-row small {
+  text-transform: none;
+}
+
+@media (max-width: 520px) {
+  .personal-api-form { grid-template-columns: 1fr; }
+  .personal-api-form small { grid-column: 1; }
 }
 
 .access-list {
