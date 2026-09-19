@@ -195,8 +195,12 @@ function requireCronSecret(env, request) {
 async function startSync(env, user, factionId) {
   let job = await activeJob(env.DB, factionId);
   if (job) {
-    await convertLegacyJob(env.DB, job.jobId);
-    return respond({ success: true, message: 'Existing sync converted to current-only collection.', job: await jobById(env.DB, job.jobId) });
+    const converted = await convertLegacyJob(env.DB, job.jobId);
+    return respond({
+      success: true,
+      message: converted ? 'Existing sync converted to current-only collection.' : 'Faction sync already active.',
+      job: await jobById(env.DB, job.jobId)
+    });
   }
 
   const now = unixNow();
@@ -284,6 +288,7 @@ async function syncStep(env, user, factionId, requestedJobId) {
       SET status='failed', phase='failed', error_text=?, finished_at=?, updated_at=?, lease_until=NULL
       WHERE job_id=?
     `).bind(error?.message || String(error), failedAt, failedAt, jobId).run();
+    await env.DB.prepare(`DELETE FROM faction_sync_tasks WHERE job_id=?`).bind(jobId).run().catch(() => null);
     throw error;
   } finally {
     await env.DB.prepare(`UPDATE faction_sync_jobs SET lease_until=NULL WHERE job_id=?`).bind(jobId).run().catch(() => null);
@@ -291,6 +296,17 @@ async function syncStep(env, user, factionId, requestedJobId) {
 }
 
 async function convertLegacyJob(db, jobId) {
+  const legacy = await db.prepare(`
+    SELECT seed_history,
+      EXISTS(
+        SELECT 1 FROM faction_sync_tasks
+        WHERE job_id=? AND historical_timestamp IS NOT NULL
+      ) AS has_historical
+    FROM faction_sync_jobs
+    WHERE job_id=?
+  `).bind(jobId, jobId).first();
+  if (!legacy || (Number(legacy.seed_history) !== 1 && Number(legacy.has_historical) !== 1)) return false;
+
   // Old first-run jobs created 90/30/7/current tasks. RWE now tracks forward only.
   await db.prepare(`DELETE FROM faction_sync_tasks WHERE job_id=? AND historical_timestamp IS NOT NULL`).bind(jobId).run();
   await db.prepare(`
@@ -299,7 +315,21 @@ async function convertLegacyJob(db, jobId) {
   `).bind(unixNow(), jobId).run();
   await db.prepare(`UPDATE faction_sync_jobs SET seed_history=0, updated_at=? WHERE job_id=?`)
     .bind(unixNow(), jobId).run();
+
+  const remaining = await db.prepare(`SELECT COUNT(*) AS count FROM faction_sync_tasks WHERE job_id=?`)
+    .bind(jobId).first();
+  if (Number(remaining?.count || 0) === 0) {
+    await db.prepare(`
+      UPDATE faction_sync_jobs
+      SET status='queued',phase='initializing',tasks_total=0,tasks_completed=0,tasks_failed=0,
+          finished_at=NULL,error_text=NULL,updated_at=?
+      WHERE job_id=?
+    `).bind(unixNow(), jobId).run();
+    return true;
+  }
+
   await refreshCounts(db, jobId, false);
+  return true;
 }
 
 async function initializeJob(env, job, client) {
@@ -368,10 +398,6 @@ async function collectSnapshot(env, client, job, task) {
     if (ownKey) exactStats = extractBattleStats(await fetchWithKey('/user/battlestats?comment=RWEngineVerifiedStats', ownKey));
   } catch (_) {}
 
-  const raw = JSON.stringify({
-    personalstats: payload
-  });
-
   await env.DB.prepare(`
     INSERT INTO member_snapshots (
       faction_id,player_id,snapshot_date,snapshot_at,player_name,level,position_name,
@@ -379,7 +405,7 @@ async function collectSnapshot(env, client, job, task) {
       activity_total_seconds,xanax_taken_total,organized_crimes_total,
       battle_stats_estimate,battle_stats_source,battle_stats_observed_at,
       error_text,raw_json,created_at
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NULL,?)
     ON CONFLICT(faction_id,player_id,snapshot_date) DO UPDATE SET
       snapshot_at=excluded.snapshot_at,
       player_name=excluded.player_name,
@@ -395,7 +421,7 @@ async function collectSnapshot(env, client, job, task) {
       battle_stats_estimate=COALESCE(excluded.battle_stats_estimate,member_snapshots.battle_stats_estimate),
       battle_stats_source=COALESCE(excluded.battle_stats_source,member_snapshots.battle_stats_source),
       battle_stats_observed_at=COALESCE(excluded.battle_stats_observed_at,member_snapshots.battle_stats_observed_at),
-      error_text=excluded.error_text,raw_json=excluded.raw_json,created_at=excluded.created_at
+      error_text=excluded.error_text,raw_json=NULL,created_at=excluded.created_at
   `).bind(
     factionId, playerId, String(task.snapshot_date), Number(task.snapshot_at),
     String(member.player_name || `Player ${playerId}`), nullableNumber(member.level), member.position_name || null,
@@ -407,7 +433,7 @@ async function collectSnapshot(env, client, job, task) {
     Number.isFinite(exactStats) ? 'verified-api' : null,
     Number.isFinite(exactStats) ? unixNow() : null,
     warnings.length ? `STATS_UNAVAILABLE:${warnings.join(',')}` : null,
-    raw, unixNow()
+    unixNow()
   ).run();
 
   return warnings.length ? `STATS_UNAVAILABLE:${warnings.join(',')}` : null;
@@ -574,6 +600,10 @@ async function refreshCounts(db, jobId, finish) {
       finished_at=CASE WHEN ? THEN ? ELSE finished_at END,updated_at=?
     WHERE job_id=?
   `).bind(total,completed,failed,done?1:0,done?1:0,done?1:0,now,now,jobId).run();
+
+  if (done) {
+    await db.prepare(`DELETE FROM faction_sync_tasks WHERE job_id=?`).bind(jobId).run();
+  }
 }
 
 async function finishTask(db, id, status, error) {

@@ -188,7 +188,7 @@ CREATE TABLE IF NOT EXISTS member_snapshots (
   battle_stats_observed_at INTEGER,
 
   error_text TEXT,
-  raw_json TEXT,
+  raw_json TEXT, -- legacy compatibility only; new collectors leave this NULL
   created_at INTEGER NOT NULL,
 
   UNIQUE(faction_id, player_id, snapshot_date),

@@ -4,8 +4,8 @@ PRAGMA foreign_keys = ON;
   Resumable faction-intel collector.
 
   A sync job initializes the current faction roster once, then processes member
-  personal-stat snapshots in small batches. The first successful sync seeds
-  90/30/7/current anchors; normal later syncs collect only the current day.
+  personal-stat snapshots in small batches. Collection starts with the current
+  day and builds history forward; historical backfill is intentionally disabled.
 */
 
 CREATE TABLE IF NOT EXISTS faction_sync_jobs (

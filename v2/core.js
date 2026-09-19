@@ -39,10 +39,11 @@ export async function rangeApi(action, payload = {}) {
 }
 
 export async function syncApi(action, payload = {}) {
-  if (usesAdminFaction()) {
-    return adminApi(action, { factionId: state.selectedFactionId, ...payload });
-  }
-  return post('/v2/sync-current', { action, ...payload });
+  return post('/v2/sync-current', {
+    action,
+    ...(usesAdminFaction() ? { factionId: state.selectedFactionId } : {}),
+    ...payload
+  });
 }
 
 export async function loadWarsApi() {

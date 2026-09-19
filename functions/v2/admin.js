@@ -1,5 +1,4 @@
 const DAY_SECONDS = 86400;
-const SEED_DAYS = [90, 30, 7, 0];
 const TASK_BATCH_SIZE = 8;
 const TORN_REQUEST_INTERVAL_MS = 1250;
 const SYNC_LEASE_SECONDS = 180;
@@ -795,28 +794,31 @@ async function handleStartSync(env, user, body) {
   await requireFactionApiKey(env, factionId);
 
   const existing = await getActiveSync(env.DB, factionId);
-  if (existing) return json({ success: true, message: 'Faction sync already active.', job: existing });
+  if (existing) {
+    const converted = await convertLegacySyncJob(env.DB, existing.jobId);
+    return json({
+      success: true,
+      message: converted ? 'Existing sync converted to current-only collection.' : 'Faction sync already active.',
+      job: await getSyncJob(env.DB, existing.jobId)
+    });
+  }
 
-  const snapshotCount = await env.DB.prepare(`SELECT COUNT(*) AS count FROM member_snapshots WHERE faction_id = ?`).bind(factionId).first();
-  const seedHistory = body.fullHistory === true || Number(snapshotCount?.count || 0) === 0;
   const now = unixNow();
 
   const result = await env.DB.prepare(`
     INSERT INTO faction_sync_jobs (
       faction_id, requested_by_user_id, trigger_type, status, phase, seed_history, created_at, updated_at
-    ) VALUES (?, ?, ?, 'queued', 'initializing', ?, ?, ?)
+    ) VALUES (?, ?, 'admin-manual', 'queued', 'initializing', 0, ?, ?)
   `).bind(
     factionId,
     Number(user.user_id),
-    body.fullHistory === true ? 'admin-manual-full' : 'admin-manual',
-    seedHistory ? 1 : 0,
     now,
     now
   ).run();
 
   return json({
     success: true,
-    message: seedHistory ? 'Faction sync queued with history seed.' : 'Faction sync queued for current data.',
+    message: 'Current faction baseline queued.',
     job: await getSyncJob(env.DB, Number(result.meta?.last_row_id))
   });
 }
@@ -842,6 +844,9 @@ async function handleSyncStep(env, user, body) {
   if (!job) throw httpError(404, 'Sync job not found.');
   if (Number(job.factionId) !== factionId) throw httpError(403, 'That sync job belongs to another faction.');
   if (['completed', 'failed'].includes(job.status)) return json({ success: true, job });
+
+  await convertLegacySyncJob(env.DB, jobId);
+  job = await getSyncJob(env.DB, jobId);
 
   const now = unixNow();
   const lease = await env.DB.prepare(`
@@ -899,10 +904,60 @@ async function handleSyncStep(env, user, body) {
       SET status = 'failed', phase = 'failed', error_text = ?, finished_at = ?, updated_at = ?, lease_until = NULL
       WHERE job_id = ?
     `).bind(error?.message || String(error), unixNow(), unixNow(), jobId).run();
+    await env.DB.prepare(`DELETE FROM faction_sync_tasks WHERE job_id = ?`).bind(jobId).run().catch(() => null);
     throw error;
   } finally {
     await env.DB.prepare(`UPDATE faction_sync_jobs SET lease_until = NULL WHERE job_id = ?`).bind(jobId).run().catch(() => null);
   }
+}
+
+async function convertLegacySyncJob(db, jobId) {
+  const legacy = await db.prepare(`
+    SELECT seed_history,
+      EXISTS(
+        SELECT 1 FROM faction_sync_tasks
+        WHERE job_id = ? AND historical_timestamp IS NOT NULL
+      ) AS has_historical
+    FROM faction_sync_jobs
+    WHERE job_id = ?
+  `).bind(jobId, jobId).first();
+  if (!legacy || (Number(legacy.seed_history) !== 1 && Number(legacy.has_historical) !== 1)) return false;
+
+  await db.prepare(`
+    DELETE FROM faction_sync_tasks
+    WHERE job_id = ? AND historical_timestamp IS NOT NULL
+  `).bind(jobId).run();
+
+  await db.prepare(`
+    UPDATE faction_sync_tasks
+    SET status = 'pending', error_text = NULL, updated_at = ?
+    WHERE job_id = ? AND historical_timestamp IS NULL AND status = 'failed'
+  `).bind(unixNow(), jobId).run();
+
+  const remaining = await db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM faction_sync_tasks
+    WHERE job_id = ?
+  `).bind(jobId).first();
+
+  if (Number(remaining?.count || 0) === 0) {
+    await db.prepare(`
+      UPDATE faction_sync_jobs
+      SET seed_history = 0, status = 'queued', phase = 'initializing',
+          tasks_total = 0, tasks_completed = 0, tasks_failed = 0,
+          finished_at = NULL, error_text = NULL, updated_at = ?
+      WHERE job_id = ?
+    `).bind(unixNow(), jobId).run();
+    return true;
+  }
+
+  await db.prepare(`
+    UPDATE faction_sync_jobs
+    SET seed_history = 0, updated_at = ?
+    WHERE job_id = ?
+  `).bind(unixNow(), jobId).run();
+  await refreshSyncCounts(db, jobId);
+  return true;
 }
 
 async function initializeSyncJob(env, job, client) {
@@ -926,29 +981,21 @@ async function initializeSyncJob(env, job, client) {
 
   await upsertFactionMembers(env.DB, factionId, members, now);
 
-  const days = job.seedHistory ? SEED_DAYS : [0];
+  const snapshotDate = utcDate(now);
   const insertTask = env.DB.prepare(`
     INSERT OR IGNORE INTO faction_sync_tasks (
       job_id, task_key, player_id, snapshot_date, snapshot_at, historical_timestamp, status, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+    ) VALUES (?, ?, ?, ?, ?, NULL, 'pending', ?)
   `);
 
-  const taskBindings = [];
-  for (const member of members) {
-    for (const offset of days) {
-      const targetAt = offset ? now - offset * DAY_SECONDS : now;
-      const snapshotDate = utcDate(targetAt);
-      taskBindings.push(insertTask.bind(
-        Number(job.jobId),
-        `snapshot:${member.id}:${snapshotDate}`,
-        member.id,
-        snapshotDate,
-        targetAt,
-        offset ? targetAt : null,
-        now
-      ));
-    }
-  }
+  const taskBindings = members.map(member => insertTask.bind(
+    Number(job.jobId),
+    `snapshot:${member.id}:${snapshotDate}`,
+    member.id,
+    snapshotDate,
+    now,
+    now
+  ));
 
   for (let index = 0; index < taskBindings.length; index += 50) {
     await env.DB.batch(taskBindings.slice(index, index + 50));
@@ -957,7 +1004,7 @@ async function initializeSyncJob(env, job, client) {
   const total = await env.DB.prepare(`SELECT COUNT(*) AS count FROM faction_sync_tasks WHERE job_id = ?`).bind(Number(job.jobId)).first();
   await env.DB.prepare(`
     UPDATE faction_sync_jobs
-    SET status = 'running', phase = 'collecting', members_total = ?, tasks_total = ?, api_requests = api_requests + ?, error_text = NULL, updated_at = ?
+    SET status = 'running', phase = 'collecting', seed_history = 0, members_total = ?, tasks_total = ?, api_requests = api_requests + ?, error_text = NULL, updated_at = ?
     WHERE job_id = ?
   `).bind(
     members.length,
@@ -974,19 +1021,15 @@ async function runSnapshotTask(env, client, job, task) {
   `).bind(Number(job.factionId), Number(task.player_id)).first();
   if (!member) throw new Error(`Faction member ${task.player_id} is no longer known to RWE.`);
 
-  const historicalTimestamp = task.historical_timestamp === null || task.historical_timestamp === undefined
-    ? null
-    : Number(task.historical_timestamp);
-  const payload = await client.personalStats(Number(task.player_id), historicalTimestamp);
+  const payload = await client.personalStats(Number(task.player_id));
   const stats = extractPersonalStats(payload);
   const missing = [];
   if (!Number.isFinite(stats.activityTotalSeconds)) missing.push('time played');
   if (!Number.isFinite(stats.xanaxTakenTotal)) missing.push('Xanax taken');
 
   const status = safeJsonParse(member.status_json) || null;
-  const currentObservation = historicalTimestamp === null;
-  const lastAction = currentObservation ? normalizeLastAction(status?.last_action || status?.lastAction) : null;
-  const memberStatus = currentObservation ? normalizeMemberStatus(status?.status || status) : null;
+  const lastAction = normalizeLastAction(status?.last_action || status?.lastAction);
+  const memberStatus = normalizeMemberStatus(status?.status || status);
   const errorText = missing.length ? `STATS_UNAVAILABLE:${missing.join(',')}` : null;
 
   await env.DB.prepare(`
@@ -994,7 +1037,7 @@ async function runSnapshotTask(env, client, job, task) {
       faction_id, player_id, snapshot_date, snapshot_at, player_name, level, position_name,
       last_action_at, last_action_status, status_state, status_until,
       activity_total_seconds, xanax_taken_total, error_text, raw_json, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
     ON CONFLICT(faction_id, player_id, snapshot_date) DO UPDATE SET
       snapshot_at = excluded.snapshot_at,
       player_name = excluded.player_name,
@@ -1007,7 +1050,7 @@ async function runSnapshotTask(env, client, job, task) {
       activity_total_seconds = excluded.activity_total_seconds,
       xanax_taken_total = excluded.xanax_taken_total,
       error_text = excluded.error_text,
-      raw_json = excluded.raw_json,
+      raw_json = NULL,
       created_at = excluded.created_at
   `).bind(
     Number(job.factionId),
@@ -1024,7 +1067,6 @@ async function runSnapshotTask(env, client, job, task) {
     Number.isFinite(stats.activityTotalSeconds) ? stats.activityTotalSeconds : null,
     Number.isFinite(stats.xanaxTakenTotal) ? stats.xanaxTakenTotal : null,
     errorText,
-    JSON.stringify(payload),
     unixNow()
   ).run();
 
@@ -1112,6 +1154,10 @@ async function refreshSyncCounts(db, jobId) {
     now,
     jobId
   ).run();
+
+  if (finished) {
+    await db.prepare(`DELETE FROM faction_sync_tasks WHERE job_id = ?`).bind(jobId).run();
+  }
 }
 
 async function finishTask(db, taskId, status, errorText) {
@@ -1146,7 +1192,7 @@ function outputJob(row) {
     triggerType: row.trigger_type,
     status: row.status,
     phase: row.phase,
-    seedHistory: Number(row.seed_history) === 1,
+    seedHistory: false,
     membersTotal: Number(row.members_total || 0),
     tasksTotal: Number(row.tasks_total || 0),
     tasksCompleted: Number(row.tasks_completed || 0),
@@ -1362,9 +1408,8 @@ class TornClient {
     return this.request(`/faction/${encodeURIComponent(factionId)}/basic?comment=RWEngineAdminFactionIntel`);
   }
 
-  personalStats(playerId, timestamp = null) {
+  personalStats(playerId) {
     const query = new URLSearchParams({ stat: 'timeplayed,xantaken', comment: 'RWEngineAdminFactionIntel' });
-    if (Number.isFinite(timestamp)) query.set('timestamp', String(timestamp));
     return this.request(`/user/${encodeURIComponent(playerId)}/personalstats?${query}`);
   }
 }
