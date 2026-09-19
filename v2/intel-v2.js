@@ -521,21 +521,23 @@ function renderFilters() {
       .filter(item => item.label);
 
     container.innerHTML = `
-      <button class="intel2-filter intel-filter-none${activeCount === 0 ? ' active' : ''}" type="button" data-filter-clear>None</button>
-      <span class="intel-filter-menu-wrap">
-        <button class="intel2-filter intel-filter-menu-toggle${intelFilterMenuOpen || activeCount ? ' active' : ''}" type="button" data-filter-menu-toggle aria-expanded="${intelFilterMenuOpen ? 'true' : 'false'}">
-          Filters${activeCount ? ` (${activeCount})` : ''}<span aria-hidden="true">▾</span>
-        </button>
-        <span class="intel-filter-menu${intelFilterMenuOpen ? '' : ' hidden'}">
-          <span class="intel-filter-menu-section">
-            <strong>Signals</strong>
-            ${filters.map(([key,label]) => renderCombinedFilterOption(`signal:${key}`, label)).join('')}
-          </span>
-          <span class="intel-filter-menu-section">
-            <strong>Tags</strong>
-            ${tagOptions.length
-              ? tagOptions.map(tag => renderCombinedFilterOption(`tag:${tag.key}`, tag.label, tag.count)).join('')
-              : '<span class="intel-filter-menu-empty">No tags yet</span>'}
+      <span class="intel-filter-controls">
+        <button class="intel2-filter intel-filter-none${activeCount === 0 ? ' active' : ''}" type="button" data-filter-clear>None</button>
+        <span class="intel-filter-menu-wrap">
+          <button class="intel2-filter intel-filter-menu-toggle${intelFilterMenuOpen || activeCount ? ' active' : ''}" type="button" data-filter-menu-toggle aria-expanded="${intelFilterMenuOpen ? 'true' : 'false'}">
+            Filters${activeCount ? ` (${activeCount})` : ''}<span aria-hidden="true">▾</span>
+          </button>
+          <span class="intel-filter-menu${intelFilterMenuOpen ? '' : ' hidden'}">
+            <span class="intel-filter-menu-section">
+              <strong>Signals</strong>
+              ${filters.map(([key,label]) => renderCombinedFilterOption(`signal:${key}`, label)).join('')}
+            </span>
+            <span class="intel-filter-menu-section">
+              <strong>Tags</strong>
+              ${tagOptions.length
+                ? tagOptions.map(tag => renderCombinedFilterOption(`tag:${tag.key}`, tag.label, tag.count)).join('')
+                : '<span class="intel-filter-menu-empty">No tags yet</span>'}
+            </span>
           </span>
         </span>
       </span>
