@@ -7935,3 +7935,153 @@ body {
     flex-wrap: wrap;
   }
 }
+
+
+/* Member tag workflow */
+.intel-tag-filter-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: var(--font-caption);
+}
+
+.intel-tag-filter-control > span {
+  color: var(--dim);
+}
+
+.intel-tag-filter-control select,
+.intel-tag-toolbar input {
+  min-height: 28px;
+  padding: 4px 7px;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--font-caption);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  outline: 0;
+  background: #0d0f10;
+}
+
+.intel-tag-filter-control select {
+  max-width: 160px;
+}
+
+.intel-tag-manage.active {
+  color: var(--accent-2);
+}
+
+.intel-tag-toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  min-height: 44px;
+  margin: 4px 0 8px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: #0b0d0e;
+}
+
+.intel-tag-toolbar.hidden {
+  display: none;
+}
+
+.intel-tag-toolbar-summary {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.intel-tag-toolbar-summary strong {
+  font-size: var(--font-body);
+  font-weight: 650;
+}
+
+.intel-tag-toolbar-summary span,
+.intel-tag-toolbar-status {
+  color: var(--muted);
+  font-size: var(--font-caption);
+}
+
+.intel-tag-toolbar-status.error {
+  color: var(--danger);
+}
+
+.intel-tag-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.intel-tag-toolbar-actions input {
+  width: 150px;
+  flex: 0 1 150px;
+}
+
+.intel-tag-toolbar-actions button {
+  min-height: 28px;
+  padding: 4px 8px;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--font-caption);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: #111416;
+  cursor: pointer;
+}
+
+.intel-tag-toolbar-actions button:hover:not(:disabled) {
+  color: var(--text);
+  border-color: #3b4144;
+}
+
+.intel-tag-toolbar-actions button:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+#intelTable.faction-grid .col-member.tag-selectable {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#intelTable.faction-grid .member-cell-main {
+  min-width: 0;
+}
+
+#intelTable.faction-grid .member-tag-select {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  place-items: center;
+  padding: 0;
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1;
+  border: 1px solid #3a4043;
+  border-radius: 3px;
+  background: #101214;
+  cursor: pointer;
+}
+
+#intelTable.faction-grid .member-tag-select.selected {
+  border-color: var(--accent);
+  background: rgba(185,130,93,.12);
+}
+
+@media (max-width: 1050px) {
+  .intel-tag-toolbar {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .intel-tag-toolbar-actions {
+    flex-wrap: wrap;
+  }
+}
