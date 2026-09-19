@@ -290,7 +290,7 @@ function buildBattleStats(snapshots, latest, now, comparisonFrom = null) {
   };
 }
 
-function buildCumulativeWindow(snapshots, from, to) {
+export function buildCumulativeWindow(snapshots, from, to) {
   const usable = snapshots
     .filter(row => {
       const at = Number(row.snapshot_at || 0);
@@ -308,9 +308,16 @@ function buildCumulativeWindow(snapshots, from, to) {
     };
   }
 
-  const start = nearestSnapshot(usable, from);
-  const end = nearestSnapshot(usable, to, start);
-  if (!start || !end || start === end) {
+  // Cumulative counters need a baseline at (or immediately before) the
+  // selected range and an observation inside its end boundary. Choosing both
+  // points by absolute distance reverses the pair for a single-day range:
+  // today's observation becomes the start and yesterday's becomes the end.
+  const end = latestAtOrBefore(usable, to);
+  const endAt = Number(end?.snapshot_at || 0);
+  const candidates = usable.filter(row => Number(row.snapshot_at || 0) < endAt);
+  const start = latestAtOrBefore(candidates, from) || earliestAtOrAfter(candidates, from);
+
+  if (!start || !end) {
     return {
       activityPerDay:null,
       xanaxPerDay:null,
@@ -575,6 +582,23 @@ function nearestSnapshot(rows, target, exclude = null) {
     }
   }
   return best;
+}
+
+function latestAtOrBefore(rows, target) {
+  let match = null;
+  for (const row of rows) {
+    const at = Number(row.snapshot_at || 0);
+    if (at > target) break;
+    match = row;
+  }
+  return match;
+}
+
+function earliestAtOrAfter(rows, target) {
+  for (const row of rows) {
+    if (Number(row.snapshot_at || 0) >= target) return row;
+  }
+  return null;
 }
 
 function nearestObservation(rows, target, exclude = null) {
