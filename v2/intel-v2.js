@@ -1270,7 +1270,7 @@ function prepareFilterDraft() {
 function timelinePresetOptions() {
   const year = new Date().getUTCFullYear();
   return [
-    ['all', 'All Time (2022+)'],
+    ['all', 'All Time'],
     ['today', 'Today'],
     ['yesterday', 'Yesterday'],
     ['last7', 'Last 7 Days'],
