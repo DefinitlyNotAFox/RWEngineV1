@@ -10,6 +10,8 @@ import {
   formatNumber, formatDate, formatDateTime, formatAge, escapeHtml
 } from './core.js?v=3';
 
+import { sortFactionAccounts, sortTrackedFactions } from './sort.js?v=1';
+
 import { initIntel, renderIntel, refreshSyncStatus } from './intel.js?v=4';
 import { initIntelV2 } from './intel-v2.js?v=33';
 import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=17';
@@ -854,7 +856,7 @@ function renderFactionRoles(result) {
   if (!list) return;
 
   const permissions = result.permissions || {};
-  const accounts = Array.isArray(result.accounts) ? result.accounts : [];
+  const accounts = sortFactionAccounts(result.accounts);
   const assignedAccounts = accounts.filter(account => account.role !== 'member');
   list.innerHTML = assignedAccounts.length
     ? assignedAccounts.map(account => {
@@ -1034,7 +1036,7 @@ async function loadAdminFactions() {
     adminApi('listFactions'),
     adminApi('getMaintenance')
   ]);
-  state.adminFactions = result.factions || [];
+  state.adminFactions = sortTrackedFactions(result.factions);
   state.maintenanceMode = Boolean(maintenance?.enabled);
   state.maintenanceUpdatedAt = Number(maintenance?.updatedAt || 0) || null;
 

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=88" />
+  <link rel="stylesheet" href="/v2/app.css?v=89" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -241,7 +241,11 @@
       <section id="settingsView" class="view" data-view="settings">
         <header class="view-head settings-page-head">
           <div><p class="kicker">Account</p><h1>Settings</h1><p class="view-description">Manage your account and access.</p></div>
-          <button id="logoutButton" class="action" type="button">Log out</button>
+          <div class="settings-account-actions">
+            <small id="closeAccountStatus" class="settings-action-status" role="status"></small>
+            <button id="closeAccountButton" class="action danger" type="button">Close account</button>
+            <button id="logoutButton" class="action" type="button">Log out</button>
+          </div>
         </header>
 
         <div class="settings-columns">
@@ -278,7 +282,7 @@
                 </div>
               </header>
               <div class="settings-panel-body">
-                <div id="factionRolesList" class="access-list"></div>
+                <div id="factionRolesList" class="access-list settings-scroll-list" aria-label="Elevated member roles"></div>
                 <div class="role-add-control">
                   <button id="factionRoleAddToggle" class="text-action" type="button">+ Add member</button>
                   <form id="factionRoleAddForm" class="role-add-form hidden">
@@ -313,19 +317,6 @@
               </div>
             </section>
 
-            <section class="settings-panel account-close-section">
-              <header class="settings-panel-head">
-                <p class="settings-panel-label">Account</p>
-                <div>
-                  <h2>Close account</h2>
-                  <span>Permanently remove your login and saved API key.</span>
-                </div>
-              </header>
-              <div class="settings-panel-body">
-                <button id="closeAccountButton" class="action danger" type="button">Close account</button>
-                <small id="closeAccountStatus" class="settings-action-status" role="status"></small>
-              </div>
-            </section>
           </div>
 
           <section id="adminSection" class="admin-section settings-admin-column hidden">
@@ -354,7 +345,7 @@
                 </div>
               </header>
               <div class="settings-panel-body">
-                <div id="adminFactionList" class="admin-faction-list"></div>
+                <div id="adminFactionList" class="admin-faction-list settings-scroll-list" aria-label="Tracked factions"></div>
                 <form id="adminKeyForm" class="admin-key-form hidden">
                   <p id="adminKeyHeading"></p>
                   <label><span>Faction API key</span><input id="adminApiKey" type="password" autocomplete="off" /></label>
@@ -387,6 +378,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=72"></script>
+  <script type="module" src="/v2/app.js?v=73"></script>
 </body>
 </html>

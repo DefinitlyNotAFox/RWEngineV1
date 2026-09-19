@@ -7472,6 +7472,19 @@ body {
   margin-bottom: 18px;
 }
 
+#settingsView .settings-account-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#settingsView .settings-account-actions .settings-action-status {
+  min-height: 0;
+  margin: 0 4px 0 0;
+}
+
 .settings-columns {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -7667,6 +7680,18 @@ body {
   display: grid;
   gap: 4px;
   border-top: 0;
+}
+
+#settingsView .settings-scroll-list {
+  max-height: 244px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  align-content: start;
+  padding-right: 6px;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--line) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
 }
 
 #settingsView .access-row,

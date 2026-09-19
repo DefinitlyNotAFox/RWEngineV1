@@ -22,6 +22,11 @@ import {
   normalizeViewRole,
   renderLeadershipMarker
 } from '../v2/core.js';
+import {
+  compareDisplayNames,
+  sortFactionAccounts,
+  sortTrackedFactions
+} from '../v2/sort.js';
 
 test('leader and co-leader IDs receive faction leadership status', () => {
   const basic = { leader_id:101, co_leader_id:102 };
@@ -121,6 +126,29 @@ test('closed accounts receive a non-Torn tombstone player ID', () => {
   assert.throws(() => closedAccountPlayerId(0), /valid user ID/);
 });
 
+test('settings entities sort alphabetically with numeric names', () => {
+  const names = [
+    { name:'Faction 10', id:10 },
+    { name:'alpha', id:3 },
+    { name:'Faction 2', id:2 },
+    { name:'Bravo', id:4 }
+  ];
+  names.sort((left, right) => compareDisplayNames(left.name, right.name, left.id, right.id));
+  assert.deepEqual(names.map(item => item.name), ['alpha', 'Bravo', 'Faction 2', 'Faction 10']);
+
+  const accounts = sortFactionAccounts([
+    { playerName:'Zulu', playerId:9 },
+    { playerName:'Alpha', playerId:2 }
+  ]);
+  assert.deepEqual(accounts.map(item => item.playerName), ['Alpha', 'Zulu']);
+
+  const factions = sortTrackedFactions([
+    { factionName:'WIT-Horizon', factionId:4 },
+    { factionName:'Goodfellas Inc.', factionId:1 }
+  ]);
+  assert.deepEqual(factions.map(item => item.factionName), ['Goodfellas Inc.', 'WIT-Horizon']);
+});
+
 test('the obsolete Workspace route is absent and Settings exposes personal API access', () => {
   const html = readFileSync(new URL('../v2/index.html', import.meta.url), 'utf8');
   const css = readFileSync(new URL('../v2/app.css', import.meta.url), 'utf8');
@@ -133,13 +161,18 @@ test('the obsolete Workspace route is absent and Settings exposes personal API a
   assert.match(html, /id="personalApiKeyForm"/);
   assert.match(html, /id="personalApiKeyRemove"/);
   assert.match(html, /id="closeAccountButton"/);
+  assert.doesNotMatch(html, /class="settings-panel account-close-section"/);
+  assert.match(html, /class="settings-account-actions"[\s\S]*id="closeAccountButton"[\s\S]*id="logoutButton"/);
   assert.match(html, /id="factionRolesSection"/);
+  assert.match(html, /id="factionRolesList" class="access-list settings-scroll-list"/);
+  assert.match(html, /id="adminFactionList" class="admin-faction-list settings-scroll-list"/);
   assert.match(html, /class="settings-columns"/);
   assert.match(html, /id="factionRoleAddToggle"/);
   assert.match(html, /id="factionRoleMemberSearch"[^>]+list="factionRoleMemberOptions"/);
   assert.match(html, /id="factionRoleNewRole"/);
   assert.match(css, /Settings: flat account and permissions ledger/);
   assert.match(css, /#settingsView \.settings-panel-head/);
+  assert.match(css, /#settingsView \.settings-scroll-list\s*\{[^}]*max-height:\s*244px;/s);
 });
 
 test('member notes are trimmed and bounded', () => {
