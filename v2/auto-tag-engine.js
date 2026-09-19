@@ -75,7 +75,7 @@ function addWarTags(tags, performance, config) {
         tier,
         category:'war_hits',
         title:tier === 'red' ? 'Minimal war hits' : tier === 'orange' ? 'Very low war hits' : 'Low war hits',
-        text:`${formatRate(hitsPerWar, 1)} hits / eligible war.`,
+        text:`${formatRate(hitsPerWar, 1)} hits / war.`,
         value:hitsPerWar
       }));
     }
@@ -111,7 +111,7 @@ function addWarTags(tags, performance, config) {
           tier:'yellow',
           category:'outside_hits',
           title:'High outside hits',
-          text:`${formatRate(outsidePerWar, 1)} outside hits / eligible war.`,
+          text:`${formatRate(outsidePerWar, 1)} outside hits / war.`,
           value:outsidePerWar
         }));
       }
@@ -134,7 +134,7 @@ function addWarTags(tags, performance, config) {
           tier,
           category:'assists',
           title:tier === 'bright' ? 'Exceptional assists' : tier === 'green' ? 'High assists' : 'Helpful support',
-          text:`${formatRate(assistsPerWar, 1)} assists / eligible war.`,
+          text:`${formatRate(assistsPerWar, 1)} assists / war.`,
           value:assistsPerWar
         }));
       }
