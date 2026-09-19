@@ -5,7 +5,7 @@ import {
   formatNumber, formatCompact, formatDecimal, formatPercent,
   formatDuration, formatDate,
   escapeHtml, sleep
-} from './core.js?v=3';
+} from './core.js?v=4';
 
 const sort = { key: 'stats', direction: 'desc' };
 let selectedMemberId = null;
