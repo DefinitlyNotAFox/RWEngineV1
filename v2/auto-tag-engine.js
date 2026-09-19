@@ -276,7 +276,10 @@ function numberOrNull(value) {
 }
 
 function formatRate(value, decimals) {
-  return Number(value).toFixed(decimals).replace(/\.0+$/, '');
+  return Number(value)
+    .toFixed(decimals)
+    .replace(/(\.\d*?[1-9])0+$/, '$1')
+    .replace(/\.0+$/, '');
 }
 
 function formatElapsedHours(hours) {
