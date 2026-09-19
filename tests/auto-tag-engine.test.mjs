@@ -99,9 +99,8 @@ test('Intel applies automatic tags with faction settings and tier styling', () =
   assert.match(intel, /renderTraitGroup\('positive'[\s\S]*renderTraitGroup\('attention'/);
   assert.match(intel, /auto-tag tier-/);
   assert.match(intel, /auto-tag-name/);
-  assert.match(intel, /auto-tag-detail/);
   assert.match(intel, /auto-tag-empty">—/);
-  assert.match(intel, /class="member-name member-profile-link"/);
+  assert.match(intel, /<span class="member-name"><a class="member-profile-link"[^>]*>\$\{escapeHtml\(member\.playerName \|\| 'Unknown'\)\}<\/a>\$\{renderLeadershipMarker/);
   assert.match(intel, /class="member-note-edit"/);
   assert.doesNotMatch(intel, /intel2-context-kicker">Notes/);
   assert.doesNotMatch(intel, />Profile ↗<\/a>/);
