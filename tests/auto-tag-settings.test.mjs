@@ -37,4 +37,8 @@ test('settings page provides faction auto-tag controls', () => {
   assert.match(css, /\.settings-columns:not\(:has\(> \.settings-admin-column:not\(\.hidden\)\)\)[\s\S]*width:\s*min\(100%,\s*980px\)[\s\S]*margin-left:\s*0[\s\S]*margin-right:\s*auto/);
   assert.match(css, /\.settings-admin-column[\s\S]*border-left:\s*1px solid var\(--line-soft\)/);
   assert.match(css, /\.settings-admin-column \.settings-panel-head\.settings-panel-head-simple \+ \.settings-panel-body[\s\S]*margin-left:\s*0/);
+  assert.match(css, /Settings typography: keep readable content at 13–14px/);
+  assert.match(css, /#settingsView \.settings-section-heading[\s\S]*font-size:\s*var\(--font-body\)/);
+  assert.match(css, /#settingsView \.auto-tag-threshold input[\s\S]*font-size:\s*var\(--font-body\)/);
+  assert.match(css, /#settingsView \.status-line[\s\S]*font-size:\s*var\(--font-small\)/);
 });
