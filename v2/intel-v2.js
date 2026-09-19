@@ -3,7 +3,7 @@ import {
   canEditFactionView, renderLeadershipMarker,
   formatNumber, formatCompact, formatDecimal, formatPercent, formatSigned,
   formatDuration, formatRelative, escapeHtml, sleep
-} from './core.js?v=4';
+} from './core.js?v=5';
 import { buildAutoTags } from './auto-tag-engine.js?v=3';
 
 const filters = [
