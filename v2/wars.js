@@ -5,7 +5,7 @@ import {
   canEditFactionView, renderLeadershipMarker,
   metric, formatNumber, formatDecimal, formatSigned, formatPercent,
   formatDate, escapeHtml, sleep, warStamp
-} from './core.js?v=4';
+} from './core.js?v=5';
 
 const ATTACK_STEP_DELAY = 6000;
 const DETAIL_STEP_DELAY = 1200;
