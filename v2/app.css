@@ -8385,3 +8385,74 @@ body {
     flex-basis: 122px;
   }
 }
+
+
+/* Stable tag-management layout and aligned faction columns. */
+.faction-control-row .intel-tag-manage {
+  width: 86px;
+  min-width: 86px;
+  flex: 0 0 86px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+#intelTagToolbar {
+  box-sizing: border-box;
+  height: 54px;
+  min-height: 54px;
+  margin: 6px 0 8px;
+  overflow: hidden;
+}
+
+#intelTagToolbar.hidden {
+  display: grid !important;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.faction-grid-wrap {
+  box-sizing: border-box;
+  padding-left: 28px;
+}
+
+#intelTable.faction-grid .faction-member-row {
+  position: relative;
+}
+
+#intelTable.faction-grid .tag-row-selector {
+  position: absolute;
+  top: 50%;
+  left: -24px;
+  z-index: 4;
+  transform: translateY(-50%);
+}
+
+#intelTable.faction-grid .faction-grid-cell:not(.col-member) {
+  text-align: center !important;
+}
+
+#intelTable.faction-grid .col-member {
+  text-align: left !important;
+}
+
+#intelTable.faction-grid .member-note-cell,
+#intelTable.faction-grid .intel2-note-tags {
+  justify-content: center;
+}
+
+@media (max-width: 1050px) {
+  #intelTagToolbar {
+    height: 76px;
+    min-height: 76px;
+  }
+}
+
+@media (max-width: 620px) {
+  .faction-grid-wrap {
+    padding-left: 24px;
+  }
+
+  #intelTable.faction-grid .tag-row-selector {
+    left: -21px;
+  }
+}
