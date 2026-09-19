@@ -138,24 +138,21 @@ async function runImportJob({ env, user, factionId, job, cookieHeader, requestUr
 
   let warId = null;
   let chainStatus = null;
+  let attackDetailComplete = false;
 
   if (status.exists && !job.overwrite) {
     const existingWar = status.war || {};
     warId = String(existingWar.war_id || existingWar.warId || job.rankId);
     job.warId = warId;
 
-    if (Number(existingWar.attack_detail_complete ?? existingWar.attackDetailComplete ?? 0) === 1) {
-      job.status = 'completed';
-      job.phase = 'complete';
-      job.message = 'Already imported and verified.';
-      job.finishedAt = unixNow();
-      job.updatedAt = unixNow();
-      await saveJob(env.DB, job);
-      return;
-    }
+    attackDetailComplete = Number(
+      existingWar.attack_detail_complete ?? existingWar.attackDetailComplete ?? 0
+    ) === 1;
 
-    job.phase = 'verification';
-    job.message = 'Resuming attack verification.';
+    job.phase = attackDetailComplete ? 'chain' : 'verification';
+    job.message = attackDetailComplete
+      ? 'Attack detail already verified. Checking chain report.'
+      : 'Resuming attack verification.';
     job.updatedAt = unixNow();
     await saveJob(env.DB, job);
   } else {
@@ -182,43 +179,42 @@ async function runImportJob({ env, user, factionId, job, cookieHeader, requestUr
         action:'checkImportStatus',
         payload:{ rankId:job.rankId }
       });
-      if (Number(refreshed.war?.attack_detail_complete ?? refreshed.war?.attackDetailComplete ?? 0) === 1) {
-        job.status = 'completed';
-        job.phase = 'complete';
-        job.message = 'Already imported and verified.';
-        job.finishedAt = unixNow();
-        job.updatedAt = unixNow();
-        await saveJob(env.DB, job);
-        return;
-      }
+      attackDetailComplete = Number(
+        refreshed.war?.attack_detail_complete ?? refreshed.war?.attackDetailComplete ?? 0
+      ) === 1;
     }
 
-    job.phase = 'verification';
-    job.message = 'Verifying attack detail.';
+    job.phase = attackDetailComplete ? 'chain' : 'verification';
+    job.message = attackDetailComplete
+      ? 'Attack detail already verified. Checking chain report.'
+      : 'Verifying attack detail.';
     job.updatedAt = unixNow();
     await saveJob(env.DB, job);
   }
 
-  const verified = await runAttackVerification({
-    env,
-    factionId,
-    warId,
-    cookieHeader,
-    requestUrl,
-    onProgress:async result => {
-      job.processedTotal = Number(result.processedTotal ?? result.storedTotal ?? job.processedTotal ?? 0);
-      job.assists = Number(result.assists ?? job.assists ?? 0);
-      job.phase = 'verification';
-      job.message = job.processedTotal
-        ? `${job.processedTotal} attacks processed.`
-        : 'Verifying attack detail.';
-      job.updatedAt = unixNow();
-      await saveJob(env.DB, job);
-    }
-  });
+  if (!attackDetailComplete) {
+    const verified = await runAttackVerification({
+      env,
+      factionId,
+      warId,
+      cookieHeader,
+      requestUrl,
+      onProgress:async result => {
+        job.processedTotal = Number(result.processedTotal ?? result.storedTotal ?? job.processedTotal ?? 0);
+        job.assists = Number(result.assists ?? job.assists ?? 0);
+        job.phase = 'verification';
+        job.message = job.processedTotal
+          ? `${job.processedTotal} attacks processed.`
+          : 'Verifying attack detail.';
+        job.updatedAt = unixNow();
+        await saveJob(env.DB, job);
+      }
+    });
 
-  job.processedTotal = Number(verified.processedTotal ?? verified.storedTotal ?? job.processedTotal ?? 0);
-  job.assists = Number(verified.assists ?? job.assists ?? 0);
+    job.processedTotal = Number(verified.processedTotal ?? verified.storedTotal ?? job.processedTotal ?? 0);
+    job.assists = Number(verified.assists ?? job.assists ?? 0);
+    attackDetailComplete = true;
+  }
 
   let warState = await readWarProcessingState(env.DB, factionId, warId);
   const needsChainCheck =
