@@ -10,7 +10,7 @@ test('timeline scope uses the requested preset dropdown', () => {
   assert.doesNotMatch(html, /id="factionScopeAll"/);
 
   for (const label of [
-    'All Time (2022+)',
+    'All Time',
     'Today',
     'Yesterday',
     'Last 7 Days',
