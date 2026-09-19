@@ -14,6 +14,13 @@
   --warning: #c8a46b;
   --success: #8eae94;
   --max: 1540px;
+  --font-caption: 12px;
+  --font-small: 13px;
+  --font-body: 14px;
+  --font-section: 16px;
+  --font-subtitle: 20px;
+  --font-title: 24px;
+  --font-display: 28px;
 }
 
 * { box-sizing: border-box; }
@@ -23,18 +30,24 @@ html, body {
   margin: 0;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 14px;
-  line-height: 1.4;
+  font-size: var(--font-body);
+  line-height: 1.45;
 }
 
 button, input, textarea, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: default; opacity: .45; }
 a { color: inherit; }
+small { font-size: var(--font-caption); }
 .hidden { display: none !important; }
 
 ::selection {
@@ -61,7 +74,7 @@ a { color: inherit; }
 
 .brand {
   color: var(--text);
-  font-size: 20px;
+  font-size: var(--font-subtitle);
   font-weight: 720;
   letter-spacing: -.035em;
 }
@@ -69,7 +82,7 @@ a { color: inherit; }
 .auth-brand p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .auth-tabs {
@@ -86,7 +99,7 @@ a { color: inherit; }
   padding: 0 0 8px;
   background: transparent;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .auth-tab:hover { color: var(--text); }
@@ -110,7 +123,7 @@ a { color: inherit; }
 .personal-api-form label > span,
 .import-panel label > span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
   font-weight: 650;
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -121,7 +134,7 @@ a { color: inherit; }
 .personal-api-form small,
 .import-panel small {
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 /* inputs/actions */
@@ -199,14 +212,14 @@ select:focus { border-color: var(--accent); }
   padding: 0;
   background: transparent;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .text-action:hover { color: var(--accent-2); }
 
 .message {
   margin: 12px 0 0;
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .error { color: var(--danger); }
@@ -250,7 +263,7 @@ select:focus { border-color: var(--accent); }
   padding: 0;
   background: transparent;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .primary-nav button:hover { color: var(--text); }
@@ -280,7 +293,7 @@ select:focus { border-color: var(--accent); }
   padding: 0;
   background: transparent;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-small);
   white-space: nowrap;
 }
 
@@ -294,7 +307,7 @@ select:focus { border-color: var(--accent); }
 
 .context-select span {
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-caption);
   text-transform: uppercase;
   letter-spacing: .05em;
 }
@@ -307,7 +320,7 @@ select:focus { border-color: var(--accent); }
   border-bottom: 1px solid var(--line);
   padding: 0 20px 0 0;
   background: transparent;
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 /* layout */
@@ -318,7 +331,7 @@ select:focus { border-color: var(--accent); }
   padding: 7px 0;
   border-bottom: 1px solid var(--line);
   color: var(--warning);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .notice.error { color: var(--danger); }
@@ -344,7 +357,7 @@ select:focus { border-color: var(--accent); }
 .view-head h1,
 .home-head h1 {
   margin: 2px 0 0;
-  font-size: 24px;
+  font-size: var(--font-title);
   font-weight: 650;
   letter-spacing: -.035em;
 }
@@ -352,7 +365,7 @@ select:focus { border-color: var(--accent); }
 .kicker {
   margin: 0;
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-caption);
   font-weight: 700;
   letter-spacing: .09em;
   text-transform: uppercase;
@@ -377,7 +390,7 @@ select:focus { border-color: var(--accent); }
   max-width: 620px;
   margin: 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-small);
   text-align: right;
 }
 
@@ -406,23 +419,23 @@ select:focus { border-color: var(--accent); }
 
 .index-list span {
   color: var(--dim);
-  font-size: 10px;
+  font-size: var(--font-caption);
   font-variant-numeric: tabular-nums;
 }
 
 .index-list strong {
-  font-size: 14px;
+  font-size: var(--font-body);
   font-weight: 650;
 }
 
 .index-list small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .index-list b {
   color: var(--dim);
-  font-size: 14px;
+  font-size: var(--font-body);
   font-weight: 400;
   text-align: right;
 }
@@ -454,7 +467,7 @@ select:focus { border-color: var(--accent); }
   display: block;
   overflow: hidden;
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-caption);
   font-weight: 700;
   letter-spacing: .065em;
   text-transform: uppercase;
@@ -466,7 +479,7 @@ select:focus { border-color: var(--accent); }
   display: block;
   margin-top: 4px;
   overflow: hidden;
-  font-size: 18px;
+  font-size: var(--font-subtitle);
   font-weight: 640;
   font-variant-numeric: tabular-nums;
   text-overflow: ellipsis;
@@ -477,7 +490,7 @@ select:focus { border-color: var(--accent); }
   display: block;
   margin-top: 1px;
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 .status-line {
@@ -485,7 +498,7 @@ select:focus { border-color: var(--accent); }
   padding: 7px 0;
   border-bottom: 1px solid var(--line-soft);
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .status-line.error { color: var(--danger); }
@@ -511,7 +524,7 @@ select:focus { border-color: var(--accent); }
   padding: 3px 0;
   background: transparent;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .period-control button:hover { color: var(--text); }
@@ -526,14 +539,14 @@ select:focus { border-color: var(--accent); }
 .search {
   width: 240px;
   height: 32px;
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .small-select {
   width: auto;
   min-width: 104px;
   height: 32px;
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .check {
@@ -541,7 +554,7 @@ select:focus { border-color: var(--accent); }
   align-items: center;
   gap: 6px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -572,7 +585,7 @@ select:focus { border-color: var(--accent); }
   border-bottom: 1px solid var(--line-soft);
   text-align: right;
   font-variant-numeric: tabular-nums;
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .data-table th {
@@ -581,7 +594,7 @@ select:focus { border-color: var(--accent); }
   z-index: 2;
   background: var(--bg);
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-caption);
   font-weight: 700;
   letter-spacing: .065em;
   text-transform: uppercase;
@@ -608,7 +621,7 @@ select:focus { border-color: var(--accent); }
 .member-name {
   display: block;
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 650;
 }
 
@@ -616,14 +629,14 @@ select:focus { border-color: var(--accent); }
   display: block;
   margin-top: 1px;
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-caption);
   font-weight: 400;
 }
 
 .stat-source {
   display: block;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
   letter-spacing: .04em;
   text-transform: uppercase;
 }
@@ -652,19 +665,19 @@ select:focus { border-color: var(--accent); }
 
 .member-detail-head h3 {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--font-body);
   font-weight: 640;
 }
 
 .member-detail-head p {
   margin: 2px 0 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .member-detail-head a {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
   text-decoration: none;
 }
 
@@ -686,7 +699,7 @@ select:focus { border-color: var(--accent); }
 .detail-war-list header {
   margin-bottom: 5px;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
   font-weight: 700;
   letter-spacing: .07em;
   text-transform: uppercase;
@@ -721,7 +734,7 @@ select:focus { border-color: var(--accent); }
 
 .split-list h2 {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 650;
 }
 
@@ -747,7 +760,7 @@ button.line-row:hover strong { color: var(--accent-2); }
 
 .line-row strong {
   display: block;
-  font-size: 11px;
+  font-size: var(--font-small);
   font-weight: 620;
 }
 
@@ -755,12 +768,12 @@ button.line-row:hover strong { color: var(--accent-2); }
   display: block;
   margin-top: 1px;
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 .line-row b {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-small);
   font-weight: 500;
   text-align: right;
 }
@@ -790,7 +803,7 @@ button.line-row:hover strong { color: var(--accent-2); }
   display: block;
   margin-top: 1px;
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-caption);
   font-weight: 400;
 }
 
@@ -805,12 +818,12 @@ button.line-row:hover strong { color: var(--accent-2); }
 
 .archive-count {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .archive-count strong {
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 650;
 }
 
@@ -848,7 +861,7 @@ button.line-row:hover strong { color: var(--accent-2); }
   gap: 10px;
   padding: 7px 0;
   border-bottom: 1px solid var(--line-soft);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .import-row strong { font-weight: 620; }
@@ -868,13 +881,13 @@ button.line-row:hover strong { color: var(--accent-2); }
 
 .detail-title h2 {
   margin: 2px 0 2px;
-  font-size: 18px;
+  font-size: var(--font-subtitle);
   font-weight: 650;
 }
 
 .detail-title > span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .score-line {
@@ -900,20 +913,20 @@ button.line-row:hover strong { color: var(--accent-2); }
 .score-side span {
   overflow: hidden;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .score-side strong {
-  font-size: 19px;
+  font-size: var(--font-subtitle);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
 
 .score-versus {
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-caption);
   letter-spacing: .065em;
   text-transform: uppercase;
 }
@@ -934,9 +947,9 @@ button.line-row:hover strong { color: var(--accent-2); }
   display: block;
 }
 
-.share-panel strong { font-size: 9px; }
-.share-panel small { color: var(--dim); font-size: 8px; }
-.share-panel span { grid-column: 2 / -1; color: var(--muted); font-size: 8px; }
+.share-panel strong { font-size: var(--font-caption); }
+.share-panel small { color: var(--dim); font-size: var(--font-caption); }
+.share-panel span { grid-column: 2 / -1; color: var(--muted); font-size: var(--font-caption); }
 .share-panel span.error { color: var(--danger); }
 
 /* settings/admin */
@@ -957,12 +970,12 @@ button.line-row:hover strong { color: var(--accent-2); }
 
 .settings-list dt {
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 .settings-list dd {
   margin: 0;
-  font-size: 10px;
+  font-size: var(--font-caption);
   font-weight: 620;
 }
 
@@ -973,7 +986,7 @@ button.line-row:hover strong { color: var(--accent-2); }
 
 .admin-section > header h2 {
   margin: 2px 0 10px;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 650;
 }
 
@@ -1000,9 +1013,9 @@ button.line-row:hover strong { color: var(--accent-2); }
 .admin-faction-row strong,
 .admin-faction-row small { display: block; }
 
-.admin-faction-row strong { font-size: 10px; }
-.admin-faction-row small { margin-top: 1px; color: var(--dim); font-size: 8px; }
-.admin-faction-row b { color: var(--muted); font-size: 9px; font-weight: 500; }
+.admin-faction-row strong { font-size: var(--font-caption); }
+.admin-faction-row small { margin-top: 1px; color: var(--dim); font-size: var(--font-caption); }
+.admin-faction-row b { color: var(--muted); font-size: var(--font-caption); font-weight: 500; }
 
 .admin-key-form {
   max-width: 620px;
@@ -1013,7 +1026,7 @@ button.line-row:hover strong { color: var(--accent-2); }
 
 .admin-key-form p {
   margin: 0 0 10px;
-  font-size: 10px;
+  font-size: var(--font-caption);
   font-weight: 620;
 }
 
@@ -1049,7 +1062,7 @@ button.line-row:hover strong { color: var(--accent-2); }
 }
 
 @media (max-width: 760px) {
-  body { font-size: 13px; }
+  body { font-size: var(--font-body); }
   .appbar-inner,
   .workspace,
   .notice {
@@ -1082,7 +1095,7 @@ button.line-row:hover strong { color: var(--accent-2); }
   .workspace { padding-top: 20px; }
 
   .view-head h1,
-  .home-head h1 { font-size: 22px; }
+  .home-head h1 { font-size: var(--font-title); }
 
   .view-head,
   .home-head {
@@ -1245,7 +1258,7 @@ button.line-row:hover strong { color: var(--accent-2); }
 .freshness {
   margin: 4px 0 0;
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 .freshness.stale {
@@ -1270,14 +1283,14 @@ button.line-row:hover strong { color: var(--accent-2); }
 .access-section > header h2,
 .account-api-section > header h2 {
   margin: 2px 0 3px;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 650;
 }
 
 .access-section > header span,
 .account-api-section > header span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 .personal-api-form {
@@ -1326,25 +1339,25 @@ button.line-row:hover strong { color: var(--accent-2); }
 }
 
 .access-row strong {
-  font-size: 11px;
+  font-size: var(--font-small);
   font-weight: 620;
 }
 
 .access-row small {
   margin-top: 2px;
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 .access-select {
   height: 30px;
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .access-empty {
   padding: 12px 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .share-panel {
@@ -1357,7 +1370,7 @@ button.line-row:hover strong { color: var(--accent-2); }
 
 @media (max-width: 760px) {
   .freshness {
-    font-size: 9px;
+    font-size: var(--font-caption);
   }
 
   .access-row {
@@ -1384,13 +1397,13 @@ button.line-row:hover strong { color: var(--accent-2); }
 
 .database-admin > header h2 {
   margin: 2px 0 3px;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 650;
 }
 
 .database-admin > header span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 .database-actions {
@@ -1419,20 +1432,20 @@ button.line-row:hover strong { color: var(--accent-2); }
 }
 
 .database-summary strong {
-  font-size: 10px;
+  font-size: var(--font-caption);
   font-weight: 650;
 }
 
 .database-summary small {
   margin-top: 2px;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
 }
 
 .database-summary > b,
 .database-object-list b,
 .database-plan-list header b {
-  font-size: 8px;
+  font-size: var(--font-caption);
   font-weight: 600;
   text-transform: uppercase;
 }
@@ -1460,7 +1473,7 @@ button.line-row:hover strong { color: var(--accent-2); }
   padding-right: 14px;
   border-bottom: 1px solid var(--line-soft);
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 .database-object-list > div:nth-child(odd) {
@@ -1485,7 +1498,7 @@ button.line-row:hover strong { color: var(--accent-2); }
 }
 
 .database-plan-list header strong {
-  font-size: 9px;
+  font-size: var(--font-caption);
   font-weight: 650;
 }
 
@@ -1494,7 +1507,7 @@ button.line-row:hover strong { color: var(--accent-2); }
   overflow-wrap: anywhere;
   color: var(--dim);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 8px;
+  font-size: var(--font-caption);
   line-height: 1.5;
   white-space: normal;
 }
@@ -1506,7 +1519,7 @@ button.line-row:hover strong { color: var(--accent-2); }
 .database-warning-list span {
   display: block;
   color: var(--warning);
-  font-size: 8px;
+  font-size: var(--font-caption);
 }
 
 @media (max-width: 700px) {
@@ -1554,7 +1567,7 @@ button.line-row:hover strong { color: var(--accent-2); }
   padding: 3px 0;
   background: transparent;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .intel2-filter:hover { color: var(--text); }
@@ -1595,7 +1608,7 @@ button.line-row:hover strong { color: var(--accent-2); }
 
 .intel2-table th small {
   color: var(--dim);
-  font-size: 7px;
+  font-size: var(--font-caption);
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
@@ -1605,7 +1618,7 @@ button.line-row:hover strong { color: var(--accent-2); }
   display: block;
   margin-top: 2px;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
 }
 
 .trend.up { color: var(--success); }
@@ -1613,7 +1626,7 @@ button.line-row:hover strong { color: var(--accent-2); }
 
 .signal {
   display: inline-block;
-  font-size: 9px;
+  font-size: var(--font-caption);
   white-space: nowrap;
 }
 
@@ -1647,19 +1660,19 @@ button.line-row:hover strong { color: var(--accent-2); }
 
 .intel2-detail-head h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--font-section);
   font-weight: 650;
 }
 
 .intel2-detail-head p {
   margin: 2px 0 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 .intel2-detail-head a {
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
   text-decoration: none;
 }
 
@@ -1676,11 +1689,11 @@ button.line-row:hover strong { color: var(--accent-2); }
   gap: 12px;
   padding: 7px 0;
   border-bottom: 1px solid var(--line-soft);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .intel2-insight b {
-  font-size: 8px;
+  font-size: var(--font-caption);
   font-weight: 650;
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -1702,7 +1715,7 @@ button.line-row:hover strong { color: var(--accent-2); }
 
 .intel2-trend-toolbar > span {
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
   font-weight: 700;
   letter-spacing: .07em;
   text-transform: uppercase;
@@ -1719,7 +1732,7 @@ button.line-row:hover strong { color: var(--accent-2); }
   padding: 2px 0;
   background: transparent;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 .intel2-trend-toolbar button.active {
@@ -1756,13 +1769,13 @@ button.line-row:hover strong { color: var(--accent-2); }
 }
 
 .intel2-trend header strong {
-  font-size: 10px;
+  font-size: var(--font-caption);
   font-weight: 650;
 }
 
 .intel2-trend header span {
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
 }
 
 .sparkline {
@@ -1791,7 +1804,7 @@ button.line-row:hover strong { color: var(--accent-2); }
 .intel2-wars > header {
   margin-bottom: 5px;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
   font-weight: 700;
   letter-spacing: .07em;
   text-transform: uppercase;
@@ -1804,11 +1817,11 @@ button.line-row:hover strong { color: var(--accent-2); }
   gap: 12px;
   align-items: center;
   border-top: 1px solid var(--line-soft);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 .intel2-war strong {
-  font-size: 10px;
+  font-size: var(--font-caption);
   font-weight: 620;
 }
 
@@ -1820,7 +1833,7 @@ button.line-row:hover strong { color: var(--accent-2); }
 .intel2-war small {
   display: block;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
 }
 
 .intel2-coverage {
@@ -1832,7 +1845,7 @@ button.line-row:hover strong { color: var(--accent-2); }
   padding-top: 9px;
   border-top: 1px solid var(--line-soft);
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
 }
 
 .intel2-coverage span {
@@ -1922,7 +1935,7 @@ button.line-row:hover strong { color: var(--accent-2); }
 /* readability pass */
 
 body {
-  font-size: 15px;
+  font-size: var(--font-section);
   line-height: 1.5;
 }
 
@@ -1934,50 +1947,50 @@ body {
 
 .view-head h1,
 .home-head h1 {
-  font-size: 26px;
+  font-size: var(--font-display);
 }
 
 .view-description {
   max-width: 760px;
   margin: 6px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.55;
 }
 
 .kicker {
-  font-size: 10px;
+  font-size: var(--font-caption);
   letter-spacing: .075em;
 }
 
 .primary-nav button {
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .context-button,
 .context-select select {
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .context-select span {
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .notice {
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .home-copy {
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
 }
 
 .index-list strong {
-  font-size: 15px;
+  font-size: var(--font-section);
 }
 
 .index-list small {
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.45;
 }
 
@@ -1988,23 +2001,23 @@ body {
 
 .metric span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
   letter-spacing: .05em;
 }
 
 .metric strong {
   margin-top: 5px;
-  font-size: 20px;
+  font-size: var(--font-subtitle);
 }
 
 .metric small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .status-line {
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
 }
 
@@ -2013,30 +2026,30 @@ body {
 .check,
 .archive-count,
 .access-select {
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .search,
 .small-select {
   height: 34px;
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .data-table th,
 .data-table td {
   height: 47px;
   padding: 8px 10px;
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .data-table th {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
   letter-spacing: .045em;
 }
 
 .member-name {
-  font-size: 14px;
+  font-size: var(--font-body);
 }
 
 .member-meta,
@@ -2046,12 +2059,12 @@ body {
 .settings-list dt,
 .access-row small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .stat-source {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .line-row {
@@ -2059,83 +2072,83 @@ body {
 }
 
 .line-row strong {
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .line-row b {
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .archive-count strong {
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .import-row {
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .detail-title h2 {
-  font-size: 20px;
+  font-size: var(--font-subtitle);
 }
 
 .score-side span,
 .score-versus {
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .share-panel strong {
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .share-panel small,
 .share-panel span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .settings-list dt,
 .settings-list dd {
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .admin-section > header h2,
 .access-section > header h2,
 .database-admin > header h2 {
-  font-size: 14px;
+  font-size: var(--font-body);
 }
 
 .access-section > header span,
 .database-admin > header span {
-  font-size: 11px;
+  font-size: var(--font-small);
   line-height: 1.45;
 }
 
 .admin-faction-row strong {
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .admin-faction-row small,
 .admin-faction-row b {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .admin-key-form p {
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .freshness {
   margin-top: 5px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .access-row strong {
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .access-empty {
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 /* Intel readability and orientation */
@@ -2144,7 +2157,7 @@ body {
   max-width: 1180px;
   margin: -1px 0 13px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-small);
   line-height: 1.55;
 }
 
@@ -2160,24 +2173,24 @@ body {
 
 .intel2-filter {
   padding: 4px 0;
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .intel2-table th small {
   margin-left: 2px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 .trend {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
   line-height: 1.35;
 }
 
 .signal {
-  font-size: 10px;
+  font-size: var(--font-caption);
   font-weight: 600;
 }
 
@@ -2190,24 +2203,24 @@ body {
 }
 
 .intel2-detail-head h2 {
-  font-size: 18px;
+  font-size: var(--font-subtitle);
 }
 
 .intel2-detail-head p,
 .intel2-detail-head a {
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .intel2-insight {
   grid-template-columns: 135px minmax(0,1fr);
   gap: 16px;
   padding: 9px 0;
-  font-size: 11px;
+  font-size: var(--font-small);
   line-height: 1.45;
 }
 
 .intel2-insight b {
-  font-size: 10px;
+  font-size: var(--font-caption);
   letter-spacing: .045em;
 }
 
@@ -2218,13 +2231,13 @@ body {
 
 .intel2-trend-toolbar > span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
   letter-spacing: .05em;
 }
 
 .intel2-trend-toolbar button {
   padding: 3px 0;
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .intel2-trend {
@@ -2233,12 +2246,12 @@ body {
 }
 
 .intel2-trend header strong {
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .intel2-trend header span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .sparkline {
@@ -2247,35 +2260,35 @@ body {
 
 .intel2-wars > header {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
   letter-spacing: .05em;
 }
 
 .intel2-war {
   min-height: 47px;
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .intel2-war strong {
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .intel2-war small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .intel2-coverage {
   gap: 20px;
   padding-top: 11px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 /* Admin diagnostics remain technical, but not microscopic. */
 
 .database-summary strong {
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .database-summary small,
@@ -2283,41 +2296,41 @@ body {
 .database-object-list b,
 .database-plan-list header b,
 .database-warning-list span {
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .database-object-list > div,
 .database-plan-list header strong {
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .database-plan-list code {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
   line-height: 1.6;
 }
 
 @media (max-width: 760px) {
   body {
-    font-size: 14px;
+    font-size: var(--font-body);
   }
 
   .view-description,
   .home-copy {
-    font-size: 11px;
+    font-size: var(--font-small);
   }
 
   .data-table th,
   .data-table td {
-    font-size: 12px;
+    font-size: var(--font-small);
   }
 
   .metric strong {
-    font-size: 18px;
+    font-size: var(--font-subtitle);
   }
 
   .intel-guide {
-    font-size: 10px;
+    font-size: var(--font-caption);
   }
 }
 
@@ -2340,7 +2353,7 @@ body {
 .intel2-history-kicker {
   display: block;
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 650;
   letter-spacing: .045em;
   text-transform: uppercase;
@@ -2349,7 +2362,7 @@ body {
 .intel2-history-head p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
   line-height: 1.45;
 }
 
@@ -2366,7 +2379,7 @@ body {
   padding: 3px 0 4px;
   background: transparent;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .intel2-history-window button:hover {
@@ -2399,12 +2412,12 @@ body {
 }
 
 .intel2-history .intel2-trend header strong {
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .intel2-history .intel2-trend header span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .intel2-history .sparkline {
@@ -2421,7 +2434,7 @@ body {
   align-items: center;
   justify-content: center;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .intel2-history .intel2-wars {
@@ -2442,13 +2455,13 @@ body {
 
 .intel2-history .intel2-wars > header strong {
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 650;
 }
 
 .intel2-history .intel2-wars > header span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .intel2-history .intel2-war {
@@ -2470,7 +2483,7 @@ body {
 
 .intel2-history .intel2-coverage span,
 .intel2-history .intel2-coverage b {
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 @media (max-width: 900px) {
@@ -2510,7 +2523,7 @@ body {
 /* density correction: readable type without zooming the interface */
 
 body {
-  font-size: 14px;
+  font-size: var(--font-body);
   line-height: 1.42;
 }
 
@@ -2521,7 +2534,7 @@ body {
 
 .view-head h1,
 .home-head h1 {
-  font-size: 24px;
+  font-size: var(--font-title);
 }
 
 .metric {
@@ -2531,7 +2544,7 @@ body {
 
 .metric strong {
   margin-top: 4px;
-  font-size: 18px;
+  font-size: var(--font-subtitle);
 }
 
 .search,
@@ -2543,7 +2556,7 @@ body {
 .data-table td {
   height: 42px;
   padding: 5px 9px;
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .line-row {
@@ -2589,12 +2602,12 @@ body {
 }
 
 .intel2-detail-head h2 {
-  font-size: 17px;
+  font-size: var(--font-subtitle);
 }
 
 .intel2-detail-head p,
 .intel2-detail-head a {
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .intel2-detail .detail-metrics .metric {
@@ -2603,7 +2616,7 @@ body {
 }
 
 .intel2-detail .detail-metrics .metric strong {
-  font-size: 17px;
+  font-size: var(--font-subtitle);
 }
 
 .intel2-insights {
@@ -2614,11 +2627,11 @@ body {
   grid-template-columns: 120px minmax(0,1fr);
   gap: 12px;
   padding: 7px 0;
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .intel2-insight b {
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 /* compact two-column history inspector */
@@ -2657,7 +2670,7 @@ body {
 .intel2-subsection-head > strong,
 .intel2-history .intel2-wars > header strong {
   color: var(--text);
-  font-size: 11px;
+  font-size: var(--font-small);
   font-weight: 650;
 }
 
@@ -2667,7 +2680,7 @@ body {
 
 .intel2-history-window button {
   padding: 2px 0 3px;
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .intel2-history .intel2-trends {
@@ -2700,12 +2713,12 @@ body {
 }
 
 .intel2-history .intel2-trend header strong {
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .intel2-history .intel2-trend header span {
   margin-top: 2px;
-  font-size: 9px;
+  font-size: var(--font-caption);
   line-height: 1.3;
 }
 
@@ -2723,22 +2736,22 @@ body {
 }
 
 .intel2-history .intel2-wars > header span {
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 .intel2-history .intel2-war {
   min-height: 39px;
   grid-template-columns: minmax(0,1fr) repeat(4,62px);
   gap: 8px;
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .intel2-history .intel2-war strong {
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .intel2-history .intel2-war small {
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 .intel2-history .intel2-coverage {
@@ -2748,7 +2761,7 @@ body {
 
 .intel2-history .intel2-coverage span,
 .intel2-history .intel2-coverage b {
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 @media (max-width: 1100px) {
@@ -2810,14 +2823,14 @@ body {
   gap: 16px;
   padding: 7px 14px;
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-caption);
   text-transform: uppercase;
   letter-spacing: .055em;
 }
 
 .intel2-detail-tools a {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
   letter-spacing: 0;
   text-transform: none;
   text-decoration: none;
@@ -2839,7 +2852,7 @@ body {
   min-height: 31px;
   padding: 6px 0;
   border: 0;
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .intel2-detail .intel2-insight + .intel2-insight {
@@ -2847,7 +2860,7 @@ body {
 }
 
 .intel2-detail .intel2-insight b {
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 /* History returns to a broad, simple flow. Tonal depth replaces hard framing. */
@@ -2868,13 +2881,13 @@ body {
 }
 
 .intel2-detail .intel2-history-kicker {
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .intel2-detail .intel2-history-head p {
   margin: 2px 0 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .intel2-detail .intel2-history-window {
@@ -2885,7 +2898,7 @@ body {
 
 .intel2-detail .intel2-history-window button {
   padding: 2px 0 3px;
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .intel2-detail .intel2-history-grid,
@@ -2927,13 +2940,13 @@ body {
 }
 
 .intel2-detail .intel2-trend header strong {
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .intel2-detail .intel2-trend header span {
   margin: 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 .intel2-detail .sparkline,
@@ -2961,12 +2974,12 @@ body {
 }
 
 .intel2-detail .intel2-wars > header strong {
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .intel2-detail .intel2-wars > header span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 .intel2-detail .intel2-war {
@@ -2974,7 +2987,7 @@ body {
   grid-template-columns: minmax(0,1fr) repeat(4,76px);
   gap: 10px;
   border-top: 1px solid #1b1e20;
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .intel2-detail .intel2-war:first-of-type {
@@ -2982,11 +2995,11 @@ body {
 }
 
 .intel2-detail .intel2-war strong {
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 .intel2-detail .intel2-war small {
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 .intel2-detail .intel2-coverage {
@@ -2999,7 +3012,7 @@ body {
 
 .intel2-detail .intel2-coverage span,
 .intel2-detail .intel2-coverage b {
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 @media (max-width: 900px) {
@@ -3057,14 +3070,14 @@ body {
 
 .intel2-trait-group > header span {
   width: 14px;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 700;
   line-height: 1;
   text-align: center;
 }
 
 .intel2-trait-group > header strong {
-  font-size: 10px;
+  font-size: var(--font-caption);
   font-weight: 650;
   letter-spacing: .045em;
   text-transform: uppercase;
@@ -3096,19 +3109,19 @@ body {
 
 .intel2-trait b {
   color: var(--text);
-  font-size: 10px;
+  font-size: var(--font-caption);
   font-weight: 620;
 }
 
 .intel2-trait span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
   line-height: 1.4;
 }
 
 .intel2-trait-empty {
   color: var(--dim);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .intel2-data-notes {
@@ -3123,7 +3136,7 @@ body {
 
 .intel2-data-notes > span {
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-caption);
   font-weight: 650;
   letter-spacing: .05em;
   text-transform: uppercase;
@@ -3137,13 +3150,13 @@ body {
 
 .intel2-data-note b {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
   font-weight: 620;
 }
 
 .intel2-data-note span {
   color: var(--dim);
-  font-size: 10px;
+  font-size: var(--font-caption);
   line-height: 1.4;
 }
 
@@ -3197,7 +3210,7 @@ body {
   padding: 7px 0 8px;
   background: transparent;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 560;
 }
 
@@ -3219,7 +3232,7 @@ body {
 
 .faction-period > span {
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-caption);
   font-weight: 650;
   letter-spacing: .055em;
   text-transform: uppercase;
@@ -3262,7 +3275,7 @@ body {
 #intelTable th small {
   margin-left: 2px;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
@@ -3409,7 +3422,7 @@ body {
   gap: 12px;
   margin: -2px 0 6px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
   line-height: 1.45;
 }
 
@@ -3431,7 +3444,7 @@ body {
   padding-bottom: 4px;
   border-bottom: 0;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
   font-weight: 700;
   letter-spacing: .08em;
   text-align: left;
@@ -3461,7 +3474,7 @@ body {
 }
 
 #intelTable th small {
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 #intelTable .faction-column-row th.sorted {
@@ -3645,16 +3658,16 @@ body {
   #intelTable[data-preset="all"] td {
     padding-left: 6px;
     padding-right: 6px;
-    font-size: 11px;
+    font-size: var(--font-small);
   }
 
   #intelTable[data-preset="all"] .member-name {
-    font-size: 12px;
+    font-size: var(--font-small);
   }
 
   #intelTable[data-preset="all"] .member-meta,
   #intelTable[data-preset="all"] .trend {
-    font-size: 9px;
+    font-size: var(--font-caption);
   }
 }
 
@@ -3664,14 +3677,14 @@ body {
 .faction-table-context {
   min-height: 22px;
   margin: -2px 0 4px;
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 #intelTable .faction-group-row th {
   height: 20px;
   padding-top: 2px;
   padding-bottom: 2px;
-  font-size: 7px;
+  font-size: var(--font-caption);
 }
 
 #intelTable .faction-column-row th {
@@ -3737,7 +3750,7 @@ body {
   padding: 7px 0 8px;
   background: transparent;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 560;
 }
 
@@ -3763,7 +3776,7 @@ body {
   padding: 4px 0 5px;
   background: transparent;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-small);
   font-variant-numeric: tabular-nums;
   text-align: left;
 }
@@ -3780,7 +3793,7 @@ body {
 .faction-scope-all {
   padding: 4px 0 5px;
   color: var(--dim);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .faction-scope-all.active {
@@ -3818,13 +3831,13 @@ body {
 }
 
 .filter-panel-head strong {
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .filter-panel-head span,
 .filter-panel-foot {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .filter-panel-foot {
@@ -3866,7 +3879,7 @@ body {
 .calendar-month > header {
   margin-bottom: 7px;
   color: var(--text);
-  font-size: 11px;
+  font-size: var(--font-small);
   font-weight: 650;
 }
 
@@ -3885,7 +3898,7 @@ body {
   display: grid;
   place-items: center;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
   font-weight: 650;
   text-transform: uppercase;
 }
@@ -3896,7 +3909,7 @@ body {
   border: 0;
   background: transparent;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
   font-variant-numeric: tabular-nums;
 }
 
@@ -3975,13 +3988,13 @@ body {
 }
 
 .war-picker-row strong {
-  font-size: 11px;
+  font-size: var(--font-small);
   font-weight: 620;
 }
 
 .war-picker-row small {
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 @media (max-width: 760px) {
@@ -4017,7 +4030,7 @@ body {
   row-gap: 3px;
   margin: -2px 0 4px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 .faction-status-item {
@@ -4088,7 +4101,7 @@ body {
   display: inline !important;
   margin-left: 5px;
   color: var(--dim);
-  font-size: 9px !important;
+  font-size: var(--font-caption) !important;
   font-weight: 400 !important;
   letter-spacing: 0;
   white-space: nowrap;
@@ -4189,7 +4202,7 @@ body {
   padding-bottom: 8px;
   background: #0b0d0e;
   color: var(--text);
-  font-size: 11px;
+  font-size: var(--font-small);
   font-weight: 400;
   letter-spacing: 0;
   text-transform: none;
@@ -4207,7 +4220,7 @@ body {
   display: block;
   margin-top: 2px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
   font-weight: 400;
   letter-spacing: 0;
   text-transform: none;
@@ -4231,7 +4244,7 @@ body {
 .intel-filter-label {
   flex: 0 0 auto;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
   font-weight: 700;
   letter-spacing: .08em;
   text-transform: uppercase;
@@ -4367,7 +4380,7 @@ body {
   display: block;
   margin-top: 2px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 
@@ -4390,7 +4403,7 @@ body {
 /* Give Filters the same visual hierarchy as the mode tabs. */
 .faction-control-row .intel-filter-label {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-small);
   font-weight: 560;
   letter-spacing: 0;
   line-height: 1.2;
@@ -4452,7 +4465,7 @@ body {
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   box-shadow: none !important;
-  font-size: 11px;
+  font-size: var(--font-small);
   font-weight: 400;
   letter-spacing: 0;
   text-transform: none;
@@ -4469,7 +4482,7 @@ body {
   display: block;
   margin-top: 2px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
   font-weight: 400;
   letter-spacing: 0;
   text-transform: none;
@@ -4509,7 +4522,7 @@ body {
   display: block !important;
   margin-top: 2px;
   color: var(--muted) !important;
-  font-size: 9px !important;
+  font-size: var(--font-caption) !important;
   font-weight: 400 !important;
 }
 
@@ -4564,7 +4577,7 @@ body {
   border-top: 1px solid var(--line) !important;
   border-bottom: 1px solid var(--line) !important;
   box-shadow: none !important;
-  font-size: 11px !important;
+  font-size: var(--font-small) !important;
   font-weight: 400 !important;
   letter-spacing: 0 !important;
   text-transform: none !important;
@@ -4582,7 +4595,7 @@ body {
   display: block !important;
   margin-top: 2px;
   color: var(--muted) !important;
-  font-size: 9px !important;
+  font-size: var(--font-caption) !important;
   font-weight: 400 !important;
   letter-spacing: 0 !important;
   text-transform: none !important;
@@ -4618,7 +4631,7 @@ body {
   display: block !important;
   margin-top: 2px;
   color: var(--muted) !important;
-  font-size: 9px !important;
+  font-size: var(--font-caption) !important;
 }
 
 #intelTable #intelBody > .faction-total-row:hover td {
@@ -4679,7 +4692,7 @@ body {
   min-width: 0;
   padding: 2px 8px;
   color: var(--dim);
-  font-size: 7px;
+  font-size: var(--font-caption);
   font-weight: 700;
   letter-spacing: .08em;
   text-transform: uppercase;
@@ -4714,7 +4727,7 @@ body {
   align-items: center;
   justify-content: flex-end;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
   font-weight: 700;
   letter-spacing: .045em;
   text-transform: uppercase;
@@ -4786,7 +4799,7 @@ body {
 .faction-grid-cell {
   display: block;
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.2;
 }
 
@@ -4803,7 +4816,7 @@ body {
   margin-top: 3px;
   overflow: hidden;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4842,7 +4855,7 @@ body {
 .faction-grid .faction-total-row .member-meta {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 .faction-grid-empty {
@@ -4851,7 +4864,7 @@ body {
   align-items: center;
   padding: 0 9px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--font-small);
   border-bottom: 1px solid var(--line-soft);
 }
 
@@ -4885,12 +4898,12 @@ body {
   }
 
   .faction-grid-cell {
-    font-size: 12px;
+    font-size: var(--font-small);
   }
 
   .faction-grid-cell .member-meta,
   .faction-grid-cell .trend {
-    font-size: 8px;
+    font-size: var(--font-caption);
   }
 }
 
@@ -4946,7 +4959,7 @@ body {
   padding-top: 5px;
   padding-bottom: 5px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-caption);
   font-weight: 700;
   letter-spacing: .09em;
   border-bottom: 1px solid rgba(255,255,255,.025);
@@ -4978,7 +4991,7 @@ body {
   padding-top: 10px;
   padding-bottom: 10px;
   color: #d2d6d9;
-  font-size: 10px;
+  font-size: var(--font-caption);
   font-weight: 750;
   letter-spacing: .035em;
 }
@@ -5006,7 +5019,7 @@ body {
   position: relative !important;
   padding: 6px 10px 5px;
   color: #8f979d;
-  font-size: 8px;
+  font-size: var(--font-caption);
   font-weight: 750;
   letter-spacing: .085em;
   text-transform: uppercase;
@@ -5064,7 +5077,7 @@ body {
 #intelTable.faction-grid .faction-grid-header-cell {
   padding: 11px 9px 10px;
   color: #e1e4e6;
-  font-size: 10px;
+  font-size: var(--font-caption);
   font-weight: 760;
   letter-spacing: .02em;
   text-transform: none;
@@ -5191,7 +5204,7 @@ body {
   padding: 5px 8px;
   justify-content: center !important;
   text-align: center;
-  font-size: 11px;
+  font-size: var(--font-small);
   line-height: 1.15;
 }
 
@@ -5262,7 +5275,7 @@ body {
   border-top: 0 !important;
   border-bottom: 0 !important;
   color: #aeb5ba;
-  font-size: 9px;
+  font-size: var(--font-caption);
   font-weight: 780;
 }
 
@@ -5409,25 +5422,25 @@ body {
 
 #intelTable.faction-grid .intel2-detail-member > strong {
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 700;
 }
 
 #intelTable.faction-grid .intel2-detail-member .entity-id {
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
 }
 
 #intelTable.faction-grid .intel2-detail-meta {
   margin-left: 7px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 #intelTable.faction-grid .intel2-detail-headbar > a {
   flex: 0 0 auto;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
   text-decoration: none;
 }
 
@@ -5448,7 +5461,7 @@ body {
 #intelTable.faction-grid .intel2-signal-label,
 #intelTable.faction-grid .intel2-history-kicker {
   color: #aeb5ba;
-  font-size: 9px;
+  font-size: var(--font-caption);
   font-weight: 760;
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -5467,18 +5480,18 @@ body {
   align-items: baseline;
   gap: 7px;
   min-width: 0;
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 #intelTable.faction-grid .intel2-signal b {
-  font-size: 9px;
+  font-size: var(--font-caption);
   font-weight: 650;
   white-space: nowrap;
 }
 
 #intelTable.faction-grid .intel2-signal small {
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
 }
 
 #intelTable.faction-grid .intel2-signal.positive b {
@@ -5495,7 +5508,7 @@ body {
 
 #intelTable.faction-grid .intel2-signal-empty {
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 #intelTable.faction-grid .intel2-history {
@@ -5526,7 +5539,7 @@ body {
   padding: 1px 0 3px;
   background: transparent;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 #intelTable.faction-grid .intel2-history-window button.active {
@@ -5567,12 +5580,12 @@ body {
 }
 
 #intelTable.faction-grid .intel2-trend header strong {
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 #intelTable.faction-grid .intel2-trend header span {
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
 }
 
 #intelTable.faction-grid .sparkline,
@@ -5596,13 +5609,13 @@ body {
 }
 
 #intelTable.faction-grid .intel2-wars > header strong {
-  font-size: 10px;
+  font-size: var(--font-caption);
   font-weight: 700;
 }
 
 #intelTable.faction-grid .intel2-wars > header span {
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
 }
 
 #intelTable.faction-grid .intel2-war-table {
@@ -5617,7 +5630,7 @@ body {
   align-items: center;
   padding: 4px 0;
   border-top: 1px solid var(--line-soft);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 #intelTable.faction-grid .intel2-war > span {
@@ -5630,7 +5643,7 @@ body {
   padding: 2px 0 4px;
   border-top: 0;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
   font-weight: 700;
   letter-spacing: .05em;
   text-transform: uppercase;
@@ -5650,7 +5663,7 @@ body {
 #intelTable.faction-grid .intel2-war-name strong {
   overflow: hidden;
   color: var(--text);
-  font-size: 10px;
+  font-size: var(--font-caption);
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -5659,7 +5672,7 @@ body {
 #intelTable.faction-grid .intel2-war-name small {
   flex: 0 0 auto;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
 }
 
 #intelTable.faction-grid .intel2-war-net {
@@ -5669,7 +5682,7 @@ body {
 #intelTable.faction-grid .intel2-war-empty {
   padding: 8px 0;
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 @media (max-width: 900px) {
@@ -5752,7 +5765,7 @@ body {
 
 #intelTable.faction-grid .intel2-history-tools > a {
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
   text-decoration: none;
 }
 
@@ -5809,7 +5822,7 @@ body {
   padding: 2px 0 3px;
   background: transparent;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
   white-space: nowrap;
 }
 
@@ -5867,7 +5880,7 @@ body {
 #intelTable.faction-grid .intel2-context-kicker {
   padding-top: 2px;
   color: #aeb5ba;
-  font-size: 9px;
+  font-size: var(--font-caption);
   font-weight: 760;
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -5889,11 +5902,11 @@ body {
 
 #intelTable.faction-grid .intel2-context .intel2-trait-group > header span {
   width: 12px;
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 #intelTable.faction-grid .intel2-context .intel2-trait-group > header strong {
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 #intelTable.faction-grid .intel2-context .intel2-trait {
@@ -5905,7 +5918,7 @@ body {
 #intelTable.faction-grid .intel2-context .intel2-trait b,
 #intelTable.faction-grid .intel2-context .intel2-trait span,
 #intelTable.faction-grid .intel2-context .intel2-trait-empty {
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 #intelTable.faction-grid .intel2-trend-stage {
@@ -5934,7 +5947,7 @@ body {
 #intelTable.faction-grid .intel2-history-metrics button {
   min-width: 0;
   padding: 2px 1px 3px;
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 @media (max-width: 760px) {
@@ -6004,7 +6017,7 @@ body {
 
 #intelTable.faction-grid .intel2-context-head > a {
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-caption);
   text-decoration: none;
   white-space: nowrap;
 }
@@ -6071,7 +6084,7 @@ body {
 }
 
 #intelTable.faction-grid .intel2-wars > header strong {
-  font-size: 9px;
+  font-size: var(--font-caption);
   font-weight: 760;
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -6091,13 +6104,13 @@ body {
 }
 
 #intelTable.faction-grid .intel2-war-name strong {
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 #intelTable.faction-grid .intel2-war-name small,
 #intelTable.faction-grid .intel2-war,
 #intelTable.faction-grid .intel2-war-head {
-  font-size: 8px;
+  font-size: var(--font-caption);
 }
 
 @media (max-width: 1050px) {
@@ -6165,14 +6178,14 @@ body {
 
 #intelTable.faction-grid .intel2-context .intel2-trait-group > header span {
   width: 11px;
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 #intelTable.faction-grid .intel2-context .intel2-trait-group > header strong,
 #intelTable.faction-grid .intel2-context .intel2-trait b,
 #intelTable.faction-grid .intel2-context .intel2-trait span,
 #intelTable.faction-grid .intel2-context .intel2-trait-empty {
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 #intelTable.faction-grid .intel2-context .intel2-trait span {
@@ -6182,7 +6195,7 @@ body {
 #intelTable.faction-grid .intel2-context-kicker,
 #intelTable.faction-grid .intel2-history-kicker,
 #intelTable.faction-grid .intel2-wars > header strong {
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 #intelTable.faction-grid .intel2-context-head > a,
@@ -6191,17 +6204,17 @@ body {
 #intelTable.faction-grid .intel2-trend header span,
 #intelTable.faction-grid .intel2-wars > header span,
 #intelTable.faction-grid .intel2-war-head {
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 #intelTable.faction-grid .intel2-trend header strong,
 #intelTable.faction-grid .intel2-war-name strong {
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 #intelTable.faction-grid .intel2-war,
 #intelTable.faction-grid .intel2-war-name small {
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 @media (max-width: 1050px) {
@@ -6276,12 +6289,12 @@ body {
   align-items: baseline;
   gap: 4px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .archive-count strong {
   color: var(--text);
-  font-size: 14px;
+  font-size: var(--font-body);
   font-weight: 680;
   font-variant-numeric: tabular-nums;
 }
@@ -6290,7 +6303,7 @@ body {
   min-height: 14px;
   margin: 1px 0 0;
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 .archive-actions {
@@ -6327,7 +6340,7 @@ body {
   min-height: 30px;
   border-bottom: 1px solid var(--line);
   color: #aeb5ba;
-  font-size: 9px;
+  font-size: var(--font-caption);
   font-weight: 760;
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -6353,7 +6366,7 @@ body {
 .archive-cell {
   min-width: 0;
   padding: 8px 9px;
-  font-size: 10px;
+  font-size: var(--font-caption);
   font-variant-numeric: tabular-nums;
 }
 
@@ -6366,7 +6379,7 @@ body {
 .archive-cell strong {
   overflow: hidden;
   color: var(--text);
-  font-size: 11px;
+  font-size: var(--font-small);
   font-weight: 630;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -6376,7 +6389,7 @@ body {
   margin-top: 1px;
   overflow: hidden;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -6386,7 +6399,7 @@ body {
 }
 
 .archive-opponent strong {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 680;
 }
 
@@ -6394,18 +6407,18 @@ body {
 .archive-duration strong,
 .archive-access strong,
 .archive-status strong {
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .archive-period strong {
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .archive-open {
   padding-left: 0;
   padding-right: 3px;
   color: var(--dim);
-  font-size: 12px;
+  font-size: var(--font-small);
   text-align: right;
 }
 
@@ -6421,7 +6434,7 @@ body {
   padding: 0 8px;
   border-bottom: 1px solid var(--line-soft);
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 #archiveView .import-panel {
@@ -6496,7 +6509,7 @@ body {
 }
 
 .archive-opponent strong {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 720;
 }
 
@@ -6522,7 +6535,7 @@ body {
   min-width: 37px;
   padding: 1px 0 2px;
   border-bottom: 1px solid transparent;
-  font-size: 9px;
+  font-size: var(--font-caption);
   font-weight: 760;
   letter-spacing: .055em;
   text-transform: uppercase;
@@ -6610,13 +6623,13 @@ body {
 
 #warDetailView .detail-title h2 {
   margin: 1px 0 1px;
-  font-size: 20px;
+  font-size: var(--font-subtitle);
   font-weight: 680;
   letter-spacing: -.025em;
 }
 
 #warDetailView .detail-title > span {
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 #warDetailView #warDetailBack {
@@ -6627,7 +6640,7 @@ body {
   min-height: 30px;
   height: 30px;
   padding: 3px 10px;
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 #warDetailView .score-line {
@@ -6647,11 +6660,11 @@ body {
 }
 
 #warDetailView .score-side span {
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 #warDetailView .score-side strong {
-  font-size: 20px;
+  font-size: var(--font-subtitle);
   font-weight: 700;
 }
 
@@ -6665,7 +6678,7 @@ body {
 
 #warDetailView .score-versus small {
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
   font-weight: 600;
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -6689,15 +6702,15 @@ body {
 
 #warDetailView .war-detail-summary .metric strong {
   margin-top: 2px;
-  font-size: 15px;
+  font-size: var(--font-section);
 }
 
 #warDetailView .war-detail-summary .metric span {
-  font-size: 8px;
+  font-size: var(--font-caption);
 }
 
 #warDetailView .war-detail-summary .metric small {
-  font-size: 8px;
+  font-size: var(--font-caption);
 }
 
 #warDetailView > .control-line {
@@ -6739,7 +6752,7 @@ body {
   position: static;
   background: var(--bg);
   color: #c6cbce;
-  font-size: 9px;
+  font-size: var(--font-caption);
   font-weight: 730;
   text-transform: none;
   letter-spacing: 0;
@@ -6768,7 +6781,7 @@ body {
 
 #warDetailView #warDetailTable tbody td {
   border-bottom-color: var(--line-soft);
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 #warDetailView #warDetailTable tbody tr:hover {
@@ -6780,17 +6793,17 @@ body {
   border-top: 2px solid var(--accent);
   border-bottom: 0;
   background: #0d0f10;
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 #warDetailView #warDetailTable .member-name {
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 #warDetailView #warDetailTable .member-meta,
 #warDetailView #warDetailTable .secondary {
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
 }
 
 @media (max-width: 760px) {
@@ -6815,7 +6828,7 @@ body {
   display: inline;
   margin-left: 4px;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
   font-weight: 450;
 }
 
@@ -6835,7 +6848,7 @@ body {
   padding: 3px 10px;
   border-color: #3a3e40;
   color: var(--text);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 .archive-import-button:hover {
@@ -6876,7 +6889,7 @@ body {
   min-height: 20px;
   padding: 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 #warDetailView .detail-title {
@@ -6911,19 +6924,19 @@ body {
 }
 
 #warDetailView .score-side span {
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 #warDetailView .score-side span .entity-id {
   display: inline;
   margin-left: 3px;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
   font-weight: 450;
 }
 
 #warDetailView .score-side strong {
-  font-size: 19px;
+  font-size: var(--font-subtitle);
 }
 
 #warDetailView .score-versus {
@@ -6962,7 +6975,7 @@ body {
 #warDetailView #warDetailTable th {
   height: 30px;
   color: #dde1e3;
-  font-size: 10px;
+  font-size: var(--font-caption);
   font-weight: 740;
   border-bottom-color: #2e3234;
 }
@@ -6973,12 +6986,12 @@ body {
 }
 
 #warDetailView #warDetailTable tbody td {
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 #warDetailView #warDetailTable .member-name {
   display: inline;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 700;
 }
 
@@ -6986,7 +6999,7 @@ body {
   display: inline;
   margin-left: 4px;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
   font-weight: 450;
 }
 
@@ -6999,11 +7012,11 @@ body {
   border-top: 0;
   border-bottom: 2px solid var(--accent);
   background: #111315;
-  font-size: 11px;
+  font-size: var(--font-small);
 }
 
 #warDetailView #warDetailTable .war-total-row td:first-child strong {
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 #warDetailView #warDetailTable .war-total-row .secondary {
@@ -7060,7 +7073,7 @@ body {
 #warDetailView #warDetailTable th {
   height: 36px;
   padding: 5px 8px;
-  font-size: 11px;
+  font-size: var(--font-small);
   line-height: 1.15;
   font-weight: 750;
 }
@@ -7068,36 +7081,36 @@ body {
 #warDetailView #warDetailTable tbody tr:not(.war-total-row) td {
   height: 46px;
   padding: 7px 9px;
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.2;
 }
 
 #warDetailView #warDetailTable .member-name {
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.2;
   font-weight: 700;
 }
 
 #warDetailView #warDetailTable .member-name .entity-id {
-  font-size: 8px;
+  font-size: var(--font-caption);
 }
 
 #warDetailView #warDetailTable .member-meta,
 #warDetailView #warDetailTable .secondary {
   margin-top: 3px;
-  font-size: 9px;
+  font-size: var(--font-caption);
   line-height: 1.2;
 }
 
 #warDetailView #warDetailTable .war-total-row td {
   height: 52px;
   padding: 8px 9px;
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.2;
 }
 
 #warDetailView #warDetailTable .war-total-row td:first-child strong {
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 @media (max-width: 1150px) {
@@ -7105,16 +7118,16 @@ body {
   #warDetailView #warDetailTable .war-total-row td {
     padding-left: 6px;
     padding-right: 6px;
-    font-size: 12px;
+    font-size: var(--font-small);
   }
 
   #warDetailView #warDetailTable .member-name {
-    font-size: 12px;
+    font-size: var(--font-small);
   }
 
   #warDetailView #warDetailTable .member-meta,
   #warDetailView #warDetailTable .secondary {
-    font-size: 8px;
+    font-size: var(--font-caption);
   }
 }
 
@@ -7137,7 +7150,7 @@ body {
 
 .maintenance-panel h1 {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--font-subtitle);
   font-weight: 680;
   letter-spacing: -.025em;
 }
@@ -7145,7 +7158,7 @@ body {
 .maintenance-panel > p {
   margin: 6px 0 16px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-small);
   line-height: 1.45;
 }
 
@@ -7158,7 +7171,7 @@ body {
 .maintenance-admin > header h2,
 .admin-factions-head h2 {
   margin: 2px 0 3px;
-  font-size: 14px;
+  font-size: var(--font-body);
   font-weight: 650;
 }
 
@@ -7166,7 +7179,7 @@ body {
   display: block;
   max-width: 680px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--font-small);
   line-height: 1.45;
 }
 
@@ -7179,7 +7192,7 @@ body {
 
 .maintenance-actions > span {
   color: var(--dim);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 #maintenanceToggle.maintenance-active {
@@ -7217,7 +7230,7 @@ body {
   overflow: hidden;
   padding: 2px 4px;
   color: #c7cbce;
-  font-size: 8px;
+  font-size: var(--font-caption);
   line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -7247,7 +7260,7 @@ body {
   padding: 0;
   color: var(--muted);
   font: inherit;
-  font-size: 9px;
+  font-size: var(--font-caption);
   line-height: 1.2;
   text-decoration: none;
   border: 0;
@@ -7268,7 +7281,7 @@ body {
 #intelTable.faction-grid .intel2-note-view p {
   margin: 5px 0 0;
   color: #c7cbce;
-  font-size: 10px;
+  font-size: var(--font-caption);
   line-height: 1.45;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
@@ -7282,7 +7295,7 @@ body {
 #intelTable.faction-grid .intel2-note-view small {
   display: block;
   margin-top: 5px;
-  font-size: 8px;
+  font-size: var(--font-caption);
   line-height: 1.35;
 }
 
@@ -7295,7 +7308,7 @@ body {
 #intelTable.faction-grid .intel2-note-tags span {
   padding: 2px 5px;
   color: #c8cccf;
-  font-size: 8px;
+  font-size: var(--font-caption);
   line-height: 1.2;
   border: 1px solid #373c3f;
   border-radius: 3px;
@@ -7311,7 +7324,7 @@ body {
   display: grid;
   gap: 3px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--font-caption);
   font-weight: 700;
   letter-spacing: .05em;
   text-transform: uppercase;
@@ -7325,7 +7338,7 @@ body {
   padding: 6px 7px;
   color: var(--text);
   font: inherit;
-  font-size: 10px;
+  font-size: var(--font-caption);
   line-height: 1.35;
   text-transform: none;
   border: 1px solid #363b3e;
@@ -7344,7 +7357,7 @@ body {
 #intelTable.faction-grid .intel2-note-error {
   margin: 0;
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
   line-height: 1.35;
 }
 
@@ -7375,7 +7388,7 @@ body {
 
 #intelTable.faction-grid .intel2-note-signals summary {
   color: var(--dim);
-  font-size: 8px;
+  font-size: var(--font-caption);
   cursor: pointer;
   user-select: none;
 }
@@ -7392,13 +7405,13 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 14px;
-  height: 13px;
+  min-width: 18px;
+  height: 18px;
   margin-left: 5px;
-  padding: 0 3px;
+  padding: 0 4px;
   vertical-align: 1px;
   color: #d8dadd;
-  font-size: 7px;
+  font-size: var(--font-caption);
   font-weight: 820;
   line-height: 1;
   letter-spacing: -.02em;
@@ -7534,7 +7547,7 @@ body {
 #settingsView .settings-panel-label {
   margin: 3px 0 0;
   color: var(--accent-2);
-  font-size: 9px;
+  font-size: var(--font-caption);
   font-weight: 720;
   letter-spacing: .09em;
   text-transform: uppercase;
@@ -7545,7 +7558,7 @@ body {
 #settingsView .admin-factions-head h2,
 #settingsView .database-admin > .settings-panel-head h2 {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--font-section);
   font-weight: 650;
   letter-spacing: -.012em;
 }
@@ -7558,7 +7571,7 @@ body {
   max-width: 720px;
   margin-top: 3px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
   line-height: 1.5;
 }
 
@@ -7607,7 +7620,7 @@ body {
   min-height: 15px;
   margin-top: 1px;
   color: var(--dim);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 #settingsView .personal-api-footer {
@@ -7625,7 +7638,7 @@ body {
 #settingsView #personalApiKeyRemove {
   flex: 0 0 auto;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 #settingsView #personalApiKeyRemove:disabled {
@@ -7637,7 +7650,7 @@ body {
   min-height: 15px;
   margin-top: 7px;
   color: var(--danger);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 #settingsView .personal-api-form small[data-state="ok"] {
@@ -7674,7 +7687,7 @@ body {
 
 #settingsView .access-row strong,
 #settingsView .admin-faction-row strong {
-  font-size: 11px;
+  font-size: var(--font-small);
   font-weight: 630;
 }
 
@@ -7682,7 +7695,7 @@ body {
 #settingsView .admin-faction-row small,
 #settingsView .admin-faction-row b {
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 #settingsView .role-access-row.is-protected strong {
@@ -7692,7 +7705,7 @@ body {
 #settingsView .access-select {
   height: 32px;
   background: #0c0e0f;
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 #settingsView .access-select:disabled {
@@ -7703,7 +7716,7 @@ body {
 #settingsView .status-line {
   margin: 10px 0 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 #settingsView .status-line.error {
@@ -7713,7 +7726,7 @@ body {
 #settingsView .access-empty {
   padding: 13px 0;
   color: var(--dim);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 #settingsView .maintenance-admin,
@@ -7730,7 +7743,7 @@ body {
 
 #settingsView .maintenance-actions > span {
   color: var(--dim);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 #settingsView .admin-key-form {
@@ -7771,7 +7784,7 @@ body {
 
 #settingsView .admin-key-form > small {
   color: var(--dim);
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 #settingsView .database-diagnostics {
@@ -7785,7 +7798,7 @@ body {
 
 #settingsView #factionRoleAddToggle {
   color: var(--accent-2);
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 #settingsView #factionRoleAddToggle:disabled {
@@ -7807,7 +7820,7 @@ body {
 
 #settingsView .role-add-form label > span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--font-caption);
   font-weight: 650;
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -7822,13 +7835,13 @@ body {
 #settingsView .role-add-form .action {
   height: 32px;
   min-height: 32px;
-  font-size: 10px;
+  font-size: var(--font-caption);
 }
 
 #settingsView .role-add-form .text-action {
   align-self: center;
   margin-bottom: 8px;
-  font-size: 9px;
+  font-size: var(--font-caption);
 }
 
 @media (max-width: 1040px) {
