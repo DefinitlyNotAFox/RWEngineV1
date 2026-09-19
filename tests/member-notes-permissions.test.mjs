@@ -118,10 +118,17 @@ test('personal API replacement is bound to the logged-in player', () => {
 
 test('the obsolete Workspace route is absent and Settings exposes personal API access', () => {
   const html = readFileSync(new URL('../v2/index.html', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../v2/app.css', import.meta.url), 'utf8');
+  const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
   assert.doesNotMatch(html, /data-view=["']home["']/);
   assert.doesNotMatch(html, />Workspace</);
+  assert.equal(new Set(ids).size, ids.length, 'HTML IDs must remain unique');
+  assert.match(html, /class="settings-profile"/);
+  assert.match(html, /id="settingsApiSummary"/);
   assert.match(html, /id="personalApiKeyForm"/);
   assert.match(html, /id="factionRolesSection"/);
+  assert.match(css, /Settings: flat account and permissions ledger/);
+  assert.match(css, /#settingsView \.settings-panel-head/);
 });
 
 test('member notes are trimmed and bounded', () => {

@@ -393,7 +393,7 @@ async function loadAccessList() {
               <strong>${escapeHtml(resource.title || 'War report')}</strong>
               <small>#${escapeHtml(resource.resourceKey)} · ${escapeHtml(formatDate(resource.endedAt || resource.importedAt))}${resource.publicLinkActive ? ' · public link active' : ''}</small>
             </div>
-            <select class="access-select" data-access-key="${escapeHtml(resource.resourceKey)}">
+            <select class="access-select" data-access-key="${escapeHtml(resource.resourceKey)}" aria-label="Visibility for ${escapeHtml(resource.title || 'war report')}">
               <option value="private"${resource.visibility === 'private' ? ' selected' : ''}>Private</option>
               <option value="faction"${resource.visibility === 'faction' ? ' selected' : ''}>Faction</option>
               <option value="public"${resource.visibility === 'public' ? ' selected' : ''}>Public</option>
@@ -628,9 +628,14 @@ function renderIdentity() {
   document.querySelector('#settingsFactionId').textContent = factionId || '—';
   const actualRole = actualUserRole();
   const viewRole = currentViewRole();
-  document.querySelector('#settingsRole').textContent = isRolePreviewActive()
-    ? `${roleLabel(actualRole)} · viewing as ${roleLabel(viewRole)}`
-    : roleLabel(actualRole);
+  const roleElement = document.querySelector('#settingsRole');
+  if (roleElement) {
+    roleElement.textContent = isRolePreviewActive()
+      ? `${roleLabel(actualRole)} · viewing as ${roleLabel(viewRole)}`
+      : roleLabel(actualRole);
+    roleElement.dataset.role = viewRole;
+  }
+  document.querySelector('.settings-profile')?.classList.toggle('is-previewing', isRolePreviewActive());
 
   renderPersonalApiKeyStatus();
   renderSettingsPermissions();
@@ -640,12 +645,24 @@ function renderPersonalApiKeyStatus(message = '', error = false) {
   const status = document.querySelector('#personalApiKeyStatus');
   if (!status || personalApiKeyBusy && !message) return;
 
+  const summary = document.querySelector('#settingsApiSummary');
+  const hasApiKey = Boolean(state.user?.hasApiKey);
+  const pending = personalApiKeyBusy && !error && /verifying|checking|saving/i.test(message);
+  const summaryState = pending ? 'pending' : hasApiKey ? 'ok' : 'missing';
+  const detailState = error ? 'error' : summaryState;
+
   status.textContent = message || (
-    state.user?.hasApiKey
-      ? 'A verified personal API key is stored.'
-      : 'No personal API key is stored.'
+    hasApiKey
+      ? 'Verified and ready.'
+      : 'No verified key.'
   );
   status.classList.toggle('error', Boolean(error));
+  status.dataset.state = detailState;
+
+  if (summary) {
+    summary.textContent = pending ? 'Checking' : hasApiKey ? 'Verified' : 'Missing';
+    summary.dataset.state = summaryState;
+  }
 }
 
 function renderSettingsPermissions() {
@@ -826,12 +843,12 @@ function renderFactionRoles(result) {
         const meta = [leadership, platform].filter(Boolean).join(' · ') || 'Registered account';
 
         return `
-          <div class="access-row role-access-row">
+          <div class="access-row role-access-row${protectedAccount ? ' is-protected' : ''}" data-account-role="${escapeHtml(account.role)}">
             <div>
               <strong>${escapeHtml(account.playerName || `Player ${account.playerId}`)}</strong>
               <small>[${escapeHtml(account.playerId)}] · ${escapeHtml(meta)}</small>
             </div>
-            <select class="access-select" data-role-user-id="${escapeHtml(account.userId)}"${disabled ? ' disabled' : ''}>
+            <select class="access-select" data-role-user-id="${escapeHtml(account.userId)}" aria-label="Role for ${escapeHtml(account.playerName || `Player ${account.playerId}`)}"${disabled ? ' disabled' : ''}>
               ${choices.map(role => `
                 <option value="${role}"${role === account.role ? ' selected' : ''}>${escapeHtml(roleLabel(role))}</option>
               `).join('')}

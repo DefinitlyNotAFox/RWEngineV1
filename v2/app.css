@@ -7436,3 +7436,439 @@ body {
     max-width: 122px;
   }
 }
+
+
+/* Settings: flat account and permissions ledger. */
+#settingsView {
+  max-width: 1080px;
+}
+
+#settingsView .settings-page-head {
+  margin-bottom: 18px;
+}
+
+.settings-profile {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, .72fr);
+  align-items: stretch;
+  margin-bottom: 30px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.settings-profile-primary {
+  min-width: 0;
+  padding: 18px 20px;
+}
+
+.settings-profile-primary > p {
+  margin: 0 0 5px;
+  color: var(--dim);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.settings-profile-primary > strong {
+  display: block;
+  overflow: hidden;
+  font-size: 20px;
+  font-weight: 660;
+  letter-spacing: -.025em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-profile-primary > span {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.settings-profile-primary > span b {
+  overflow: hidden;
+  font-weight: 560;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-profile-primary > span small {
+  flex: 0 0 auto;
+  color: var(--dim);
+  font-size: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-profile-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 0;
+  border-left: 1px solid var(--line);
+}
+
+.settings-profile-meta > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  padding: 16px 18px;
+}
+
+.settings-profile-meta > div + div {
+  border-left: 1px solid var(--line-soft);
+}
+
+.settings-profile-meta dt {
+  color: var(--dim);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.settings-profile-meta dd {
+  margin: 5px 0 0;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 620;
+}
+
+#settingsRole[data-role="platform_admin"],
+#settingsRole[data-role="faction_admin"] {
+  color: #d7c3aa;
+}
+
+#settingsRole[data-role="assistant"] {
+  color: #bcc8ce;
+}
+
+.settings-profile.is-previewing #settingsRole {
+  color: var(--warning);
+}
+
+.settings-api-state::before,
+.settings-inline-state::before {
+  display: inline-block;
+  width: 16px;
+  color: var(--dim);
+  content: "–";
+  font-weight: 760;
+}
+
+.settings-api-state[data-state="ok"]::before,
+.settings-inline-state[data-state="ok"]::before {
+  color: var(--success);
+  content: "✓";
+}
+
+.settings-api-state[data-state="missing"]::before,
+.settings-api-state[data-state="error"]::before,
+.settings-inline-state[data-state="missing"]::before,
+.settings-inline-state[data-state="error"]::before {
+  color: var(--danger);
+  content: "×";
+}
+
+.settings-api-state[data-state="pending"]::before,
+.settings-inline-state[data-state="pending"]::before {
+  color: var(--warning);
+  content: "·";
+}
+
+#settingsView .settings-panel {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 0;
+}
+
+#settingsView .settings-panel + .settings-panel,
+#settingsView .admin-section > .settings-panel:first-child {
+  margin-top: 0;
+}
+
+#settingsView .settings-panel-head {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+  margin: 0;
+  padding: 17px 0 11px;
+}
+
+#settingsView .settings-panel-label {
+  margin: 3px 0 0;
+  color: var(--accent-2);
+  font-size: 9px;
+  font-weight: 720;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+#settingsView .settings-panel-head h2,
+#settingsView .maintenance-admin > .settings-panel-head h2,
+#settingsView .admin-factions-head h2,
+#settingsView .database-admin > .settings-panel-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -.012em;
+}
+
+#settingsView .settings-panel-head > div > span,
+#settingsView .maintenance-admin > .settings-panel-head span,
+#settingsView .admin-factions-head span,
+#settingsView .database-admin > .settings-panel-head span {
+  display: block;
+  max-width: 720px;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+#settingsView .settings-panel-body {
+  margin-left: 140px;
+  padding: 0 0 20px;
+}
+
+#settingsView .admin-section {
+  max-width: none;
+  margin: 0;
+}
+
+#settingsView .personal-api-form {
+  grid-template-columns: minmax(280px, 1fr) auto;
+  max-width: 760px;
+  gap: 7px 10px;
+  padding: 0;
+  border: 0;
+}
+
+#settingsView .personal-api-form input {
+  height: 36px;
+}
+
+#settingsView .personal-api-form .action {
+  min-width: 116px;
+  min-height: 36px;
+}
+
+#settingsView .personal-api-form small {
+  grid-column: 1 / -1;
+  min-height: 15px;
+  margin-top: 1px;
+  color: var(--dim);
+  font-size: 10px;
+}
+
+#settingsView .personal-api-form small[data-state="ok"] {
+  color: var(--muted);
+}
+
+#settingsView .personal-api-form small[data-state="error"],
+#settingsView .personal-api-form small.error {
+  color: var(--danger);
+}
+
+#settingsView .access-list,
+#settingsView .admin-faction-list {
+  border-top: 1px solid var(--line-soft);
+}
+
+#settingsView .access-row,
+#settingsView .admin-faction-row {
+  min-height: 58px;
+  padding: 8px 0;
+  border-bottom-color: var(--line-soft);
+}
+
+#settingsView .access-row {
+  grid-template-columns: minmax(0, 1fr) 156px;
+}
+
+#settingsView .access-row:hover,
+#settingsView .admin-faction-row:hover {
+  background: rgba(255, 255, 255, .012);
+}
+
+#settingsView .access-row strong,
+#settingsView .admin-faction-row strong {
+  font-size: 11px;
+  font-weight: 630;
+}
+
+#settingsView .access-row small,
+#settingsView .admin-faction-row small,
+#settingsView .admin-faction-row b {
+  color: var(--dim);
+  font-size: 9px;
+}
+
+#settingsView .role-access-row.is-protected strong {
+  color: #d7c3aa;
+}
+
+#settingsView .access-select {
+  height: 32px;
+  background: #0c0e0f;
+  font-size: 10px;
+}
+
+#settingsView .access-select:disabled {
+  color: var(--muted);
+  opacity: .72;
+}
+
+#settingsView .status-line {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+#settingsView .status-line.error {
+  color: var(--danger);
+}
+
+#settingsView .access-empty {
+  padding: 13px 0;
+  color: var(--dim);
+  font-size: 10px;
+}
+
+#settingsView .maintenance-admin,
+#settingsView .database-admin {
+  margin: 0;
+  padding: 0;
+  border-bottom: 0;
+}
+
+#settingsView .maintenance-actions,
+#settingsView .database-actions {
+  margin-top: 0;
+}
+
+#settingsView .maintenance-actions > span {
+  color: var(--dim);
+  font-size: 10px;
+}
+
+#settingsView .admin-key-form {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  max-width: 760px;
+  gap: 8px 12px;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top-color: var(--line-soft);
+}
+
+#settingsView .admin-key-form > p,
+#settingsView .admin-key-form > small {
+  grid-column: 1 / -1;
+}
+
+#settingsView .admin-key-form > p {
+  margin-bottom: 1px;
+}
+
+#settingsView .admin-key-form > div {
+  align-items: end;
+  margin: 0;
+}
+
+#settingsView .admin-key-form > small {
+  color: var(--dim);
+  font-size: 9px;
+}
+
+#settingsView .database-diagnostics {
+  margin-top: 14px;
+  border-top-color: var(--line-soft);
+}
+
+@media (max-width: 760px) {
+  .settings-profile {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-profile-meta {
+    border-top: 1px solid var(--line-soft);
+    border-left: 0;
+  }
+
+  #settingsView .settings-panel-head {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  #settingsView .settings-panel-label {
+    margin-top: 0;
+  }
+
+  #settingsView .settings-panel-body {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .settings-profile-primary {
+    padding: 16px 14px;
+  }
+
+  .settings-profile-primary > strong {
+    font-size: 18px;
+  }
+
+  .settings-profile-primary > span {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .settings-profile-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-profile-meta > div {
+    padding: 12px 14px;
+  }
+
+  .settings-profile-meta > div + div {
+    border-top: 1px solid var(--line-soft);
+    border-left: 0;
+  }
+
+  #settingsView .personal-api-form,
+  #settingsView .admin-key-form {
+    grid-template-columns: 1fr;
+  }
+
+  #settingsView .personal-api-form small,
+  #settingsView .admin-key-form > p,
+  #settingsView .admin-key-form > small {
+    grid-column: 1;
+  }
+
+  #settingsView .access-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  #settingsView .maintenance-actions {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  #settingsView .database-actions {
+    flex-wrap: wrap;
+  }
+}
