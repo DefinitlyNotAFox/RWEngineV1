@@ -690,10 +690,11 @@ function renderSettingsPermissions() {
 function canManageAutoTagSettingsView() {
   if (!state.user) return false;
   const viewRole = currentViewRole();
-  if (state.user.isAdmin) return viewRole === 'platform_admin';
+  if (viewRole === 'platform_admin') return true;
+  if (viewRole !== 'faction_admin') return false;
+  if (state.user.isAdmin) return Boolean(currentFactionId());
 
-  return viewRole === 'faction_admin' &&
-    Number(state.user.factionId || 0) === Number(currentFactionId() || 0);
+  return Number(state.user.factionId || 0) === Number(currentFactionId() || 0);
 }
 
 function canManageFactionRolesView() {
