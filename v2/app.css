@@ -9000,76 +9000,75 @@ body {
 /* Compact automatic tag presentation */
 #intelTable.faction-grid .intel2-note-signals .intel2-context-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 16px;
 }
 
 #intelTable.faction-grid .intel2-note-signals .intel2-trait-group {
+  min-width: 0;
   padding-top: 6px;
 }
 
 #intelTable.faction-grid .intel2-note-signals .intel2-trait-group > header {
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+}
+
+#intelTable.faction-grid .intel2-note-signals .intel2-trait-group > header span {
+  display: none;
+}
+
+#intelTable.faction-grid .intel2-note-signals .intel2-trait-group > header strong {
+  font-size: var(--font-caption);
+  letter-spacing: .045em;
 }
 
 #intelTable.faction-grid .intel2-note-signals .intel2-trait-list {
-  gap: 5px;
+  gap: 7px;
 }
 
 #intelTable.faction-grid .intel2-note-signals .intel2-trait.auto-tag {
   display: block;
   min-height: 0;
-  padding: 2px 0 5px;
+  padding: 0;
 }
 
 #intelTable.faction-grid .intel2-note-signals .auto-tag-name {
-  display: inline-flex;
-  width: fit-content;
-  max-width: 100%;
-  padding: 2px 6px;
-  border: 1px solid currentColor;
-  border-radius: 3px;
+  display: block;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
   font-size: var(--font-small);
   font-weight: 680;
-  line-height: 1.2;
+  line-height: 1.25;
 }
 
 #intelTable.faction-grid .intel2-note-signals .auto-tag-detail {
   display: block;
-  margin-top: 3px;
+  margin-top: 2px;
   color: var(--dim);
-  font-size: var(--font-small);
-  line-height: 1.3;
+  font-size: var(--font-caption);
+  line-height: 1.25;
 }
 
 #intelTable.faction-grid .intel2-note-signals .auto-tag-empty {
   display: block;
-  padding: 5px 0;
-  color: var(--dim);
+  padding: 1px 0;
+  color: #596066;
   font-size: var(--font-small);
-}
-
-#intelTable.faction-grid .intel2-note-signals .tier-yellow .auto-tag-name {
-  background: rgba(201,180,93,.07);
-}
-#intelTable.faction-grid .intel2-note-signals .tier-orange .auto-tag-name {
-  background: rgba(207,138,77,.07);
-}
-#intelTable.faction-grid .intel2-note-signals .tier-red .auto-tag-name {
-  background: rgba(203,102,102,.07);
-}
-#intelTable.faction-grid .intel2-note-signals .tier-teal .auto-tag-name {
-  background: rgba(97,170,165,.07);
-}
-#intelTable.faction-grid .intel2-note-signals .tier-green .auto-tag-name {
-  background: rgba(103,183,122,.07);
-}
-#intelTable.faction-grid .intel2-note-signals .tier-bright .auto-tag-name {
-  background: rgba(140,204,138,.07);
 }
 
 @media (max-width: 620px) {
   #intelTable.faction-grid .intel2-note-signals .intel2-context-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 9px;
+    gap: 12px;
+  }
+
+  #intelTable.faction-grid .intel2-note-signals .auto-tag-name {
+    font-size: var(--font-caption);
+  }
+
+  #intelTable.faction-grid .intel2-note-signals .auto-tag-detail {
+    font-size: var(--font-caption);
   }
 }
