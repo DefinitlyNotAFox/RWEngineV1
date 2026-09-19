@@ -7567,7 +7567,7 @@ body {
 #settingsView .settings-admin-column {
   margin: 0;
   padding-left: 30px;
-  border-left: 1px solid var(--line);
+  border-left: 0;
 }
 
 .settings-api-state::before,
@@ -7673,6 +7673,10 @@ body {
   margin-left: 98px;
 }
 
+.settings-columns:has(> .settings-admin-column:not(.hidden)) .personal-api-form {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 #settingsView .personal-api-form {
   grid-template-columns: minmax(280px, 1fr) auto;
   max-width: 760px;
@@ -7709,6 +7713,8 @@ body {
 
 #settingsView .access-list,
 #settingsView .admin-faction-list {
+  display: grid;
+  gap: 4px;
   border-top: 0;
 }
 
@@ -7717,11 +7723,6 @@ body {
   min-height: 58px;
   padding: 8px 0;
   border-bottom: 0;
-}
-
-#settingsView .access-row + .access-row,
-#settingsView .admin-faction-row + .admin-faction-row {
-  border-top: 1px solid var(--line-soft);
 }
 
 #settingsView .access-row {
@@ -7796,17 +7797,19 @@ body {
 
 #settingsView .admin-key-form {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   max-width: 760px;
-  gap: 8px 12px;
+  gap: 8px;
   margin-top: 15px;
   padding-top: 0;
   border-top: 0;
 }
 
 #settingsView .admin-key-form > p,
+#settingsView .admin-key-form > label,
+#settingsView .admin-key-form > div,
 #settingsView .admin-key-form > small {
-  grid-column: 1 / -1;
+  grid-column: 1;
 }
 
 #settingsView .admin-key-form > p {
@@ -7814,8 +7817,18 @@ body {
 }
 
 #settingsView .admin-key-form > div {
-  align-items: end;
+  align-items: center;
+  gap: 14px;
   margin: 0;
+}
+
+#settingsView .admin-key-form .action {
+  min-width: 88px;
+  white-space: nowrap;
+}
+
+#settingsView #adminClearKey {
+  white-space: nowrap;
 }
 
 #settingsView .admin-key-form > small {

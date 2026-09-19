@@ -1049,7 +1049,7 @@ function renderAdminSettings() {
       <button class="admin-faction-row" type="button" data-admin-faction="${faction.factionId}">
         <span>
           <strong>${escapeHtml(faction.factionName)} [${faction.factionId}]</strong>
-          <small>${formatNumber(faction.currentMembers)} members · ${formatNumber(faction.warCount)} wars · ${faction.hasApiKey ? `API key: ${escapeHtml(faction.keySource)}` : 'API key missing'} · ${adminSyncLabel(faction)}</small>
+          <small>${formatNumber(faction.currentMembers)} members · ${formatNumber(faction.warCount)} ${Number(faction.warCount) === 1 ? 'war' : 'wars'} · ${faction.hasApiKey ? `${escapeHtml(faction.keySource)} API` : 'API missing'} · ${adminSyncLabel(faction)}</small>
         </span>
         <b>${Number(faction.factionId) === Number(state.selectedFactionId) ? 'Active' : 'Manage'}</b>
       </button>
@@ -1101,15 +1101,15 @@ async function toggleMaintenance() {
 
 function adminSyncLabel(faction) {
   const status = String(faction.lastSyncStatus || 'never');
-  const trigger = String(faction.lastSyncTrigger || '');
   const failed = Number(faction.lastSyncFailedTasks || 0);
   const at = Number(faction.lastSyncAt || 0);
   const age = at ? formatAge(Math.max(0, Math.floor(Date.now() / 1000) - at)) : null;
 
-  let label = `Sync: ${status}`;
-  if (trigger) label += ` · ${trigger}`;
+  if (status === 'never') return 'Not synced';
+
+  let label = status === 'completed' ? 'Synced' : `Sync ${status}`;
+  if (age) label += ` ${age}`;
   if (failed) label += ` · ${failed} failed`;
-  if (age) label += ` · ${age}`;
   return escapeHtml(label);
 }
 
