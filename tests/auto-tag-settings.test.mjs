@@ -29,6 +29,10 @@ test('settings page provides faction auto-tag controls', () => {
   assert.match(app, /key:'assists'[\s\S]*\['teal'[\s\S]*\['green'[\s\S]*\['bright'/);
   assert.match(app, /key:'trainingEnergy'[\s\S]*\['red'[\s\S]*\['orange'[\s\S]*\['yellow'[\s\S]*\['teal'[\s\S]*\['green'[\s\S]*\['bright'/);
   assert.match(app, /key:'inactivity'[\s\S]*\['yellowHours'[\s\S]*\['orangeHours'[\s\S]*\['redHours'/);
+  assert.match(app, /group:'War'[\s\S]*title:'Low war hits \/ war'/);
+  assert.match(app, /group:'Training'[\s\S]*title:'Training E \/ day'/);
+  assert.match(app, /group:'Activity'[\s\S]*title:'Inactivity'/);
+  assert.match(app, /auto-tag-group-heading/);
   assert.match(app, /autoTagsApi\('get'\)/);
   assert.match(app, /autoTagsApi\('save'/);
   assert.match(app, /autoTagsApi\('reset'\)/);
@@ -41,4 +45,7 @@ test('settings page provides faction auto-tag controls', () => {
   assert.match(css, /#settingsView \.settings-section-heading[\s\S]*font-size:\s*var\(--font-body\)/);
   assert.match(css, /#settingsView \.auto-tag-threshold input[\s\S]*font-size:\s*var\(--font-body\)/);
   assert.match(css, /#settingsView \.status-line[\s\S]*font-size:\s*var\(--font-small\)/);
+  assert.match(css, /Settings hierarchy cleanup/);
+  assert.match(css, /\.auto-tag-group-heading[\s\S]*text-transform:\s*uppercase/);
+  assert.match(css, /\.settings-main-column > \.settings-panel \+ \.settings-panel[\s\S]*border-top:\s*1px solid var\(--line-soft\)/);
 });
