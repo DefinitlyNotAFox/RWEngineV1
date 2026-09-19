@@ -1,8 +1,15 @@
+import { onRequest as handleScheduledWarImport } from './war-import-admin.js';
+import { onRequest as handleScheduledAttackDetail } from './war-attack-detail.js';
+
 const TASK_BATCH_SIZE = 6;
 const REQUEST_INTERVAL_MS = 750;
 const LEASE_SECONDS = 180;
 const MANAGED_KEY_CONFIG = 'admin_managed_api_key_v1';
 const STORAGE_COMPACTION_KEY = 'sync_storage_compacted_v1';
+const AUTO_IMPORT_STATE_PREFIX = 'ranked_war_auto_import_v1';
+const AUTO_IMPORT_ATTACK_STEPS = 4;
+const AUTO_IMPORT_HANDLED_LIMIT = 200;
+const AUTO_IMPORT_MAX_RETRY_SECONDS = 24 * 60 * 60;
 const CRON_RETRY_DELAY_SECONDS = 6 * 60 * 60;
 const CRON_MAX_ATTEMPTS_PER_DAY = 3;
 
@@ -163,13 +170,345 @@ async function cronPlan(env) {
     jobs.push({ factionId, factionName, reason: attemptCount ? 'retry' : 'daily', job });
   }
 
+  const autoImports = [];
+  for (const faction of factionsResult.results || []) {
+    try {
+      autoImports.push(await processAutomaticWarImport(env, faction));
+    } catch (error) {
+      autoImports.push({
+        factionId:Number(faction.faction_id),
+        factionName:String(faction.faction_name || `Faction ${faction.faction_id}`),
+        status:'error',
+        error:error?.message || String(error)
+      });
+    }
+  }
+
   return respond({
     success: true,
     message: 'Scheduled faction sync plan prepared.',
     date: today,
     jobs,
-    skipped
+    skipped,
+    autoImports
   });
+}
+
+async function processAutomaticWarImport(env, faction) {
+  const factionId = Number(faction.faction_id);
+  const factionName = String(faction.faction_name || `Faction ${factionId}`);
+  const now = unixNow();
+  const user = await serviceUserForFaction(env.DB, factionId);
+  if (!user) return { factionId, factionName, status:'skipped', reason:'no-service-user' };
+
+  let apiKey;
+  try {
+    apiKey = await factionKey(env, factionId, user);
+  } catch (error) {
+    return {
+      factionId,
+      factionName,
+      status:'skipped',
+      reason:'no-api-key',
+      error:error?.message || String(error)
+    };
+  }
+
+  const payload = await fetchFactionRankedWars(apiKey, factionId);
+  const completedWars = normalizeRankedWars(payload, now).filter(war => war.completed);
+  const storedState = await loadAutoImportState(env.DB, factionId);
+  const discovery = mergeRankedWarDiscoveryState(storedState, completedWars, now);
+  const state = discovery.state;
+  let stateChanged = discovery.changed;
+
+  if (discovery.initialized) {
+    await saveAutoImportState(env.DB, factionId, state, now);
+    return {
+      factionId,
+      factionName,
+      status:'baseline',
+      ignoredExisting:state.baselineIds.length,
+      queued:0
+    };
+  }
+
+  const remaining = [];
+  for (const job of state.queue) {
+    const record = await findAutoImportedWar(env.DB, factionId, job.rankId);
+    if (record?.attackDetailComplete) {
+      state.handledIds = appendLimitedId(state.handledIds, job.rankId);
+      stateChanged = true;
+      continue;
+    }
+    const resolvedWarId = record?.warId || job.warId || null;
+    if (resolvedWarId !== (job.warId || null)) stateChanged = true;
+    remaining.push({
+      ...job,
+      warId:resolvedWarId
+    });
+  }
+  state.queue = remaining;
+
+  const job = state.queue.find(item => Number(item.nextAttemptAt || 0) <= now);
+  if (!job) {
+    if (stateChanged) await saveAutoImportState(env.DB, factionId, state, now);
+    return {
+      factionId,
+      factionName,
+      status:state.queue.length ? 'retry-cooldown' : 'idle',
+      discovered:discovery.discovered.length,
+      queued:state.queue.length
+    };
+  }
+
+  try {
+    let record = await findAutoImportedWar(env.DB, factionId, job.rankId);
+    if (!record) {
+      const imported = await invokeScheduledHandler(handleScheduledWarImport, env, {
+        action:'importRankedWarReport',
+        factionId,
+        rankId:job.rankId,
+        overwrite:false
+      });
+      job.warId = String(imported?.war?.warId || imported?.war?.war_id || job.rankId);
+      record = await findAutoImportedWar(env.DB, factionId, job.rankId);
+    }
+
+    const warId = String(record?.warId || job.warId || job.rankId);
+    job.warId = warId;
+    job.lastAttemptAt = now;
+    job.lastError = null;
+    let page = null;
+
+    for (let step = 0; step < AUTO_IMPORT_ATTACK_STEPS; step += 1) {
+      page = await invokeScheduledHandler(handleScheduledAttackDetail, env, {
+        factionId,
+        warId
+      });
+      if (page.done) break;
+    }
+
+    if (page?.done) {
+      await invokeScheduledHandler(handleScheduledAttackDetail, env, {
+        factionId,
+        warId,
+        finalize:true
+      });
+      state.queue = state.queue.filter(item => item.rankId !== job.rankId);
+      state.handledIds = appendLimitedId(state.handledIds, job.rankId);
+      await saveAutoImportState(env.DB, factionId, state, now);
+      return {
+        factionId,
+        factionName,
+        status:'completed',
+        reportId:job.rankId,
+        warId,
+        queued:state.queue.length
+      };
+    }
+
+    await saveAutoImportState(env.DB, factionId, state, now);
+    return {
+      factionId,
+      factionName,
+      status:'processing',
+      reportId:job.rankId,
+      warId,
+      queued:state.queue.length
+    };
+  } catch (error) {
+    job.attempts = Number(job.attempts || 0) + 1;
+    job.lastAttemptAt = now;
+    job.lastError = error?.message || String(error);
+    job.nextAttemptAt = now + Math.min(
+      AUTO_IMPORT_MAX_RETRY_SECONDS,
+      60 * 60 * Math.pow(2, Math.min(5, job.attempts - 1))
+    );
+    await saveAutoImportState(env.DB, factionId, state, now);
+    return {
+      factionId,
+      factionName,
+      status:'error',
+      reportId:job.rankId,
+      warId:job.warId || null,
+      retryAfter:job.nextAttemptAt,
+      error:job.lastError
+    };
+  }
+}
+
+async function fetchFactionRankedWars(apiKey, factionId) {
+  const query = new URLSearchParams({
+    selections:'rankedwars',
+    key:apiKey,
+    comment:'RWEngineAutoImport',
+    timestamp:String(Date.now())
+  });
+  const response = await fetch(`https://api.torn.com/faction/${encodeURIComponent(factionId)}?${query}`, {
+    headers:{ Accept:'application/json' }
+  });
+  let data = null;
+  try { data = await response.json(); } catch (_) {}
+  if (!response.ok || data?.error) {
+    throw new Error(data?.error?.error || data?.error?.message || `Torn ranked-war discovery returned HTTP ${response.status}.`);
+  }
+  return data || {};
+}
+
+export function normalizeRankedWars(payload, now = unixNow()) {
+  const source = payload?.rankedwars ?? payload?.ranked_wars ?? payload?.rankedWars ?? {};
+  const entries = Array.isArray(source)
+    ? source.map(war => [war?.id ?? war?.war_id ?? war?.warId, war])
+    : Object.entries(source || {});
+
+  return entries.map(([fallbackId, row]) => {
+    const details = row?.war ?? row?.ranked_war ?? row?.rankedWar ?? row ?? {};
+    const rankId = String(fallbackId ?? row?.id ?? row?.war_id ?? row?.warId ?? '').trim();
+    const startTimestamp = autoImportTimestamp(details, ['start','started','start_timestamp','startTimestamp']) ||
+      autoImportTimestamp(row, ['start','started','start_timestamp','startTimestamp']);
+    const endTimestamp = autoImportTimestamp(details, ['end','ended','end_timestamp','endTimestamp']) ||
+      autoImportTimestamp(row, ['end','ended','end_timestamp','endTimestamp']);
+    const winner = Number(details?.winner ?? row?.winner ?? 0) || 0;
+    const status = String(details?.status ?? row?.status ?? '').toLowerCase();
+    const completed = winner > 0 || ['completed','complete','ended','finished'].includes(status) ||
+      (endTimestamp > 0 && endTimestamp <= now);
+    return { rankId, startTimestamp, endTimestamp, winner, completed };
+  }).filter(war => /^\d+$/.test(war.rankId));
+}
+
+export function mergeRankedWarDiscoveryState(value, completedWars, now = unixNow()) {
+  const state = normalizeAutoImportState(value);
+  const completedIds = uniqueIds((completedWars || []).map(war => war.rankId));
+
+  if (!state.initializedAt) {
+    state.initializedAt = now;
+    state.baselineIds = completedIds;
+    state.updatedAt = now;
+    return { state, initialized:true, discovered:[], changed:true };
+  }
+
+  const known = new Set([...state.baselineIds, ...state.handledIds, ...state.queue.map(job => job.rankId)]);
+  const discovered = [];
+  for (const rankId of completedIds) {
+    if (known.has(rankId)) continue;
+    known.add(rankId);
+    discovered.push(rankId);
+    state.queue.push({
+      rankId,
+      warId:null,
+      discoveredAt:now,
+      attempts:0,
+      lastAttemptAt:null,
+      nextAttemptAt:0,
+      lastError:null
+    });
+  }
+  if (discovered.length) state.updatedAt = now;
+  return { state, initialized:false, discovered, changed:discovered.length > 0 };
+}
+
+function normalizeAutoImportState(value) {
+  const parsed = parseJson(value) || {};
+  const queue = Array.isArray(parsed.queue) ? parsed.queue : [];
+  return {
+    version:1,
+    initializedAt:Number(parsed.initializedAt || 0) || 0,
+    updatedAt:Number(parsed.updatedAt || 0) || 0,
+    baselineIds:uniqueIds(parsed.baselineIds),
+    handledIds:uniqueIds(parsed.handledIds).slice(-AUTO_IMPORT_HANDLED_LIMIT),
+    queue:queue.map(job => ({
+      rankId:String(job?.rankId || '').trim(),
+      warId:job?.warId ? String(job.warId) : null,
+      discoveredAt:Number(job?.discoveredAt || 0) || 0,
+      attempts:Number(job?.attempts || 0) || 0,
+      lastAttemptAt:Number(job?.lastAttemptAt || 0) || null,
+      nextAttemptAt:Number(job?.nextAttemptAt || 0) || 0,
+      lastError:job?.lastError ? String(job.lastError).slice(0, 500) : null
+    })).filter(job => /^\d+$/.test(job.rankId))
+  };
+}
+
+async function loadAutoImportState(db, factionId) {
+  const row = await db.prepare('SELECT value FROM app_meta WHERE key = ?')
+    .bind(`${AUTO_IMPORT_STATE_PREFIX}:${factionId}`).first();
+  return row?.value || null;
+}
+
+async function saveAutoImportState(db, factionId, state, now = unixNow()) {
+  state.updatedAt = now;
+  await db.prepare(`
+    INSERT INTO app_meta (key,value,updated_at) VALUES (?,?,?)
+    ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at
+  `).bind(`${AUTO_IMPORT_STATE_PREFIX}:${factionId}`, JSON.stringify(state), now).run();
+}
+
+async function findAutoImportedWar(db, factionId, rankId) {
+  const row = await db.prepare(`
+    SELECT w.war_id, w.report_id,
+      CASE
+        WHEN COUNT(wl.war_log_id) > 0
+         AND MIN(COALESCE(wl.attack_detail_complete, 0)) = 1
+        THEN 1 ELSE 0
+      END AS attack_detail_complete
+    FROM wars w
+    LEFT JOIN war_log wl
+      ON wl.faction_id = w.faction_id
+     AND wl.war_id = w.war_id
+    WHERE w.faction_id = ?
+      AND (w.war_id = ? OR w.report_id = ?)
+    GROUP BY w.war_id, w.report_id
+    LIMIT 1
+  `).bind(factionId, rankId, rankId).first();
+  if (!row) return null;
+  return {
+    warId:String(row.war_id),
+    reportId:String(row.report_id || rankId),
+    attackDetailComplete:Number(row.attack_detail_complete || 0) === 1
+  };
+}
+
+async function invokeScheduledHandler(handler, env, body) {
+  const request = new Request('https://rwengine.internal/automatic-war-import', {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'X-RWE-Cron-Secret':String(env.CRON_SECRET || '')
+    },
+    body:JSON.stringify(body)
+  });
+  const response = await handler({ request, env });
+  let data = null;
+  try { data = await response.json(); } catch (_) {}
+  if (!response.ok || !data?.success) {
+    const error = new Error(data?.message || `Scheduled importer returned HTTP ${response.status}.`);
+    error.status = response.status;
+    throw error;
+  }
+  return data;
+}
+
+function appendLimitedId(ids, rankId) {
+  return uniqueIds([...(ids || []), rankId]).slice(-AUTO_IMPORT_HANDLED_LIMIT);
+}
+
+function uniqueIds(values) {
+  return [...new Set((Array.isArray(values) ? values : [])
+    .map(value => String(value || '').trim())
+    .filter(value => /^\d+$/.test(value)))];
+}
+
+function autoImportTimestamp(object, keys) {
+  for (const key of keys) {
+    let value = object?.[key];
+    if (value && typeof value === 'object') {
+      value = value.timestamp ?? value.time ?? value.epoch ?? value.unix ?? value.seconds ?? value.value;
+    }
+    let number = Number(value);
+    if (!Number.isFinite(number) || number <= 0) continue;
+    if (number > 1e12) number = Math.floor(number / 1000);
+    return Math.floor(number);
+  }
+  return 0;
 }
 
 async function cronStep(env, body) {

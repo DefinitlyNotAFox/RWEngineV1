@@ -53,3 +53,5 @@ RWEngine is a host for focused Torn utilities. Shared infrastructure should be r
 `/v2/freshness` is the shared freshness contract for module data. Faction Intel is considered stale after 36 hours without a newer roster, snapshot or successful sync observation. War/archive data is event data, so RWEngine reports its last update rather than incorrectly marking old completed wars as stale.
 
 Faction snapshots are collected forward-only at daily resolution. Collectors store only normalized values used by Intel; raw personal-stat responses and completed per-member sync tasks are discarded.
+
+Newly completed own-faction ranked wars are discovered by the hourly collector and imported automatically after a forward-only baseline is established. Historical wars remain manual imports. Attack pages are processed transiently and only member/war aggregates are retained.

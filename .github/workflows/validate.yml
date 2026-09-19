@@ -26,6 +26,7 @@ jobs:
           node tests/intel-insights.test.mjs
           node tests/intel-contract.test.mjs
           node tests/intel-timeline.test.mjs
+          node tests/war-auto-import.test.mjs
           node tests/no-raw-attacks.test.mjs
           node tests/attack-pagination.test.mjs
           node tests/lean-sync-storage.test.mjs

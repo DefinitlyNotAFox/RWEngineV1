@@ -65,7 +65,8 @@ async function runScheduledSweep(env, controller) {
     scheduledTime: controller?.scheduledTime || Date.now(),
     date: plan.date || null,
     jobs: results,
-    skipped: plan.skipped || []
+    skipped: plan.skipped || [],
+    autoImports: plan.autoImports || []
   }));
 }
 

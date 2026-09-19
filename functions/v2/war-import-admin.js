@@ -14,10 +14,18 @@ export async function onRequest(context) {
     requireSecret(env);
 
     const body = await readJson(request);
-    const user = await getAdminUser(env, request);
+    const action = String(body.action || 'getImportedWars');
+    const cronRequest = authorizeCronRequest(env, request);
+    const adminUser = cronRequest ? null : await getAdminUser(env, request);
     const faction = await requireTrackedFaction(env.DB, body.factionId);
     const factionId = Number(faction.faction_id);
-    const action = String(body.action || 'getImportedWars');
+    const user = cronRequest
+      ? await getServiceUserForFaction(env.DB, factionId)
+      : adminUser;
+
+    if (cronRequest && action !== 'importRankedWarReport') {
+      throw httpError(403, 'That action is not available to the scheduled importer.');
+    }
 
     if (action === 'getImportedWars') return handleGetImportedWars(env.DB, factionId);
     if (action === 'checkImportStatus') return handleCheckImportStatus(env.DB, factionId, body);
@@ -645,6 +653,33 @@ async function getAdminUser(env, request) {
   if (!row) throw httpError(401, 'Session expired or invalid.');
   if (Number(row.is_disabled) === 1) throw httpError(403, 'This account is disabled.');
   if (Number(row.is_admin) !== 1) throw httpError(403, 'Administrator access required.');
+  return row;
+}
+
+function authorizeCronRequest(env, request) {
+  const supplied = String(request.headers.get('X-RWE-Cron-Secret') || '');
+  if (!supplied) return false;
+  const expected = String(env.CRON_SECRET || '');
+  if (!expected) throw httpError(503, 'CRON_SECRET is not configured.');
+  if (supplied !== expected) throw httpError(403, 'Invalid cron credentials.');
+  return true;
+}
+
+async function getServiceUserForFaction(db, factionId) {
+  const row = await db.prepare(`
+    SELECT user_id, player_id, player_name, faction_id, faction_name,
+           is_admin, is_disabled
+    FROM users
+    WHERE is_disabled = 0
+      AND (faction_id = ? OR is_admin = 1)
+    ORDER BY
+      CASE WHEN faction_id = ? THEN 0 ELSE 1 END,
+      is_admin DESC,
+      COALESCE(last_login_at, 0) DESC,
+      user_id ASC
+    LIMIT 1
+  `).bind(factionId, factionId).first();
+  if (!row) throw httpError(400, 'No active service user is available for this faction.');
   return row;
 }
 

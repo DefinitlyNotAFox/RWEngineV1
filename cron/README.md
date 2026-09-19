@@ -10,6 +10,12 @@ Active jobs are continued automatically. Failed scheduled jobs wait six hours be
 
 The hourly trigger is intentional: it gives interrupted jobs a way to continue without requiring anyone to open RWEngine.
 
+The same plan request also discovers newly completed own-faction ranked wars.
+Its first successful run records existing completed reports as a forward-only
+baseline. Later reports are imported automatically, while historical reports
+remain available through the manual Archive importer. Attack pages remain
+transient; only member and war aggregates are stored.
+
 ## Required secret
 
 Create the same `CRON_SECRET` value in both places:
@@ -37,4 +43,4 @@ Cloudflare Cron Triggers use UTC. The configured trigger is `17 * * * *`.
 
 Each scheduled invocation advances up to 12 sync steps per faction. Most normal faction syncs finish in one invocation. If an invocation stops early, the next hourly trigger resumes the active job.
 
-Sync job state, task counts, failures, API-request counts, and timestamps continue to be recorded in the existing `faction_sync_jobs` and `faction_sync_tasks` tables.
+Sync job state, task counts, failures, API-request counts, and timestamps continue to be recorded in the existing `faction_sync_jobs` and `faction_sync_tasks` tables. The compact automatic-war queue is stored in `app_meta` and removes completed jobs.

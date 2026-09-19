@@ -14,8 +14,11 @@ export async function onRequest(context) {
     if (!env.APP_SECRET) throw new Error('Missing APP_SECRET secret.');
 
     const body = await readJson(request);
-    const user = await getCurrentUser(env, request);
-    const factionId = await resolveFactionId(env.DB, user, body.factionId);
+    const cronRequest = authorizeCronRequest(env, request);
+    const user = cronRequest ? { user_id:0, is_admin:1 } : await getCurrentUser(env, request);
+    const factionId = cronRequest
+      ? await resolveScheduledFactionId(env.DB, body.factionId)
+      : await resolveFactionId(env.DB, user, body.factionId);
     await ensureAccessSchema(env.DB);
     await ensureAggregateSchema(env.DB);
 
@@ -29,7 +32,7 @@ export async function onRequest(context) {
     `).bind(warId, factionId).first();
 
     if (!war) throw httpError(404, 'Imported war not found for this faction.');
-    await assertWarAccess(env.DB, user, factionId, war);
+    if (!cronRequest) await assertWarAccess(env.DB, user, factionId, war);
     if (!war.start_timestamp || !war.end_timestamp) {
       throw httpError(400, 'Imported war is missing start/end timestamps.');
     }
@@ -183,6 +186,27 @@ async function ensureAccessSchema(db) {
   await db.prepare(
     "CREATE TABLE IF NOT EXISTS resource_permissions (permission_id INTEGER PRIMARY KEY AUTOINCREMENT, owner_user_id INTEGER NOT NULL, faction_id INTEGER NOT NULL, resource_type TEXT NOT NULL, resource_key TEXT NOT NULL, visibility TEXT NOT NULL DEFAULT 'faction' CHECK (visibility IN ('private', 'faction', 'public')), created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE(faction_id, resource_type, resource_key), FOREIGN KEY (owner_user_id) REFERENCES users(user_id) ON DELETE CASCADE, FOREIGN KEY (faction_id) REFERENCES factions(faction_id))"
   ).run();
+}
+
+function authorizeCronRequest(env, request) {
+  const supplied = String(request.headers.get('X-RWE-Cron-Secret') || '');
+  if (!supplied) return false;
+  const expected = String(env.CRON_SECRET || '');
+  if (!expected) throw httpError(503, 'CRON_SECRET is not configured.');
+  if (supplied !== expected) throw httpError(403, 'Invalid cron credentials.');
+  return true;
+}
+
+async function resolveScheduledFactionId(db, value) {
+  const factionId = Number(value || 0);
+  if (!Number.isSafeInteger(factionId) || factionId <= 0) {
+    throw httpError(400, 'A valid faction ID is required.');
+  }
+  const faction = await db.prepare(
+    'SELECT faction_id FROM factions WHERE faction_id = ? AND enabled = 1 LIMIT 1'
+  ).bind(factionId).first();
+  if (!faction) throw httpError(404, 'That faction is not tracked by RWE.');
+  return factionId;
 }
 
 async function ensureAggregateSchema(db) {
