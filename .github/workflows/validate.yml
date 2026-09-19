@@ -30,6 +30,7 @@ jobs:
           node tests/no-raw-attacks.test.mjs
           node tests/attack-pagination.test.mjs
           node tests/lean-sync-storage.test.mjs
+          node tests/member-notes-permissions.test.mjs
           rm package.json
 
       - name: Check v2 asset references

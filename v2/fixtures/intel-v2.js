@@ -10,6 +10,7 @@ export const intelFixture = {
     avgXanaxPerDay30d: 2.43,
     avgOrganizedCrimesPerMonth: 6.2,
     avgParticipationLast4: 0.73,
+    membersWithNotes: 2,
     membersNeedingAttention: 4
   },
   members: [
@@ -78,6 +79,7 @@ function member(id,name,position,level,stats,lastActionRatio,activity,prevActivi
       previous4:{warsAvailable:4,warsParticipated:Math.min(4,warsParticipated+(id%3===0?1:0)),participation:Math.min(4,warsParticipated+(id%3===0?1:0))/4,hits:0,hitsPerWar:Math.max(0,hitsPerWar-(id%2?2:-2)),netScore:netScore-20}
     },
     coverage:{snapshotDays60d:60,battleStatsKnown:stats!==null,warHistoryAvailable:8},
+    notes:fixtureNotes(id),
     insights,
     history:{
       stats: series(statsSeries,'stats'),
@@ -106,4 +108,9 @@ function war(opponent,warId,assists,hits,outside,netScore){return {opponent,warI
 function attention(code,label,text){return {code,kind:'attention',label,text};}
 function positive(code,label,text){return {code,kind:'positive',label,text};}
 function note(code,label,text){return {code,kind:'note',label,text};}
+function fixtureNotes(id){
+  if(id===103) return {text:'Check availability before the next ranked war.',hasText:true,tags:['Watch','RW'],updatedAt:intelFixtureTime()-7200,updatedBy:{playerId:101,playerName:'Aster'}};
+  if(id===108) return {text:'',hasText:false,tags:['Inactive'],updatedAt:intelFixtureTime()-86400,updatedBy:{playerId:101,playerName:'Aster'}};
+  return {text:'',hasText:false,tags:[],updatedAt:null,updatedBy:null};
+}
 function intelFixtureTime(){return 1800000000;}

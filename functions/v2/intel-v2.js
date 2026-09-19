@@ -17,15 +17,26 @@ export async function onRequest(context) {
     const user = await getCurrentUser(env, request);
     const factionId = await resolveFactionId(env.DB, user, body.factionId);
     await ensureWarAggregateSchema(env.DB);
+    await ensureMemberNotesSchema(env.DB);
     const action = String(body.action || 'overview');
+    const canEditMemberNotes = await canEditFactionNotes(env.DB, user, factionId);
 
     if (action === 'overview') {
-      return json(await buildOverview(env.DB, factionId, body));
+      return json(await buildOverview(env.DB, factionId, body, { canEditMemberNotes }));
     }
 
     if (action === 'member') {
       const playerId = positiveInt(body.playerId, 'playerId');
-      return json(await buildMemberDetail(env.DB, factionId, playerId));
+      return json(await buildMemberDetail(env.DB, factionId, playerId, { canEditMemberNotes }));
+    }
+
+    if (action === 'saveMemberNotes') {
+      if (!canEditMemberNotes) {
+        throw httpError(403, 'Faction admin access is required to edit member notes.');
+      }
+
+      const playerId = positiveInt(body.playerId, 'playerId');
+      return json(await saveMemberNotes(env.DB, factionId, playerId, user, body));
     }
 
     return json({ success:false, message:'Unknown Intel 2.0 action: ' + action }, 400);
@@ -37,7 +48,7 @@ export async function onRequest(context) {
   }
 }
 
-async function buildOverview(db, factionId, body = {}) {
+async function buildOverview(db, factionId, body = {}, permissions = {}) {
   const now = unixNow();
   const range = resolveAnalysisRange(body, now);
   const span = Math.max(DAY, range.to - range.from);
@@ -51,9 +62,11 @@ async function buildOverview(db, factionId, body = {}) {
   );
   const wars = await loadRecentWars(db, factionId, 8);
   const warMetrics = await loadWarMetrics(db, factionId, wars.map(war => war.warId));
+  const notes = await loadFactionMemberNotes(db, factionId);
 
   const snapshotsByPlayer = groupBy(snapshots, row => Number(row.player_id));
   const warByPlayer = groupBy(warMetrics, row => Number(row.playerId));
+  const notesByPlayer = new Map(notes.map(row => [Number(row.player_id), row]));
 
   const built = members.map(row => buildMemberOverview({
     row,
@@ -61,7 +74,8 @@ async function buildOverview(db, factionId, body = {}) {
     warRows: warByPlayer.get(Number(row.player_id)) || [],
     wars,
     now,
-    range
+    range,
+    note:notesByPlayer.get(Number(row.player_id)) || null
   }));
 
   const medianHits = median(
@@ -99,6 +113,9 @@ async function buildOverview(db, factionId, body = {}) {
       toDate:utcDate(range.to),
       days:Math.max(1, Math.round((range.to - range.from) / DAY))
     },
+    permissions:{
+      canEditMemberNotes:Boolean(permissions.canEditMemberNotes)
+    },
     summary:{
       currentMembers:current.length,
       knownBattleStats:knownStats.length,
@@ -107,6 +124,7 @@ async function buildOverview(db, factionId, body = {}) {
       avgXanaxPerDay30d:average(xanax),
       avgOrganizedCrimesPerMonth:average(organizedCrimes),
       avgParticipationLast4:average(participation),
+      membersWithNotes:current.filter(member => member.notes.hasText || member.notes.tags.length).length,
       membersNeedingAttention:current.filter(member =>
         member.insights.some(insight => insight.kind === 'attention')
       ).length
@@ -115,7 +133,7 @@ async function buildOverview(db, factionId, body = {}) {
   };
 }
 
-async function buildMemberDetail(db, factionId, playerId) {
+async function buildMemberDetail(db, factionId, playerId, permissions = {}) {
   const now = unixNow();
   const row = await db.prepare(
     'SELECT * FROM faction_members WHERE faction_id = ? AND player_id = ? LIMIT 1'
@@ -129,13 +147,15 @@ async function buildMemberDetail(db, factionId, playerId) {
 
   const wars = await loadRecentWars(db, factionId, 8);
   const warMetrics = await loadWarMetrics(db, factionId, wars.map(war => war.warId), playerId);
+  const note = await loadMemberNote(db, factionId, playerId);
 
   const member = buildMemberOverview({
     row,
     snapshots:snapshots.results || [],
     warRows:warMetrics,
     wars,
-    now
+    now,
+    note
   });
 
   const overview = await buildOverviewContextForInsights(db, factionId, now, member);
@@ -144,6 +164,9 @@ async function buildMemberDetail(db, factionId, playerId) {
   return {
     success:true,
     generatedAt:now,
+    permissions:{
+      canEditMemberNotes:Boolean(permissions.canEditMemberNotes)
+    },
     member,
     history:{
       snapshots:(snapshots.results || []).map(snapshotHistoryPoint),
@@ -171,7 +194,7 @@ async function buildOverviewContextForInsights(db, factionId, now, targetMember)
   };
 }
 
-function buildMemberOverview({ row, snapshots, warRows, wars, now, range = null }) {
+function buildMemberOverview({ row, snapshots, warRows, wars, now, range = null, note = null }) {
   const effectiveTo = Number(range?.to || now);
   const effectiveFrom = Number(range?.from || (effectiveTo - 30 * DAY));
   const span = Math.max(DAY, effectiveTo - effectiveFrom);
@@ -250,6 +273,8 @@ function buildMemberOverview({ row, snapshots, warRows, wars, now, range = null 
       battleStatsKnown:Number.isFinite(stats.value),
       warHistoryAvailable:wars.length
     },
+
+    notes:serializeMemberNote(note),
 
     insights:[]
   };
@@ -519,6 +544,214 @@ function snapshotHistoryPoint(row) {
     battleStatsObservedAt:nullableNumber(row.battle_stats_observed_at),
     lastActionAt:nullableNumber(row.last_action_at)
   };
+}
+
+async function ensureMemberNotesSchema(db) {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS faction_user_roles (
+      faction_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      role TEXT NOT NULL,
+      source TEXT NOT NULL DEFAULT 'manual',
+      verified_at INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY (faction_id, user_id, role),
+      FOREIGN KEY (faction_id) REFERENCES factions(faction_id),
+      FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    )
+  `).run();
+
+  await db.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_faction_user_roles_user
+    ON faction_user_roles(user_id, faction_id, role)
+  `).run();
+
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS member_notes (
+      faction_id INTEGER NOT NULL,
+      player_id INTEGER NOT NULL,
+      note_text TEXT NOT NULL DEFAULT '',
+      tags_json TEXT NOT NULL DEFAULT '[]',
+      updated_by_user_id INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY (faction_id, player_id),
+      FOREIGN KEY (faction_id, player_id)
+        REFERENCES faction_members(faction_id, player_id) ON DELETE CASCADE,
+      FOREIGN KEY (updated_by_user_id) REFERENCES users(user_id)
+    )
+  `).run();
+
+  await db.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_member_notes_faction_updated
+    ON member_notes(faction_id, updated_at DESC)
+  `).run();
+}
+
+async function canEditFactionNotes(db, user, factionId) {
+  if (Number(user?.is_admin) === 1) return true;
+
+  const userId = Number(user?.user_id || 0);
+  const accountFactionId = Number(user?.faction_id || 0);
+  if (!userId || accountFactionId !== Number(factionId)) return false;
+
+  const role = await db.prepare(`
+    SELECT 1 AS allowed
+    FROM faction_user_roles
+    WHERE faction_id = ? AND user_id = ? AND role = 'faction_admin'
+    LIMIT 1
+  `).bind(factionId, userId).first();
+
+  return Boolean(role?.allowed);
+}
+
+async function loadFactionMemberNotes(db, factionId) {
+  const result = await db.prepare(`
+    SELECT
+      n.player_id,
+      n.note_text,
+      n.tags_json,
+      n.updated_at,
+      u.player_id AS updated_by_player_id,
+      u.player_name AS updated_by_player_name
+    FROM member_notes n
+    LEFT JOIN users u ON u.user_id = n.updated_by_user_id
+    WHERE n.faction_id = ?
+  `).bind(factionId).all();
+
+  return result.results || [];
+}
+
+async function loadMemberNote(db, factionId, playerId) {
+  return await db.prepare(`
+    SELECT
+      n.player_id,
+      n.note_text,
+      n.tags_json,
+      n.updated_at,
+      u.player_id AS updated_by_player_id,
+      u.player_name AS updated_by_player_name
+    FROM member_notes n
+    LEFT JOIN users u ON u.user_id = n.updated_by_user_id
+    WHERE n.faction_id = ? AND n.player_id = ?
+    LIMIT 1
+  `).bind(factionId, playerId).first();
+}
+
+async function saveMemberNotes(db, factionId, playerId, user, body) {
+  const member = await db.prepare(`
+    SELECT player_id
+    FROM faction_members
+    WHERE faction_id = ? AND player_id = ?
+    LIMIT 1
+  `).bind(factionId, playerId).first();
+
+  if (!member) throw httpError(404, 'Faction member not found.');
+
+  const noteText = normalizeMemberNote(body.noteText);
+  const tags = normalizeMemberTags(body.tags);
+
+  if (!noteText && !tags.length) {
+    await db.prepare(
+      'DELETE FROM member_notes WHERE faction_id = ? AND player_id = ?'
+    ).bind(factionId, playerId).run();
+
+    return {
+      success:true,
+      message:'Member notes cleared.',
+      playerId,
+      notes:serializeMemberNote(null)
+    };
+  }
+
+  const now = unixNow();
+  await db.prepare(`
+    INSERT INTO member_notes (
+      faction_id,
+      player_id,
+      note_text,
+      tags_json,
+      updated_by_user_id,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(faction_id, player_id) DO UPDATE SET
+      note_text = excluded.note_text,
+      tags_json = excluded.tags_json,
+      updated_by_user_id = excluded.updated_by_user_id,
+      updated_at = excluded.updated_at
+  `).bind(
+    factionId,
+    playerId,
+    noteText,
+    JSON.stringify(tags),
+    Number(user.user_id),
+    now,
+    now
+  ).run();
+
+  const saved = await loadMemberNote(db, factionId, playerId);
+  return {
+    success:true,
+    message:'Member notes saved.',
+    playerId,
+    notes:serializeMemberNote(saved)
+  };
+}
+
+export function normalizeMemberNote(value) {
+  const note = String(value ?? '').trim();
+  if (note.length > 2000) {
+    throw httpError(400, 'Member notes are limited to 2,000 characters.');
+  }
+  return note;
+}
+
+export function normalizeMemberTags(value) {
+  const source = Array.isArray(value) ? value : String(value ?? '').split(',');
+  const tags = [];
+  const seen = new Set();
+
+  for (const raw of source) {
+    const tag = String(raw ?? '').replace(/\s+/g, ' ').trim();
+    if (!tag) continue;
+    if (tag.length > 24) throw httpError(400, 'Each member tag is limited to 24 characters.');
+
+    const key = tag.toLocaleLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    tags.push(tag);
+  }
+
+  if (tags.length > 8) throw httpError(400, 'A member can have at most 8 tags.');
+  return tags;
+}
+
+function serializeMemberNote(row) {
+  const text = String(row?.note_text || '').trim();
+  const tags = parseStoredTags(row?.tags_json);
+  return {
+    text,
+    hasText:Boolean(text),
+    tags,
+    updatedAt:nullableNumber(row?.updated_at),
+    updatedBy:row?.updated_by_player_name ? {
+      playerId:nullableNumber(row.updated_by_player_id),
+      playerName:String(row.updated_by_player_name)
+    } : null
+  };
+}
+
+function parseStoredTags(value) {
+  try {
+    const parsed = JSON.parse(String(value || '[]'));
+    return Array.isArray(parsed)
+      ? parsed.map(tag => String(tag || '').trim()).filter(Boolean).slice(0, 8)
+      : [];
+  } catch (_) {
+    return [];
+  }
 }
 
 async function ensureWarAggregateSchema(db) {

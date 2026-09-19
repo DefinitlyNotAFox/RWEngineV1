@@ -41,7 +41,7 @@ const factionGroups = [
   ['roster','Roster',1],
   ['training','Activity & training',4],
   ['war','War performance',7],
-  ['context','Context',1]
+  ['context','Notes',1]
 ];
 
 const priority = [
@@ -93,6 +93,10 @@ const factionPerformance = {
 
 const detailCache = new Map();
 const detailLoading = new Set();
+const noteEditing = new Set();
+const noteDrafts = new Map();
+const noteSaving = new Set();
+const noteErrors = new Map();
 
 export function initIntelV2() {
   renderFilters();
@@ -243,7 +247,38 @@ export function initIntelV2() {
       return;
     }
 
-    if (event.target.closest('a')) return;
+    const noteAction = event.target.closest('[data-member-note-action]');
+    if (noteAction) {
+      const playerId = Number(noteAction.dataset.playerId || 0);
+      if (!playerId) return;
+      const key = detailKey(playerId);
+
+      if (noteAction.dataset.memberNoteAction === 'edit') {
+        const payload = detailCache.get(key);
+        const notes = normalizeMemberNotes(payload?.member?.notes);
+        noteDrafts.set(key, {
+          noteText:notes.text,
+          tagsText:notes.tags.join(', ')
+        });
+        noteErrors.delete(key);
+        noteEditing.add(key);
+        renderIntelV2();
+        requestAnimationFrame(() => {
+          document.querySelector(`[data-member-note-form][data-player-id="${playerId}"] textarea`)?.focus();
+        });
+        return;
+      }
+
+      if (noteAction.dataset.memberNoteAction === 'cancel') {
+        noteEditing.delete(key);
+        noteDrafts.delete(key);
+        noteErrors.delete(key);
+        renderIntelV2();
+        return;
+      }
+    }
+
+    if (event.target.closest('a, button, input, textarea, label, form, summary')) return;
 
     const row = event.target.closest('[data-member-id]');
     if (!row) return;
@@ -257,6 +292,24 @@ export function initIntelV2() {
     }
 
     await openMember(playerId);
+  });
+
+  document.querySelector('#intelBody')?.addEventListener('input', event => {
+    const form = event.target.closest('[data-member-note-form]');
+    if (!form) return;
+    const playerId = Number(form.dataset.playerId || 0);
+    if (!playerId) return;
+    noteDrafts.set(detailKey(playerId), {
+      noteText:String(form.elements.noteText?.value || ''),
+      tagsText:String(form.elements.tags?.value || '')
+    });
+  });
+
+  document.querySelector('#intelBody')?.addEventListener('submit', async event => {
+    const form = event.target.closest('[data-member-note-form]');
+    if (!form) return;
+    event.preventDefault();
+    await saveMemberNotesForm(form);
   });
 
   on('route', route => {
@@ -510,7 +563,7 @@ function renderFactionTotalRow() {
   const totalOcs = sumNullable(current.map(member => member.ocs || {}), 'total');
   const avgOcsPerMonth = averageNullable(current.map(member => monthlyOcs(member.ocs)));
   const participation = averageNullable(currentPerformance.map(row => row.participation));
-  const notes = current.filter(member => Boolean(topSignal(member))).length;
+  const notes = current.filter(member => memberHasNotes(member)).length;
 
   const totalHits = sumNullable(allPerformance, 'warHits');
   const hitsPerWar = totalWars > 0 && totalHits !== null ? totalHits / totalWars : null;
@@ -657,7 +710,6 @@ function renderHeaders() {
 
 function renderFactionCell(member, key) {
   const performance = performanceMember(member);
-  const signal = topSignal(member);
 
   if (key === 'member') {
     return `<div role="cell" class="faction-grid-cell col-member"><span class="member-name">${escapeHtml(member.playerName || 'Unknown')}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span><span class="member-meta">${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(member.level ?? '—')}${member.current ? '' : ' · former'}</span></div>`;
@@ -690,7 +742,16 @@ function renderFactionCell(member, key) {
   }
 
   if (key === 'attention') {
-    return `<div role="cell" class="faction-grid-cell col-attention">${signal ? `<span class="signal ${signal.kind}">${escapeHtml(tableSignalLabel(signal, member))}</span>` : ''}</div>`;
+    const notes = normalizeMemberNotes(member.notes);
+    const visibleTags = notes.tags.slice(0, 2);
+    const overflow = notes.tags.length - visibleTags.length;
+    return `<div role="cell" class="faction-grid-cell col-attention">${memberHasNotes(member) ? `
+      <div class="member-note-cell">
+        ${visibleTags.map(tag => `<span class="member-note-tag">${escapeHtml(tag)}</span>`).join('')}
+        ${overflow > 0 ? `<span class="member-note-more">+${overflow}</span>` : ''}
+        ${notes.hasText && !visibleTags.length ? '<span class="member-note-mark">Note</span>' : ''}
+      </div>
+    ` : ''}</div>`;
   }
 
   if (!performance) {
@@ -792,8 +853,8 @@ function sortValue(member, key) {
   }
   if (key === 'netScore') return nullable(performance?.netScore);
   if (key === 'attention') {
-    const signal = topSignal(member);
-    return signal ? priority.length - priorityIndex(signal.code) : 0;
+    const notes = normalizeMemberNotes(member.notes);
+    return (notes.hasText ? 10 : 0) + notes.tags.length;
   }
   return 0;
 }
@@ -1375,6 +1436,70 @@ function signalLabel(signal, member) {
   return String(signal.code || '').replaceAll('_', ' ');
 }
 
+function normalizeMemberNotes(value) {
+  const text = String(value?.text || '').trim();
+  const tags = Array.isArray(value?.tags)
+    ? value.tags.map(tag => String(tag || '').trim()).filter(Boolean)
+    : [];
+
+  return {
+    text,
+    hasText:Boolean(value?.hasText || text),
+    tags,
+    updatedAt:nullable(value?.updatedAt),
+    updatedBy:value?.updatedBy || null
+  };
+}
+
+function memberHasNotes(member) {
+  const notes = normalizeMemberNotes(member?.notes);
+  return notes.hasText || notes.tags.length > 0;
+}
+
+async function saveMemberNotesForm(form) {
+  const playerId = Number(form?.dataset?.playerId || 0);
+  if (!playerId) return;
+
+  const key = detailKey(playerId);
+  if (noteSaving.has(key)) return;
+
+  const draft = {
+    noteText:String(form.elements.noteText?.value || ''),
+    tagsText:String(form.elements.tags?.value || '')
+  };
+  noteDrafts.set(key, draft);
+  noteErrors.delete(key);
+  noteSaving.add(key);
+  renderIntelV2();
+
+  try {
+    const result = await intelV2Api('saveMemberNotes', {
+      playerId,
+      noteText:draft.noteText,
+      tags:draft.tagsText.split(',')
+    });
+
+    const payload = detailCache.get(key);
+    if (payload?.member) payload.member.notes = result.notes;
+
+    const member = (overview?.members || []).find(row => Number(row.playerId) === playerId);
+    if (member) member.notes = result.notes;
+    if (overview?.summary) {
+      overview.summary.membersWithNotes = (overview.members || [])
+        .filter(row => row.current !== false && memberHasNotes(row)).length;
+    }
+
+    noteEditing.delete(key);
+    noteDrafts.delete(key);
+    noteErrors.delete(key);
+  } catch (error) {
+    noteErrors.set(key, error.message || 'Failed to save member notes.');
+  } finally {
+    noteSaving.delete(key);
+    if (selectedMemberId === playerId) renderIntelV2();
+  }
+}
+
 async function openMember(playerId) {
   if (!Number.isSafeInteger(playerId) || playerId <= 0) return;
 
@@ -1417,13 +1542,13 @@ function renderDetailRow(member) {
 
   const detailMember = payload.member;
   const history = normalizeHistory(payload.history);
-  const insights = renderInsights(detailMember);
+  const notesPanel = renderMemberNotesPanel(detailMember, payload);
   return `
     <div class="intel2-detail-row faction-grid-detail" role="row">
       <div class="faction-grid-detail-cell" role="cell">
         <section class="intel2-detail">
           <div class="intel2-detail-layout">
-            ${insights}
+            ${notesPanel}
 
             <section class="intel2-history">
               <header class="intel2-history-head">
@@ -1462,21 +1587,66 @@ function renderDetailRow(member) {
   `;
 }
 
-function renderInsights(member) {
+function renderMemberNotesPanel(member, payload) {
   const insights = Array.isArray(member.insights) ? member.insights : [];
   const positives = insights.filter(item => item.kind === 'positive');
   const concerns = insights.filter(item => item.kind === 'attention');
+  const notes = normalizeMemberNotes(member.notes);
+  const key = detailKey(member.playerId);
+  const editing = noteEditing.has(key);
+  const saving = noteSaving.has(key);
+  const canEdit = Boolean(payload?.permissions?.canEditMemberNotes || overview?.permissions?.canEditMemberNotes);
+  const draft = noteDrafts.get(key) || {
+    noteText:notes.text,
+    tagsText:notes.tags.join(', ')
+  };
+  const error = noteErrors.get(key) || '';
+  const signalCount = positives.length + concerns.length;
 
   return `
-    <section class="intel2-context">
+    <section class="intel2-context intel2-notes">
       <header class="intel2-context-head">
-        <span class="intel2-context-kicker">Context</span>
-        <a href="https://www.torn.com/profiles.php?XID=${encodeURIComponent(member.playerId)}" target="_blank" rel="noopener noreferrer">Torn profile ↗</a>
+        <span class="intel2-context-kicker">Notes</span>
+        <span class="intel2-note-actions">
+          ${canEdit && !editing ? `<button type="button" data-member-note-action="edit" data-player-id="${member.playerId}">Edit</button>` : ''}
+          <a href="https://www.torn.com/profiles.php?XID=${encodeURIComponent(member.playerId)}" target="_blank" rel="noopener noreferrer">Profile ↗</a>
+        </span>
       </header>
-      <div class="intel2-context-grid">
-        ${renderTraitGroup('positive', '+', 'Positive', positives, member, 'No standout positives')}
-        ${renderTraitGroup('attention', '−', 'Concerns', concerns, member, 'No current concerns')}
-      </div>
+
+      ${editing ? `
+        <form class="intel2-note-form" data-member-note-form data-player-id="${member.playerId}">
+          <label>
+            <span>Note</span>
+            <textarea name="noteText" maxlength="2000" rows="5" placeholder="Add context for faction leadership…">${escapeHtml(draft.noteText)}</textarea>
+          </label>
+          <label>
+            <span>Tags</span>
+            <input name="tags" type="text" value="${escapeHtml(draft.tagsText)}" placeholder="Recruit, watch, war lead" />
+          </label>
+          <small>Up to 8 tags, separated by commas.</small>
+          ${error ? `<p class="intel2-note-error">${escapeHtml(error)}</p>` : ''}
+          <footer>
+            <button type="button" data-member-note-action="cancel" data-player-id="${member.playerId}"${saving ? ' disabled' : ''}>Cancel</button>
+            <button class="primary" type="submit"${saving ? ' disabled' : ''}>${saving ? 'Saving…' : 'Save'}</button>
+          </footer>
+        </form>
+      ` : `
+        <div class="intel2-note-view">
+          ${notes.tags.length ? `<div class="intel2-note-tags">${notes.tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
+          <p class="${notes.hasText ? '' : 'empty'}">${notes.hasText ? escapeHtml(notes.text) : 'No member note yet.'}</p>
+          ${notes.updatedAt ? `<small>Updated ${escapeHtml(formatRelative(notes.updatedAt))}${notes.updatedBy?.playerName ? ` by ${escapeHtml(notes.updatedBy.playerName)}` : ''}</small>` : ''}
+        </div>
+      `}
+
+      ${signalCount ? `
+        <details class="intel2-note-signals">
+          <summary>Automatic signals · ${signalCount}</summary>
+          <div class="intel2-context-grid">
+            ${positives.length ? renderTraitGroup('positive', '+', 'Positive', positives, member, '') : ''}
+            ${concerns.length ? renderTraitGroup('attention', '−', 'Concerns', concerns, member, '') : ''}
+          </div>
+        </details>
+      ` : ''}
     </section>
   `;
 }
@@ -1852,6 +2022,10 @@ function resetIntelState() {
   selectedMemberId = null;
   detailCache.clear();
   detailLoading.clear();
+  noteEditing.clear();
+  noteDrafts.clear();
+  noteSaving.clear();
+  noteErrors.clear();
   syncJob = null;
   activeFilter = 'all';
   trendDays = 90;

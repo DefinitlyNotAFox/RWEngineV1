@@ -8,7 +8,7 @@ import {
 } from './core.js';
 
 import { initIntel, renderIntel, refreshSyncStatus } from './intel.js?v=2';
-import { initIntelV2 } from './intel-v2.js?v=30';
+import { initIntelV2 } from './intel-v2.js?v=31';
 import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=15';
 
 const legacyIntelMode = new URL(location.href).searchParams.get('legacyIntel') === '1';
@@ -611,6 +611,11 @@ function renderIdentity() {
   document.querySelector('#settingsPlayer').textContent = `${userName} [${playerId}]`;
   document.querySelector('#settingsFaction').textContent = factionName || '—';
   document.querySelector('#settingsFactionId').textContent = factionId || '—';
+  document.querySelector('#settingsRole').textContent = state.user?.isAdmin
+    ? 'Platform administrator'
+    : state.user?.isFactionAdmin
+      ? 'Faction administrator'
+      : 'Member';
 }
 
 function setRefreshStatus(message = '', error = false) {

@@ -29,6 +29,9 @@ for (const member of intelFixture.members) {
   assert(Number.isInteger(member.war.previous4.warsAvailable));
 
   assert(member.coverage);
+  assert(member.notes);
+  assert(typeof member.notes.hasText === 'boolean');
+  assert(Array.isArray(member.notes.tags));
   assert(Array.isArray(member.insights));
 
   assert(member.history);
