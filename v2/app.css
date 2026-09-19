@@ -8852,3 +8852,56 @@ body {
 #settingsView .auto-tag-threshold-input em {
   font-size: var(--font-small);
 }
+
+
+/* Settings hierarchy cleanup */
+#settingsView .settings-page-head {
+  margin-bottom: 24px;
+}
+
+#settingsView .settings-panel-head.settings-panel-head-simple {
+  padding: 10px 0 8px;
+}
+
+#settingsView .settings-main-column > .settings-panel + .settings-panel,
+#settingsView .settings-admin-column > .settings-panel + .settings-panel {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-soft);
+}
+
+#settingsView .auto-tag-settings-list {
+  max-height: 430px;
+}
+
+#settingsView .auto-tag-group-heading {
+  margin-top: 14px;
+  padding: 9px 0 6px;
+  color: var(--muted);
+  font-size: var(--font-small);
+  font-weight: 700;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+#settingsView .auto-tag-group-heading:first-child {
+  margin-top: 0;
+}
+
+#settingsView .auto-tag-setting-row {
+  min-height: 58px;
+  padding: 8px 0;
+}
+
+#settingsView .auto-tag-setting-info {
+  gap: 0;
+}
+
+#settingsView .auto-tag-setting-toggle {
+  font-size: var(--font-body);
+}
+
+#settingsView .auto-tag-setting-info small {
+  display: none;
+}
