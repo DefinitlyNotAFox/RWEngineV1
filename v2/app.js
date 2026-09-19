@@ -1,6 +1,6 @@
 import {
   state, on, emit,
-  api, adminApi, rangeApi, loadWarsApi, freshnessApi, shareApi, rolesApi,
+  api, adminApi, rangeApi, loadWarsApi, freshnessApi, shareApi, rolesApi, autoTagsApi,
   periodPayload, restorePeriod, setPeriodPreset, renderPeriodControls,
   currentFactionName, currentFactionId,
   actualUserRole, availableViewRoles, currentViewRole,
@@ -25,6 +25,8 @@ let maintenanceBusy = false;
 let personalApiKeyBusy = false;
 let factionRolesLoading = false;
 let factionRoleCandidates = [];
+let autoTagSettingsLoading = false;
+let autoTagSettingsBusy = false;
 let accountCloseBusy = false;
 
 init();
@@ -187,6 +189,8 @@ function bindApplication() {
   document.querySelector('#factionRoleAddToggle')?.addEventListener('click', () => toggleFactionRoleAdd(true));
   document.querySelector('#factionRoleAddCancel')?.addEventListener('click', () => toggleFactionRoleAdd(false));
   document.querySelector('#factionRoleAddForm')?.addEventListener('submit', handleFactionRoleAdd);
+  document.querySelector('#autoTagSettingsForm')?.addEventListener('submit', saveAutoTagSettings);
+  document.querySelector('#autoTagSettingsReset')?.addEventListener('click', resetAutoTagSettings);
 
   on('request-refresh', () => refreshAll(false));
 
@@ -203,6 +207,7 @@ function bindApplication() {
       renderAdminSettings();
       loadAccessList();
       loadFactionRoles();
+      loadAutoTagSettings();
     }
   });
 
@@ -215,6 +220,7 @@ function bindApplication() {
     if (state.route === 'settings') {
       loadAccessList();
       loadFactionRoles();
+      loadAutoTagSettings();
     }
   });
 }
@@ -315,6 +321,7 @@ async function refreshAll(userInitiated = false) {
     if (state.route === 'settings') {
       loadAccessList();
       loadFactionRoles();
+      loadAutoTagSettings();
     }
 
     if (userInitiated) setRefreshStatus('');
@@ -657,11 +664,14 @@ function renderPersonalApiKeyStatus(message = '', error = false) {
 function renderSettingsPermissions() {
   const reportSection = document.querySelector('#reportAccessSection');
   const rolesSection = document.querySelector('#factionRolesSection');
+  const autoTagsSection = document.querySelector('#autoTagSettingsSection');
   const canManageReports = canEditFactionView();
   const canManageRoles = canManageFactionRolesView();
+  const canManageAutoTags = canManageAutoTagSettingsView();
 
   reportSection?.classList.toggle('hidden', !canManageReports);
   rolesSection?.classList.toggle('hidden', !canManageRoles);
+  autoTagsSection?.classList.toggle('hidden', !canManageAutoTags);
 
   if (!canManageReports) {
     const list = document.querySelector('#accessList');
@@ -671,6 +681,19 @@ function renderSettingsPermissions() {
     const list = document.querySelector('#factionRolesList');
     if (list) list.innerHTML = '';
   }
+  if (!canManageAutoTags) {
+    const list = document.querySelector('#autoTagSettingsList');
+    if (list) list.innerHTML = '';
+  }
+}
+
+function canManageAutoTagSettingsView() {
+  if (!state.user) return false;
+  const viewRole = currentViewRole();
+  if (state.user.isAdmin) return viewRole === 'platform_admin';
+
+  return viewRole === 'faction_admin' &&
+    Number(state.user.factionId || 0) === Number(currentFactionId() || 0);
 }
 
 function canManageFactionRolesView() {
@@ -821,6 +844,227 @@ async function closeAccount() {
     accountCloseBusy = false;
     if (button) button.disabled = false;
   }
+}
+
+const AUTO_TAG_SETTING_ROWS = [
+  {
+    key:'lowWarHits',
+    title:'Low war hits',
+    description:'Average war hits per eligible war.',
+    thresholds:[
+      ['red','Red','<','negative red',1],
+      ['orange','Orange','<','negative orange',1],
+      ['yellow','Yellow','<','negative yellow',1]
+    ]
+  },
+  {
+    key:'highWarHits',
+    title:'High war hits',
+    description:'Average war hits per eligible war.',
+    thresholds:[
+      ['bright','Bright green','≥','positive bright',1],
+      ['green','Green','≥','positive green',1],
+      ['teal','Teal','≥','positive teal',1]
+    ]
+  },
+  {
+    key:'outsideHits',
+    title:'Outside hits',
+    description:'Average outside hits per eligible war. Concern only.',
+    thresholds:[
+      ['yellow','Yellow','≥','negative yellow',1]
+    ]
+  },
+  {
+    key:'respectPerHit',
+    title:'Respect / hit',
+    description:'Average respect earned per ranked-war hit.',
+    thresholds:[
+      ['red','Red','<','negative red',0.1],
+      ['orange','Orange','<','negative orange',0.1],
+      ['yellow','Yellow','<','negative yellow',0.1],
+      ['minimumHits','Minimum hits','≥','neutral',1]
+    ]
+  },
+  {
+    key:'assists',
+    title:'Assists',
+    description:'Average assists per eligible war. Positive only.',
+    thresholds:[
+      ['bright','Bright green','≥','positive bright',1],
+      ['green','Green','≥','positive green',1],
+      ['teal','Teal','≥','positive teal',1]
+    ]
+  },
+  {
+    key:'trainingEnergy',
+    title:'Training E',
+    description:'Gym energy per calendar day. 700–1199 is neutral.',
+    thresholds:[
+      ['red','Red','<','negative red',1],
+      ['orange','Orange','<','negative orange',1],
+      ['yellow','Yellow','<','negative yellow',1],
+      ['bright','Bright green','≥','positive bright',1],
+      ['green','Green','≥','positive green',1],
+      ['teal','Teal','≥','positive teal',1]
+    ]
+  },
+  {
+    key:'inactivity',
+    title:'Inactivity',
+    description:'Time since last action.',
+    thresholds:[
+      ['redHours','Red','≥','negative red',1,'h'],
+      ['orangeHours','Orange','≥','negative orange',1,'h'],
+      ['yellowHours','Yellow','≥','negative yellow',1,'h']
+    ]
+  }
+];
+
+async function loadAutoTagSettings() {
+  const list = document.querySelector('#autoTagSettingsList');
+  const status = document.querySelector('#autoTagSettingsStatus');
+  renderSettingsPermissions();
+  if (!list || !canManageAutoTagSettingsView() || autoTagSettingsLoading) return;
+
+  autoTagSettingsLoading = true;
+  setAutoTagSettingsBusy(true);
+  if (status) {
+    status.textContent = '';
+    status.classList.add('hidden');
+    status.classList.remove('error');
+  }
+
+  try {
+    const result = await autoTagsApi('get');
+    renderAutoTagSettings(result.settings || result.defaults || {});
+  } catch (error) {
+    list.innerHTML = '';
+    setAutoTagSettingsStatus(error.message || 'Failed to load auto-tag settings.', true);
+  } finally {
+    autoTagSettingsLoading = false;
+    setAutoTagSettingsBusy(false);
+  }
+}
+
+function renderAutoTagSettings(settings) {
+  const list = document.querySelector('#autoTagSettingsList');
+  if (!list) return;
+
+  list.innerHTML = AUTO_TAG_SETTING_ROWS.map(row => {
+    const config = settings?.[row.key] || {};
+    const enabled = config.enabled !== false;
+    return `
+      <section class="auto-tag-setting-row${enabled ? '' : ' disabled'}" data-auto-tag-family="${escapeHtml(row.key)}">
+        <div class="auto-tag-setting-info">
+          <label class="auto-tag-setting-toggle">
+            <input type="checkbox" data-auto-tag-enabled="${escapeHtml(row.key)}"${enabled ? ' checked' : ''} />
+            <span>${escapeHtml(row.title)}</span>
+          </label>
+          <small>${escapeHtml(row.description)}</small>
+        </div>
+        <div class="auto-tag-thresholds">
+          ${row.thresholds.map(([field,label,operator,tone,step,suffix = '']) => `
+            <label class="auto-tag-threshold ${escapeHtml(tone)}">
+              <span>${escapeHtml(label)} <b>${escapeHtml(operator)}</b></span>
+              <span class="auto-tag-threshold-input">
+                <input
+                  type="number"
+                  min="0"
+                  max="100000"
+                  step="${escapeHtml(step)}"
+                  value="${escapeHtml(config[field] ?? '')}"
+                  data-auto-tag-field="${escapeHtml(field)}"
+                  aria-label="${escapeHtml(row.title + ' ' + label)}"
+                />
+                ${suffix ? `<em>${escapeHtml(suffix)}</em>` : ''}
+              </span>
+            </label>
+          `).join('')}
+        </div>
+      </section>
+    `;
+  }).join('');
+
+  list.querySelectorAll('[data-auto-tag-enabled]').forEach(input => {
+    input.addEventListener('change', () => {
+      input.closest('.auto-tag-setting-row')?.classList.toggle('disabled', !input.checked);
+    });
+  });
+}
+
+function collectAutoTagSettings() {
+  const settings = {};
+  document.querySelectorAll('#autoTagSettingsList [data-auto-tag-family]').forEach(row => {
+    const family = row.dataset.autoTagFamily;
+    const enabled = row.querySelector('[data-auto-tag-enabled]')?.checked !== false;
+    const config = { enabled };
+
+    row.querySelectorAll('[data-auto-tag-field]').forEach(input => {
+      const value = Number(input.value);
+      if (!Number.isFinite(value)) {
+        throw new Error('Every auto-tag threshold needs a numeric value.');
+      }
+      config[input.dataset.autoTagField] = value;
+    });
+    settings[family] = config;
+  });
+  return settings;
+}
+
+async function saveAutoTagSettings(event) {
+  event.preventDefault();
+  if (autoTagSettingsBusy || !canManageAutoTagSettingsView()) return;
+
+  autoTagSettingsBusy = true;
+  setAutoTagSettingsBusy(true);
+  setAutoTagSettingsStatus('Saving thresholds…');
+
+  try {
+    const result = await autoTagsApi('save', {
+      settings:collectAutoTagSettings()
+    });
+    renderAutoTagSettings(result.settings || {});
+    setAutoTagSettingsStatus(result.message || 'Auto-tag thresholds saved.');
+  } catch (error) {
+    setAutoTagSettingsStatus(error.message || 'Failed to save auto-tag thresholds.', true);
+  } finally {
+    autoTagSettingsBusy = false;
+    setAutoTagSettingsBusy(false);
+  }
+}
+
+async function resetAutoTagSettings() {
+  if (autoTagSettingsBusy || !canManageAutoTagSettingsView()) return;
+
+  autoTagSettingsBusy = true;
+  setAutoTagSettingsBusy(true);
+  setAutoTagSettingsStatus('Restoring defaults…');
+
+  try {
+    const result = await autoTagsApi('reset');
+    renderAutoTagSettings(result.settings || {});
+    setAutoTagSettingsStatus(result.message || 'Auto-tag thresholds reset.');
+  } catch (error) {
+    setAutoTagSettingsStatus(error.message || 'Failed to reset auto-tag thresholds.', true);
+  } finally {
+    autoTagSettingsBusy = false;
+    setAutoTagSettingsBusy(false);
+  }
+}
+
+function setAutoTagSettingsBusy(busy) {
+  document.querySelectorAll('#autoTagSettingsForm input, #autoTagSettingsForm button').forEach(control => {
+    control.disabled = Boolean(busy);
+  });
+}
+
+function setAutoTagSettingsStatus(message, error = false) {
+  const status = document.querySelector('#autoTagSettingsStatus');
+  if (!status) return;
+  status.textContent = message || '';
+  status.classList.toggle('hidden', !message);
+  status.classList.toggle('error', Boolean(error));
 }
 
 async function loadFactionRoles() {
