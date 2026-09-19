@@ -8571,3 +8571,151 @@ body {
     flex-basis: 110px;
   }
 }
+
+
+/* Faction auto-tag threshold settings */
+#settingsView .auto-tag-settings-list {
+  display: grid;
+  max-height: 356px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  padding-right: 6px;
+}
+
+#settingsView .auto-tag-setting-row {
+  display: grid;
+  grid-template-columns: minmax(180px, .72fr) minmax(0, 1.28fr);
+  gap: 18px;
+  align-items: center;
+  min-height: 78px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+#settingsView .auto-tag-setting-row:last-child {
+  border-bottom: 0;
+}
+
+#settingsView .auto-tag-setting-row.disabled .auto-tag-thresholds {
+  opacity: .42;
+}
+
+#settingsView .auto-tag-setting-info {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+#settingsView .auto-tag-setting-info small {
+  color: var(--dim);
+  font-size: var(--font-caption);
+  line-height: 1.35;
+}
+
+#settingsView .auto-tag-setting-toggle {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: var(--font-small);
+  font-weight: 640;
+  cursor: pointer;
+}
+
+#settingsView .auto-tag-setting-toggle input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+#settingsView .auto-tag-thresholds {
+  display: flex;
+  min-width: 0;
+  align-items: end;
+  justify-content: flex-end;
+  gap: 7px;
+  flex-wrap: wrap;
+  transition: opacity .12s ease;
+}
+
+#settingsView .auto-tag-threshold {
+  display: grid;
+  min-width: 82px;
+  gap: 4px;
+}
+
+#settingsView .auto-tag-threshold > span:first-child {
+  font-size: var(--font-caption);
+  font-weight: 620;
+  white-space: nowrap;
+}
+
+#settingsView .auto-tag-threshold > span:first-child b {
+  color: var(--dim);
+  font-weight: 500;
+}
+
+#settingsView .auto-tag-threshold-input {
+  display: flex;
+  align-items: center;
+}
+
+#settingsView .auto-tag-threshold input {
+  box-sizing: border-box;
+  width: 82px;
+  height: 31px;
+  padding: 4px 7px;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--font-caption);
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  outline: 0;
+  background: #0c0e0f;
+}
+
+#settingsView .auto-tag-threshold input:focus {
+  border-color: #4a5053;
+}
+
+#settingsView .auto-tag-threshold-input em {
+  margin-left: 5px;
+  color: var(--dim);
+  font-size: var(--font-caption);
+  font-style: normal;
+}
+
+#settingsView .auto-tag-threshold.negative.yellow > span:first-child { color: #c9b45d; }
+#settingsView .auto-tag-threshold.negative.orange > span:first-child { color: #cf8a4d; }
+#settingsView .auto-tag-threshold.negative.red > span:first-child { color: #cb6666; }
+#settingsView .auto-tag-threshold.positive.teal > span:first-child { color: #61aaa5; }
+#settingsView .auto-tag-threshold.positive.green > span:first-child { color: #67b77a; }
+#settingsView .auto-tag-threshold.positive.bright > span:first-child { color: #8ccc8a; }
+#settingsView .auto-tag-threshold.neutral > span:first-child { color: var(--muted); }
+
+#settingsView .auto-tag-settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+#settingsView .auto-tag-settings-actions .action {
+  min-width: 104px;
+}
+
+@media (max-width: 760px) {
+  #settingsView .auto-tag-setting-row {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+
+  #settingsView .auto-tag-thresholds {
+    justify-content: flex-start;
+  }
+}
