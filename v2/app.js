@@ -8,7 +8,7 @@ import {
   roleLabel, setRolePreview,
   routeTo, routeFromHash, setNotice,
   formatNumber, formatDate, formatDateTime, formatAge, escapeHtml
-} from './core.js?v=4';
+} from './core.js?v=5';
 
 import { sortFactionAccounts, sortTrackedFactions } from './sort.js?v=1';
 
