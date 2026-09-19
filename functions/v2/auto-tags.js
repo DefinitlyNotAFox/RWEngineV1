@@ -75,7 +75,7 @@ export async function onRequest(context) {
 
     const editable = await canEditSettings(env.DB, user, factionId);
     if (!editable) {
-      throw httpError(403, 'Faction-admin access is required to change auto-tag settings.');
+      throw httpError(403, 'Faction-admin access is required to change tag settings.');
     }
 
     if (action === 'save') {
@@ -85,7 +85,7 @@ export async function onRequest(context) {
         success:true,
         factionId,
         settings,
-        message:'Auto-tag thresholds saved.'
+        message:'Tag thresholds saved.'
       });
     }
 
@@ -98,14 +98,14 @@ export async function onRequest(context) {
         success:true,
         factionId,
         settings:cloneDefaults(),
-        message:'Auto-tag thresholds reset to defaults.'
+        message:'Tag thresholds reset to defaults.'
       });
     }
 
-    throw httpError(400, 'Unknown auto-tag settings action: ' + action);
+    throw httpError(400, 'Unknown tag settings action: ' + action);
   } catch (error) {
     return json(
-      { success:false, message:error?.message || 'Unexpected auto-tag settings error.' },
+      { success:false, message:error?.message || 'Unexpected tag settings error.' },
       error?.status || 500
     );
   }
