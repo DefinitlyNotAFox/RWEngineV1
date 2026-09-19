@@ -33,4 +33,5 @@ test('settings page provides faction auto-tag controls', () => {
   assert.match(app, /autoTagsApi\('reset'\)/);
   assert.match(app, /canManageAutoTagSettingsView/);
   assert.match(css, /\.auto-tag-settings-list[\s\S]*overflow-y:\s*auto/);
+  assert.match(css, /\.settings-columns:not\(:has\(> \.settings-admin-column:not\(\.hidden\)\)\)[\s\S]*width:\s*min\(100%,\s*980px\)[\s\S]*margin-left:\s*0[\s\S]*margin-right:\s*auto/);
 });
