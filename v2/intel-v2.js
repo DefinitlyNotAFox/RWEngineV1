@@ -927,7 +927,7 @@ function renderFactionCell(member, key) {
 
   if (key === 'member') {
     const profileUrl = `https://www.torn.com/profiles.php?XID=${encodeURIComponent(member.playerId)}`;
-    return `<div role="cell" class="faction-grid-cell col-member"><span class="member-cell-main"><a class="member-name member-profile-link" href="${profileUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(member.playerName || 'Unknown')}${renderLeadershipMarker(member.leadershipRole)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></a><span class="member-meta">${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(member.level ?? '—')}${member.current ? '' : ' · former'}</span></span></div>`;
+    return `<div role="cell" class="faction-grid-cell col-member"><span class="member-cell-main"><span class="member-name"><a class="member-profile-link" href="${profileUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(member.playerName || 'Unknown')}</a>${renderLeadershipMarker(member.leadershipRole)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span><span class="member-meta">${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(member.level ?? '—')}${member.current ? '' : ' · former'}</span></span></div>`;
   }
 
   if (key === 'stats') {
