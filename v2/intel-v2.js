@@ -99,9 +99,19 @@ const noteDrafts = new Map();
 const noteSaving = new Set();
 const noteErrors = new Map();
 
+const WORKFLOW_TAGS = ['Recruits', 'Watchlist', 'Mentors', 'Needs Review'];
+let activeTagFilter = '';
+let tagManageMode = false;
+const selectedTagMemberIds = new Set();
+let tagDraft = '';
+let tagBulkBusy = false;
+let tagBulkStatus = '';
+
 export function initIntelV2() {
   renderFilters();
   renderFactionControls();
+  ensureTagToolbar();
+  renderTagToolbar();
 
   document.querySelector('#intelSearch')?.addEventListener('input', renderIntelV2);
 
@@ -217,6 +227,20 @@ export function initIntelV2() {
   });
 
   document.querySelector('#intelViewOptions')?.addEventListener('click', event => {
+    const manageTags = event.target.closest('[data-tag-manage]');
+    if (manageTags) {
+      tagManageMode = !tagManageMode;
+      if (!tagManageMode) {
+        selectedTagMemberIds.clear();
+        tagDraft = '';
+        tagBulkStatus = '';
+      }
+      renderFilters();
+      renderIntelV2();
+      renderTagToolbar();
+      return;
+    }
+
     const option = event.target.closest('[data-intel-option]');
     if (!option) return;
 
@@ -233,7 +257,25 @@ export function initIntelV2() {
     renderIntelV2();
   });
 
+  document.querySelector('#intelViewOptions')?.addEventListener('change', event => {
+    const select = event.target.closest('[data-tag-filter]');
+    if (!select) return;
+    activeTagFilter = String(select.value || '');
+    selectedMemberId = null;
+    renderIntelV2();
+  });
+
   document.querySelector('#intelBody')?.addEventListener('click', async event => {
+    const tagSelector = event.target.closest('[data-tag-member-select]');
+    if (tagSelector) {
+      const playerId = Number(tagSelector.dataset.tagMemberSelect || 0);
+      if (!tagManageMode || !canManageTags() || !playerId) return;
+      if (selectedTagMemberIds.has(playerId)) selectedTagMemberIds.delete(playerId);
+      else selectedTagMemberIds.add(playerId);
+      renderIntelV2();
+      return;
+    }
+
     const trendButton = event.target.closest('[data-trend-days]');
     if (trendButton) {
       trendDays = Number(trendButton.dataset.trendDays) || 90;
@@ -311,6 +353,36 @@ export function initIntelV2() {
     if (!form) return;
     event.preventDefault();
     await saveMemberNotesForm(form);
+  });
+
+  document.querySelector('#intelTagToolbar')?.addEventListener('input', event => {
+    if (!event.target.matches('[data-tag-bulk-input]')) return;
+    tagDraft = String(event.target.value || '');
+  });
+
+  document.querySelector('#intelTagToolbar')?.addEventListener('click', async event => {
+    const action = event.target.closest('[data-tag-bulk-action]');
+    if (!action) return;
+
+    const type = action.dataset.tagBulkAction;
+    if (type === 'clear') {
+      selectedTagMemberIds.clear();
+      tagBulkStatus = '';
+      renderIntelV2();
+      return;
+    }
+
+    if (type === 'done') {
+      tagManageMode = false;
+      selectedTagMemberIds.clear();
+      tagDraft = '';
+      tagBulkStatus = '';
+      renderFilters();
+      renderIntelV2();
+      return;
+    }
+
+    if (type === 'add' || type === 'remove') await applyBulkTag(type);
   });
 
   on('route', route => {
@@ -422,7 +494,16 @@ function renderFilters() {
   }
 
   if (options) {
+    const tagOptions = workflowTagOptions();
     options.innerHTML = `
+      <label class="intel-tag-filter-control">
+        <span>Tags</span>
+        <select data-tag-filter aria-label="Filter members by tag">
+          <option value="">All tags</option>
+          ${tagOptions.map(tag => `<option value="${escapeHtml(tag.key)}"${tag.key === activeTagFilter ? ' selected' : ''}>${escapeHtml(tag.label)} · ${formatNumber(tag.count)}</option>`).join('')}
+        </select>
+      </label>
+      ${canManageTags() ? `<button class="intel2-filter intel2-option intel-tag-manage${tagManageMode ? ' active' : ''}" type="button" data-tag-manage>${tagManageMode ? 'Done tagging' : 'Manage tags'}</button>` : ''}
       <button class="intel2-filter intel2-option${showFormerMembers ? ' active' : ''}" type="button" data-intel-option="former">Show former members</button>
       <button class="intel2-filter intel2-option${excludeMilestones ? ' active' : ''}" type="button" data-intel-option="milestones">Exclude milestones</button>
     `;
@@ -501,8 +582,10 @@ function renderFactionStatus() {
 
 function renderIntelV2() {
   ensureSortKey();
+  renderFilters();
   renderFactionControls();
   renderHeaders();
+  renderTagToolbar();
 
   const aggregate = document.querySelector('#intelAggregate');
   const body = document.querySelector('#intelBody');
@@ -519,6 +602,7 @@ function renderIntelV2() {
 
   const rows = members
     .filter(matchesFilter)
+    .filter(matchesTagFilter)
     .filter(member =>
       !query ||
       String(member.playerName || '').toLowerCase().includes(query) ||
@@ -715,7 +799,13 @@ function renderFactionCell(member, key) {
   const performance = performanceMember(member);
 
   if (key === 'member') {
-    return `<div role="cell" class="faction-grid-cell col-member"><span class="member-name">${escapeHtml(member.playerName || 'Unknown')}${renderLeadershipMarker(member.leadershipRole)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span><span class="member-meta">${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(member.level ?? '—')}${member.current ? '' : ' · former'}</span></div>`;
+    const workflowSelectable = tagManageMode && canManageTags();
+    const selectedForTags = selectedTagMemberIds.has(Number(member.playerId));
+    const selector = workflowSelectable
+      ? `<button class="member-tag-select${selectedForTags ? ' selected' : ''}" type="button" data-tag-member-select="${member.playerId}" aria-pressed="${selectedForTags ? 'true' : 'false'}" aria-label="${selectedForTags ? 'Deselect' : 'Select'} ${escapeHtml(member.playerName || 'member')} for tagging"><span aria-hidden="true">${selectedForTags ? '✓' : ''}</span></button>`
+      : '';
+
+    return `<div role="cell" class="faction-grid-cell col-member${workflowSelectable ? ' tag-selectable' : ''}">${selector}<span class="member-cell-main"><span class="member-name">${escapeHtml(member.playerName || 'Unknown')}${renderLeadershipMarker(member.leadershipRole)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span><span class="member-meta">${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(member.level ?? '—')}${member.current ? '' : ' · former'}</span></span></div>`;
   }
 
   if (key === 'stats') {
@@ -789,6 +879,11 @@ function renderFactionCell(member, key) {
   }
 
   return `<div role="cell" class="faction-grid-cell col-${key}"></div>`;
+}
+
+function matchesTagFilter(member) {
+  if (!activeTagFilter) return true;
+  return normalizeMemberNotes(member?.notes).tags.some(tag => tagKey(tag) === activeTagFilter);
 }
 
 function matchesFilter(member) {
@@ -1439,6 +1534,164 @@ function signalLabel(signal, member) {
   return String(signal.code || '').replaceAll('_', ' ');
 }
 
+function tagKey(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+}
+
+function workflowTagOptions() {
+  const tags = new Map();
+
+  for (const label of WORKFLOW_TAGS) {
+    tags.set(tagKey(label), { key:tagKey(label), label, count:0, standard:true });
+  }
+
+  for (const member of overview?.members || []) {
+    for (const rawTag of normalizeMemberNotes(member.notes).tags) {
+      const key = tagKey(rawTag);
+      if (!key) continue;
+      const existing = tags.get(key);
+      if (existing) existing.count += 1;
+      else tags.set(key, { key, label:rawTag, count:1, standard:false });
+    }
+  }
+
+  const standard = WORKFLOW_TAGS.map(label => tags.get(tagKey(label))).filter(Boolean);
+  const custom = [...tags.values()]
+    .filter(tag => !tag.standard)
+    .sort((a,b) => a.label.localeCompare(b.label, undefined, { sensitivity:'base', numeric:true }));
+
+  return [...standard, ...custom];
+}
+
+function canManageTags() {
+  return Boolean(overview?.permissions?.canEditMemberNotes && canEditFactionView());
+}
+
+function ensureTagToolbar() {
+  if (document.querySelector('#intelTagToolbar')) return;
+  const grid = document.querySelector('#intelView .faction-grid-wrap');
+  if (!grid?.parentNode) return;
+
+  const toolbar = document.createElement('section');
+  toolbar.id = 'intelTagToolbar';
+  toolbar.className = 'intel-tag-toolbar hidden';
+  toolbar.setAttribute('aria-label', 'Member tag tools');
+  grid.parentNode.insertBefore(toolbar, grid);
+}
+
+function renderTagToolbar() {
+  ensureTagToolbar();
+  const toolbar = document.querySelector('#intelTagToolbar');
+  if (!toolbar) return;
+
+  const visible = tagManageMode && canManageTags();
+  toolbar.classList.toggle('hidden', !visible);
+  if (!visible) {
+    toolbar.innerHTML = '';
+    return;
+  }
+
+  const selectedCount = selectedTagMemberIds.size;
+  const suggestions = workflowTagOptions();
+  toolbar.innerHTML = `
+    <div class="intel-tag-toolbar-summary">
+      <strong>Tag members</strong>
+      <span>${formatNumber(selectedCount)} selected</span>
+    </div>
+    <div class="intel-tag-toolbar-actions">
+      <input data-tag-bulk-input list="intelTagBulkOptions" maxlength="24" value="${escapeHtml(tagDraft)}" placeholder="Tag name" aria-label="Tag name" ${tagBulkBusy ? 'disabled' : ''} />
+      <datalist id="intelTagBulkOptions">
+        ${suggestions.map(tag => `<option value="${escapeHtml(tag.label)}"></option>`).join('')}
+      </datalist>
+      <button type="button" data-tag-bulk-action="add" ${tagBulkBusy || !selectedCount ? 'disabled' : ''}>Add</button>
+      <button type="button" data-tag-bulk-action="remove" ${tagBulkBusy || !selectedCount ? 'disabled' : ''}>Remove</button>
+      <button type="button" data-tag-bulk-action="clear" ${tagBulkBusy || !selectedCount ? 'disabled' : ''}>Clear selection</button>
+      <button type="button" data-tag-bulk-action="done" ${tagBulkBusy ? 'disabled' : ''}>Done</button>
+    </div>
+    <span class="intel-tag-toolbar-status${tagBulkStatus.startsWith('Failed') ? ' error' : ''}" role="status">${escapeHtml(tagBulkStatus)}</span>
+  `;
+}
+
+async function applyBulkTag(mode) {
+  if (tagBulkBusy || !canManageTags() || !selectedTagMemberIds.size) return;
+
+  const tag = String(tagDraft || '').replace(/\s+/g, ' ').trim();
+  if (!tag) {
+    tagBulkStatus = 'Enter a tag name.';
+    renderTagToolbar();
+    return;
+  }
+  if (tag.length > 24) {
+    tagBulkStatus = 'Tags are limited to 24 characters.';
+    renderTagToolbar();
+    return;
+  }
+
+  const wantedKey = tagKey(tag);
+  const members = (overview?.members || [])
+    .filter(member => selectedTagMemberIds.has(Number(member.playerId)));
+
+  tagBulkBusy = true;
+  tagBulkStatus = mode === 'add' ? 'Adding tag…' : 'Removing tag…';
+  renderTagToolbar();
+
+  let changed = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (const member of members) {
+    const notes = normalizeMemberNotes(member.notes);
+    const existingKeys = new Set(notes.tags.map(tagKey));
+    let nextTags = notes.tags.slice();
+
+    if (mode === 'add') {
+      if (existingKeys.has(wantedKey)) {
+        skipped += 1;
+        continue;
+      }
+      if (nextTags.length >= 8) {
+        failed += 1;
+        continue;
+      }
+      nextTags.push(tag);
+    } else {
+      const filtered = nextTags.filter(existing => tagKey(existing) !== wantedKey);
+      if (filtered.length === nextTags.length) {
+        skipped += 1;
+        continue;
+      }
+      nextTags = filtered;
+    }
+
+    try {
+      const result = await intelV2Api('saveMemberNotes', {
+        playerId:Number(member.playerId),
+        noteText:notes.text,
+        tags:nextTags
+      });
+      member.notes = result.notes;
+
+      const key = detailKey(member.playerId);
+      const detail = detailCache.get(key);
+      if (detail?.member) detail.member.notes = result.notes;
+      changed += 1;
+    } catch (_) {
+      failed += 1;
+    }
+  }
+
+  if (overview?.summary) {
+    overview.summary.membersWithNotes = (overview.members || [])
+      .filter(row => row.current !== false && memberHasNotes(row)).length;
+  }
+
+  tagBulkBusy = false;
+  const verb = mode === 'add' ? 'Added' : 'Removed';
+  tagBulkStatus = `${verb} “${tag}” for ${formatNumber(changed)} member${changed === 1 ? '' : 's'}${skipped ? ` · ${formatNumber(skipped)} unchanged` : ''}${failed ? ` · ${formatNumber(failed)} failed` : ''}.`;
+  renderFilters();
+  renderIntelV2();
+}
+
 function normalizeMemberNotes(value) {
   const text = String(value?.text || '').trim();
   const tags = Array.isArray(value?.tags)
@@ -2056,7 +2309,15 @@ function resetIntelState() {
   const search = document.querySelector('#intelSearch');
   if (search) search.value = '';
 
+  activeTagFilter = '';
+  tagManageMode = false;
+  selectedTagMemberIds.clear();
+  tagDraft = '';
+  tagBulkBusy = false;
+  tagBulkStatus = '';
+
   renderFilters();
   renderFactionControls();
+  renderTagToolbar();
   renderSync();
 }
