@@ -665,13 +665,16 @@ function renderSettingsPermissions() {
   const reportSection = document.querySelector('#reportAccessSection');
   const rolesSection = document.querySelector('#factionRolesSection');
   const autoTagsSection = document.querySelector('#autoTagSettingsSection');
+  const factionHeading = document.querySelector('#factionSettingsHeading');
   const canManageReports = canEditFactionView();
   const canManageRoles = canManageFactionRolesView();
   const canManageAutoTags = canManageAutoTagSettingsView();
+  const showFactionSettings = canManageReports || canManageRoles || canManageAutoTags;
 
   reportSection?.classList.toggle('hidden', !canManageReports);
   rolesSection?.classList.toggle('hidden', !canManageRoles);
   autoTagsSection?.classList.toggle('hidden', !canManageAutoTags);
+  factionHeading?.classList.toggle('hidden', !showFactionSettings);
 
   if (!canManageReports) {
     const list = document.querySelector('#accessList');
@@ -863,9 +866,9 @@ const AUTO_TAG_SETTING_ROWS = [
     title:'High war hits',
     description:'Average war hits per eligible war.',
     thresholds:[
-      ['bright','Bright green','≥','positive bright',1],
+      ['teal','Teal','≥','positive teal',1],
       ['green','Green','≥','positive green',1],
-      ['teal','Teal','≥','positive teal',1]
+      ['bright','Bright green','≥','positive bright',1]
     ]
   },
   {
@@ -892,9 +895,9 @@ const AUTO_TAG_SETTING_ROWS = [
     title:'Assists',
     description:'Average assists per eligible war. Positive only.',
     thresholds:[
-      ['bright','Bright green','≥','positive bright',1],
+      ['teal','Teal','≥','positive teal',1],
       ['green','Green','≥','positive green',1],
-      ['teal','Teal','≥','positive teal',1]
+      ['bright','Bright green','≥','positive bright',1]
     ]
   },
   {
@@ -905,9 +908,9 @@ const AUTO_TAG_SETTING_ROWS = [
       ['red','Red','<','negative red',1],
       ['orange','Orange','<','negative orange',1],
       ['yellow','Yellow','<','negative yellow',1],
-      ['bright','Bright green','≥','positive bright',1],
+      ['teal','Teal','≥','positive teal',1],
       ['green','Green','≥','positive green',1],
-      ['teal','Teal','≥','positive teal',1]
+      ['bright','Bright green','≥','positive bright',1]
     ]
   },
   {
@@ -915,9 +918,9 @@ const AUTO_TAG_SETTING_ROWS = [
     title:'Inactivity',
     description:'Time since last action.',
     thresholds:[
-      ['redHours','Red','≥','negative red',1,'h'],
+      ['yellowHours','Yellow','≥','negative yellow',1,'h'],
       ['orangeHours','Orange','≥','negative orange',1,'h'],
-      ['yellowHours','Yellow','≥','negative yellow',1,'h']
+      ['redHours','Red','≥','negative red',1,'h']
     ]
   }
 ];
