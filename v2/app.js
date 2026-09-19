@@ -944,7 +944,7 @@ async function loadAutoTagSettings() {
     renderAutoTagSettings(result.settings || result.defaults || {});
   } catch (error) {
     list.innerHTML = '';
-    setAutoTagSettingsStatus(error.message || 'Failed to load auto-tag settings.', true);
+    setAutoTagSettingsStatus(error.message || 'Failed to load tag settings.', true);
   } finally {
     autoTagSettingsLoading = false;
     setAutoTagSettingsBusy(false);
@@ -1050,9 +1050,9 @@ async function saveAutoTagSettings(event) {
       settings:collectAutoTagSettings()
     });
     renderAutoTagSettings(result.settings || {});
-    setAutoTagSettingsStatus(result.message || 'Auto-tag thresholds saved.');
+    setAutoTagSettingsStatus(result.message || 'Tag thresholds saved.');
   } catch (error) {
-    setAutoTagSettingsStatus(error.message || 'Failed to save auto-tag thresholds.', true);
+    setAutoTagSettingsStatus(error.message || 'Failed to save tag thresholds.', true);
   } finally {
     autoTagSettingsBusy = false;
     setAutoTagSettingsBusy(false);
@@ -1069,9 +1069,9 @@ async function resetAutoTagSettings() {
   try {
     const result = await autoTagsApi('reset');
     renderAutoTagSettings(result.settings || {});
-    setAutoTagSettingsStatus(result.message || 'Auto-tag thresholds reset.');
+    setAutoTagSettingsStatus(result.message || 'Tag thresholds reset.');
   } catch (error) {
-    setAutoTagSettingsStatus(error.message || 'Failed to reset auto-tag thresholds.', true);
+    setAutoTagSettingsStatus(error.message || 'Failed to reset tag thresholds.', true);
   } finally {
     autoTagSettingsBusy = false;
     setAutoTagSettingsBusy(false);
