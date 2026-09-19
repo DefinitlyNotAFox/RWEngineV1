@@ -19,9 +19,15 @@ test('settings page provides faction auto-tag controls', () => {
   const app = readFileSync(new URL('../v2/app.js', import.meta.url), 'utf8');
   const css = readFileSync(new URL('../v2/app.css', import.meta.url), 'utf8');
 
+  assert.match(html, /class="settings-section-heading">Personal<\/div>/);
+  assert.match(html, /id="factionSettingsHeading" class="settings-section-heading settings-section-divider hidden">Faction<\/div>/);
   assert.match(html, /id="autoTagSettingsSection"/);
   assert.match(html, /id="autoTagSettingsForm"/);
   assert.match(html, /id="autoTagSettingsReset"/);
+  assert.match(app, /key:'highWarHits'[\s\S]*\['teal'[\s\S]*\['green'[\s\S]*\['bright'/);
+  assert.match(app, /key:'assists'[\s\S]*\['teal'[\s\S]*\['green'[\s\S]*\['bright'/);
+  assert.match(app, /key:'trainingEnergy'[\s\S]*\['red'[\s\S]*\['orange'[\s\S]*\['yellow'[\s\S]*\['teal'[\s\S]*\['green'[\s\S]*\['bright'/);
+  assert.match(app, /key:'inactivity'[\s\S]*\['yellowHours'[\s\S]*\['orangeHours'[\s\S]*\['redHours'/);
   assert.match(app, /autoTagsApi\('get'\)/);
   assert.match(app, /autoTagsApi\('save'/);
   assert.match(app, /autoTagsApi\('reset'\)/);
