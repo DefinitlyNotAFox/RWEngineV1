@@ -8972,3 +8972,26 @@ body {
     padding-bottom: 2px;
   }
 }
+
+
+/* Applied automatic tag tiers */
+#intelTable.faction-grid .intel2-trait.auto-tag.tier-yellow b { color: #c9b45d; }
+#intelTable.faction-grid .intel2-trait.auto-tag.tier-orange b { color: #cf8a4d; }
+#intelTable.faction-grid .intel2-trait.auto-tag.tier-red b { color: #cb6666; }
+#intelTable.faction-grid .intel2-trait.auto-tag.tier-teal b { color: #61aaa5; }
+#intelTable.faction-grid .intel2-trait.auto-tag.tier-green b { color: #67b77a; }
+#intelTable.faction-grid .intel2-trait.auto-tag.tier-bright b { color: #8ccc8a; }
+
+#intelTable.faction-grid .intel2-note-signals[open] > summary {
+  margin-bottom: 2px;
+}
+
+#intelTable.faction-grid .intel2-note-signals .intel2-context-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 620px) {
+  #intelTable.faction-grid .intel2-note-signals .intel2-context-grid {
+    grid-template-columns: 1fr;
+  }
+}
