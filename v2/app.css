@@ -8905,3 +8905,66 @@ body {
 #settingsView .auto-tag-setting-info small {
   display: none;
 }
+
+
+/* Compact tag threshold rows */
+#settingsView .auto-tag-settings-list {
+  max-height: 390px;
+}
+
+#settingsView .auto-tag-group-heading {
+  margin-top: 10px;
+  padding: 7px 0 5px;
+}
+
+#settingsView .auto-tag-setting-row {
+  grid-template-columns: minmax(190px, .72fr) minmax(0, 1.28fr);
+  gap: 14px;
+  min-height: 46px;
+  padding: 6px 0;
+}
+
+#settingsView .auto-tag-setting-row.split {
+  min-height: 78px;
+}
+
+#settingsView .auto-tag-threshold-lanes {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+#settingsView .auto-tag-thresholds {
+  justify-content: flex-start;
+  align-items: end;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+#settingsView .auto-tag-threshold {
+  min-width: 76px;
+  gap: 3px;
+}
+
+#settingsView .auto-tag-threshold input {
+  width: 76px;
+  height: 30px;
+}
+
+#settingsView .auto-tag-setting-row.disabled .auto-tag-threshold-lanes {
+  opacity: .42;
+}
+
+@media (max-width: 760px) {
+  #settingsView .auto-tag-setting-row,
+  #settingsView .auto-tag-setting-row.split {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    gap: 7px;
+  }
+
+  #settingsView .auto-tag-thresholds {
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+}
