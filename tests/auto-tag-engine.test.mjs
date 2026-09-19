@@ -98,7 +98,12 @@ test('Intel applies automatic tags with faction settings and tier styling', () =
   assert.match(intel, /Automatic tags ·/);
   assert.match(intel, /renderTraitGroup\('positive'[\s\S]*renderTraitGroup\('attention'/);
   assert.match(intel, /auto-tag tier-/);
+  assert.match(intel, /auto-tag-name/);
+  assert.match(intel, /auto-tag-detail/);
+  assert.match(intel, /auto-tag-empty">—/);
   assert.match(css, /intel2-trait\.auto-tag\.tier-yellow/);
   assert.match(css, /intel2-trait\.auto-tag\.tier-red/);
   assert.match(css, /intel2-trait\.auto-tag\.tier-bright/);
+  assert.match(css, /\.intel2-note-signals \.intel2-context-grid[\s\S]*grid-template-columns:\s*repeat\(2,/);
+  assert.match(css, /\.auto-tag-name[\s\S]*border:\s*1px solid currentColor/);
 });
