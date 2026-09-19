@@ -8772,3 +8772,34 @@ body {
     margin-left: 0;
   }
 }
+
+
+/* Match the site-admin column to the grouped settings layout. */
+#settingsView .settings-admin-column {
+  border-left: 1px solid var(--line-soft);
+}
+
+#settingsView .settings-admin-column > .settings-panel {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+#settingsView .settings-admin-column > .settings-panel + .settings-panel {
+  margin-top: 4px;
+}
+
+#settingsView .settings-admin-column .settings-panel-head.settings-panel-head-simple {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+#settingsView .settings-admin-column .settings-panel-head.settings-panel-head-simple + .settings-panel-body {
+  margin-left: 0;
+}
+
+@media (max-width: 1040px) {
+  #settingsView .settings-admin-column {
+    border-left: 0;
+    padding-left: 0;
+  }
+}
