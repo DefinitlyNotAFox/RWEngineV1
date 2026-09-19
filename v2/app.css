@@ -8350,3 +8350,38 @@ body {
     margin-bottom: 0;
   }
 }
+
+
+/* Timeline preset selector */
+.faction-scope-preset {
+  box-sizing: border-box;
+  width: 132px;
+  height: 28px;
+  flex: 0 0 132px;
+  padding: 3px 24px 3px 7px;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--font-caption);
+  font-variant-numeric: tabular-nums;
+  border: 1px solid #303538;
+  border-radius: 3px;
+  outline: 0;
+  background: #0d0f10;
+}
+
+.faction-scope-preset:hover,
+.faction-scope-preset:focus {
+  color: var(--text);
+  border-color: #43494c;
+}
+
+.faction-scope-preset.hidden {
+  display: none;
+}
+
+@media (max-width: 520px) {
+  .faction-scope-preset {
+    width: 122px;
+    flex-basis: 122px;
+  }
+}
