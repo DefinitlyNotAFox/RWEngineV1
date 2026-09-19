@@ -8090,7 +8090,18 @@ body {
 /* Combined faction filters */
 #intelFilters {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
   overflow: visible;
+}
+
+#intelFilters .intel-filter-controls {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
 }
 
 #intelFilters .intel-filter-menu-wrap {
@@ -8202,6 +8213,8 @@ body {
 
 #intelFilters .intel-filter-chips {
   display: inline-flex;
+  min-width: 0;
+  flex: 1 1 auto;
   align-items: center;
   gap: 5px;
   flex-wrap: wrap;
