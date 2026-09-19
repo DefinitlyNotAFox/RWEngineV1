@@ -329,8 +329,13 @@ export function initIntelV2() {
       const key = detailKey(playerId);
 
       if (noteAction.dataset.memberNoteAction === 'edit') {
+        if (selectedMemberId !== playerId || !detailCache.has(key)) {
+          await openMember(playerId);
+        }
+
         const payload = detailCache.get(key);
-        const notes = normalizeMemberNotes(payload?.member?.notes);
+        const overviewMember = (overview?.members || []).find(row => Number(row.playerId) === playerId);
+        const notes = normalizeMemberNotes(payload?.member?.notes || overviewMember?.notes);
         noteDrafts.set(key, {
           noteText:notes.text,
           tagsText:notes.tags.join(', ')
@@ -921,7 +926,8 @@ function renderFactionCell(member, key) {
   const performance = performanceMember(member);
 
   if (key === 'member') {
-    return `<div role="cell" class="faction-grid-cell col-member"><span class="member-cell-main"><span class="member-name">${escapeHtml(member.playerName || 'Unknown')}${renderLeadershipMarker(member.leadershipRole)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span><span class="member-meta">${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(member.level ?? '—')}${member.current ? '' : ' · former'}</span></span></div>`;
+    const profileUrl = `https://www.torn.com/profiles.php?XID=${encodeURIComponent(member.playerId)}`;
+    return `<div role="cell" class="faction-grid-cell col-member"><span class="member-cell-main"><a class="member-name member-profile-link" href="${profileUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(member.playerName || 'Unknown')}${renderLeadershipMarker(member.leadershipRole)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></a><span class="member-meta">${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(member.level ?? '—')}${member.current ? '' : ' · former'}</span></span></div>`;
   }
 
   if (key === 'stats') {
@@ -954,13 +960,16 @@ function renderFactionCell(member, key) {
     const notes = normalizeMemberNotes(member.notes);
     const visibleTags = notes.tags.slice(0, 2);
     const overflow = notes.tags.length - visibleTags.length;
-    return `<div role="cell" class="faction-grid-cell col-attention">${memberHasNotes(member) ? `
+    const canEditNotes = Boolean(overview?.permissions?.canEditMemberNotes && canEditFactionView());
+
+    return `<div role="cell" class="faction-grid-cell col-attention">
       <div class="member-note-cell">
         ${visibleTags.map(tag => `<span class="member-note-tag">${escapeHtml(tag)}</span>`).join('')}
         ${overflow > 0 ? `<span class="member-note-more">+${overflow}</span>` : ''}
         ${notes.hasText && !visibleTags.length ? '<span class="member-note-mark">Note</span>' : ''}
+        ${canEditNotes ? `<button class="member-note-edit" type="button" data-member-note-action="edit" data-player-id="${member.playerId}">Edit</button>` : ''}
       </div>
-    ` : ''}</div>`;
+    </div>`;
   }
 
   if (!performance) {
@@ -2058,14 +2067,6 @@ function renderMemberNotesPanel(member, payload, scopedMember = null) {
 
   return `
     <section class="intel2-context intel2-notes">
-      <header class="intel2-context-head">
-        <span class="intel2-context-kicker">Notes</span>
-        <span class="intel2-note-actions">
-          ${canEdit && !editing ? `<button type="button" data-member-note-action="edit" data-player-id="${member.playerId}">Edit</button>` : ''}
-          <a href="https://www.torn.com/profiles.php?XID=${encodeURIComponent(member.playerId)}" target="_blank" rel="noopener noreferrer">Profile ↗</a>
-        </span>
-      </header>
-
       ${editing ? `
         <form class="intel2-note-form" data-member-note-form data-player-id="${member.playerId}">
           <label>
@@ -2092,13 +2093,12 @@ function renderMemberNotesPanel(member, payload, scopedMember = null) {
       `}
 
       ${signalCount ? `
-        <details class="intel2-note-signals" open>
-          <summary>Automatic tags · ${signalCount}</summary>
+        <div class="intel2-note-signals">
           <div class="intel2-context-grid">
             ${renderTraitGroup('positive', '+', 'Positive', positives, member, 'None')}
             ${renderTraitGroup('attention', '−', 'Concerns', concerns, member, 'None')}
           </div>
-        </details>
+        </div>
       ` : ''}
     </section>
   `;
