@@ -491,6 +491,11 @@ async function handleGetImportedWars(env, body) {
       w.chain_adjustment_status,
       w.chain_adjustment_message,
       COALESCE((
+        SELECT MIN(COALESCE(wl.attack_detail_complete, 0))
+        FROM war_log wl
+        WHERE wl.faction_id = w.faction_id AND wl.war_id = w.war_id
+      ), 0) AS attack_detail_complete,
+      COALESCE((
         SELECT SUM(COALESCE(wl.score_up, 0))
         FROM war_log wl
         WHERE wl.faction_id = w.faction_id AND wl.war_id = w.war_id
