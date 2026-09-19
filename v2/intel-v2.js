@@ -4,7 +4,7 @@ import {
   formatNumber, formatCompact, formatDecimal, formatPercent, formatSigned,
   formatDuration, formatRelative, escapeHtml, sleep
 } from './core.js?v=4';
-import { buildAutoTags } from './auto-tag-engine.js?v=1';
+import { buildAutoTags } from './auto-tag-engine.js?v=2';
 
 const filters = [
   ['attention','Needs attention'],
