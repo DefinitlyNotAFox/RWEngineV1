@@ -124,6 +124,14 @@ export async function importApi(action, payload = {}) {
   return api(action, payload);
 }
 
+export async function warImportJobApi(action, payload = {}) {
+  return post('/v2/war-import-job', {
+    action,
+    ...(usesAdminFaction() ? { factionId: state.selectedFactionId } : {}),
+    ...payload
+  });
+}
+
 export async function post(path, body) {
   const response = await fetch(path, {
     method: 'POST',
