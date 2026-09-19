@@ -1,0 +1,30 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+test('auto-tag settings expose the agreed faction defaults', () => {
+  const api = readFileSync(new URL('../functions/v2/auto-tags.js', import.meta.url), 'utf8');
+
+  assert.match(api, /lowWarHits:[\s\S]*yellow:15[\s\S]*orange:10[\s\S]*red:6/);
+  assert.match(api, /highWarHits:[\s\S]*teal:25[\s\S]*green:40[\s\S]*bright:60/);
+  assert.match(api, /outsideHits:[\s\S]*yellow:10/);
+  assert.match(api, /respectPerHit:[\s\S]*yellow:4\.5[\s\S]*orange:4[\s\S]*red:3\.5[\s\S]*minimumHits:10/);
+  assert.match(api, /assists:[\s\S]*teal:10[\s\S]*green:20[\s\S]*bright:35/);
+  assert.match(api, /trainingEnergy:[\s\S]*red:400[\s\S]*orange:550[\s\S]*yellow:700[\s\S]*teal:1200[\s\S]*green:1350[\s\S]*bright:1500/);
+  assert.match(api, /inactivity:[\s\S]*yellowHours:24[\s\S]*orangeHours:48[\s\S]*redHours:72/);
+});
+
+test('settings page provides faction auto-tag controls', () => {
+  const html = readFileSync(new URL('../v2/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../v2/app.js', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../v2/app.css', import.meta.url), 'utf8');
+
+  assert.match(html, /id="autoTagSettingsSection"/);
+  assert.match(html, /id="autoTagSettingsForm"/);
+  assert.match(html, /id="autoTagSettingsReset"/);
+  assert.match(app, /autoTagsApi\('get'\)/);
+  assert.match(app, /autoTagsApi\('save'/);
+  assert.match(app, /autoTagsApi\('reset'\)/);
+  assert.match(app, /canManageAutoTagSettingsView/);
+  assert.match(css, /\.auto-tag-settings-list[\s\S]*overflow-y:\s*auto/);
+});
