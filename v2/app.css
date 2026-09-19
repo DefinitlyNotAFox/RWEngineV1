@@ -8456,3 +8456,118 @@ body {
     left: -21px;
   }
 }
+
+
+/* Share the reserved status row with the tag manager. */
+#factionStatusStack {
+  display: flex !important;
+  min-height: 34px !important;
+  height: 34px !important;
+  margin: 2px 0 2px !important;
+  align-items: center !important;
+  flex-wrap: nowrap !important;
+  gap: 14px;
+  overflow: visible !important;
+}
+
+#factionStatusStack .faction-status-item {
+  min-width: 0;
+  max-width: min(420px, 35vw);
+  flex: 0 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#factionStatusStack #intelTagToolbar {
+  display: flex;
+  min-width: 0;
+  width: auto;
+  height: 30px;
+  min-height: 30px;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+#factionStatusStack #intelTagToolbar.hidden {
+  display: none !important;
+}
+
+#factionStatusStack .intel-tag-toolbar-summary {
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+#factionStatusStack .intel-tag-toolbar-summary strong,
+#factionStatusStack .intel-tag-toolbar-summary span,
+#factionStatusStack .intel-tag-toolbar-status {
+  font-size: var(--font-caption);
+}
+
+#factionStatusStack .intel-tag-toolbar-actions {
+  display: inline-flex;
+  min-width: 0;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: nowrap;
+}
+
+#factionStatusStack .intel-tag-toolbar-actions input {
+  width: 132px;
+  min-width: 108px;
+  height: 28px;
+  flex: 0 1 132px;
+}
+
+#factionStatusStack .intel-tag-toolbar-actions button {
+  min-height: 28px;
+  height: 28px;
+  padding: 3px 7px;
+  white-space: nowrap;
+}
+
+#factionStatusStack .intel-tag-toolbar-status {
+  max-width: 180px;
+  flex: 0 1 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#factionStatusStack + .faction-grid-wrap {
+  margin-top: 2px;
+}
+
+@media (max-width: 1200px) {
+  #factionStatusStack .intel-tag-toolbar-summary strong {
+    display: none;
+  }
+
+  #factionStatusStack .intel-tag-toolbar-status {
+    max-width: 110px;
+    flex-basis: 110px;
+  }
+}
+
+@media (max-width: 900px) {
+  #factionStatusStack {
+    height: 38px !important;
+    min-height: 38px !important;
+  }
+
+  #factionStatusStack .intel-tag-toolbar-status {
+    display: none;
+  }
+
+  #factionStatusStack .intel-tag-toolbar-actions input {
+    width: 110px;
+    flex-basis: 110px;
+  }
+}
