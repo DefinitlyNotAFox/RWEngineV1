@@ -8955,6 +8955,10 @@ body {
   opacity: .42;
 }
 
+#settingsView .auto-tag-setting-row.disabled .auto-tag-thresholds {
+  opacity: 1;
+}
+
 @media (max-width: 760px) {
   #settingsView .auto-tag-setting-row,
   #settingsView .auto-tag-setting-row.split {
