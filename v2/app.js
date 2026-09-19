@@ -8,13 +8,13 @@ import {
   roleLabel, setRolePreview,
   routeTo, routeFromHash, setNotice,
   formatNumber, formatDate, formatDateTime, formatAge, escapeHtml
-} from './core.js?v=3';
+} from './core.js?v=4';
 
 import { sortFactionAccounts, sortTrackedFactions } from './sort.js?v=1';
 
-import { initIntel, renderIntel, refreshSyncStatus } from './intel.js?v=4';
-import { initIntelV2 } from './intel-v2.js?v=40';
-import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=17';
+import { initIntel, renderIntel, refreshSyncStatus } from './intel.js?v=5';
+import { initIntelV2 } from './intel-v2.js?v=41';
+import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=18';
 
 const legacyIntelMode = new URL(location.href).searchParams.get('legacyIntel') === '1';
 
