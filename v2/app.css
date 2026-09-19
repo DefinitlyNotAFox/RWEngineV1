@@ -9063,3 +9063,52 @@ body {
     white-space: normal;
   }
 }
+
+
+/* Member profile and notes action cleanup */
+#intelTable.faction-grid .member-profile-link {
+  color: var(--text);
+  text-decoration: none;
+}
+
+#intelTable.faction-grid .member-profile-link:hover {
+  color: var(--accent-2);
+}
+
+#intelTable.faction-grid .member-note-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+#intelTable.faction-grid .member-note-edit {
+  appearance: none;
+  padding: 1px 4px;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--font-caption);
+  line-height: 1.2;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+#intelTable.faction-grid .member-note-edit:hover {
+  color: var(--accent-2);
+}
+
+#intelTable.faction-grid .intel2-notes {
+  padding-top: 7px;
+}
+
+#intelTable.faction-grid .intel2-note-signals {
+  margin-top: 7px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+#intelTable.faction-grid .intel2-note-signals .intel2-context-grid {
+  margin-top: 0;
+}
