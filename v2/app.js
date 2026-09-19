@@ -22,6 +22,7 @@ let databaseBusy = false;
 let maintenanceBusy = false;
 let personalApiKeyBusy = false;
 let factionRolesLoading = false;
+let factionRoleCandidates = [];
 
 init();
 
@@ -178,6 +179,9 @@ function bindApplication() {
 
   document.querySelector('#accessList')?.addEventListener('change', handleAccessChange);
   document.querySelector('#factionRolesList')?.addEventListener('change', handleFactionRoleChange);
+  document.querySelector('#factionRoleAddToggle')?.addEventListener('click', () => toggleFactionRoleAdd(true));
+  document.querySelector('#factionRoleAddCancel')?.addEventListener('click', () => toggleFactionRoleAdd(false));
+  document.querySelector('#factionRoleAddForm')?.addEventListener('submit', handleFactionRoleAdd);
 
   on('request-refresh', () => refreshAll(false));
 
@@ -822,8 +826,9 @@ function renderFactionRoles(result) {
 
   const permissions = result.permissions || {};
   const accounts = Array.isArray(result.accounts) ? result.accounts : [];
-  list.innerHTML = accounts.length
-    ? accounts.map(account => {
+  const assignedAccounts = accounts.filter(account => account.role !== 'member');
+  list.innerHTML = assignedAccounts.length
+    ? assignedAccounts.map(account => {
         const protectedAccount = Boolean(account.protected);
         const coCannotChangeAdmin = !permissions.canGrantAdmin && account.role === 'faction_admin';
         const disabled = protectedAccount || coCannotChangeAdmin;
@@ -856,7 +861,115 @@ function renderFactionRoles(result) {
           </div>
         `;
       }).join('')
-    : '<div class="access-empty">No registered faction accounts are available.</div>';
+    : '<div class="access-empty">No elevated account roles.</div>';
+
+  renderFactionRoleAdd(accounts, permissions);
+}
+
+function renderFactionRoleAdd(accounts, permissions) {
+  const toggle = document.querySelector('#factionRoleAddToggle');
+  const form = document.querySelector('#factionRoleAddForm');
+  const input = document.querySelector('#factionRoleMemberSearch');
+  const options = document.querySelector('#factionRoleMemberOptions');
+  const roleSelect = document.querySelector('#factionRoleNewRole');
+  if (!toggle || !form || !input || !options || !roleSelect) return;
+
+  factionRoleCandidates = accounts.filter(account => account.role === 'member');
+  options.innerHTML = factionRoleCandidates.map(account =>
+    `<option value="${escapeHtml(factionRoleCandidateLabel(account))}"></option>`
+  ).join('');
+
+  const roles = permissions.canGrantAdmin
+    ? ['assistant','faction_admin']
+    : ['assistant'];
+  roleSelect.innerHTML = roles.map(role =>
+    `<option value="${role}">${escapeHtml(roleLabel(role))}</option>`
+  ).join('');
+
+  [...form.elements].forEach(control => { control.disabled = false; });
+  toggle.disabled = factionRoleCandidates.length === 0;
+  toggle.textContent = factionRoleCandidates.length ? '+ Add member' : 'No members available';
+  input.value = '';
+  toggleFactionRoleAdd(false);
+}
+
+function factionRoleCandidateLabel(account) {
+  return `${account.playerName || `Player ${account.playerId}`} [${account.playerId}]`;
+}
+
+function resolveFactionRoleCandidate(value) {
+  const query = String(value || '').trim().toLowerCase();
+  if (!query) return null;
+
+  const exact = factionRoleCandidates.find(account =>
+    factionRoleCandidateLabel(account).toLowerCase() === query
+  );
+  if (exact) return exact;
+
+  const idMatch = query.match(/(?:^|\[)(\d+)\]?$/);
+  if (idMatch) {
+    const playerId = Number(idMatch[1]);
+    const byId = factionRoleCandidates.find(account => Number(account.playerId) === playerId);
+    if (byId) return byId;
+  }
+
+  const nameMatches = factionRoleCandidates.filter(account =>
+    String(account.playerName || '').toLowerCase() === query
+  );
+  return nameMatches.length === 1 ? nameMatches[0] : null;
+}
+
+function toggleFactionRoleAdd(show) {
+  const toggle = document.querySelector('#factionRoleAddToggle');
+  const form = document.querySelector('#factionRoleAddForm');
+  if (!toggle || !form) return;
+
+  const visible = Boolean(show && factionRoleCandidates.length);
+  toggle.classList.toggle('hidden', visible);
+  form.classList.toggle('hidden', !visible);
+  if (visible) {
+    window.setTimeout(() => document.querySelector('#factionRoleMemberSearch')?.focus(), 0);
+  }
+}
+
+async function handleFactionRoleAdd(event) {
+  event.preventDefault();
+  if (!canManageFactionRolesView()) return;
+
+  const form = event.currentTarget;
+  const input = document.querySelector('#factionRoleMemberSearch');
+  const roleSelect = document.querySelector('#factionRoleNewRole');
+  const status = document.querySelector('#factionRolesStatus');
+  const account = resolveFactionRoleCandidate(input?.value);
+  if (!account) {
+    if (status) {
+      status.textContent = 'Choose a member from the search suggestions.';
+      status.classList.remove('hidden');
+      status.classList.add('error');
+    }
+    return;
+  }
+
+  const controls = [...form.elements];
+  controls.forEach(control => { control.disabled = true; });
+  try {
+    const result = await rolesApi('setRole', {
+      userId:Number(account.userId || 0),
+      role:roleSelect?.value || 'assistant'
+    });
+    await loadFactionRoles();
+    if (status) {
+      status.textContent = result.message || 'Faction role granted.';
+      status.classList.remove('hidden', 'error');
+    }
+  } catch (error) {
+    controls.forEach(control => { control.disabled = false; });
+    if (status) {
+      status.textContent = error.message || 'Failed to grant that faction role.';
+      status.classList.remove('hidden');
+      status.classList.add('error');
+    }
+  }
 }
 
 async function handleFactionRoleChange(event) {

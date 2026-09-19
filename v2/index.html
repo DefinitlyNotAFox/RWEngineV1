@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=83" />
+  <link rel="stylesheet" href="/v2/app.css?v=84" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -256,112 +256,132 @@
           </dl>
         </section>
 
-        <section class="settings-panel account-api-section">
-          <header class="settings-panel-head">
-            <p class="settings-panel-label">Personal</p>
-            <div>
-              <h2>Personal API key</h2>
-              <span>Replace your own key here. It is verified against your Torn player ID, encrypted, and never displayed after saving.</span>
-            </div>
-          </header>
-          <div class="settings-panel-body">
-            <form id="personalApiKeyForm" class="personal-api-form">
-              <label>
-                <span>Torn API key</span>
-                <input id="personalApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Enter a new key" />
-              </label>
-              <button id="personalApiKeySave" class="action primary" type="submit">Verify &amp; save</button>
-              <small id="personalApiKeyStatus" class="settings-inline-state" data-state="pending" role="status">Checking key status…</small>
-            </form>
+        <div class="settings-columns">
+          <div class="settings-main-column">
+            <section class="settings-panel account-api-section">
+              <header class="settings-panel-head">
+                <p class="settings-panel-label">Personal</p>
+                <div>
+                  <h2>Personal API key</h2>
+                  <span>Replace your own key here. It is verified against your Torn player ID, encrypted, and never displayed after saving.</span>
+                </div>
+              </header>
+              <div class="settings-panel-body">
+                <form id="personalApiKeyForm" class="personal-api-form">
+                  <label>
+                    <span>Torn API key</span>
+                    <input id="personalApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Enter a new key" />
+                  </label>
+                  <button id="personalApiKeySave" class="action primary" type="submit">Verify &amp; save</button>
+                  <small id="personalApiKeyStatus" class="settings-inline-state" data-state="pending" role="status">Checking key status…</small>
+                </form>
+              </div>
+            </section>
+
+            <section id="factionRolesSection" class="settings-panel access-section hidden">
+              <header class="settings-panel-head">
+                <p class="settings-panel-label">Faction</p>
+                <div>
+                  <h2>Account roles</h2>
+                  <span>Only elevated roles are listed. Leader and Co-leader may manage Assistants; only the Leader may manage faction admins.</span>
+                </div>
+              </header>
+              <div class="settings-panel-body">
+                <div id="factionRolesList" class="access-list"></div>
+                <div class="role-add-control">
+                  <button id="factionRoleAddToggle" class="text-action" type="button">+ Add member</button>
+                  <form id="factionRoleAddForm" class="role-add-form hidden">
+                    <label class="role-add-member">
+                      <span>Member</span>
+                      <input id="factionRoleMemberSearch" type="search" list="factionRoleMemberOptions" autocomplete="off" placeholder="Search name or player ID" />
+                    </label>
+                    <datalist id="factionRoleMemberOptions"></datalist>
+                    <label>
+                      <span>Role</span>
+                      <select id="factionRoleNewRole"></select>
+                    </label>
+                    <button id="factionRoleAddSubmit" class="action primary" type="submit">Grant role</button>
+                    <button id="factionRoleAddCancel" class="text-action" type="button">Cancel</button>
+                  </form>
+                </div>
+                <p id="factionRolesStatus" class="status-line hidden"></p>
+              </div>
+            </section>
+
+            <section id="reportAccessSection" class="settings-panel access-section hidden">
+              <header class="settings-panel-head">
+                <p class="settings-panel-label">Reports</p>
+                <div>
+                  <h2>Report visibility</h2>
+                  <span>Assistants and faction administrators control private, faction and public report access.</span>
+                </div>
+              </header>
+              <div class="settings-panel-body">
+                <div id="accessList" class="access-list"></div>
+                <p id="accessStatus" class="status-line hidden"></p>
+              </div>
+            </section>
           </div>
-        </section>
 
-        <section id="factionRolesSection" class="settings-panel access-section hidden">
-          <header class="settings-panel-head">
-            <p class="settings-panel-label">Faction</p>
-            <div>
-              <h2>Account roles</h2>
-              <span>Leader and Co-leader may manage Assistants. Only the Leader may grant or revoke faction-admin status. The official Leader is protected.</span>
-            </div>
-          </header>
-          <div class="settings-panel-body">
-            <div id="factionRolesList" class="access-list"></div>
-            <p id="factionRolesStatus" class="status-line hidden"></p>
-          </div>
-        </section>
-
-        <section id="reportAccessSection" class="settings-panel access-section hidden">
-          <header class="settings-panel-head">
-            <p class="settings-panel-label">Reports</p>
-            <div>
-              <h2>Report visibility</h2>
-              <span>Assistants and faction administrators control private, faction and public report access.</span>
-            </div>
-          </header>
-          <div class="settings-panel-body">
-            <div id="accessList" class="access-list"></div>
-            <p id="accessStatus" class="status-line hidden"></p>
-          </div>
-        </section>
-
-        <section id="adminSection" class="admin-section hidden">
-          <section class="settings-panel maintenance-admin">
-            <header class="settings-panel-head">
-              <p class="settings-panel-label">Platform</p>
-              <div>
-                <h2>Site access</h2>
-                <span>Maintenance mode limits RWEngine to administrators and temporarily blocks public reports.</span>
+          <section id="adminSection" class="admin-section settings-admin-column hidden">
+            <section class="settings-panel maintenance-admin">
+              <header class="settings-panel-head">
+                <p class="settings-panel-label">Platform</p>
+                <div>
+                  <h2>Site access</h2>
+                  <span>Maintenance mode limits RWEngine to administrators and temporarily blocks public reports.</span>
+                </div>
+              </header>
+              <div class="settings-panel-body">
+                <div class="maintenance-actions">
+                  <button id="maintenanceToggle" class="action" type="button">Maintenance: Off</button>
+                  <span id="maintenanceStatus">Normal access enabled</span>
+                </div>
               </div>
-            </header>
-            <div class="settings-panel-body">
-              <div class="maintenance-actions">
-                <button id="maintenanceToggle" class="action" type="button">Maintenance: Off</button>
-                <span id="maintenanceStatus">Normal access enabled</span>
+            </section>
+
+            <section class="settings-panel admin-factions-panel">
+              <header class="settings-panel-head admin-factions-head">
+                <p class="settings-panel-label">Factions</p>
+                <div>
+                  <h2>Tracked factions</h2>
+                  <span>Select a faction to inspect its sync state or replace its managed API key.</span>
+                </div>
+              </header>
+              <div class="settings-panel-body">
+                <div id="adminFactionList" class="admin-faction-list"></div>
+                <form id="adminKeyForm" class="admin-key-form hidden">
+                  <p id="adminKeyHeading"></p>
+                  <label><span>Managed Torn API key</span><input id="adminApiKey" type="password" autocomplete="off" /></label>
+                  <div><button class="action primary" type="submit">Save key</button><button id="adminClearKey" class="text-action" type="button">Remove managed key</button></div>
+                  <small id="adminKeyStatus"></small>
+                </form>
               </div>
-            </div>
+            </section>
+
+            <section class="settings-panel database-admin">
+              <header class="settings-panel-head">
+                <p class="settings-panel-label">Database</p>
+                <div>
+                  <h2>D1 diagnostics</h2>
+                  <span>Check analytics indexes and sampled query plans without running the heavy queries.</span>
+                </div>
+              </header>
+              <div class="settings-panel-body">
+                <div class="database-actions">
+                  <button id="databaseCheck" class="action" type="button">Check D1</button>
+                  <button id="databaseApply" class="action primary" type="button">Apply maintenance</button>
+                </div>
+                <p id="databaseStatus" class="status-line hidden"></p>
+                <div id="databaseDiagnostics" class="database-diagnostics hidden"></div>
+              </div>
+            </section>
           </section>
-
-          <section class="settings-panel admin-factions-panel">
-            <header class="settings-panel-head admin-factions-head">
-              <p class="settings-panel-label">Factions</p>
-              <div>
-                <h2>Tracked factions</h2>
-                <span>Select a faction to inspect its sync state or replace its managed API key.</span>
-              </div>
-            </header>
-            <div class="settings-panel-body">
-              <div id="adminFactionList" class="admin-faction-list"></div>
-              <form id="adminKeyForm" class="admin-key-form hidden">
-                <p id="adminKeyHeading"></p>
-                <label><span>Managed Torn API key</span><input id="adminApiKey" type="password" autocomplete="off" /></label>
-                <div><button class="action primary" type="submit">Save key</button><button id="adminClearKey" class="text-action" type="button">Remove managed key</button></div>
-                <small id="adminKeyStatus"></small>
-              </form>
-            </div>
-          </section>
-
-          <section class="settings-panel database-admin">
-            <header class="settings-panel-head">
-              <p class="settings-panel-label">Database</p>
-              <div>
-                <h2>D1 diagnostics</h2>
-                <span>Check analytics indexes and sampled query plans without running the heavy queries.</span>
-              </div>
-            </header>
-            <div class="settings-panel-body">
-              <div class="database-actions">
-                <button id="databaseCheck" class="action" type="button">Check D1</button>
-                <button id="databaseApply" class="action primary" type="button">Apply maintenance</button>
-              </div>
-              <p id="databaseStatus" class="status-line hidden"></p>
-              <div id="databaseDiagnostics" class="database-diagnostics hidden"></div>
-            </div>
-          </section>
-        </section>
+        </div>
       </section>
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=69"></script>
+  <script type="module" src="/v2/app.js?v=70"></script>
 </body>
 </html>

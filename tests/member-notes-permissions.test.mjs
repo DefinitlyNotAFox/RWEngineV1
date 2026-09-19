@@ -127,6 +127,10 @@ test('the obsolete Workspace route is absent and Settings exposes personal API a
   assert.match(html, /id="settingsApiSummary"/);
   assert.match(html, /id="personalApiKeyForm"/);
   assert.match(html, /id="factionRolesSection"/);
+  assert.match(html, /class="settings-columns"/);
+  assert.match(html, /id="factionRoleAddToggle"/);
+  assert.match(html, /id="factionRoleMemberSearch"[^>]+list="factionRoleMemberOptions"/);
+  assert.match(html, /id="factionRoleNewRole"/);
   assert.match(css, /Settings: flat account and permissions ledger/);
   assert.match(css, /#settingsView \.settings-panel-head/);
 });
