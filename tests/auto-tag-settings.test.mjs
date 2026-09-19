@@ -21,6 +21,7 @@ test('settings page provides faction auto-tag controls', () => {
 
   assert.match(html, /class="settings-section-heading">Personal<\/div>/);
   assert.match(html, /id="factionSettingsHeading" class="settings-section-heading settings-section-divider hidden">Faction<\/div>/);
+  assert.match(html, /id="adminSection" class="admin-section settings-admin-column hidden">[\s\S]*class="settings-section-heading">Site admin<\/div>/);
   assert.match(html, /id="autoTagSettingsSection"/);
   assert.match(html, /id="autoTagSettingsForm"/);
   assert.match(html, /id="autoTagSettingsReset"/);
@@ -34,4 +35,6 @@ test('settings page provides faction auto-tag controls', () => {
   assert.match(app, /canManageAutoTagSettingsView/);
   assert.match(css, /\.auto-tag-settings-list[\s\S]*overflow-y:\s*auto/);
   assert.match(css, /\.settings-columns:not\(:has\(> \.settings-admin-column:not\(\.hidden\)\)\)[\s\S]*width:\s*min\(100%,\s*980px\)[\s\S]*margin-left:\s*0[\s\S]*margin-right:\s*auto/);
+  assert.match(css, /\.settings-admin-column[\s\S]*border-left:\s*1px solid var\(--line-soft\)/);
+  assert.match(css, /\.settings-admin-column \.settings-panel-head\.settings-panel-head-simple \+ \.settings-panel-body[\s\S]*margin-left:\s*0/);
 });
