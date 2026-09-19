@@ -1,14 +1,15 @@
 import {
-  state, on, emit, intelV2Api, syncApi, performanceApi,
+  state, on, emit, intelV2Api, syncApi, performanceApi, autoTagsApi,
   canEditFactionView, renderLeadershipMarker,
   formatNumber, formatCompact, formatDecimal, formatPercent, formatSigned,
   formatDuration, formatRelative, escapeHtml, sleep
 } from './core.js?v=4';
+import { buildAutoTags } from './auto-tag-engine.js?v=1';
 
 const filters = [
   ['attention','Needs attention'],
-  ['inactive','Inactive 48h+'],
-  ['war','Low participation'],
+  ['inactive','Inactive'],
+  ['war','War concerns'],
   ['decline','Declining'],
   ['stats','Stats missing/stale']
 ];
@@ -60,6 +61,8 @@ const priority = [
 
 let overview = null;
 let loadedFactionId = null;
+let autoTagSettings = null;
+let loadedAutoTagFactionId = null;
 const activeFilters = new Set();
 let intelFilterMenuOpen = false;
 let showFormerMembers = restoreBooleanPreference('rwengine.showFormerMembers', false);
@@ -434,11 +437,33 @@ export function initIntelV2() {
 
   on('role-preview', () => renderIntelV2());
 
+  on('tag-settings', payload => {
+    const factionId = Number(state.selectedFactionId || state.user?.factionId || 0);
+    if (Number(payload?.factionId || 0) !== factionId) return;
+    autoTagSettings = payload?.settings || null;
+    loadedAutoTagFactionId = factionId;
+    if (state.route === 'intel') renderIntelV2();
+  });
+
   on('open-member', playerId => {
     const search = document.querySelector('#intelSearch');
     if (search) search.value = '';
     if (state.route === 'intel') openMember(Number(playerId));
   });
+}
+
+async function loadAppliedTagSettings(force = false) {
+  const factionId = Number(state.selectedFactionId || state.user?.factionId || 0);
+  if (!factionId) return;
+  if (!force && autoTagSettings && Number(loadedAutoTagFactionId) === factionId) return;
+
+  try {
+    const result = await autoTagsApi('get');
+    autoTagSettings = result?.settings || null;
+  } catch (_) {
+    autoTagSettings = null;
+  }
+  loadedAutoTagFactionId = factionId;
 }
 
 export async function loadIntelV2(force = false) {
@@ -447,6 +472,7 @@ export async function loadIntelV2(force = false) {
   const factionId = Number(state.selectedFactionId || state.user?.factionId || 0);
   if (!factionId) return;
 
+  await loadAppliedTagSettings(force);
   ensureFilterState();
   const key = analysisKey();
 
@@ -976,8 +1002,10 @@ function matchesFilter(member) {
   if (!memberVisible) return false;
   if (!activeFilters.size) return true;
 
-  const insights = Array.isArray(member.insights) ? member.insights : [];
-  const codes = new Set(insights.map(item => item.code));
+  const legacyInsights = Array.isArray(member.insights) ? member.insights : [];
+  const legacyCodes = new Set(legacyInsights.map(item => item.code));
+  const appliedTags = automaticTags(member);
+  const autoCodes = new Set(appliedTags.map(item => item.code));
   const memberTags = new Set(normalizeMemberNotes(member?.notes).tags.map(tagKey));
 
   for (const filterKey of activeFilters) {
@@ -990,33 +1018,34 @@ function matchesFilter(member) {
     const signal = filterKey.slice(7);
 
     if (signal === 'attention') {
-      if (topSignal(member)?.kind !== 'attention') return false;
+      const legacyAttention = legacyInsights.some(item =>
+        item.kind === 'attention' &&
+        ['activity_down','xanax_down','missing_battle_stats','stale_battle_stats'].includes(item.code)
+      );
+      if (!appliedTags.some(item => item.kind === 'attention') && !legacyAttention) return false;
       continue;
     }
 
     if (signal === 'inactive') {
-      if (!codes.has('inactive')) return false;
+      if (!autoCodes.has('auto_inactive')) return false;
       continue;
     }
 
     if (signal === 'war') {
-      if (!factionPerformance.loadedKey || factionPerformance.totalWars <= 0) return false;
-      const performance = performanceMember(member);
-      if (!(
-        performance &&
-        Number.isFinite(Number(performance.participation)) &&
-        Number(performance.participation) < 0.5
+      if (!appliedTags.some(item =>
+        item.kind === 'attention' &&
+        ['war_hits','respect','outside_hits'].includes(item.category)
       )) return false;
       continue;
     }
 
     if (signal === 'decline') {
-      if (!(codes.has('activity_down') || codes.has('xanax_down'))) return false;
+      if (!(legacyCodes.has('activity_down') || legacyCodes.has('xanax_down'))) return false;
       continue;
     }
 
     if (signal === 'stats') {
-      if (!(codes.has('missing_battle_stats') || codes.has('stale_battle_stats'))) return false;
+      if (!(legacyCodes.has('missing_battle_stats') || legacyCodes.has('stale_battle_stats'))) return false;
     }
   }
 
@@ -1654,32 +1683,20 @@ function tableSignalLabel(signal, member) {
   return signalLabel(signal, member);
 }
 
+function automaticTags(member) {
+  return buildAutoTags(
+    member,
+    performanceMember(member),
+    autoTagSettings,
+    Math.floor(Date.now() / 1000)
+  );
+}
+
 function topSignal(member) {
-  const scopedOut = new Set([
-    'low_war_participation',
-    'participation_down',
-    'strong_war_output'
-  ]);
+  const applied = automaticTags(member);
+  if (applied.length) return applied[0];
 
-  const insights = (Array.isArray(member.insights) ? member.insights : [])
-    .filter(item => !scopedOut.has(item.code))
-    .map(item => ({ ...item }));
-
-  const performance = performanceMember(member);
-
-  if (
-    factionPerformance.totalWars > 0 &&
-    performance &&
-    Number.isFinite(Number(performance.participation)) &&
-    Number(performance.participation) < 0.5
-  ) {
-    insights.push({
-      code:'low_war_participation',
-      kind:'attention',
-      text:`Participated in ${formatNumber(performance.wars)} of ${formatNumber(factionPerformance.totalWars)} selected wars.`
-    });
-  }
-
+  const insights = Array.isArray(member.insights) ? member.insights : [];
   if (!insights.length) return null;
   return insights.sort((a,b) => priorityIndex(a.code) - priorityIndex(b.code))[0];
 }
@@ -1975,7 +1992,7 @@ function renderDetailRow(member) {
 
   const detailMember = payload.member;
   const history = normalizeHistory(payload.history);
-  const notesPanel = renderMemberNotesPanel(detailMember, payload);
+  const notesPanel = renderMemberNotesPanel(detailMember, payload, member);
   return `
     <div class="intel2-detail-row faction-grid-detail" role="row">
       <div class="faction-grid-detail-cell" role="cell">
@@ -2020,8 +2037,8 @@ function renderDetailRow(member) {
   `;
 }
 
-function renderMemberNotesPanel(member, payload) {
-  const insights = Array.isArray(member.insights) ? member.insights : [];
+function renderMemberNotesPanel(member, payload, scopedMember = null) {
+  const insights = automaticTags(scopedMember || member);
   const positives = insights.filter(item => item.kind === 'positive');
   const concerns = insights.filter(item => item.kind === 'attention');
   const notes = normalizeMemberNotes(member.notes);
@@ -2075,11 +2092,11 @@ function renderMemberNotesPanel(member, payload) {
       `}
 
       ${signalCount ? `
-        <details class="intel2-note-signals">
-          <summary>Automatic signals · ${signalCount}</summary>
+        <details class="intel2-note-signals" open>
+          <summary>Automatic tags · ${signalCount}</summary>
           <div class="intel2-context-grid">
-            ${positives.length ? renderTraitGroup('positive', '+', 'Positive', positives, member, '') : ''}
-            ${concerns.length ? renderTraitGroup('attention', '−', 'Concerns', concerns, member, '') : ''}
+            ${renderTraitGroup('positive', '+', 'Positive', positives, member, 'None')}
+            ${renderTraitGroup('attention', '−', 'Concerns', concerns, member, 'None')}
           </div>
         </details>
       ` : ''}
@@ -2093,7 +2110,7 @@ function renderTraitGroup(kind, symbol, label, items, member, emptyLabel) {
       <header><span>${symbol}</span><strong>${label}</strong></header>
       <div class="intel2-trait-list">
         ${items.length ? items.map(item => `
-          <div class="intel2-trait">
+          <div class="intel2-trait auto-tag tier-${escapeHtml(item.tier || 'neutral')}">
             <b>${escapeHtml(traitTitle(item, member))}</b>
             <span>${escapeHtml(item.text || '')}</span>
           </div>
@@ -2104,6 +2121,7 @@ function renderTraitGroup(kind, symbol, label, items, member, emptyLabel) {
 }
 
 function traitTitle(item, member) {
+  if (item?.title) return item.title;
   if (item.code === 'inactive') return 'Inactive';
   if (item.code === 'low_war_participation') return 'Low war participation';
   if (item.code === 'participation_down') return 'Participation declining';
@@ -2454,6 +2472,8 @@ function detailKey(playerId) {
 function resetIntelState() {
   overview = null;
   loadedFactionId = null;
+  autoTagSettings = null;
+  loadedAutoTagFactionId = null;
   loadedAnalysisKey = '';
   selectedMemberId = null;
   detailCache.clear();
