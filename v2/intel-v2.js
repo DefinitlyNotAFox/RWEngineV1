@@ -709,6 +709,7 @@ function renderIntelV2() {
     return `
       <div class="faction-grid-row faction-member-row clickable${selected ? ' selected' : ''}" role="row" data-member-id="${member.playerId}">
         ${factionColumns.map(key => renderFactionCell(member, key)).join('')}
+        ${renderMemberTagSelector(member)}
       </div>
       ${selected ? renderDetailRow(member) : ''}
     `;
@@ -876,17 +877,25 @@ function renderHeaders() {
   `;
 }
 
+function renderMemberTagSelector(member) {
+  if (!(tagManageMode && canManageTags())) return '';
+  const selected = selectedTagMemberIds.has(Number(member.playerId));
+  return `
+    <button
+      class="member-tag-select tag-row-selector${selected ? ' selected' : ''}"
+      type="button"
+      data-tag-member-select="${member.playerId}"
+      aria-pressed="${selected ? 'true' : 'false'}"
+      aria-label="${selected ? 'Deselect' : 'Select'} ${escapeHtml(member.playerName || 'member')} for tagging"
+    ><span aria-hidden="true">${selected ? '✓' : ''}</span></button>
+  `;
+}
+
 function renderFactionCell(member, key) {
   const performance = performanceMember(member);
 
   if (key === 'member') {
-    const workflowSelectable = tagManageMode && canManageTags();
-    const selectedForTags = selectedTagMemberIds.has(Number(member.playerId));
-    const selector = workflowSelectable
-      ? `<button class="member-tag-select${selectedForTags ? ' selected' : ''}" type="button" data-tag-member-select="${member.playerId}" aria-pressed="${selectedForTags ? 'true' : 'false'}" aria-label="${selectedForTags ? 'Deselect' : 'Select'} ${escapeHtml(member.playerName || 'member')} for tagging"><span aria-hidden="true">${selectedForTags ? '✓' : ''}</span></button>`
-      : '';
-
-    return `<div role="cell" class="faction-grid-cell col-member${workflowSelectable ? ' tag-selectable' : ''}">${selector}<span class="member-cell-main"><span class="member-name">${escapeHtml(member.playerName || 'Unknown')}${renderLeadershipMarker(member.leadershipRole)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span><span class="member-meta">${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(member.level ?? '—')}${member.current ? '' : ' · former'}</span></span></div>`;
+    return `<div role="cell" class="faction-grid-cell col-member"><span class="member-cell-main"><span class="member-name">${escapeHtml(member.playerName || 'Unknown')}${renderLeadershipMarker(member.leadershipRole)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span><span class="member-meta">${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(member.level ?? '—')}${member.current ? '' : ' · former'}</span></span></div>`;
   }
 
   if (key === 'stats') {
