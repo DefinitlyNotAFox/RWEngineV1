@@ -91,6 +91,14 @@ export async function rolesApi(action, payload = {}) {
   });
 }
 
+export async function autoTagsApi(action, payload = {}) {
+  return post('/v2/auto-tags', {
+    action,
+    ...(usesAdminFaction() ? { factionId: state.selectedFactionId } : {}),
+    ...payload
+  });
+}
+
 export async function intelV2Api(action, payload = {}) {
   return post('/v2/intel-v2', {
     action,
