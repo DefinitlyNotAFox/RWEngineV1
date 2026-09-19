@@ -8803,3 +8803,52 @@ body {
     padding-left: 0;
   }
 }
+
+
+/* Settings typography: keep readable content at 13–14px. */
+#settingsView .settings-section-heading {
+  font-size: var(--font-body);
+}
+
+#settingsView .settings-panel-head > div > span,
+#settingsView .maintenance-admin > .settings-panel-head span,
+#settingsView .admin-factions-head span,
+#settingsView .database-admin > .settings-panel-head span,
+#settingsView .auto-tag-setting-info small {
+  font-size: var(--font-small);
+}
+
+#settingsView .personal-api-form label > span,
+#settingsView .admin-key-form label > span,
+#settingsView .role-add-form label > span,
+#settingsView .auto-tag-threshold > span:first-child {
+  font-size: var(--font-small);
+}
+
+#settingsView .personal-api-form input,
+#settingsView .personal-api-form .action,
+#settingsView .access-select,
+#settingsView .role-add-form input,
+#settingsView .role-add-form select,
+#settingsView .role-add-form .action,
+#settingsView .auto-tag-threshold input,
+#settingsView .auto-tag-settings-actions .action {
+  font-size: var(--font-body);
+}
+
+#settingsView .personal-api-form small,
+#settingsView .settings-action-status,
+#settingsView .access-row small,
+#settingsView .admin-faction-row small,
+#settingsView .admin-faction-row b,
+#settingsView .status-line,
+#settingsView .access-empty,
+#settingsView .maintenance-actions > span,
+#settingsView .admin-key-form > small,
+#settingsView #factionRoleAddToggle,
+#settingsView .role-add-form .text-action,
+#settingsView #personalApiKeyRemove,
+#settingsView #adminClearKey,
+#settingsView .auto-tag-threshold-input em {
+  font-size: var(--font-small);
+}
