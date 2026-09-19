@@ -220,10 +220,40 @@ async function runImportJob({ env, user, factionId, job, cookieHeader, requestUr
   job.processedTotal = Number(verified.processedTotal ?? verified.storedTotal ?? job.processedTotal ?? 0);
   job.assists = Number(verified.assists ?? job.assists ?? 0);
 
-  if (chainStatus === 'error' || chainStatus === 'failed') {
+  let warState = await readWarProcessingState(env.DB, factionId, warId);
+  const needsChainCheck =
+    !warState?.chain_adjusted_at ||
+    ['error','failed'].includes(String(warState?.chain_adjustment_status || '').toLowerCase());
+
+  if (needsChainCheck) {
+    job.phase = 'chain';
+    job.message = 'Checking chain report.';
+    job.updatedAt = unixNow();
+    await saveJob(env.DB, job);
+
+    const chainResult = await invokeImportAction({
+      env, adminPath, cookieHeader, requestUrl, factionId,
+      action:'applyChainBonusAdjustment',
+      payload:{ warId }
+    });
+    chainStatus = String(chainResult.chainAdjustment?.status || '').toLowerCase() || null;
+    job.chainStatus = chainStatus;
+    warState = await readWarProcessingState(env.DB, factionId, warId);
+  }
+
+  const finalChainStatus = String(
+    warState?.chain_adjustment_status || chainStatus || ''
+  ).toLowerCase();
+  const chainFinished = Boolean(
+    warState?.chain_adjusted_at ||
+    ['applied','skipped','complete','completed','done'].includes(finalChainStatus)
+  );
+
+  if (!chainFinished || ['error','failed'].includes(finalChainStatus)) {
     job.status = 'failed';
     job.phase = 'chain';
-    job.message = 'Attack verification finished, but chain processing failed.';
+    job.message = warState?.chain_adjustment_message ||
+      'Attack verification finished, but chain processing did not complete.';
   } else {
     job.status = 'completed';
     job.phase = 'complete';
@@ -233,6 +263,15 @@ async function runImportJob({ env, user, factionId, job, cookieHeader, requestUr
   job.finishedAt = unixNow();
   job.updatedAt = unixNow();
   await saveJob(env.DB, job);
+}
+
+async function readWarProcessingState(db, factionId, warId) {
+  return db.prepare(`
+    SELECT chain_adjusted_at, chain_adjustment_status, chain_adjustment_message
+    FROM wars
+    WHERE faction_id = ? AND war_id = ?
+    LIMIT 1
+  `).bind(factionId, warId).first();
 }
 
 async function runAttackVerification({ env, factionId, warId, cookieHeader, requestUrl, onProgress }) {
