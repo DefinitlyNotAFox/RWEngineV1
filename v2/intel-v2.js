@@ -3,7 +3,7 @@ import {
   canEditFactionView, renderLeadershipMarker,
   formatNumber, formatCompact, formatDecimal, formatPercent, formatSigned,
   formatDuration, formatRelative, escapeHtml, sleep
-} from './core.js?v=3';
+} from './core.js?v=4';
 
 const filters = [
   ['attention','Needs attention'],
