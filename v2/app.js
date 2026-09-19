@@ -1050,6 +1050,10 @@ async function saveAutoTagSettings(event) {
       settings:collectAutoTagSettings()
     });
     renderAutoTagSettings(result.settings || {});
+    emit('tag-settings', {
+      factionId:currentFactionId(),
+      settings:result.settings || {}
+    });
     setAutoTagSettingsStatus(result.message || 'Tag thresholds saved.');
   } catch (error) {
     setAutoTagSettingsStatus(error.message || 'Failed to save tag thresholds.', true);
@@ -1069,6 +1073,10 @@ async function resetAutoTagSettings() {
   try {
     const result = await autoTagsApi('reset');
     renderAutoTagSettings(result.settings || {});
+    emit('tag-settings', {
+      factionId:currentFactionId(),
+      settings:result.settings || {}
+    });
     setAutoTagSettingsStatus(result.message || 'Tag thresholds reset.');
   } catch (error) {
     setAutoTagSettingsStatus(error.message || 'Failed to reset tag thresholds.', true);
