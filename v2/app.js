@@ -853,8 +853,8 @@ async function closeAccount() {
 const AUTO_TAG_SETTING_ROWS = [
   {
     key:'lowWarHits',
-    title:'Low war hits',
-    description:'Average war hits per eligible war.',
+    group:'War',
+    title:'Low war hits / war',
     thresholds:[
       ['red','Red','<','negative red',1],
       ['orange','Orange','<','negative orange',1],
@@ -863,8 +863,8 @@ const AUTO_TAG_SETTING_ROWS = [
   },
   {
     key:'highWarHits',
-    title:'High war hits',
-    description:'Average war hits per eligible war.',
+    group:'War',
+    title:'High war hits / war',
     thresholds:[
       ['teal','Teal','≥','positive teal',1],
       ['green','Green','≥','positive green',1],
@@ -873,27 +873,27 @@ const AUTO_TAG_SETTING_ROWS = [
   },
   {
     key:'outsideHits',
-    title:'Outside hits',
-    description:'Average outside hits per eligible war. Concern only.',
+    group:'War',
+    title:'Outside hits / war',
     thresholds:[
       ['yellow','Yellow','≥','negative yellow',1]
     ]
   },
   {
     key:'respectPerHit',
+    group:'War',
     title:'Respect / hit',
-    description:'Average respect earned per ranked-war hit.',
     thresholds:[
       ['red','Red','<','negative red',0.1],
       ['orange','Orange','<','negative orange',0.1],
       ['yellow','Yellow','<','negative yellow',0.1],
-      ['minimumHits','Minimum hits','≥','neutral',1]
+      ['minimumHits','Min. hits','≥','neutral',1]
     ]
   },
   {
     key:'assists',
-    title:'Assists',
-    description:'Average assists per eligible war. Positive only.',
+    group:'War',
+    title:'Assists / war',
     thresholds:[
       ['teal','Teal','≥','positive teal',1],
       ['green','Green','≥','positive green',1],
@@ -902,8 +902,8 @@ const AUTO_TAG_SETTING_ROWS = [
   },
   {
     key:'trainingEnergy',
-    title:'Training E',
-    description:'Gym energy per calendar day. 700–1199 is neutral.',
+    group:'Training',
+    title:'Training E / day',
     thresholds:[
       ['red','Red','<','negative red',1],
       ['orange','Orange','<','negative orange',1],
@@ -915,8 +915,8 @@ const AUTO_TAG_SETTING_ROWS = [
   },
   {
     key:'inactivity',
+    group:'Activity',
     title:'Inactivity',
-    description:'Time since last action.',
     thresholds:[
       ['yellowHours','Yellow','≥','negative yellow',1,'h'],
       ['orangeHours','Orange','≥','negative orange',1,'h'],
@@ -955,17 +955,23 @@ function renderAutoTagSettings(settings) {
   const list = document.querySelector('#autoTagSettingsList');
   if (!list) return;
 
+  let previousGroup = '';
   list.innerHTML = AUTO_TAG_SETTING_ROWS.map(row => {
     const config = settings?.[row.key] || {};
     const enabled = config.enabled !== false;
+    const groupHeading = row.group !== previousGroup
+      ? `<div class="auto-tag-group-heading">${escapeHtml(row.group)}</div>`
+      : '';
+    previousGroup = row.group;
+
     return `
+      ${groupHeading}
       <section class="auto-tag-setting-row${enabled ? '' : ' disabled'}" data-auto-tag-family="${escapeHtml(row.key)}">
         <div class="auto-tag-setting-info">
           <label class="auto-tag-setting-toggle">
             <input type="checkbox" data-auto-tag-enabled="${escapeHtml(row.key)}"${enabled ? ' checked' : ''} />
             <span>${escapeHtml(row.title)}</span>
           </label>
-          <small>${escapeHtml(row.description)}</small>
         </div>
         <div class="auto-tag-thresholds">
           ${row.thresholds.map(([field,label,operator,tone,step,suffix = '']) => `
