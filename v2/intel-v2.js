@@ -158,8 +158,10 @@ export function initIntelV2() {
     renderFactionControls();
   });
 
-  document.querySelector('#factionScopeAll')?.addEventListener('click', async () => {
-    await applyAllScope();
+  document.querySelector('#factionScopePreset')?.addEventListener('change', async event => {
+    const preset = String(event.target.value || '');
+    if (!preset || preset === 'custom') return;
+    await applyTimelinePreset(preset);
   });
 
   document.querySelector('#factionFilterPanel')?.addEventListener('click', async event => {
@@ -600,10 +602,14 @@ function renderFactionControls() {
     toggle.classList.toggle('active', filterPanelOpen);
   }
 
-  const allButton = document.querySelector('#factionScopeAll');
-  if (allButton) {
-    allButton.classList.toggle('hidden', filterMode !== 'timeline');
-    allButton.classList.toggle('active', filterMode === 'timeline' && isAllTimelineSelected());
+  const preset = document.querySelector('#factionScopePreset');
+  if (preset) {
+    const options = timelinePresetOptions();
+    const selected = timelinePresetKey(timelineRange);
+    preset.innerHTML = options.map(([key,label]) =>
+      `<option value="${escapeHtml(key)}"${key === selected ? ' selected' : ''}>${escapeHtml(label)}</option>`
+    ).join('') + (selected ? '' : '<option value="custom" selected>Custom</option>');
+    preset.classList.toggle('hidden', filterMode !== 'timeline');
   }
 
   const table = document.querySelector('#intelTable');
@@ -1232,41 +1238,73 @@ function prepareFilterDraft() {
   }
 }
 
-async function applyAllScope() {
-  filterPanelOpen = false;
+function timelinePresetOptions() {
+  const year = new Date().getUTCFullYear();
+  return [
+    ['all', 'All Time (2022+)'],
+    ['today', 'Today'],
+    ['yesterday', 'Yesterday'],
+    ['last7', 'Last 7 Days'],
+    ['previous7', 'Previous 7 Days'],
+    ['last30', 'Last 30 Days'],
+    ['thisMonth', 'This Month'],
+    ['lastMonth', 'Last Month'],
+    ['year', String(year)]
+  ];
+}
 
-  if (filterMode === 'timeline') {
-    const bounds = availabilityBounds();
-    if (!bounds.from || !bounds.to) return;
+function timelinePresetRange(key) {
+  const today = isoToday();
+  const thisMonth = monthStart(today).toISOString().slice(0,10);
+  const lastMonth = addMonths(monthStart(today), -1).toISOString().slice(0,10);
+  const year = new Date(today + 'T00:00:00Z').getUTCFullYear();
 
-    timelineRange = { from:bounds.from, to:bounds.to };
-    draftTimelineRange = { ...timelineRange };
-    calendarAnchor = null;
-    calendarCursor = monthStart(bounds.from);
-    try { localStorage.setItem('rwengine.timelineRange', JSON.stringify(timelineRange)); } catch (_) {}
-  } else {
-    const ids = sortedWars().map(war => String(warId(war))).filter(Boolean);
-    if (!ids.length) return;
-
-    selectedWarIds = new Set(ids);
-    draftWarIds = new Set(ids);
-    try { localStorage.setItem('rwengine.selectedWarIds', JSON.stringify(ids)); } catch (_) {}
+  let range = null;
+  if (key === 'all') range = { from:'2022-01-01', to:today };
+  if (key === 'today') range = { from:today, to:today };
+  if (key === 'yesterday') {
+    const day = addDays(today, -1);
+    range = { from:day, to:day };
   }
+  if (key === 'last7') range = { from:addDays(today, -6), to:today };
+  if (key === 'previous7') range = { from:addDays(today, -13), to:addDays(today, -7) };
+  if (key === 'last30') range = { from:addDays(today, -29), to:today };
+  if (key === 'thisMonth') range = { from:thisMonth, to:today };
+  if (key === 'lastMonth') range = { from:lastMonth, to:addDays(thisMonth, -1) };
+  if (key === 'year') range = { from:`${year}-01-01`, to:today };
+  if (!range) return null;
+
+  const bounds = availabilityBounds();
+  const from = bounds.from && range.from < bounds.from ? bounds.from : range.from;
+  const to = bounds.to && range.to > bounds.to ? bounds.to : range.to;
+  return from <= to ? { from, to } : null;
+}
+
+function timelinePresetKey(range) {
+  if (!range?.from || !range?.to) return '';
+  for (const [key] of timelinePresetOptions()) {
+    const candidate = timelinePresetRange(key);
+    if (candidate && candidate.from === range.from && candidate.to === range.to) return key;
+  }
+  return '';
+}
+
+async function applyTimelinePreset(key) {
+  const range = timelinePresetRange(key);
+  if (!range) return;
+
+  filterPanelOpen = false;
+  timelineRange = range;
+  draftTimelineRange = { ...range };
+  calendarAnchor = null;
+  calendarCursor = monthStart(range.from);
+  try { localStorage.setItem('rwengine.timelineRange', JSON.stringify(timelineRange)); } catch (_) {}
 
   loadedAnalysisKey = '';
   factionPerformance.loadedKey = '';
   factionPerformance.members.clear();
   renderFactionControls();
   await loadIntelV2(true);
-}
-
-function isAllTimelineSelected() {
-  const bounds = availabilityBounds();
-  return Boolean(
-    bounds.from && bounds.to &&
-    timelineRange.from === bounds.from &&
-    timelineRange.to === bounds.to
-  );
 }
 
 function areAllWarsSelected() {
