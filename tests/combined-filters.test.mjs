@@ -6,6 +6,7 @@ test('faction filters combine signals and member tags', () => {
   const source = readFileSync(new URL('../v2/intel-v2.js', import.meta.url), 'utf8');
 
   assert.match(source, /data-filter-clear>None<\/button>/);
+  assert.match(source, /class="intel-filter-controls"/);
   assert.match(source, /data-filter-menu-toggle/);
   assert.match(source, /Signals/);
   assert.match(source, /Tags/);
