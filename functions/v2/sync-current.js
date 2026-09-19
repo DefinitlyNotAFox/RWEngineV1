@@ -2,6 +2,7 @@ const TASK_BATCH_SIZE = 6;
 const REQUEST_INTERVAL_MS = 750;
 const LEASE_SECONDS = 180;
 const MANAGED_KEY_CONFIG = 'admin_managed_api_key_v1';
+const STORAGE_COMPACTION_KEY = 'sync_storage_compacted_v1';
 const CRON_RETRY_DELAY_SECONDS = 6 * 60 * 60;
 const CRON_MAX_ATTEMPTS_PER_DAY = 3;
 
@@ -17,11 +18,13 @@ export async function onRequest(context) {
 
     if (action === 'cronPlan' || action === 'cronStep') {
       requireCronSecret(env, request);
+      await compactLegacyStorage(env.DB);
       if (action === 'cronPlan') return cronPlan(env);
       return cronStep(env, body);
     }
 
     const user = await currentUser(env, request);
+    await compactLegacyStorage(env.DB);
     const factionId = await resolveFaction(env.DB, user, body.factionId);
 
     if (action === 'startSync') return startSync(env, user, factionId);
@@ -31,6 +34,29 @@ export async function onRequest(context) {
   } catch (error) {
     return respond({ success: false, message: error?.message || 'Faction sync failed.' }, error?.status || 500);
   }
+}
+
+async function compactLegacyStorage(db) {
+  const existing = await db.prepare(`SELECT value FROM app_meta WHERE key=?`)
+    .bind(STORAGE_COMPACTION_KEY).first();
+  if (String(existing?.value || '') === '1') return;
+
+  const now = unixNow();
+  await db.batch([
+    db.prepare(`UPDATE member_snapshots SET raw_json=NULL WHERE raw_json IS NOT NULL`),
+    db.prepare(`DELETE FROM faction_sync_tasks WHERE historical_timestamp IS NOT NULL`),
+    db.prepare(`UPDATE faction_sync_jobs SET seed_history=0 WHERE seed_history<>0`),
+    db.prepare(`
+      DELETE FROM faction_sync_tasks
+      WHERE job_id IN (
+        SELECT job_id FROM faction_sync_jobs WHERE status IN ('completed','failed')
+      )
+    `),
+    db.prepare(`
+      INSERT INTO app_meta (key,value,updated_at) VALUES (?, '1', ?)
+      ON CONFLICT(key) DO UPDATE SET value='1',updated_at=excluded.updated_at
+    `).bind(STORAGE_COMPACTION_KEY, now)
+  ]);
 }
 
 async function cronPlan(env) {

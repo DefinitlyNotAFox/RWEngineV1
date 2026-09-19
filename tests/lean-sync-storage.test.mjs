@@ -25,6 +25,11 @@ const syncAdapter = core.match(/export async function syncApi[\s\S]*?\n}/)?.[0] 
 assert.match(syncAdapter, /post\('\/v2\/sync-current'/, 'all frontend syncs must use the current-only collector');
 assert.doesNotMatch(syncAdapter, /adminApi\(/, 'admin syncs must not use the legacy duplicate collector');
 
+const currentCollector = await readFile(path.join(root, 'functions/v2/sync-current.js'), 'utf8');
+assert.match(currentCollector, /STORAGE_COMPACTION_KEY/, 'the live collector must run the one-time cleanup');
+assert.match(currentCollector, /UPDATE\s+member_snapshots\s+SET\s+raw_json\s*=\s*NULL/i);
+assert.match(currentCollector, /status\s+IN\s*\('completed',\s*'failed'\)/i);
+
 const migration = await readFile(path.join(root, 'migrations/009_compact_sync_storage.sql'), 'utf8');
 assert.match(migration, /SET\s+raw_json\s*=\s*NULL/i);
 assert.match(migration, /historical_timestamp\s+IS\s+NOT\s+NULL/i);
