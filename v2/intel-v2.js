@@ -75,6 +75,7 @@ let syncing = false;
 const AUTO_SYNC_INTERVAL_SECONDS = 24 * 60 * 60;
 let filterMode = restoreFactionMode();
 let timelineRange = { from:null, to:null };
+let timelinePresetSelection = restoreTimelinePresetSelection();
 let draftTimelineRange = null;
 let selectedWarIds = new Set();
 let draftWarIds = new Set();
@@ -605,7 +606,7 @@ function renderFactionControls() {
   const preset = document.querySelector('#factionScopePreset');
   if (preset) {
     const options = timelinePresetOptions();
-    const selected = timelinePresetKey(timelineRange);
+    const selected = timelinePresetSelection || timelinePresetKey(timelineRange);
     preset.innerHTML = options.map(([key,label]) =>
       `<option value="${escapeHtml(key)}"${key === selected ? ' selected' : ''}>${escapeHtml(label)}</option>`
     ).join('') + (selected ? '' : '<option value="custom" selected>Custom</option>');
@@ -1150,6 +1151,23 @@ function restoreFactionMode() {
   return 'timeline';
 }
 
+function restoreTimelinePresetSelection() {
+  try {
+    const stored = String(localStorage.getItem('rwengine.timelinePreset') || '');
+    return timelinePresetOptions().some(([key]) => key === stored) ? stored : '';
+  } catch (_) {
+    return '';
+  }
+}
+
+function storeTimelinePresetSelection(value) {
+  timelinePresetSelection = String(value || '');
+  try {
+    if (timelinePresetSelection) localStorage.setItem('rwengine.timelinePreset', timelinePresetSelection);
+    else localStorage.removeItem('rwengine.timelinePreset');
+  } catch (_) {}
+}
+
 function ensureFilterState() {
   const bounds = availabilityBounds();
 
@@ -1160,6 +1178,17 @@ function ensureFilterState() {
   if (bounds.from && timelineRange.from < bounds.from) timelineRange.from = bounds.from;
   if (bounds.to && timelineRange.to > bounds.to) timelineRange.to = bounds.to;
   if (timelineRange.from > timelineRange.to) timelineRange = defaultTimelineRange(bounds);
+
+  const selectedPresetRange = timelinePresetSelection
+    ? timelinePresetRange(timelinePresetSelection)
+    : null;
+  if (
+    !selectedPresetRange ||
+    selectedPresetRange.from !== timelineRange.from ||
+    selectedPresetRange.to !== timelineRange.to
+  ) {
+    timelinePresetSelection = timelinePresetKey(timelineRange);
+  }
 
   const validWarIds = new Set(sortedWars().map(war => String(warId(war))).filter(Boolean));
   selectedWarIds = new Set([...selectedWarIds].map(String).filter(id => validWarIds.has(id)));
@@ -1295,6 +1324,7 @@ async function applyTimelinePreset(key) {
 
   filterPanelOpen = false;
   timelineRange = range;
+  storeTimelinePresetSelection(key);
   draftTimelineRange = { ...range };
   calendarAnchor = null;
   calendarCursor = monthStart(range.from);
@@ -1315,6 +1345,7 @@ function areAllWarsSelected() {
 async function applyTimelineDraft() {
   if (!draftTimelineRange?.from || !draftTimelineRange?.to) return;
   timelineRange = { ...draftTimelineRange };
+  storeTimelinePresetSelection(timelinePresetKey(timelineRange));
   try { localStorage.setItem('rwengine.timelineRange', JSON.stringify(timelineRange)); } catch (_) {}
   filterPanelOpen = false;
   loadedAnalysisKey = '';
@@ -2429,6 +2460,7 @@ function resetIntelState() {
   trendMetric = 'activity';
 
   timelineRange = { from:null, to:null };
+  timelinePresetSelection = restoreTimelinePresetSelection();
   draftTimelineRange = null;
   selectedWarIds = new Set();
   draftWarIds = new Set();
