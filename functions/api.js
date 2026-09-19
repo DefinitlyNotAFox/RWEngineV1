@@ -59,6 +59,14 @@ export async function onRequest(context) {
       return await handleUpdateApiKey(env, request, body);
     }
 
+    if (action === "removeApiKey") {
+      return await handleRemoveApiKey(env, request);
+    }
+
+    if (action === "closeAccount") {
+      return await handleCloseAccount(env, request, body);
+    }
+
     if (action === "logout") {
       return await handleLogout(env, request);
     }
@@ -884,6 +892,78 @@ async function handleUpdateApiKey(env, request, body) {
     message:"Personal Torn API key verified and saved.",
     user:rowToPublicUser(roleAwareUser)
   });
+}
+
+async function handleRemoveApiKey(env, request) {
+  requireDb(env);
+
+  const userRow = await getCurrentUserPrivate(env, request);
+  const now = nowUnix();
+  await env.DB.prepare(`
+    UPDATE users
+    SET api_key_encrypted = NULL, api_key_iv = NULL, updated_at = ?
+    WHERE user_id = ?
+  `).bind(now, Number(userRow.user_id)).run();
+
+  const roleAwareUser = await attachStoredFactionRole(env.DB, {
+    ...userRow,
+    api_key_encrypted:null,
+    api_key_iv:null
+  });
+
+  return json({
+    success:true,
+    message:"Saved API key removed.",
+    user:rowToPublicUser(roleAwareUser)
+  });
+}
+
+async function handleCloseAccount(env, request, body) {
+  requireDb(env);
+  if (String(body.confirm || '') !== 'CLOSE') {
+    return json({ success:false, message:'Account closure was not confirmed.' }, 400);
+  }
+
+  const userRow = await getCurrentUserPrivate(env, request);
+  const userId = Number(userRow.user_id);
+  const now = nowUnix();
+  const closedPlayerId = closedAccountPlayerId(userId);
+
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(userId),
+    env.DB.prepare('DELETE FROM faction_user_roles WHERE user_id = ?').bind(userId),
+    env.DB.prepare('DELETE FROM share_links WHERE owner_user_id = ?').bind(userId),
+    env.DB.prepare('DELETE FROM resource_permissions WHERE owner_user_id = ?').bind(userId),
+    env.DB.prepare(`
+      UPDATE users
+      SET
+        player_id = ?,
+        player_name = 'Closed account',
+        faction_id = NULL,
+        faction_name = NULL,
+        password_salt = ?,
+        password_hash = ?,
+        api_key_encrypted = NULL,
+        api_key_iv = NULL,
+        is_admin = 0,
+        is_disabled = 1,
+        updated_at = ?,
+        last_login_at = NULL
+      WHERE user_id = ?
+    `).bind(
+      closedPlayerId,
+      randomBase64Url(24),
+      randomBase64Url(48),
+      now,
+      userId
+    )
+  ]);
+
+  return json(
+    { success:true, message:'Account closed.' },
+    200,
+    { 'Set-Cookie':clearSessionCookie() }
+  );
 }
 
 async function handleLogout(env, request) {
@@ -3825,6 +3905,14 @@ async function isMaintenanceMode(db) {
 
 function nowUnix() {
   return Math.floor(Date.now() / 1000);
+}
+
+export function closedAccountPlayerId(userId) {
+  const value = Number(userId);
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error('A valid user ID is required.');
+  }
+  return -value;
 }
 
 function randomBase64Url(byteLength) {

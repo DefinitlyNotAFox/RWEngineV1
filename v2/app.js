@@ -23,6 +23,7 @@ let maintenanceBusy = false;
 let personalApiKeyBusy = false;
 let factionRolesLoading = false;
 let factionRoleCandidates = [];
+let accountCloseBusy = false;
 
 init();
 
@@ -171,6 +172,8 @@ function bindApplication() {
 
   document.querySelector('#adminKeyForm')?.addEventListener('submit', saveAdminKey);
   document.querySelector('#personalApiKeyForm')?.addEventListener('submit', savePersonalApiKey);
+  document.querySelector('#personalApiKeyRemove')?.addEventListener('click', removePersonalApiKey);
+  document.querySelector('#closeAccountButton')?.addEventListener('click', closeAccount);
   document.querySelector('#adminClearKey')?.addEventListener('click', clearAdminKey);
   document.querySelector('#databaseCheck')?.addEventListener('click', checkDatabaseStatus);
   document.querySelector('#databaseApply')?.addEventListener('click', applyDatabaseMaintenance);
@@ -618,28 +621,12 @@ function setDatabaseButtons(disabled) {
 
 function renderIdentity() {
   const factionName = currentFactionName();
-  const factionId = currentFactionId();
   const userName = state.user?.playerName || 'Account';
-  const playerId = state.user?.playerId || '—';
 
   const factionButton = document.querySelector('#factionButton');
   const accountButton = document.querySelector('#accountButton');
   if (factionButton) factionButton.textContent = factionName;
   if (accountButton) accountButton.textContent = userName;
-
-  document.querySelector('#settingsPlayer').textContent = `${userName} [${playerId}]`;
-  document.querySelector('#settingsFaction').textContent = factionName || '—';
-  document.querySelector('#settingsFactionId').textContent = factionId || '—';
-  const actualRole = actualUserRole();
-  const viewRole = currentViewRole();
-  const roleElement = document.querySelector('#settingsRole');
-  if (roleElement) {
-    roleElement.textContent = isRolePreviewActive()
-      ? `${roleLabel(actualRole)} · viewing as ${roleLabel(viewRole)}`
-      : roleLabel(actualRole);
-    roleElement.dataset.role = viewRole;
-  }
-  document.querySelector('.settings-profile')?.classList.toggle('is-previewing', isRolePreviewActive());
 
   renderPersonalApiKeyStatus();
   renderSettingsPermissions();
@@ -649,11 +636,9 @@ function renderPersonalApiKeyStatus(message = '', error = false) {
   const status = document.querySelector('#personalApiKeyStatus');
   if (!status || personalApiKeyBusy && !message) return;
 
-  const summary = document.querySelector('#settingsApiSummary');
   const hasApiKey = Boolean(state.user?.hasApiKey);
-  const pending = personalApiKeyBusy && !error && /verifying|checking|saving/i.test(message);
-  const summaryState = pending ? 'pending' : hasApiKey ? 'ok' : 'missing';
-  const detailState = error ? 'error' : summaryState;
+  const pending = personalApiKeyBusy && !error && /verifying|checking|saving|removing/i.test(message);
+  const detailState = error ? 'error' : pending ? 'pending' : hasApiKey ? 'ok' : 'missing';
 
   status.textContent = message || (
     hasApiKey
@@ -663,10 +648,8 @@ function renderPersonalApiKeyStatus(message = '', error = false) {
   status.classList.toggle('error', Boolean(error));
   status.dataset.state = detailState;
 
-  if (summary) {
-    summary.textContent = pending ? 'Checking' : hasApiKey ? 'Verified' : 'Missing';
-    summary.dataset.state = summaryState;
-  }
+  const removeButton = document.querySelector('#personalApiKeyRemove');
+  if (removeButton) removeButton.disabled = personalApiKeyBusy || !hasApiKey;
 }
 
 function renderSettingsPermissions() {
@@ -788,8 +771,54 @@ async function savePersonalApiKey(event) {
 function setPersonalApiKeyBusy(busy) {
   const input = document.querySelector('#personalApiKey');
   const button = document.querySelector('#personalApiKeySave');
+  const removeButton = document.querySelector('#personalApiKeyRemove');
   if (input) input.disabled = busy;
   if (button) button.disabled = busy;
+  if (removeButton) removeButton.disabled = busy || !state.user?.hasApiKey;
+}
+
+async function removePersonalApiKey() {
+  if (personalApiKeyBusy || !state.user?.hasApiKey) return;
+  if (!window.confirm('Remove your saved Torn API key?')) return;
+
+  personalApiKeyBusy = true;
+  setPersonalApiKeyBusy(true);
+  renderPersonalApiKeyStatus('Removing saved key…');
+
+  try {
+    const result = await api('removeApiKey');
+    state.user = result.user;
+    renderIdentity();
+    renderPersonalApiKeyStatus(result.message || 'Saved API key removed.');
+  } catch (error) {
+    renderPersonalApiKeyStatus(error.message || 'Failed to remove the saved key.', true);
+  } finally {
+    personalApiKeyBusy = false;
+    setPersonalApiKeyBusy(false);
+  }
+}
+
+async function closeAccount() {
+  if (accountCloseBusy) return;
+  if (!window.confirm('Close your RWEngine account? This removes your login and saved API key and cannot be undone.')) return;
+
+  const button = document.querySelector('#closeAccountButton');
+  const status = document.querySelector('#closeAccountStatus');
+  const maintenanceActive = Boolean(state.maintenanceMode);
+  accountCloseBusy = true;
+  if (button) button.disabled = true;
+  if (status) status.textContent = 'Closing account…';
+
+  try {
+    await api('closeAccount', { confirm:'CLOSE' });
+    resetState();
+    if (maintenanceActive) showMaintenance();
+    else showAuth();
+  } catch (error) {
+    if (status) status.textContent = error.message || 'Failed to close the account.';
+    accountCloseBusy = false;
+    if (button) button.disabled = false;
+  }
 }
 
 async function loadFactionRoles() {
@@ -1167,6 +1196,7 @@ async function clearAdminKey() {
 }
 
 function resetState() {
+  accountCloseBusy = false;
   state.user = null;
   state.rolePreview = null;
   state.adminFactions = [];

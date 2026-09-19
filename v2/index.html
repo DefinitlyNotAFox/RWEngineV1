@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=85" />
+  <link rel="stylesheet" href="/v2/app.css?v=87" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -240,21 +240,9 @@
 
       <section id="settingsView" class="view" data-view="settings">
         <header class="view-head settings-page-head">
-          <div><p class="kicker">Account</p><h1>Settings</h1><p class="view-description">Account, Torn API access and administrative controls.</p></div>
+          <div><p class="kicker">Account</p><h1>Settings</h1><p class="view-description">Manage your account and access.</p></div>
           <button id="logoutButton" class="action" type="button">Log out</button>
         </header>
-
-        <section class="settings-profile" aria-labelledby="settingsProfileLabel">
-          <div class="settings-profile-primary">
-            <p id="settingsProfileLabel">Signed-in account</p>
-            <strong id="settingsPlayer">—</strong>
-            <span><b id="settingsFaction">—</b><small>Faction ID <span id="settingsFactionId">—</span></small></span>
-          </div>
-          <dl class="settings-profile-meta">
-            <div><dt>Effective role</dt><dd id="settingsRole" data-role="member">Member</dd></div>
-            <div><dt>Torn API</dt><dd id="settingsApiSummary" class="settings-api-state" data-state="pending">Checking</dd></div>
-          </dl>
-        </section>
 
         <div class="settings-columns">
           <div class="settings-main-column">
@@ -262,8 +250,8 @@
               <header class="settings-panel-head">
                 <p class="settings-panel-label">Personal</p>
                 <div>
-                  <h2>Personal API key</h2>
-                  <span>Replace your own key here. It is verified against your Torn player ID, encrypted, and never displayed after saving.</span>
+                  <h2>Torn API key</h2>
+                  <span>Add or replace the API key for your account.</span>
                 </div>
               </header>
               <div class="settings-panel-body">
@@ -273,7 +261,10 @@
                     <input id="personalApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Enter a new key" />
                   </label>
                   <button id="personalApiKeySave" class="action primary" type="submit">Verify &amp; save</button>
-                  <small id="personalApiKeyStatus" class="settings-inline-state" data-state="pending" role="status">Checking key status…</small>
+                  <div class="personal-api-footer">
+                    <small id="personalApiKeyStatus" class="settings-inline-state" data-state="pending" role="status">Checking key status…</small>
+                    <button id="personalApiKeyRemove" class="text-action" type="button">Remove saved key</button>
+                  </div>
                 </form>
               </div>
             </section>
@@ -282,8 +273,8 @@
               <header class="settings-panel-head">
                 <p class="settings-panel-label">Faction</p>
                 <div>
-                  <h2>Account roles</h2>
-                  <span>Only elevated roles are listed. Leader and Co-leader may manage Assistants; only the Leader may manage faction admins.</span>
+                  <h2>Member roles</h2>
+                  <span>Give trusted members additional access.</span>
                 </div>
               </header>
               <div class="settings-panel-body">
@@ -313,12 +304,26 @@
                 <p class="settings-panel-label">Reports</p>
                 <div>
                   <h2>Report visibility</h2>
-                  <span>Assistants and faction administrators control private, faction and public report access.</span>
+                  <span>Choose who can view each report.</span>
                 </div>
               </header>
               <div class="settings-panel-body">
                 <div id="accessList" class="access-list"></div>
                 <p id="accessStatus" class="status-line hidden"></p>
+              </div>
+            </section>
+
+            <section class="settings-panel account-close-section">
+              <header class="settings-panel-head">
+                <p class="settings-panel-label">Account</p>
+                <div>
+                  <h2>Close account</h2>
+                  <span>Permanently remove your login and saved API key.</span>
+                </div>
+              </header>
+              <div class="settings-panel-body">
+                <button id="closeAccountButton" class="action danger" type="button">Close account</button>
+                <small id="closeAccountStatus" class="settings-action-status" role="status"></small>
               </div>
             </section>
           </div>
@@ -329,7 +334,7 @@
                 <p class="settings-panel-label">Platform</p>
                 <div>
                   <h2>Site access</h2>
-                  <span>Maintenance mode limits RWEngine to administrators and temporarily blocks public reports.</span>
+                  <span>Temporarily limit the site to administrators.</span>
                 </div>
               </header>
               <div class="settings-panel-body">
@@ -345,15 +350,15 @@
                 <p class="settings-panel-label">Factions</p>
                 <div>
                   <h2>Tracked factions</h2>
-                  <span>Select a faction to inspect its sync state or replace its managed API key.</span>
+                  <span>Manage faction data and API keys.</span>
                 </div>
               </header>
               <div class="settings-panel-body">
                 <div id="adminFactionList" class="admin-faction-list"></div>
                 <form id="adminKeyForm" class="admin-key-form hidden">
                   <p id="adminKeyHeading"></p>
-                  <label><span>Managed Torn API key</span><input id="adminApiKey" type="password" autocomplete="off" /></label>
-                  <div><button class="action primary" type="submit">Save key</button><button id="adminClearKey" class="text-action" type="button">Remove managed key</button></div>
+                  <label><span>Faction API key</span><input id="adminApiKey" type="password" autocomplete="off" /></label>
+                  <div><button class="action primary" type="submit">Save key</button><button id="adminClearKey" class="text-action" type="button">Remove key</button></div>
                   <small id="adminKeyStatus"></small>
                 </form>
               </div>
@@ -363,14 +368,14 @@
               <header class="settings-panel-head">
                 <p class="settings-panel-label">Database</p>
                 <div>
-                  <h2>D1 diagnostics</h2>
-                  <span>Check analytics indexes and sampled query plans without running the heavy queries.</span>
+                  <h2>Database health</h2>
+                  <span>Check that the database is ready.</span>
                 </div>
               </header>
               <div class="settings-panel-body">
                 <div class="database-actions">
-                  <button id="databaseCheck" class="action" type="button">Check D1</button>
-                  <button id="databaseApply" class="action primary" type="button">Apply maintenance</button>
+                  <button id="databaseCheck" class="action" type="button">Check database</button>
+                  <button id="databaseApply" class="action primary" type="button">Apply fixes</button>
                 </div>
                 <p id="databaseStatus" class="status-line hidden"></p>
                 <div id="databaseDiagnostics" class="database-diagnostics hidden"></div>
@@ -382,6 +387,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=71"></script>
+  <script type="module" src="/v2/app.js?v=72"></script>
 </body>
 </html>

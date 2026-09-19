@@ -178,6 +178,17 @@ select:focus { border-color: var(--accent); }
   font-weight: 680;
 }
 
+.action.danger {
+  border-color: rgba(212, 141, 141, .55);
+  color: var(--danger);
+}
+
+.action.danger:hover {
+  border-color: var(--danger);
+  color: #e7b0b0;
+  background: rgba(212, 141, 141, .06);
+}
+
 .action.primary:hover {
   background: var(--accent-2);
   border-color: var(--accent-2);
@@ -7440,110 +7451,12 @@ body {
 
 /* Settings: flat account and permissions ledger. */
 #settingsView {
-  max-width: 1080px;
+  width: 100%;
+  max-width: none;
 }
 
 #settingsView .settings-page-head {
   margin-bottom: 18px;
-}
-
-.settings-profile {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(340px, .72fr);
-  align-items: stretch;
-  margin-bottom: 30px;
-  border-bottom: 1px solid var(--line);
-  background: var(--surface);
-}
-
-.settings-profile-primary {
-  min-width: 0;
-  padding: 18px 20px;
-}
-
-.settings-profile-primary > p {
-  margin: 0 0 5px;
-  color: var(--dim);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: .09em;
-  text-transform: uppercase;
-}
-
-.settings-profile-primary > strong {
-  display: block;
-  overflow: hidden;
-  font-size: 20px;
-  font-weight: 660;
-  letter-spacing: -.025em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.settings-profile-primary > span {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  min-width: 0;
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 10px;
-}
-
-.settings-profile-primary > span b {
-  overflow: hidden;
-  font-weight: 560;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.settings-profile-primary > span small {
-  flex: 0 0 auto;
-  color: var(--dim);
-  font-size: inherit;
-  font-variant-numeric: tabular-nums;
-}
-
-.settings-profile-meta {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  margin: 0;
-}
-
-.settings-profile-meta > div {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  justify-content: center;
-  padding: 16px 18px;
-}
-
-.settings-profile-meta dt {
-  color: var(--dim);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: .07em;
-  text-transform: uppercase;
-}
-
-.settings-profile-meta dd {
-  margin: 5px 0 0;
-  color: var(--text);
-  font-size: 11px;
-  font-weight: 620;
-}
-
-#settingsRole[data-role="platform_admin"],
-#settingsRole[data-role="faction_admin"] {
-  color: #d7c3aa;
-}
-
-#settingsRole[data-role="assistant"] {
-  color: #bcc8ce;
-}
-
-.settings-profile.is-previewing #settingsRole {
-  color: var(--warning);
 }
 
 .settings-columns {
@@ -7570,7 +7483,6 @@ body {
   border-left: 0;
 }
 
-.settings-api-state::before,
 .settings-inline-state::before {
   display: inline-block;
   width: 16px;
@@ -7579,21 +7491,17 @@ body {
   font-weight: 760;
 }
 
-.settings-api-state[data-state="ok"]::before,
 .settings-inline-state[data-state="ok"]::before {
   color: var(--success);
   content: "✓";
 }
 
-.settings-api-state[data-state="missing"]::before,
-.settings-api-state[data-state="error"]::before,
 .settings-inline-state[data-state="missing"]::before,
 .settings-inline-state[data-state="error"]::before {
   color: var(--danger);
   content: "×";
 }
 
-.settings-api-state[data-state="pending"]::before,
 .settings-inline-state[data-state="pending"]::before {
   color: var(--warning);
   content: "·";
@@ -7699,6 +7607,36 @@ body {
   min-height: 15px;
   margin-top: 1px;
   color: var(--dim);
+  font-size: 10px;
+}
+
+#settingsView .personal-api-footer {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+#settingsView .personal-api-footer small {
+  min-width: 0;
+}
+
+#settingsView #personalApiKeyRemove {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+#settingsView #personalApiKeyRemove:disabled {
+  color: var(--dim);
+}
+
+#settingsView .settings-action-status {
+  display: block;
+  min-height: 15px;
+  margin-top: 7px;
+  color: var(--danger);
   font-size: 10px;
 }
 
@@ -7918,15 +7856,6 @@ body {
 }
 
 @media (max-width: 760px) {
-  .settings-profile {
-    grid-template-columns: 1fr;
-  }
-
-  .settings-profile-meta {
-    border-top: 1px solid var(--line-soft);
-    border-left: 0;
-  }
-
   #settingsView .settings-panel-head {
     grid-template-columns: 1fr;
     gap: 5px;
@@ -7942,33 +7871,6 @@ body {
 }
 
 @media (max-width: 520px) {
-  .settings-profile-primary {
-    padding: 16px 14px;
-  }
-
-  .settings-profile-primary > strong {
-    font-size: 18px;
-  }
-
-  .settings-profile-primary > span {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .settings-profile-meta {
-    grid-template-columns: 1fr;
-  }
-
-  .settings-profile-meta > div {
-    padding: 12px 14px;
-  }
-
-  .settings-profile-meta > div + div {
-    border-top: 1px solid var(--line-soft);
-    border-left: 0;
-  }
-
   #settingsView .personal-api-form,
   #settingsView .admin-key-form {
     grid-template-columns: 1fr;

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { apiKeyBelongsToUser, isFactionLeader } from '../functions/api.js';
+import { apiKeyBelongsToUser, closedAccountPlayerId, isFactionLeader } from '../functions/api.js';
 import {
   factionLeadershipRole,
   resolveFactionPermissions
@@ -116,6 +116,11 @@ test('personal API replacement is bound to the logged-in player', () => {
   assert.equal(apiKeyBelongsToUser({}, { player_id:101 }), false);
 });
 
+test('closed accounts receive a non-Torn tombstone player ID', () => {
+  assert.equal(closedAccountPlayerId(42), -42);
+  assert.throws(() => closedAccountPlayerId(0), /valid user ID/);
+});
+
 test('the obsolete Workspace route is absent and Settings exposes personal API access', () => {
   const html = readFileSync(new URL('../v2/index.html', import.meta.url), 'utf8');
   const css = readFileSync(new URL('../v2/app.css', import.meta.url), 'utf8');
@@ -123,9 +128,11 @@ test('the obsolete Workspace route is absent and Settings exposes personal API a
   assert.doesNotMatch(html, /data-view=["']home["']/);
   assert.doesNotMatch(html, />Workspace</);
   assert.equal(new Set(ids).size, ids.length, 'HTML IDs must remain unique');
-  assert.match(html, /class="settings-profile"/);
-  assert.match(html, /id="settingsApiSummary"/);
+  assert.doesNotMatch(html, /class="settings-profile"/);
+  assert.doesNotMatch(html, /Signed-in account/);
   assert.match(html, /id="personalApiKeyForm"/);
+  assert.match(html, /id="personalApiKeyRemove"/);
+  assert.match(html, /id="closeAccountButton"/);
   assert.match(html, /id="factionRolesSection"/);
   assert.match(html, /class="settings-columns"/);
   assert.match(html, /id="factionRoleAddToggle"/);
