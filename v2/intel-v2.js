@@ -6,7 +6,6 @@ import {
 } from './core.js?v=3';
 
 const filters = [
-  ['all','All'],
   ['attention','Needs attention'],
   ['inactive','Inactive 48h+'],
   ['war','Low participation'],
@@ -61,7 +60,8 @@ const priority = [
 
 let overview = null;
 let loadedFactionId = null;
-let activeFilter = 'all';
+const activeFilters = new Set();
+let intelFilterMenuOpen = false;
 let showFormerMembers = restoreBooleanPreference('rwengine.showFormerMembers', false);
 let excludeMilestones = restoreBooleanPreference('rwengine.excludeMilestones', false);
 let selectedMemberId = null;
@@ -100,7 +100,6 @@ const noteSaving = new Set();
 const noteErrors = new Map();
 
 const WORKFLOW_TAGS = ['Recruits', 'Watchlist', 'Mentors', 'Needs Review'];
-let activeTagFilter = '';
 let tagManageMode = false;
 const selectedTagMemberIds = new Set();
 let tagDraft = '';
@@ -219,11 +218,46 @@ export function initIntelV2() {
   });
 
   document.querySelector('#intelFilters')?.addEventListener('click', event => {
-    const button = event.target.closest('[data-intel-filter]');
-    if (!button) return;
-    activeFilter = button.dataset.intelFilter || 'all';
+    const clear = event.target.closest('[data-filter-clear]');
+    if (clear) {
+      activeFilters.clear();
+      intelFilterMenuOpen = false;
+      selectedMemberId = null;
+      renderIntelV2();
+      return;
+    }
+
+    const toggle = event.target.closest('[data-filter-menu-toggle]');
+    if (toggle) {
+      intelFilterMenuOpen = !intelFilterMenuOpen;
+      renderFilters();
+      return;
+    }
+
+    const option = event.target.closest('[data-combined-filter]');
+    if (option) {
+      const key = String(option.dataset.combinedFilter || '');
+      if (!key) return;
+      if (activeFilters.has(key)) activeFilters.delete(key);
+      else activeFilters.add(key);
+      selectedMemberId = null;
+      renderIntelV2();
+      return;
+    }
+
+    const remove = event.target.closest('[data-filter-remove]');
+    if (remove) {
+      activeFilters.delete(String(remove.dataset.filterRemove || ''));
+      selectedMemberId = null;
+      renderIntelV2();
+    }
+  });
+
+  document.addEventListener('pointerdown', event => {
+    if (!intelFilterMenuOpen) return;
+    if (event.target.closest('#intelFilters')) return;
+    intelFilterMenuOpen = false;
     renderFilters();
-    renderIntelV2();
   });
 
   document.querySelector('#intelViewOptions')?.addEventListener('click', event => {
@@ -254,14 +288,6 @@ export function initIntelV2() {
     }
 
     renderFilters();
-    renderIntelV2();
-  });
-
-  document.querySelector('#intelViewOptions')?.addEventListener('change', event => {
-    const select = event.target.closest('[data-tag-filter]');
-    if (!select) return;
-    activeTagFilter = String(select.value || '');
-    selectedMemberId = null;
     renderIntelV2();
   });
 
@@ -488,26 +514,73 @@ function renderFilters() {
   const options = document.querySelector('#intelViewOptions');
 
   if (container) {
-    container.innerHTML = filters.map(([key,label]) =>
-      `<button class="intel2-filter${key === activeFilter ? ' active' : ''}" type="button" data-intel-filter="${key}">${label}</button>`
-    ).join('');
+    const activeCount = activeFilters.size;
+    const tagOptions = workflowTagOptions();
+    const chips = [...activeFilters]
+      .map(key => ({ key, label:combinedFilterLabel(key) }))
+      .filter(item => item.label);
+
+    container.innerHTML = `
+      <button class="intel2-filter intel-filter-none${activeCount === 0 ? ' active' : ''}" type="button" data-filter-clear>None</button>
+      <span class="intel-filter-menu-wrap">
+        <button class="intel2-filter intel-filter-menu-toggle${intelFilterMenuOpen || activeCount ? ' active' : ''}" type="button" data-filter-menu-toggle aria-expanded="${intelFilterMenuOpen ? 'true' : 'false'}">
+          Filters${activeCount ? ` (${activeCount})` : ''}<span aria-hidden="true">▾</span>
+        </button>
+        <span class="intel-filter-menu${intelFilterMenuOpen ? '' : ' hidden'}">
+          <span class="intel-filter-menu-section">
+            <strong>Signals</strong>
+            ${filters.map(([key,label]) => renderCombinedFilterOption(`signal:${key}`, label)).join('')}
+          </span>
+          <span class="intel-filter-menu-section">
+            <strong>Tags</strong>
+            ${tagOptions.length
+              ? tagOptions.map(tag => renderCombinedFilterOption(`tag:${tag.key}`, tag.label, tag.count)).join('')
+              : '<span class="intel-filter-menu-empty">No tags yet</span>'}
+          </span>
+        </span>
+      </span>
+      <span class="intel-filter-chips">
+        ${chips.map(item => `
+          <button class="intel-filter-chip" type="button" data-filter-remove="${escapeHtml(item.key)}">
+            ${escapeHtml(item.label)}<span aria-hidden="true">×</span>
+          </button>
+        `).join('')}
+      </span>
+    `;
   }
 
   if (options) {
-    const tagOptions = workflowTagOptions();
     options.innerHTML = `
-      <label class="intel-tag-filter-control">
-        <span>Tags</span>
-        <select data-tag-filter aria-label="Filter members by tag">
-          <option value="">All tags</option>
-          ${tagOptions.map(tag => `<option value="${escapeHtml(tag.key)}"${tag.key === activeTagFilter ? ' selected' : ''}>${escapeHtml(tag.label)} · ${formatNumber(tag.count)}</option>`).join('')}
-        </select>
-      </label>
       ${canManageTags() ? `<button class="intel2-filter intel2-option intel-tag-manage${tagManageMode ? ' active' : ''}" type="button" data-tag-manage>${tagManageMode ? 'Done tagging' : 'Manage tags'}</button>` : ''}
       <button class="intel2-filter intel2-option${showFormerMembers ? ' active' : ''}" type="button" data-intel-option="former">Show former members</button>
       <button class="intel2-filter intel2-option${excludeMilestones ? ' active' : ''}" type="button" data-intel-option="milestones">Exclude milestones</button>
     `;
   }
+}
+
+function renderCombinedFilterOption(key, label, count = null) {
+  const active = activeFilters.has(key);
+  return `
+    <button class="intel-filter-menu-option${active ? ' active' : ''}" type="button" data-combined-filter="${escapeHtml(key)}" aria-pressed="${active ? 'true' : 'false'}">
+      <span class="intel-filter-check" aria-hidden="true">${active ? '✓' : ''}</span>
+      <span>${escapeHtml(label)}</span>
+      ${count === null ? '' : `<small>${formatNumber(count)}</small>`}
+    </button>
+  `;
+}
+
+function combinedFilterLabel(key) {
+  if (String(key).startsWith('signal:')) {
+    const signalKey = String(key).slice(7);
+    return filters.find(([candidate]) => candidate === signalKey)?.[1] || signalKey;
+  }
+
+  if (String(key).startsWith('tag:')) {
+    const tagKeyValue = String(key).slice(4);
+    return workflowTagOptions().find(tag => tag.key === tagKeyValue)?.label || tagKeyValue;
+  }
+
+  return String(key || '');
 }
 
 function renderFactionControls() {
@@ -602,7 +675,6 @@ function renderIntelV2() {
 
   const rows = members
     .filter(matchesFilter)
-    .filter(matchesTagFilter)
     .filter(member =>
       !query ||
       String(member.playerName || '').toLowerCase().includes(query) ||
@@ -881,31 +953,55 @@ function renderFactionCell(member, key) {
   return `<div role="cell" class="faction-grid-cell col-${key}"></div>`;
 }
 
-function matchesTagFilter(member) {
-  if (!activeTagFilter) return true;
-  return normalizeMemberNotes(member?.notes).tags.some(tag => tagKey(tag) === activeTagFilter);
-}
-
 function matchesFilter(member) {
+  const memberVisible = member.current !== false || showFormerMembers;
+  if (!memberVisible) return false;
+  if (!activeFilters.size) return true;
+
   const insights = Array.isArray(member.insights) ? member.insights : [];
   const codes = new Set(insights.map(item => item.code));
-  const memberVisible = member.current !== false || showFormerMembers;
+  const memberTags = new Set(normalizeMemberNotes(member?.notes).tags.map(tagKey));
 
-  if (!memberVisible) return false;
-  if (activeFilter === 'all') return true;
-  if (activeFilter === 'attention') return topSignal(member)?.kind === 'attention';
-  if (activeFilter === 'inactive') return codes.has('inactive');
-  if (activeFilter === 'war') {
-    if (!factionPerformance.loadedKey || factionPerformance.totalWars <= 0) return false;
-    const performance = performanceMember(member);
-    return Boolean(
-      performance &&
-      Number.isFinite(Number(performance.participation)) &&
-      Number(performance.participation) < 0.5
-    );
+  for (const filterKey of activeFilters) {
+    if (filterKey.startsWith('tag:')) {
+      if (!memberTags.has(filterKey.slice(4))) return false;
+      continue;
+    }
+
+    if (!filterKey.startsWith('signal:')) continue;
+    const signal = filterKey.slice(7);
+
+    if (signal === 'attention') {
+      if (topSignal(member)?.kind !== 'attention') return false;
+      continue;
+    }
+
+    if (signal === 'inactive') {
+      if (!codes.has('inactive')) return false;
+      continue;
+    }
+
+    if (signal === 'war') {
+      if (!factionPerformance.loadedKey || factionPerformance.totalWars <= 0) return false;
+      const performance = performanceMember(member);
+      if (!(
+        performance &&
+        Number.isFinite(Number(performance.participation)) &&
+        Number(performance.participation) < 0.5
+      )) return false;
+      continue;
+    }
+
+    if (signal === 'decline') {
+      if (!(codes.has('activity_down') || codes.has('xanax_down'))) return false;
+      continue;
+    }
+
+    if (signal === 'stats') {
+      if (!(codes.has('missing_battle_stats') || codes.has('stale_battle_stats'))) return false;
+    }
   }
-  if (activeFilter === 'decline') return codes.has('activity_down') || codes.has('xanax_down');
-  if (activeFilter === 'stats') return codes.has('missing_battle_stats') || codes.has('stale_battle_stats');
+
   return true;
 }
 
@@ -2287,7 +2383,8 @@ function resetIntelState() {
   noteSaving.clear();
   noteErrors.clear();
   syncJob = null;
-  activeFilter = 'all';
+  activeFilters.clear();
+  intelFilterMenuOpen = false;
   trendDays = 90;
   trendMetric = 'activity';
 
@@ -2309,7 +2406,6 @@ function resetIntelState() {
   const search = document.querySelector('#intelSearch');
   if (search) search.value = '';
 
-  activeTagFilter = '';
   tagManageMode = false;
   selectedTagMemberIds.clear();
   tagDraft = '';
