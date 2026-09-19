@@ -8256,3 +8256,97 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Two-level faction controls: mode headers align with Filters; selections sit directly below. */
+@media (min-width: 1051px) {
+  .faction-modebar {
+    display: grid;
+    grid-template-columns: max-content minmax(36px, 1fr) max-content max-content 225px;
+    grid-template-rows: auto 32px;
+    column-gap: 14px;
+    row-gap: 4px;
+    align-items: end;
+    padding-top: 2px;
+  }
+
+  .faction-modebar > .faction-modes {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: end;
+    gap: 12px;
+    margin: 0;
+  }
+
+  .faction-modebar > .faction-modes button {
+    min-height: 18px;
+    padding: 0 0 4px;
+    line-height: 1.2;
+  }
+
+  .faction-modebar > .faction-control-row {
+    display: contents;
+  }
+
+  .faction-modebar .faction-control-row > .faction-scope-row {
+    grid-column: 1;
+    grid-row: 2;
+    min-height: 32px;
+    height: 32px;
+    align-self: stretch;
+  }
+
+  .faction-modebar .faction-control-row > .intel-filter-block {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    display: grid;
+    grid-template-rows: auto 32px;
+    gap: 4px;
+    align-self: stretch;
+  }
+
+  .faction-modebar .faction-control-row .intel-filter-label {
+    align-self: end;
+    margin: 0;
+    line-height: 1.2;
+  }
+
+  .faction-modebar .faction-control-row .intel2-filters {
+    min-height: 32px;
+    height: 32px;
+    align-self: stretch;
+  }
+
+  .faction-modebar .faction-control-row > .intel-filter-options {
+    grid-column: 4;
+    grid-row: 2;
+    min-height: 32px;
+    height: 32px;
+    align-self: stretch;
+  }
+
+  .faction-modebar .faction-control-row > .search {
+    grid-column: 5;
+    grid-row: 2;
+    width: 225px;
+    height: 32px;
+    align-self: stretch;
+  }
+}
+
+@media (max-width: 1050px) {
+  .faction-modebar {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+  }
+
+  .faction-modebar > .faction-modes,
+  .faction-modebar > .faction-control-row {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .faction-modebar > .faction-modes {
+    margin-bottom: 0;
+  }
+}
