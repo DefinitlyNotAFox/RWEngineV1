@@ -1745,14 +1745,14 @@ function canManageTags() {
 
 function ensureTagToolbar() {
   if (document.querySelector('#intelTagToolbar')) return;
-  const grid = document.querySelector('#intelView .faction-grid-wrap');
-  if (!grid?.parentNode) return;
+  const statusStack = document.querySelector('#factionStatusStack');
+  if (!statusStack) return;
 
   const toolbar = document.createElement('section');
   toolbar.id = 'intelTagToolbar';
   toolbar.className = 'intel-tag-toolbar hidden';
   toolbar.setAttribute('aria-label', 'Member tag tools');
-  grid.parentNode.insertBefore(toolbar, grid);
+  statusStack.appendChild(toolbar);
 }
 
 function renderTagToolbar() {
