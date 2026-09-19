@@ -1,6 +1,6 @@
 import {
   state, on, emit, post,
-  performanceApi, warDetailApi, attackDetailApi, shareApi, importApi,
+  performanceApi, warDetailApi, attackDetailApi, shareApi, importApi, warImportJobApi,
   periodPayload, currentFactionId,
   canEditFactionView, renderLeadershipMarker,
   metric, formatNumber, formatDecimal, formatSigned, formatPercent,
@@ -12,6 +12,9 @@ const DETAIL_STEP_DELAY = 1200;
 const IMPORT_COOLDOWN = 30000;
 const ATTACK_STEP_LIMIT = 300;
 const DETAIL_STEP_LIMIT = 20;
+const IMPORT_JOB_POLL_MS = 2500;
+let importPollTimer = null;
+let importPollIds = [];
 
 const performance = {
   members: [],
@@ -89,7 +92,10 @@ export function initWarViews() {
 
   on('route', route => {
     if (route === 'war') renderWarOverview();
-    if (route === 'archive') renderArchive();
+    if (route === 'archive') {
+      renderArchive();
+      resumeBackgroundImports();
+    }
     if (route === 'performance') loadPerformance(false);
   });
 
@@ -356,17 +362,26 @@ function archiveVisibilityLabel(value) {
 function archiveWarStatus(war) {
   const status = String(war.chain_adjustment_status || '').toLowerCase();
   const message = String(war.chain_adjustment_message || '').trim();
+  const attackDetailComplete = Number(
+    war.attack_detail_complete ?? war.attackDetailComplete ?? 0
+  ) === 1;
 
   if (status === 'failed' || status === 'error') {
-    return { label:'Needs attention', detail:message || 'Chain adjustment failed' };
+    return { label:'Needs attention', detail:message || 'Chain processing failed' };
+  }
+  if (!attackDetailComplete) {
+    return { label:'Incomplete', detail:'Attack verification not complete' };
   }
   if (status === 'pending' || status === 'queued' || status === 'running') {
-    return { label:'Processing', detail:'Chain adjustment' };
+    return { label:'Processing', detail:'Chain processing' };
   }
-  if (war.chain_adjusted_at || status === 'complete' || status === 'completed' || status === 'done') {
+  if (
+    war.chain_adjusted_at ||
+    ['applied','skipped','complete','completed','done'].includes(status)
+  ) {
     return { label:'Ready', detail:'War + chain data' };
   }
-  return { label:'Imported', detail:'War data available' };
+  return { label:'Imported', detail:'Chain data not checked' };
 }
 
 export async function loadPerformance(force = false) {
@@ -941,99 +956,138 @@ async function handleImport(event) {
   const button = event.currentTarget.querySelector('button[type="submit"]');
   if (button) {
     button.disabled = true;
-    button.textContent = 'Importing…';
+    button.textContent = 'Starting…';
   }
 
-  const rows = ids.map(id => ({ id, state:'', label:'Queued', message:'Waiting.' }));
-  renderImportRows(rows);
+  renderImportRows(ids.map(id => ({
+    id,
+    state:'',
+    label:'Queued',
+    message:'Starting background import.'
+  })));
 
   try {
-    for (let index = 0; index < ids.length; index += 1) {
-      const id = ids[index];
-      let usedApi = false;
-      let phase = 'Checking';
-
-      updateImportRow(rows,id,'','Checking','Checking existing data.');
-      try {
-        const status = await importApi('checkImportStatus', { rankId:id });
-        if (status.exists && !overwrite) {
-          const existingWar = status.war || {};
-          const detailComplete = Number(
-            existingWar.attack_detail_complete ?? existingWar.attackDetailComplete ?? 0
-          ) === 1;
-
-          if (detailComplete) {
-            updateImportRow(rows,id,'','Skipped','Already imported.');
-            continue;
-          }
-
-          const existingWarId = String(existingWar.war_id || existingWar.warId || id);
-          usedApi = true;
-          phase = 'Attack verification';
-          updateImportRow(rows,id,'','Resume','Resuming incomplete attack verification.');
-          const verified = await importAttackDetail(existingWarId, id, rows);
-          updateImportRow(
-            rows,id,'','Complete',
-            `${formatNumber(verified.processedTotal ?? verified.storedTotal ?? 0)} attacks · ${formatNumber(verified.assists || 0)} assists · metrics saved.`
-          );
-          continue;
-        }
-
-        phase = 'Import';
-        updateImportRow(rows,id,'','Importing','Reading ranked-war report.');
-        const imported = await importApi('importRankedWarReport', { rankId:id, overwrite });
-        usedApi = true;
-
-        if (imported.skipped) {
-          updateImportRow(rows,id,'','Skipped', imported.message || 'Already imported.');
-          continue;
-        }
-
-        const warId = String(imported.war?.warId || imported.war?.war_id || id);
-        phase = 'Attack verification';
-        updateImportRow(rows,id,'','Verify','Importing and verifying attack detail.');
-        const verified = await importAttackDetail(warId, id, rows);
-
-        updateImportRow(
-          rows,id,'','Complete',
-          `${formatNumber(verified.processedTotal ?? verified.storedTotal ?? 0)} attacks · ${formatNumber(verified.assists || 0)} assists · metrics saved.`
-        );
-      } catch (error) {
-        const message = error.message || String(error);
-        const permissionLimited =
-          /faction api permission/i.test(message) ||
-          /incorrect id-entity relation/i.test(message);
-
-        if (usedApi && permissionLimited) {
-          updateImportRow(
-            rows,
-            id,
-            'warning',
-            'Imported',
-            'War report imported. Attack details unavailable: the configured API key needs faction API access.'
-          );
-        } else if (usedApi) {
-          updateImportRow(rows,id,'warning','Imported',`${phase} incomplete: ${message}`);
-        } else {
-          updateImportRow(rows,id,'error','Failed',message);
-        }
-      }
-
-      if (usedApi && index < ids.length - 1) {
-        for (let remaining = Math.ceil(IMPORT_COOLDOWN/1000); remaining > 0; remaining--) {
-          updateImportRow(rows,id,'','Complete',`Waiting ${remaining}s before the next report.`);
-          await sleep(1000);
-        }
-      }
-    }
-
-    emit('request-refresh', { source:'import' });
+    const result = await warImportJobApi('startBatch', {
+      rankIds:ids,
+      overwrite
+    });
+    const jobs = Array.isArray(result.jobs) ? result.jobs : [];
+    renderImportJobRows(jobs);
+    startImportPolling(ids);
+  } catch (error) {
+    renderImportRows(ids.map(id => ({
+      id,
+      state:'error',
+      label:'Failed',
+      message:error.message || 'Failed to start background import.'
+    })));
   } finally {
     if (button) {
       button.disabled = false;
       button.textContent = 'Import';
     }
   }
+}
+
+function startImportPolling(ids) {
+  importPollIds = [...new Set((ids || []).map(String).filter(Boolean))];
+  if (!importPollIds.length) return;
+  if (importPollTimer) clearTimeout(importPollTimer);
+  pollImportJobs();
+}
+
+async function pollImportJobs() {
+  if (!importPollIds.length) return;
+
+  try {
+    const result = await warImportJobApi('status', { rankIds:importPollIds });
+    const jobs = Array.isArray(result.jobs) ? result.jobs : [];
+    renderImportJobRows(jobs);
+
+    const active = jobs.some(job => ['queued','running'].includes(String(job.status || '')));
+    if (!active) {
+      importPollIds = [];
+      importPollTimer = null;
+      emit('request-refresh', { source:'background-import' });
+      return;
+    }
+  } catch (error) {
+    renderImportRows(importPollIds.map(id => ({
+      id,
+      state:'warning',
+      label:'Background',
+      message:error.message || 'Import is still running, but status could not be refreshed.'
+    })));
+  }
+
+  importPollTimer = window.setTimeout(pollImportJobs, IMPORT_JOB_POLL_MS);
+}
+
+async function resumeBackgroundImports() {
+  try {
+    const result = await warImportJobApi('status');
+    const jobs = Array.isArray(result.jobs) ? result.jobs : [];
+    const active = jobs.filter(job => ['queued','running'].includes(String(job.status || '')));
+
+    if (active.length) {
+      renderImportJobRows(active);
+      startImportPolling(active.map(job => job.rankId));
+      return;
+    }
+
+    const recentFinished = jobs.some(job =>
+      ['completed','failed','stalled'].includes(String(job.status || '')) &&
+      Number(job.updatedAt || 0) > Math.floor(Date.now() / 1000) - 600
+    );
+    if (recentFinished) emit('request-refresh', { source:'background-import-resume' });
+  } catch (_) {}
+}
+
+function renderImportJobRows(jobs) {
+  if (!jobs.length) return;
+  renderImportRows(jobs.map(job => {
+    const status = String(job.status || 'queued');
+    const phase = String(job.phase || 'queued');
+
+    if (status === 'completed') {
+      return {
+        id:job.rankId,
+        state:'',
+        label:'Complete',
+        message:job.message || 'Import complete.'
+      };
+    }
+    if (status === 'failed') {
+      return {
+        id:job.rankId,
+        state:'error',
+        label:'Failed',
+        message:job.message || 'Background import failed.'
+      };
+    }
+    if (status === 'stalled') {
+      return {
+        id:job.rankId,
+        state:'warning',
+        label:'Incomplete',
+        message:job.message || 'Import did not finish.'
+      };
+    }
+
+    const labels = {
+      queued:'Queued',
+      checking:'Checking',
+      report:'War report',
+      verification:'Verifying',
+      chain:'Chain report'
+    };
+    return {
+      id:job.rankId,
+      state:'',
+      label:labels[phase] || 'Background',
+      message:job.message || 'Import running in background.'
+    };
+  }));
 }
 
 async function importAttackSummary(warId, reportId, rows) {
