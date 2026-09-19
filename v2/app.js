@@ -856,9 +856,9 @@ const AUTO_TAG_SETTING_ROWS = [
     group:'War',
     title:'Low war hits / war',
     thresholds:[
-      ['red','Red','<','negative red',1],
+      ['yellow','Yellow','<','negative yellow',1],
       ['orange','Orange','<','negative orange',1],
-      ['yellow','Yellow','<','negative yellow',1]
+      ['red','Red','<','negative red',1]
     ]
   },
   {
@@ -884,9 +884,9 @@ const AUTO_TAG_SETTING_ROWS = [
     group:'War',
     title:'Respect / hit',
     thresholds:[
-      ['red','Red','<','negative red',0.1],
-      ['orange','Orange','<','negative orange',0.1],
       ['yellow','Yellow','<','negative yellow',0.1],
+      ['orange','Orange','<','negative orange',0.1],
+      ['red','Red','<','negative red',0.1],
       ['minimumHits','Min. hits','≥','neutral',1]
     ]
   },
@@ -905,9 +905,9 @@ const AUTO_TAG_SETTING_ROWS = [
     group:'Training',
     title:'Training E / day',
     thresholds:[
-      ['red','Red','<','negative red',1],
-      ['orange','Orange','<','negative orange',1],
       ['yellow','Yellow','<','negative yellow',1],
+      ['orange','Orange','<','negative orange',1],
+      ['red','Red','<','negative red',1],
       ['teal','Teal','≥','positive teal',1],
       ['green','Green','≥','positive green',1],
       ['bright','Bright green','≥','positive bright',1]
@@ -964,32 +964,47 @@ function renderAutoTagSettings(settings) {
       : '';
     previousGroup = row.group;
 
+    const hasPositive = row.thresholds.some(([, , , tone]) => String(tone).includes('positive'));
+    const hasNegative = row.thresholds.some(([, , , tone]) => String(tone).includes('negative'));
+    const lanes = hasPositive && hasNegative
+      ? [
+          row.thresholds.filter(([, , , tone]) => !String(tone).includes('positive')),
+          row.thresholds.filter(([, , , tone]) => String(tone).includes('positive'))
+        ]
+      : [row.thresholds];
+
+    const renderThreshold = ([field,label,operator,tone,step,suffix = '']) => `
+      <label class="auto-tag-threshold ${escapeHtml(tone)}">
+        <span>${escapeHtml(label)} <b>${escapeHtml(operator)}</b></span>
+        <span class="auto-tag-threshold-input">
+          <input
+            type="number"
+            min="0"
+            max="100000"
+            step="${escapeHtml(step)}"
+            value="${escapeHtml(config[field] ?? '')}"
+            data-auto-tag-field="${escapeHtml(field)}"
+            aria-label="${escapeHtml(row.title + ' ' + label)}"
+          />
+          ${suffix ? `<em>${escapeHtml(suffix)}</em>` : ''}
+        </span>
+      </label>
+    `;
+
     return `
       ${groupHeading}
-      <section class="auto-tag-setting-row${enabled ? '' : ' disabled'}" data-auto-tag-family="${escapeHtml(row.key)}">
+      <section class="auto-tag-setting-row${enabled ? '' : ' disabled'}${lanes.length > 1 ? ' split' : ''}" data-auto-tag-family="${escapeHtml(row.key)}">
         <div class="auto-tag-setting-info">
           <label class="auto-tag-setting-toggle">
             <input type="checkbox" data-auto-tag-enabled="${escapeHtml(row.key)}"${enabled ? ' checked' : ''} />
             <span>${escapeHtml(row.title)}</span>
           </label>
         </div>
-        <div class="auto-tag-thresholds">
-          ${row.thresholds.map(([field,label,operator,tone,step,suffix = '']) => `
-            <label class="auto-tag-threshold ${escapeHtml(tone)}">
-              <span>${escapeHtml(label)} <b>${escapeHtml(operator)}</b></span>
-              <span class="auto-tag-threshold-input">
-                <input
-                  type="number"
-                  min="0"
-                  max="100000"
-                  step="${escapeHtml(step)}"
-                  value="${escapeHtml(config[field] ?? '')}"
-                  data-auto-tag-field="${escapeHtml(field)}"
-                  aria-label="${escapeHtml(row.title + ' ' + label)}"
-                />
-                ${suffix ? `<em>${escapeHtml(suffix)}</em>` : ''}
-              </span>
-            </label>
+        <div class="auto-tag-threshold-lanes">
+          ${lanes.map(thresholds => `
+            <div class="auto-tag-thresholds">
+              ${thresholds.map(renderThreshold).join('')}
+            </div>
           `).join('')}
         </div>
       </section>
