@@ -87,3 +87,18 @@ test('disabled tag families do not apply', () => {
 
   assert.equal(tags.some(tag => tag.code === 'auto_assists'), false);
 });
+
+
+test('Intel applies automatic tags with faction settings and tier styling', () => {
+  const intel = readFileSync(new URL('../v2/intel-v2.js', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../v2/app.css', import.meta.url), 'utf8');
+
+  assert.match(intel, /autoTagsApi\('get'\)/);
+  assert.match(intel, /buildAutoTags\(/);
+  assert.match(intel, /Automatic tags ·/);
+  assert.match(intel, /renderTraitGroup\('positive'[\s\S]*renderTraitGroup\('attention'/);
+  assert.match(intel, /auto-tag tier-/);
+  assert.match(css, /intel2-trait\.auto-tag\.tier-yellow/);
+  assert.match(css, /intel2-trait\.auto-tag\.tier-red/);
+  assert.match(css, /intel2-trait\.auto-tag\.tier-bright/);
+});
