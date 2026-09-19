@@ -45,6 +45,9 @@ for (const member of intelFixture.members) {
 const former = intelFixture.members.filter(member => member.current === false);
 assert(former.length > 0);
 
+assert.equal(intelFixture.members.filter(member => member.leadershipRole === 'leader').length, 1);
+assert.equal(intelFixture.members.filter(member => member.leadershipRole === 'co_leader').length, 1);
+
 const withAttention = intelFixture.members.filter(member =>
   member.insights.some(insight => insight.kind === 'attention')
 );

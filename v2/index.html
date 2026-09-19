@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=80" />
+  <link rel="stylesheet" href="/v2/app.css?v=81" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -73,6 +73,10 @@
         </nav>
 
         <div class="app-context">
+          <label id="rolePreviewWrap" class="context-select role-preview hidden" title="Preview the interface only; your real account authority is unchanged.">
+            <span>View as</span>
+            <select id="rolePreviewSelect" aria-label="Preview site as role"></select>
+          </label>
           <label id="adminFactionWrap" class="context-select hidden">
             <span>Faction</span>
             <select id="adminFactionSelect"></select>
@@ -317,6 +321,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=66"></script>
+  <script type="module" src="/v2/app.js?v=67"></script>
 </body>
 </html>

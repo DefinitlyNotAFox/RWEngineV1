@@ -1,4 +1,8 @@
 import { buildIntelInsights } from './intel-insights.js';
+import {
+  factionLeadershipRole,
+  loadFactionLeadership
+} from './faction-leadership.js';
 
 const DAY = 86400;
 const MONTH_DAYS = 30.44;
@@ -63,6 +67,7 @@ async function buildOverview(db, factionId, body = {}, permissions = {}) {
   const wars = await loadRecentWars(db, factionId, 8);
   const warMetrics = await loadWarMetrics(db, factionId, wars.map(war => war.warId));
   const notes = await loadFactionMemberNotes(db, factionId);
+  const leadership = await loadFactionLeadership(db, factionId);
 
   const snapshotsByPlayer = groupBy(snapshots, row => Number(row.player_id));
   const warByPlayer = groupBy(warMetrics, row => Number(row.playerId));
@@ -75,7 +80,8 @@ async function buildOverview(db, factionId, body = {}, permissions = {}) {
     wars,
     now,
     range,
-    note:notesByPlayer.get(Number(row.player_id)) || null
+    note:notesByPlayer.get(Number(row.player_id)) || null,
+    leadership
   }));
 
   const medianHits = median(
@@ -100,7 +106,10 @@ async function buildOverview(db, factionId, body = {}, permissions = {}) {
   return {
     success:true,
     generatedAt:now,
-    faction:await loadFaction(db, factionId),
+    faction:{
+      ...await loadFaction(db, factionId),
+      leadership
+    },
     freshness:buildFreshnessFromBounds(snapshotBounds, now),
     availability:{
       from:snapshotBounds.firstAt ? utcDate(snapshotBounds.firstAt) : null,
@@ -148,6 +157,7 @@ async function buildMemberDetail(db, factionId, playerId, permissions = {}) {
   const wars = await loadRecentWars(db, factionId, 8);
   const warMetrics = await loadWarMetrics(db, factionId, wars.map(war => war.warId), playerId);
   const note = await loadMemberNote(db, factionId, playerId);
+  const leadership = await loadFactionLeadership(db, factionId);
 
   const member = buildMemberOverview({
     row,
@@ -155,7 +165,8 @@ async function buildMemberDetail(db, factionId, playerId, permissions = {}) {
     warRows:warMetrics,
     wars,
     now,
-    note
+    note,
+    leadership
   });
 
   const overview = await buildOverviewContextForInsights(db, factionId, now, member);
@@ -194,7 +205,7 @@ async function buildOverviewContextForInsights(db, factionId, now, targetMember)
   };
 }
 
-function buildMemberOverview({ row, snapshots, warRows, wars, now, range = null, note = null }) {
+function buildMemberOverview({ row, snapshots, warRows, wars, now, range = null, note = null, leadership = null }) {
   const effectiveTo = Number(range?.to || now);
   const effectiveFrom = Number(range?.from || (effectiveTo - 30 * DAY));
   const span = Math.max(DAY, effectiveTo - effectiveFrom);
@@ -218,6 +229,7 @@ function buildMemberOverview({ row, snapshots, warRows, wars, now, range = null,
     playerName:row.player_name || 'Player ' + row.player_id,
     level:nullableNumber(row.level),
     position:row.position_name || 'Member',
+    leadershipRole:factionLeadershipRole(leadership, row.player_id),
     current:Number(row.is_current) === 1,
     daysInFaction:nullableNumber(row.days_in_faction),
 

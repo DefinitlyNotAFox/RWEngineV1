@@ -1,10 +1,11 @@
 import {
   state, on, emit, rangeApi, syncApi,
   metric, median, average,
+  renderLeadershipMarker,
   formatNumber, formatCompact, formatDecimal, formatPercent,
   formatDuration, formatDate,
   escapeHtml, sleep
-} from './core.js';
+} from './core.js?v=2';
 
 const sort = { key: 'stats', direction: 'desc' };
 let selectedMemberId = null;
@@ -85,7 +86,7 @@ export function renderIntel() {
     return `
       <tr class="clickable${selected ? ' selected' : ''}" data-member-id="${member.playerId}">
         <td>
-          <span class="member-name">${escapeHtml(member.playerName || 'Unknown')}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span>
+          <span class="member-name">${escapeHtml(member.playerName || 'Unknown')}${renderLeadershipMarker(member.leadershipRole)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span>
           <span class="member-meta">${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(member.level ?? '—')}</span>
         </td>
         <td>
@@ -233,7 +234,7 @@ function renderDetailRow(member) {
         <section class="member-detail">
           <header class="member-detail-head">
             <div>
-              <h3>${escapeHtml(member.playerName || `Player ${member.playerId}`)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></h3>
+              <h3>${escapeHtml(member.playerName || `Player ${member.playerId}`)}${renderLeadershipMarker(member.leadershipRole)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></h3>
               <p>${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(member.level ?? '—')}</p>
             </div>
             <a href="https://www.torn.com/profiles.php?XID=${encodeURIComponent(member.playerId)}" target="_blank" rel="noopener noreferrer">Torn profile ↗</a>

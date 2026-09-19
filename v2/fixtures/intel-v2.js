@@ -1,6 +1,10 @@
 export const intelFixture = {
   generatedAt: 1800000000,
-  faction: { factionId: 54199, factionName: 'Example Faction' },
+  faction: {
+    factionId: 54199,
+    factionName: 'Example Faction',
+    leadership:{ leaderPlayerId:101, coLeaderPlayerId:102, verifiedAt:1799996400 }
+  },
   freshness: { state: 'fresh', observedAt: 1799996400, ageSeconds: 3600 },
   summary: {
     currentMembers: 12,
@@ -56,7 +60,9 @@ export const intelFixture = {
 function member(id,name,position,level,stats,lastActionRatio,activity,prevActivity,xanax,prevXanax,warsAvailable,warsParticipated,hitsPerWar,netScore,insights,statsSeries,activitySeries,xanaxSeries,inactiveDays=0,current=true){
   const now=intelFixtureTime();
   return {
-    playerId:id, playerName:name, level, position, current, daysInFaction:240 + (id%7)*31,
+    playerId:id, playerName:name, level, position,
+    leadershipRole:id===101?'leader':id===102?'co_leader':null,
+    current, daysInFaction:240 + (id%7)*31,
     presence:{
       lastActionAt: now - (inactiveDays ? inactiveDays*86400 : Math.round((1-lastActionRatio)*7*3600)),
       lastActionStatus: inactiveDays ? 'Offline' : 'Online recently',

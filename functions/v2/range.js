@@ -1,3 +1,8 @@
+import {
+  factionLeadershipRole,
+  loadFactionLeadership
+} from './faction-leadership.js';
+
 const DAY_SECONDS = 86400;
 
 export async function onRequest(context) {
@@ -83,6 +88,7 @@ async function getRange(db, factionId, body) {
   const respectEarnedByPlayer = new Map((respectMetricsResult.results || []).map(row => [Number(row.player_id), Number(row.respect_earned || 0)]));
   const respectLostByPlayer = new Map((respectMetricsResult.results || []).map(row => [Number(row.player_id), Number(row.respect_lost || 0)]));
   const totalWars = Number(totalWarsRow?.count || 0);
+  const leadership = await loadFactionLeadership(db, factionId);
 
   const members = (membersResult.results || []).map(member => {
     const playerId = Number(member.player_id);
@@ -106,6 +112,7 @@ async function getRange(db, factionId, body) {
     return {
       playerId,
       playerName: member.player_name,
+      leadershipRole:factionLeadershipRole(leadership, playerId),
       level: nullableNumber(member.level),
       position: member.position_name || '',
       daysInFaction: nullableNumber(member.days_in_faction),
@@ -163,6 +170,8 @@ async function getMemberDetail(db, factionId, body) {
   const trackingStartedAt = await getTrackingStartedAt(db, factionId, now);
   const range = normalizeRange(body, trackingStartedAt, now);
   const rangeData = await getRangeDataForMember(db, factionId, playerId, range, trackingStartedAt);
+  const leadership = await loadFactionLeadership(db, factionId);
+  rangeData.leadershipRole = factionLeadershipRole(leadership, playerId);
 
   const warRows = await db.prepare(`
     SELECT

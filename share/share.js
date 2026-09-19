@@ -79,7 +79,7 @@ function renderWar(data) {
         <tr>
           <td>
             <a class="member-link" href="https://www.torn.com/profiles.php?XID=${encodeURIComponent(member.playerId)}" target="_blank" rel="noopener noreferrer">
-              <span class="member-name">${escapeHtml(member.playerName || `Player ${member.playerId}`)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span>
+              <span class="member-name">${escapeHtml(member.playerName || `Player ${member.playerId}`)}${leadershipMarker(member.leadershipRole)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span>
               ${member.current ? '' : '<small>former</small>'}
             </a>
           </td>
@@ -162,6 +162,16 @@ function formatSigned(value) {
   const number = Number(value || 0);
   const formatted = formatDecimal(number);
   return number > 0 ? `+${formatted}` : formatted;
+}
+
+function leadershipMarker(role) {
+  if (role === 'leader') {
+    return '<span class="faction-leadership-mark leader" title="Faction leader" aria-label="Faction leader">L</span>';
+  }
+  if (role === 'co_leader') {
+    return '<span class="faction-leadership-mark co-leader" title="Faction co-leader" aria-label="Faction co-leader">CO</span>';
+  }
+  return '';
 }
 
 function escapeHtml(value) {

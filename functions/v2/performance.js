@@ -1,3 +1,8 @@
+import {
+  factionLeadershipRole,
+  loadFactionLeadership
+} from './faction-leadership.js';
+
 export async function onRequest(context) {
   try {
     const { request, env } = context;
@@ -59,6 +64,7 @@ export async function onRequest(context) {
     `).bind(factionId, ...warFilterParams).all();
 
     const totalWars = Number(totalWarsRow?.count || 0);
+    const leadership = await loadFactionLeadership(env.DB, factionId);
 
     const members = (performanceResult.results || []).map(row => {
       const playerId = Number(row.player_id);
@@ -72,6 +78,7 @@ export async function onRequest(context) {
       return {
         playerId,
         playerName: row.player_name || `Player ${playerId}`,
+        leadershipRole:factionLeadershipRole(leadership, playerId),
         current: Number(row.is_current) === 1,
         wars,
         participation: totalWars > 0 ? wars / totalWars : null,

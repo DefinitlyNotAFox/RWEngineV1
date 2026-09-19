@@ -1,3 +1,8 @@
+import {
+  factionLeadershipRole,
+  loadFactionLeadership
+} from './faction-leadership.js';
+
 export async function onRequest(context) {
   try {
     const { request, env } = context;
@@ -52,6 +57,7 @@ export async function onRequest(context) {
 
     const excludeMilestones = body.excludeChainBonuses === true;
     const chainSource = excludeMilestones ? 'stored-aggregate' : 'not-requested';
+    const leadership = await loadFactionLeadership(env.DB, factionId);
 
     let officialScoreUp = 0;
     let officialScoreDown = 0;
@@ -108,6 +114,7 @@ export async function onRequest(context) {
       return {
         playerId,
         playerName: row.player_name || `Player ${playerId}`,
+        leadershipRole:factionLeadershipRole(leadership, playerId),
         current: Number(row.is_current) === 1,
         hits,
         assists,

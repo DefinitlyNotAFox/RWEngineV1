@@ -1,3 +1,8 @@
+import {
+  factionLeadershipRole,
+  saveFactionLeadership
+} from './v2/faction-leadership.js';
+
 const SESSION_DAYS = 14;
 const SESSION_SECONDS = SESSION_DAYS * 24 * 60 * 60;
 
@@ -390,9 +395,15 @@ async function syncFactionLeadershipRole(env, userRow, apiKey, options = {}) {
   }
 
   try {
-    const leadership = await fetchFactionLeadership(factionId, apiKey);
-    const leader = isFactionLeader(leadership, playerId);
     const now = nowUnix();
+    const leadership = await fetchFactionLeadership(factionId, apiKey);
+    const storedLeadership = await saveFactionLeadership(
+      env.DB,
+      factionId,
+      leadership,
+      now
+    );
+    const leader = Boolean(factionLeadershipRole(storedLeadership, playerId));
 
     if (leader) {
       await env.DB.prepare(`
@@ -468,18 +479,7 @@ async function fetchFactionLeadership(factionId, apiKey) {
 }
 
 export function isFactionLeader(factionBasic, playerId) {
-  const target = Number(playerId || 0);
-  if (!Number.isSafeInteger(target) || target <= 0) return false;
-
-  const leaderId = Number(factionBasic?.leader_id ?? factionBasic?.leaderId ?? 0);
-  const coLeaderId = Number(
-    factionBasic?.co_leader_id ??
-    factionBasic?.coLeaderId ??
-    factionBasic?.coleader_id ??
-    0
-  );
-
-  return target === leaderId || target === coLeaderId;
+  return Boolean(factionLeadershipRole(factionBasic, playerId));
 }
 
 async function refreshUserFactionFromStoredApiKey(env, userRow, options = {}) {

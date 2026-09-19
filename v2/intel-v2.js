@@ -1,8 +1,9 @@
 import {
   state, on, emit, intelV2Api, syncApi, performanceApi,
+  canEditFactionView, renderLeadershipMarker,
   formatNumber, formatCompact, formatDecimal, formatPercent, formatSigned,
   formatDuration, formatRelative, escapeHtml, sleep
-} from './core.js';
+} from './core.js?v=2';
 
 const filters = [
   ['all','All'],
@@ -329,6 +330,8 @@ export function initIntelV2() {
     renderFactionControls();
     loadIntelV2(true);
   });
+
+  on('role-preview', () => renderIntelV2());
 
   on('open-member', playerId => {
     const search = document.querySelector('#intelSearch');
@@ -712,7 +715,7 @@ function renderFactionCell(member, key) {
   const performance = performanceMember(member);
 
   if (key === 'member') {
-    return `<div role="cell" class="faction-grid-cell col-member"><span class="member-name">${escapeHtml(member.playerName || 'Unknown')}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span><span class="member-meta">${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(member.level ?? '—')}${member.current ? '' : ' · former'}</span></div>`;
+    return `<div role="cell" class="faction-grid-cell col-member"><span class="member-name">${escapeHtml(member.playerName || 'Unknown')}${renderLeadershipMarker(member.leadershipRole)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span><span class="member-meta">${escapeHtml(member.position || 'Member')} · Lv ${escapeHtml(member.level ?? '—')}${member.current ? '' : ' · former'}</span></div>`;
   }
 
   if (key === 'stats') {
@@ -1457,6 +1460,7 @@ function memberHasNotes(member) {
 }
 
 async function saveMemberNotesForm(form) {
+  if (!canEditFactionView()) return;
   const playerId = Number(form?.dataset?.playerId || 0);
   if (!playerId) return;
 
@@ -1593,9 +1597,12 @@ function renderMemberNotesPanel(member, payload) {
   const concerns = insights.filter(item => item.kind === 'attention');
   const notes = normalizeMemberNotes(member.notes);
   const key = detailKey(member.playerId);
-  const editing = noteEditing.has(key);
+  const canEdit = Boolean(
+    (payload?.permissions?.canEditMemberNotes || overview?.permissions?.canEditMemberNotes) &&
+    canEditFactionView()
+  );
+  const editing = noteEditing.has(key) && canEdit;
   const saving = noteSaving.has(key);
-  const canEdit = Boolean(payload?.permissions?.canEditMemberNotes || overview?.permissions?.canEditMemberNotes);
   const draft = noteDrafts.get(key) || {
     noteText:notes.text,
     tagsText:notes.tags.join(', ')

@@ -3,13 +3,16 @@ import {
   api, adminApi, rangeApi, loadWarsApi, freshnessApi, shareApi,
   periodPayload, restorePeriod, setPeriodPreset, renderPeriodControls,
   currentFactionName, currentFactionId,
+  actualUserRole, availableViewRoles, currentViewRole,
+  isPlatformAdminView, isRolePreviewActive, restoreRolePreview,
+  roleLabel, setRolePreview,
   routeTo, routeFromHash, setNotice,
   formatNumber, formatDate, formatDateTime, formatAge, escapeHtml
-} from './core.js';
+} from './core.js?v=2';
 
-import { initIntel, renderIntel, refreshSyncStatus } from './intel.js?v=2';
-import { initIntelV2 } from './intel-v2.js?v=31';
-import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=15';
+import { initIntel, renderIntel, refreshSyncStatus } from './intel.js?v=3';
+import { initIntelV2 } from './intel-v2.js?v=32';
+import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=16';
 
 const legacyIntelMode = new URL(location.href).searchParams.get('legacyIntel') === '1';
 
@@ -141,6 +144,10 @@ function bindApplication() {
     await refreshAll(false);
   });
 
+  document.querySelector('#rolePreviewSelect')?.addEventListener('change', event => {
+    setRolePreview(event.target.value);
+  });
+
   document.querySelector('#adminFactionList')?.addEventListener('click', event => {
     const row = event.target.closest('[data-admin-faction]');
     if (!row) return;
@@ -183,6 +190,15 @@ function bindApplication() {
       loadAccessList();
     }
   });
+
+  on('role-preview', () => {
+    renderRolePreview();
+    renderIdentity();
+    renderAdminContext();
+    renderHome();
+    renderArchive();
+    if (state.route === 'settings') loadAccessList();
+  });
 }
 
 async function boot() {
@@ -206,6 +222,8 @@ async function enterApp() {
     state.selectedFactionId = Number(state.user?.factionId || 0) || null;
   }
 
+  restoreRolePreview();
+  renderRolePreview();
   renderIdentity();
   renderAdminContext();
 
@@ -370,7 +388,11 @@ async function loadAccessList() {
     }
 
     const result = await shareApi('list');
-    const resources = result.resources || [];
+    const resources = (result.resources || []).filter(resource =>
+      isPlatformAdminView() ||
+      resource.canManageAsOwner === true ||
+      !state.user?.isAdmin
+    );
 
     list.innerHTML = resources.length
       ? resources.map(resource => `
@@ -611,11 +633,33 @@ function renderIdentity() {
   document.querySelector('#settingsPlayer').textContent = `${userName} [${playerId}]`;
   document.querySelector('#settingsFaction').textContent = factionName || '—';
   document.querySelector('#settingsFactionId').textContent = factionId || '—';
-  document.querySelector('#settingsRole').textContent = state.user?.isAdmin
-    ? 'Platform administrator'
-    : state.user?.isFactionAdmin
-      ? 'Faction administrator'
-      : 'Member';
+  const actualRole = actualUserRole();
+  const viewRole = currentViewRole();
+  document.querySelector('#settingsRole').textContent = isRolePreviewActive()
+    ? `${roleLabel(actualRole)} · viewing as ${roleLabel(viewRole)}`
+    : roleLabel(actualRole);
+}
+
+function renderRolePreview() {
+  const wrap = document.querySelector('#rolePreviewWrap');
+  const select = document.querySelector('#rolePreviewSelect');
+  if (!wrap || !select) return;
+
+  const roles = availableViewRoles();
+  const visible = roles.length > 1;
+  wrap.classList.toggle('hidden', !visible);
+  wrap.classList.toggle('preview-active', isRolePreviewActive());
+  document.body.dataset.viewRole = currentViewRole();
+
+  if (!visible) {
+    select.innerHTML = '';
+    return;
+  }
+
+  const current = currentViewRole();
+  select.innerHTML = roles.map(role =>
+    `<option value="${role}"${role === current ? ' selected' : ''}>${roleLabel(role)}</option>`
+  ).join('');
 }
 
 function setRefreshStatus(message = '', error = false) {
@@ -662,7 +706,7 @@ function renderAdminContext() {
   const select = document.querySelector('#adminFactionSelect');
   const section = document.querySelector('#adminSection');
 
-  const isAdmin = Boolean(state.user?.isAdmin);
+  const isAdmin = Boolean(state.user?.isAdmin && isPlatformAdminView());
   wrap?.classList.toggle('hidden', !isAdmin);
   document.querySelector('#factionButton')?.classList.toggle('hidden', isAdmin);
   section?.classList.toggle('hidden', !isAdmin);
@@ -677,7 +721,7 @@ function renderAdminContext() {
 
 function renderAdminSettings() {
   const section = document.querySelector('#adminSection');
-  if (!section || !state.user?.isAdmin) return;
+  if (!section || !state.user?.isAdmin || !isPlatformAdminView()) return;
 
   const list = document.querySelector('#adminFactionList');
   if (list) {
@@ -804,6 +848,7 @@ async function clearAdminKey() {
 
 function resetState() {
   state.user = null;
+  state.rolePreview = null;
   state.adminFactions = [];
   state.selectedFactionId = null;
   state.wars = [];

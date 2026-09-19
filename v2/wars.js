@@ -2,9 +2,10 @@ import {
   state, on, emit, post,
   performanceApi, warDetailApi, attackDetailApi, shareApi, importApi,
   periodPayload, currentFactionId,
+  isPlatformAdminView, renderLeadershipMarker,
   metric, formatNumber, formatDecimal, formatSigned, formatPercent,
   formatDate, escapeHtml, sleep, warStamp
-} from './core.js';
+} from './core.js?v=2';
 
 const ATTACK_STEP_DELAY = 6000;
 const DETAIL_STEP_DELAY = 1200;
@@ -112,6 +113,13 @@ export function initWarViews() {
     performance.loadedKey = '';
     if (state.route === 'performance' && !performance.loading) loadPerformance(true);
   });
+
+  on('role-preview', () => {
+    resetSharePanel(true);
+    renderWarOverview();
+    renderPerformance();
+    renderWarDetail();
+  });
 }
 
 export function renderWarOverview() {
@@ -159,7 +167,7 @@ export function renderWarOverview() {
     contributorsEl.innerHTML = contributors.length
       ? contributors.map(member => `
           <button class="line-row" type="button" data-open-member="${member.playerId}">
-            <div><strong>${escapeHtml(member.playerName || 'Unknown')}<small class="entity-id">[${escapeHtml(member.playerId)}]</small></strong><small>${formatNumber(member.warHits)} hits · ${formatNumber(member.assists)} assists</small></div>
+            <div><strong>${escapeHtml(member.playerName || 'Unknown')}${renderLeadershipMarker(member.leadershipRole)}<small class="entity-id">[${escapeHtml(member.playerId)}]</small></strong><small>${formatNumber(member.warHits)} hits · ${formatNumber(member.assists)} assists</small></div>
             <b>${escapeHtml(formatSigned(member.netScore, 2))} net</b>
           </button>
         `).join('')
@@ -493,7 +501,7 @@ function renderPerformanceCell(member, key) {
   const classes = key === 'member' ? '' : (key === 'netScore' ? 'net' : '');
 
   if (key === 'member') {
-    return `<td><a href="https://www.torn.com/profiles.php?XID=${member.playerId}" target="_blank" rel="noopener noreferrer"><span class="member-name">${escapeHtml(member.playerName || `Player ${member.playerId}`)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span>${member.current ? '' : '<span class="member-meta">former</span>'}</a></td>`;
+    return `<td><a href="https://www.torn.com/profiles.php?XID=${member.playerId}" target="_blank" rel="noopener noreferrer"><span class="member-name">${escapeHtml(member.playerName || `Player ${member.playerId}`)}${renderLeadershipMarker(member.leadershipRole)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span>${member.current ? '' : '<span class="member-meta">former</span>'}</a></td>`;
   }
 
   if (key === 'wars') {
@@ -765,7 +773,7 @@ function warDetailMetric(member, key) {
 
 function renderWarCell(member,key) {
   if (key === 'member') {
-    return `<td><a href="https://www.torn.com/profiles.php?XID=${member.playerId}" target="_blank" rel="noopener noreferrer"><span class="member-name">${escapeHtml(member.playerName || `Player ${member.playerId}`)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span>${member.current ? '' : '<span class="member-meta">former</span>'}</a></td>`;
+    return `<td><a href="https://www.torn.com/profiles.php?XID=${member.playerId}" target="_blank" rel="noopener noreferrer"><span class="member-name">${escapeHtml(member.playerName || `Player ${member.playerId}`)}${renderLeadershipMarker(member.leadershipRole)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span>${member.current ? '' : '<span class="member-meta">former</span>'}</a></td>`;
   }
   if (['hits','assists','outsideHits'].includes(key)) return `<td>${formatNumber(member[key])}</td>`;
   if (key === 'netScore') return `<td class="net">${formatSigned(member[key],2)}</td>`;
@@ -804,7 +812,7 @@ async function updateShareVisibility() {
       warId:detail.warId,
       visibility
     });
-    applyShareState({ ...result, canManage:true });
+    applyShareState({ ...result, canManage:true, canManageAsOwner:true });
   } catch (error) {
     setShareStatus(error.message, true);
     try {
@@ -825,7 +833,7 @@ async function generateShare() {
 
   try {
     const result = await shareApi('create', { resourceType:'war', warId:detail.warId });
-    applyShareState({ ...result, canManage:true });
+    applyShareState({ ...result, canManage:true, canManageAsOwner:true });
   } catch (error) {
     setShareStatus(error.message, true);
   } finally {
@@ -848,7 +856,10 @@ async function copyShare() {
 
 function applyShareState(result) {
   const visibility = result.visibility || 'faction';
-  const canManage = result.canManage !== false;
+  const canManageActual = result.canManage !== false;
+  const canManageAsOwner = result.canManageAsOwner === true ||
+    (!state.user?.isAdmin && canManageActual);
+  const canManage = isPlatformAdminView() ? canManageActual : canManageAsOwner;
   const select = document.querySelector('#shareVisibility');
   const url = document.querySelector('#shareUrl');
   const generate = document.querySelector('#shareGenerate');

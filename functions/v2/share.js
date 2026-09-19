@@ -1,3 +1,8 @@
+import {
+  factionLeadershipRole,
+  loadFactionLeadership
+} from './faction-leadership.js';
+
 export async function onRequest(context) {
   try {
     const { request, env } = context;
@@ -111,6 +116,7 @@ async function shareStatus(db, user, factionId, body) {
     success: true,
     visibility,
     canManage: canManage(user, record),
+    canManageAsOwner:Number(record.imported_by_user_id || 0) === Number(user.user_id),
     share: share ? publicShareMeta(share) : null
   });
 }
@@ -134,6 +140,7 @@ async function listResources(db, user, factionId) {
       endedAt: nullableNumber(row.end_timestamp),
       importedAt: nullableNumber(row.imported_at),
       visibility: normalizeVisibility(row.visibility),
+      canManageAsOwner:Number(row.imported_by_user_id || 0) === Number(user.user_id),
       publicLinkActive: Number(row.share_enabled || 0) > 0,
       shareUpdatedAt: nullableNumber(row.share_updated_at),
       lastAccessedAt: nullableNumber(row.last_accessed_at)
@@ -243,6 +250,7 @@ async function buildPublicWar(db, factionId, warId) {
   let assists = 0;
   let scoreUp = 0;
   let scoreDown = 0;
+  const leadership = await loadFactionLeadership(db, factionId);
 
   const members = (result.results || []).map(row => {
     const memberHits = Number(row.hits || 0);
@@ -258,6 +266,7 @@ async function buildPublicWar(db, factionId, warId) {
     return {
       playerId: Number(row.player_id),
       playerName: row.player_name || 'Player ' + row.player_id,
+      leadershipRole:factionLeadershipRole(leadership, row.player_id),
       current: Number(row.is_current) === 1,
       hits: memberHits,
       assists: memberAssists,

@@ -7336,3 +7336,65 @@ body {
   gap: 7px;
   margin-top: 7px;
 }
+
+
+/* Current faction leadership markers used across Intel and war reports. */
+.faction-leadership-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 13px;
+  margin-left: 5px;
+  padding: 0 3px;
+  vertical-align: 1px;
+  color: #d8dadd;
+  font-size: 7px;
+  font-weight: 820;
+  line-height: 1;
+  letter-spacing: -.02em;
+  border: 1px solid #4a5054;
+  border-radius: 3px;
+  background: #1a1d1f;
+}
+
+.faction-leadership-mark.leader {
+  color: #e6bd75;
+  border-color: rgba(230,189,117,.55);
+  background: rgba(230,189,117,.08);
+}
+
+.faction-leadership-mark.co-leader {
+  color: #bfcad2;
+  border-color: rgba(191,202,210,.45);
+  background: rgba(191,202,210,.06);
+}
+
+/* Role preview is presentation-only and never changes server authority. */
+.context-select.role-preview select {
+  min-width: 118px;
+}
+
+.context-select.role-preview.preview-active span,
+.context-select.role-preview.preview-active select {
+  color: var(--warning);
+}
+
+.context-select.role-preview.preview-active select {
+  border-bottom-color: rgba(200,164,107,.65);
+}
+
+@media (max-width: 760px) {
+  .context-select.role-preview:not(.hidden) {
+    display: flex;
+  }
+
+  .context-select.role-preview span {
+    display: none;
+  }
+
+  .context-select.role-preview select {
+    min-width: 104px;
+    max-width: 122px;
+  }
+}

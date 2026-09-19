@@ -1,5 +1,6 @@
 export const state = {
   user: null,
+  rolePreview: null,
   adminFactions: [],
   selectedFactionId: null,
   wars: [],
@@ -148,6 +149,85 @@ export function currentFactionName() {
 
 export function currentFactionId() {
   return Number(state.selectedFactionId || state.user?.factionId || 0) || null;
+}
+
+export function actualUserRole(user = state.user) {
+  if (user?.isAdmin) return 'platform_admin';
+  if (user?.isFactionAdmin) return 'faction_admin';
+  return 'member';
+}
+
+export function availableViewRoles(user = state.user) {
+  const actual = actualUserRole(user);
+  if (actual === 'platform_admin') return ['platform_admin','faction_admin','member'];
+  if (actual === 'faction_admin') return ['faction_admin','member'];
+  return ['member'];
+}
+
+export function normalizeViewRole(role, user = state.user) {
+  const requested = String(role || '').trim();
+  const available = availableViewRoles(user);
+  return available.includes(requested) ? requested : actualUserRole(user);
+}
+
+export function currentViewRole() {
+  return normalizeViewRole(state.rolePreview || actualUserRole());
+}
+
+export function setRolePreview(role) {
+  const actual = actualUserRole();
+  const selected = normalizeViewRole(role);
+  state.rolePreview = selected === actual ? null : selected;
+
+  try {
+    const key = rolePreviewStorageKey();
+    if (state.rolePreview) sessionStorage.setItem(key, state.rolePreview);
+    else sessionStorage.removeItem(key);
+  } catch (_) {}
+
+  emit('role-preview', currentViewRole());
+  return currentViewRole();
+}
+
+export function restoreRolePreview() {
+  let stored = '';
+  try { stored = sessionStorage.getItem(rolePreviewStorageKey()) || ''; } catch (_) {}
+  const selected = normalizeViewRole(stored);
+  const actual = actualUserRole();
+  state.rolePreview = selected === actual ? null : selected;
+  return currentViewRole();
+}
+
+export function isRolePreviewActive() {
+  return Boolean(state.rolePreview && currentViewRole() !== actualUserRole());
+}
+
+export function isPlatformAdminView() {
+  return currentViewRole() === 'platform_admin';
+}
+
+export function canEditFactionView() {
+  return ['platform_admin','faction_admin'].includes(currentViewRole());
+}
+
+export function roleLabel(role) {
+  if (role === 'platform_admin') return 'Platform admin';
+  if (role === 'faction_admin') return 'Faction admin';
+  return 'Member';
+}
+
+export function renderLeadershipMarker(role) {
+  if (role === 'leader') {
+    return '<span class="faction-leadership-mark leader" title="Faction leader" aria-label="Faction leader">L</span>';
+  }
+  if (role === 'co_leader') {
+    return '<span class="faction-leadership-mark co-leader" title="Faction co-leader" aria-label="Faction co-leader">CO</span>';
+  }
+  return '';
+}
+
+function rolePreviewStorageKey() {
+  return `rwengine.rolePreview.${Number(state.user?.userId || 0)}`;
 }
 
 export function periodPayload() {

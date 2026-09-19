@@ -65,6 +65,14 @@ CREATE TABLE IF NOT EXISTS faction_user_roles (
   FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS faction_leadership (
+  faction_id INTEGER PRIMARY KEY,
+  leader_player_id INTEGER,
+  co_leader_player_id INTEGER,
+  verified_at INTEGER NOT NULL,
+  FOREIGN KEY (faction_id) REFERENCES factions(faction_id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS faction_config (
   config_id INTEGER PRIMARY KEY AUTOINCREMENT,
 

@@ -289,6 +289,36 @@ tbody tr:hover:not(.report-total-row) {
   font-weight: 450;
 }
 
+.faction-leadership-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 13px;
+  margin-left: 5px;
+  padding: 0 3px;
+  vertical-align: 1px;
+  color: #d8dadd;
+  font-size: 7px;
+  font-weight: 820;
+  line-height: 1;
+  border: 1px solid #4a5054;
+  border-radius: 3px;
+  background: #1a1d1f;
+}
+
+.faction-leadership-mark.leader {
+  color: #e6bd75;
+  border-color: rgba(230,189,117,.55);
+  background: rgba(230,189,117,.08);
+}
+
+.faction-leadership-mark.co-leader {
+  color: #bfcad2;
+  border-color: rgba(191,202,210,.45);
+  background: rgba(191,202,210,.06);
+}
+
 .member-link small {
   display: block;
   margin-top: 3px;
