@@ -2111,7 +2111,7 @@ function renderTraitGroup(kind, symbol, label, items, member, emptyLabel) {
       <div class="intel2-trait-list">
         ${items.length ? items.map(item => `
           <div class="intel2-trait auto-tag tier-${escapeHtml(item.tier || 'neutral')}">
-            <b class="auto-tag-name" title="${escapeHtml(item.text || '')}">${escapeHtml(traitTitle(item, member))}</b>
+            <b class="auto-tag-name">${escapeHtml(traitTitle(item, member))}</b>
           </div>
         `).join('') : '<span class="intel2-trait-empty auto-tag-empty">—</span>'}
       </div>
