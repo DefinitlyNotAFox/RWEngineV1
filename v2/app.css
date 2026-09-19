@@ -9022,38 +9022,33 @@ body {
 }
 
 #intelTable.faction-grid .intel2-note-signals .intel2-trait-list {
-  gap: 7px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 5px;
 }
 
 #intelTable.faction-grid .intel2-note-signals .intel2-trait.auto-tag {
-  display: block;
-  min-height: 0;
-  padding: 0;
+  display: contents;
 }
 
 #intelTable.faction-grid .intel2-note-signals .auto-tag-name {
-  display: block;
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent !important;
-  font-size: var(--font-small);
-  font-weight: 680;
-  line-height: 1.25;
-}
-
-#intelTable.faction-grid .intel2-note-signals .auto-tag-detail {
-  display: block;
-  margin-top: 2px;
-  color: var(--dim);
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  padding: 2px 6px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  background: transparent;
   font-size: var(--font-caption);
-  line-height: 1.25;
+  font-weight: 680;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 #intelTable.faction-grid .intel2-note-signals .auto-tag-empty {
   display: block;
-  padding: 1px 0;
+  padding: 2px 0;
   color: #596066;
   font-size: var(--font-small);
 }
@@ -9065,10 +9060,6 @@ body {
   }
 
   #intelTable.faction-grid .intel2-note-signals .auto-tag-name {
-    font-size: var(--font-caption);
-  }
-
-  #intelTable.faction-grid .intel2-note-signals .auto-tag-detail {
-    font-size: var(--font-caption);
+    white-space: normal;
   }
 }
