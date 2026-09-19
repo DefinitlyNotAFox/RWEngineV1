@@ -7490,6 +7490,12 @@ body {
   grid-template-columns: minmax(0, 1fr);
 }
 
+.settings-columns:not(:has(> .settings-admin-column:not(.hidden))) {
+  width: min(100%, 980px);
+  margin-left: 0;
+  margin-right: auto;
+}
+
 .settings-main-column,
 .settings-admin-column {
   min-width: 0;
