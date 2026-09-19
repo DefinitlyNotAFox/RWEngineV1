@@ -13,6 +13,8 @@ const filters = [
   ['stats','Stats missing/stale']
 ];
 
+const MONTH_DAYS = 30.44;
+
 const factionColumns = [
   'member','stats','xanax','activity','ocs',
   'participation','hits','assists','outsideHits',
@@ -24,7 +26,7 @@ const columnLabels = {
   stats:['Battle stats',''],
   xanax:['Xanax / day',''],
   activity:['Activity / day',''],
-  ocs:['OCs',''],
+  ocs:['OCs / month',''],
   participation:['Wars / participation',''],
   hits:['Hits per war',''],
   assists:['Assists',''],
@@ -506,7 +508,7 @@ function renderFactionTotalRow() {
   const avgXanax = averageNullable(current.map(member => member.xanax?.perDay30d));
   const avgActivity = averageNullable(current.map(member => member.activity?.perDay30d));
   const totalOcs = sumNullable(current.map(member => member.ocs || {}), 'total');
-  const avgOcsPerDay = averageNullable(current.map(member => member.ocs?.perDay));
+  const avgOcsPerMonth = averageNullable(current.map(member => monthlyOcs(member.ocs)));
   const participation = averageNullable(currentPerformance.map(row => row.participation));
   const notes = current.filter(member => Boolean(topSignal(member))).length;
 
@@ -545,8 +547,8 @@ function renderFactionTotalRow() {
         <span class="member-meta">avg / day</span>
       </div>
       <div role="cell" class="faction-grid-cell col-ocs">
-        <strong>${tableCellText(formatNumber(totalOcs))}</strong>
-        <span class="member-meta">${avgOcsPerDay === null ? '' : `${formatDecimal(avgOcsPerDay, 2)} avg / day`}</span>
+        <strong>${tableCellText(formatDecimal(avgOcsPerMonth, 2))}</strong>
+        <span class="member-meta">${totalOcs === null ? '' : `${formatNumber(totalOcs)} total in range`}</span>
       </div>
       <div role="cell" class="faction-grid-cell col-participation">
         <strong>${warLoading ? '…' : formatPercent(participation)}</strong>
@@ -675,8 +677,8 @@ function renderFactionCell(member, key) {
 
   if (key === 'ocs') {
     const total = nullable(member.ocs?.total);
-    const perDay = nullable(member.ocs?.perDay);
-    return `<div role="cell" class="faction-grid-cell col-ocs"><strong>${total === null ? 'No data' : formatNumber(total)}</strong><span class="member-meta">${perDay === null ? '' : `${formatDecimal(perDay, 2)} / day`}</span></div>`;
+    const perMonth = monthlyOcs(member.ocs);
+    return `<div role="cell" class="faction-grid-cell col-ocs"><strong>${perMonth === null ? 'No data' : formatDecimal(perMonth, 2)}</strong><span class="member-meta">${total === null ? '' : `${formatNumber(total)} in range`}</span></div>`;
   }
 
   if (key === 'participation4') {
@@ -769,7 +771,7 @@ function sortValue(member, key) {
   if (key === 'stats') return nullable(member.battleStats?.value);
   if (key === 'activity') return nullable(member.activity?.perDay30d);
   if (key === 'xanax') return nullable(member.xanax?.perDay30d);
-  if (key === 'ocs') return nullable(member.ocs?.perDay);
+  if (key === 'ocs') return monthlyOcs(member.ocs);
   if (key === 'participation4') return nullable(member.war?.last4?.participation);
   if (key === 'hits4') return nullable(member.war?.last4?.hitsPerWar);
   if (key === 'participation') return nullable(performance?.participation);
@@ -1541,7 +1543,8 @@ function normalizeHistory(history = {}) {
     xanax:xanaxStored.length >= 2
       ? xanaxStored
       : deriveRateSeries(snapshots, 'xanaxTakenTotal'),
-    ocs:deriveRateSeries(snapshots, 'organizedCrimesTotal'),
+    ocs:deriveRateSeries(snapshots, 'organizedCrimesTotal')
+      .map(point => ({ ...point, value:point.value * MONTH_DAYS })),
     wars:Array.isArray(history.wars) ? history.wars : []
   };
 }
@@ -1625,7 +1628,7 @@ function renderSelectedTrend(history) {
     return trendBlock('Xanax / day', history.xanax, value => formatDecimal(value, 2));
   }
   if (trendMetric === 'ocs') {
-    return trendBlock('OCs / day', history.ocs, value => formatDecimal(value, 2));
+    return trendBlock('OCs / month', history.ocs, value => formatDecimal(value, 2));
   }
   return trendBlock('Activity / day', history.activity, formatDuration);
 }
@@ -1828,6 +1831,13 @@ function nullable(value) {
   if (value === null || value === undefined || value === '') return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+function monthlyOcs(ocs) {
+  const stored = nullable(ocs?.perMonth);
+  if (stored !== null) return stored;
+  const legacyPerDay = nullable(ocs?.perDay);
+  return legacyPerDay === null ? null : legacyPerDay * MONTH_DAYS;
 }
 
 function detailKey(playerId) {

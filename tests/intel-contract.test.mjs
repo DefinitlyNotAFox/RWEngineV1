@@ -20,6 +20,8 @@ for (const member of intelFixture.members) {
   assert(member.activity && 'perDayPrevious30d' in member.activity);
   assert(member.xanax && 'perDay30d' in member.xanax);
   assert(member.xanax && 'perDayPrevious30d' in member.xanax);
+  assert(member.ocs && 'perMonth' in member.ocs);
+  assert(member.ocs && 'perMonthPrevious' in member.ocs);
 
   assert(member.war?.last4);
   assert(member.war?.previous4);
@@ -33,6 +35,7 @@ for (const member of intelFixture.members) {
   assert(Array.isArray(member.history.stats));
   assert(Array.isArray(member.history.activity));
   assert(Array.isArray(member.history.xanax));
+  assert(Array.isArray(member.history.ocs));
   assert(Array.isArray(member.history.wars));
 }
 

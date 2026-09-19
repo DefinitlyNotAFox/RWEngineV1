@@ -26,6 +26,7 @@ test('Today uses the preceding daily snapshot as its cumulative baseline', () =>
   assert.equal(result.xanaxPerDay, 3);
   assert.equal(result.organizedCrimes, 1);
   assert.equal(result.organizedCrimesPerDay, 1);
+  assert.equal(result.organizedCrimesPerMonth, 30.44);
 });
 
 test('A multi-day range uses the last baseline before its start', () => {
@@ -39,6 +40,7 @@ test('A multi-day range uses the last baseline before its start', () => {
   assert.equal(result.activityPerDay, 46800 / 7);
   assert.equal(result.xanaxPerDay, 1);
   assert.equal(result.organizedCrimes, 3);
+  assert.equal(result.organizedCrimesPerMonth, (3 / 7) * 30.44);
 });
 
 test('Counter resets remain missing rather than becoming negative rates', () => {
@@ -50,4 +52,5 @@ test('Counter resets remain missing rather than becoming negative rates', () => 
   assert.equal(result.activityPerDay, null);
   assert.equal(result.xanaxPerDay, 2);
   assert.equal(result.organizedCrimesPerDay, 1);
+  assert.equal(result.organizedCrimesPerMonth, 30.44);
 });

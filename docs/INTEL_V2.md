@@ -31,6 +31,7 @@ Default comparison windows:
 | Battle stats | latest comparable estimate | 30-day change when reliable |
 | Activity | last 30 days | previous 30 days |
 | Xanax | last 30 days | previous 30 days |
+| Organized crimes | selected snapshot range, normalized to 30.44 days | previous equal-length range |
 | RW participation | last 4 imported wars | previous 4 wars |
 | Hits / war | last 4 imported wars | previous 4 wars |
 | War net score | last 4 imported wars | previous 4 wars |
@@ -311,6 +312,7 @@ Recommended columns:
 | Battle stats | latest value + source marker |
 | Activity / day | 30d value + compact trend |
 | Xanax / day | 30d value + compact trend |
+| OCs / month | cumulative snapshot delta ÷ covered days × 30.44 |
 | RW participation | last 4 |
 | Hits / war | last 4 |
 | Signal | at most one highest-priority insight marker |

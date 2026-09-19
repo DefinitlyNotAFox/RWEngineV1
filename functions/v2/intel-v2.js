@@ -1,6 +1,7 @@
 import { buildIntelInsights } from './intel-insights.js';
 
 const DAY = 86400;
+const MONTH_DAYS = 30.44;
 const SNAPSHOT_LOOKBACK_DAYS = 70;
 const DETAIL_LOOKBACK_DAYS = 95;
 
@@ -79,6 +80,7 @@ async function buildOverview(db, factionId, body = {}) {
   const knownStats = current.map(member => member.battleStats.value).filter(Number.isFinite);
   const activity = current.map(member => member.activity.perDay30d).filter(Number.isFinite);
   const xanax = current.map(member => member.xanax.perDay30d).filter(Number.isFinite);
+  const organizedCrimes = current.map(member => member.ocs.perMonth).filter(Number.isFinite);
   const participation = current.map(member => member.war.last4.participation).filter(Number.isFinite);
 
   return {
@@ -103,6 +105,7 @@ async function buildOverview(db, factionId, body = {}) {
       medianBattleStats:median(knownStats),
       avgActivityPerDay30d:average(activity),
       avgXanaxPerDay30d:average(xanax),
+      avgOrganizedCrimesPerMonth:average(organizedCrimes),
       avgParticipationLast4:average(participation),
       membersNeedingAttention:current.filter(member =>
         member.insights.some(insight => insight.kind === 'attention')
@@ -226,10 +229,12 @@ function buildMemberOverview({ row, snapshots, warRows, wars, now, range = null 
 
     ocs:{
       total:currentWindow.organizedCrimes,
+      perMonth:currentWindow.organizedCrimesPerMonth,
+      perMonthPrevious:previousWindow.organizedCrimesPerMonth,
       perDay:currentWindow.organizedCrimesPerDay,
       perDayPrevious:previousWindow.organizedCrimesPerDay,
       changePct:hasComparisonCoverage(currentWindow, previousWindow, requiredCoverage)
-        ? percentChange(currentWindow.organizedCrimesPerDay, previousWindow.organizedCrimesPerDay)
+        ? percentChange(currentWindow.organizedCrimesPerMonth, previousWindow.organizedCrimesPerMonth)
         : null,
       coverageDays:currentWindow.coverageDays,
       previousCoverageDays:previousWindow.coverageDays
@@ -304,6 +309,7 @@ export function buildCumulativeWindow(snapshots, from, to) {
       xanaxPerDay:null,
       organizedCrimes:null,
       organizedCrimesPerDay:null,
+      organizedCrimesPerMonth:null,
       coverageDays:0
     };
   }
@@ -323,6 +329,7 @@ export function buildCumulativeWindow(snapshots, from, to) {
       xanaxPerDay:null,
       organizedCrimes:null,
       organizedCrimesPerDay:null,
+      organizedCrimesPerMonth:null,
       coverageDays:0
     };
   }
@@ -334,6 +341,7 @@ export function buildCumulativeWindow(snapshots, from, to) {
       xanaxPerDay:null,
       organizedCrimes:null,
       organizedCrimesPerDay:null,
+      organizedCrimesPerMonth:null,
       coverageDays:0
     };
   }
@@ -350,6 +358,9 @@ export function buildCumulativeWindow(snapshots, from, to) {
     xanaxPerDay:xanaxDelta === null ? null : xanaxDelta / elapsed,
     organizedCrimes:organizedCrimesDelta,
     organizedCrimesPerDay:organizedCrimesDelta === null ? null : organizedCrimesDelta / elapsed,
+    organizedCrimesPerMonth:organizedCrimesDelta === null
+      ? null
+      : (organizedCrimesDelta / elapsed) * MONTH_DAYS,
     coverageDays:elapsed
   };
 }

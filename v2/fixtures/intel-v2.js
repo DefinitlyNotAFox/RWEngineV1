@@ -8,6 +8,7 @@ export const intelFixture = {
     medianBattleStats: 785000000,
     avgActivityPerDay30d: 18720,
     avgXanaxPerDay30d: 2.43,
+    avgOrganizedCrimesPerMonth: 6.2,
     avgParticipationLast4: 0.73,
     membersNeedingAttention: 4
   },
@@ -71,6 +72,7 @@ function member(id,name,position,level,stats,lastActionRatio,activity,prevActivi
     },
     activity:{perDay30d:activity,perDayPrevious30d:prevActivity,changePct:(activity-prevActivity)/prevActivity,coverageDays:30,previousCoverageDays:30},
     xanax:{perDay30d:xanax,perDayPrevious30d:prevXanax,changePct:(xanax-prevXanax)/prevXanax,coverageDays:30,previousCoverageDays:30},
+    ocs:{total:6,perMonth:6.2,perMonthPrevious:5.1,perDay:6.2/30.44,perDayPrevious:5.1/30.44,changePct:(6.2-5.1)/5.1,coverageDays:30,previousCoverageDays:30},
     war:{
       last4:{warsAvailable,warsParticipated,participation:warsParticipated/warsAvailable,hits:Math.round(hitsPerWar*Math.max(warsParticipated,1)),hitsPerWar,assists:id%5,respectEarned:100+id%13*20,respectLost:id%4*15,scoreUp:Math.max(netScore,0)+120,scoreDown:Math.max(-netScore,0)+120,netScore},
       previous4:{warsAvailable:4,warsParticipated:Math.min(4,warsParticipated+(id%3===0?1:0)),participation:Math.min(4,warsParticipated+(id%3===0?1:0))/4,hits:0,hitsPerWar:Math.max(0,hitsPerWar-(id%2?2:-2)),netScore:netScore-20}
@@ -81,6 +83,7 @@ function member(id,name,position,level,stats,lastActionRatio,activity,prevActivi
       stats: series(statsSeries,'stats'),
       activity: series(activitySeries.map(v=>v*3600),'activity'),
       xanax: series(xanaxSeries,'xanax'),
+      ocs: series([4.1,4.5,4.8,5.0,5.2,5.6,5.9,6.2],'ocs'),
       wars:[
         war('Rosarium',46535,4,Math.round(hitsPerWar+4),id%4,netScore+80),
         war('Undead Havoc',46238,3,Math.round(hitsPerWar-2),id%3,netScore+30),
