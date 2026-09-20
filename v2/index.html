@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=121" />
+  <link rel="stylesheet" href="/v2/app.css?v=122" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -251,24 +251,15 @@
 
         <section id="payoutSettingsSection" class="payout-settings-section hidden">
           <form id="payoutSettingsForm" class="payout-settings-form">
-            <div class="payout-settings-adminbar">
-              <div class="payout-settings-adminbar-copy">
-                <strong>Payout profile</strong>
-                <span id="payoutSettingsSummary">Loading profile…</span>
-              </div>
-              <button id="payoutSettingsToggle" class="action payout-settings-toggle" type="button" aria-expanded="false">Configure</button>
-            </div>
-
-            <div id="payoutSettingsEditor" class="payout-settings-editor hidden">
-              <div id="payoutSettingsList" class="payout-settings-list"></div>
-              <div class="payout-settings-footer">
+            <div class="payout-settings-headbar">
+              <strong>Payout profile</strong>
+              <div class="payout-settings-head-actions">
                 <p id="payoutSettingsStatus" class="status-line hidden" role="status"></p>
-                <div class="payout-settings-topline-actions">
-                  <button id="payoutSettingsReset" class="text-action" type="button">Reset defaults</button>
-                  <button id="payoutSettingsSave" class="action primary" type="submit">Save changes</button>
-                </div>
+                <button id="payoutSettingsReset" class="text-action" type="button">Reset</button>
+                <button id="payoutSettingsSave" class="action primary" type="submit">Save</button>
               </div>
             </div>
+            <div id="payoutSettingsList" class="payout-settings-list"></div>
           </form>
         </section>
 
@@ -456,6 +447,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=116"></script>
+  <script type="module" src="/v2/app.js?v=117"></script>
 </body>
 </html>
