@@ -10808,3 +10808,34 @@ body {
     flex-wrap: wrap;
   }
 }
+
+
+/* Payout actions replace redundant selected-war meta */
+#payoutsView .payout-page-toolbar {
+  align-items: end;
+}
+
+#payoutsView .payout-page-actions {
+  margin-left: auto;
+  align-self: end;
+}
+
+#payoutsView .payout-page-actions .small-select {
+  min-width: 190px;
+}
+
+#payoutsView.payout-admin-profile-visible .payout-toolbar {
+  display: none;
+}
+
+#payoutsView:not(.payout-admin-profile-visible) .payout-toolbar {
+  justify-content: flex-start;
+}
+
+@media (max-width: 760px) {
+  #payoutsView .payout-page-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+}
