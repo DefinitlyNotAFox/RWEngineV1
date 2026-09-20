@@ -197,6 +197,7 @@ function bindApplication() {
   document.querySelector('#autoTagSettingsReset')?.addEventListener('click', resetAutoTagSettings);
   document.querySelector('#payoutSettingsForm')?.addEventListener('submit', savePayoutSettings);
   document.querySelector('#payoutSettingsForm')?.addEventListener('input', handlePayoutSettingsDraft);
+  document.querySelector('#payoutSettingsToggle')?.addEventListener('click', togglePayoutSettingsEditor);
   document.querySelector('#payoutSettingsReset')?.addEventListener('click', resetPayoutSettings);
 
   on('request-refresh', () => refreshAll(false));
@@ -1131,7 +1132,24 @@ function renderPayoutSettingsVisibility() {
   if (!visible) {
     const list = document.querySelector('#payoutSettingsList');
     if (list) list.innerHTML = '';
+    setPayoutSettingsEditorOpen(false);
   }
+}
+
+function togglePayoutSettingsEditor() {
+  if (!canManagePayoutSettingsView()) return;
+  const editor = document.querySelector('#payoutSettingsEditor');
+  setPayoutSettingsEditorOpen(editor?.classList.contains('hidden'));
+}
+
+function setPayoutSettingsEditorOpen(open) {
+  const editor = document.querySelector('#payoutSettingsEditor');
+  const toggle = document.querySelector('#payoutSettingsToggle');
+  if (!editor || !toggle) return;
+
+  editor.classList.toggle('hidden', !open);
+  toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  toggle.textContent = open ? 'Close' : 'Configure';
 }
 
 async function loadPayoutSettings() {
@@ -1233,8 +1251,30 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog) {
   list.querySelectorAll('[data-payout-enabled]').forEach(input => {
     input.addEventListener('change', () => {
       input.closest('.payout-setting-row')?.classList.toggle('disabled', !input.checked);
+      updatePayoutSettingsSummary(collectPayoutSettings());
     });
   });
+
+  updatePayoutSettingsSummary(profile);
+}
+
+function updatePayoutSettingsSummary(profile) {
+  const summary = document.querySelector('#payoutSettingsSummary');
+  if (!summary) return;
+
+  const modules = Array.isArray(profile?.modules) ? profile.modules : [];
+  const active = modules.filter(module => module?.enabled !== false);
+  const labels = active.slice(0, 2).map(module => {
+    const definition = payoutSettingsCatalog.find(item => String(item.id) === String(module.id));
+    const label = definition?.label || module.id || 'Module';
+    const rate = Number(module.rate || 0);
+    const unit = definition?.unit === 'R' ? '/ R' : definition?.unit === 'assist' ? '/ assist' : '/ hit';
+    return `${label} · ${Math.round(rate).toLocaleString()}${unit}`;
+  });
+
+  summary.textContent = active.length
+    ? `${active.length} active · ${labels.join(' · ')}${active.length > 2 ? ` · +${active.length - 2} more` : ''}`
+    : 'No payout modules enabled';
 }
 
 function handlePayoutSettingsDraft() {
@@ -1242,6 +1282,7 @@ function handlePayoutSettingsDraft() {
 
   clearPayoutSettingsPreviewTimer();
   setPayoutSettingsStatus('Unsaved changes.');
+  try { updatePayoutSettingsSummary(collectPayoutSettings()); } catch (_) {}
 
   payoutSettingsPreviewTimer = window.setTimeout(() => {
     payoutSettingsPreviewTimer = null;
@@ -1313,6 +1354,7 @@ async function savePayoutSettings(event) {
       factionId:currentFactionId(),
       profile:result.profile || {}
     });
+    updatePayoutSettingsSummary(result.profile || {});
     setPayoutSettingsStatus(result.message || 'Payout profile saved.');
   } catch (error) {
     setPayoutSettingsStatus(error.message || 'Failed to save payout profile.', true);
