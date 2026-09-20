@@ -1293,29 +1293,30 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
   );
   const used = new Set();
 
-  const renderGroup = (className, ids) => {
-    const items = ids
-      .map(id => definitionsById.get(id))
-      .filter(Boolean);
+  const layoutSlots = [
+    'rankedRespect',
+    'warHits',
+    'outsideChainRespect',
+    null,
+    'assists',
+    'outsideHits'
+  ];
 
-    items.forEach(item => used.add(String(item.id || '')));
-    if (!items.length) {
-      return canEdit
-        ? ''
-        : `<div class="${className} payout-settings-slot-empty" aria-hidden="true"></div>`;
+  const layoutCards = layoutSlots.map(id => {
+    if (!id) {
+      return '<div class="payout-settings-slot-empty" aria-hidden="true"></div>';
     }
 
-    return `
-      <div class="${className}">
-        ${items.map(renderPayoutModule).join('')}
-      </div>
-    `;
-  };
+    const definition = definitionsById.get(id);
+    used.add(id);
+
+    return definition
+      ? renderPayoutModule(definition)
+      : '<div class="payout-settings-slot-empty" aria-hidden="true"></div>';
+  });
 
   list.innerHTML = [
-    renderGroup('payout-settings-solo', ['rankedRespect']),
-    renderGroup('payout-settings-stack', ['warHits', 'assists']),
-    renderGroup('payout-settings-stack', ['outsideChainRespect', 'outsideHits']),
+    ...layoutCards,
     ...visibleDefinitions
       .filter(definition => !used.has(String(definition.id || '')))
       .map(renderPayoutModule)
