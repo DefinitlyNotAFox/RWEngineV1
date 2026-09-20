@@ -12549,3 +12549,25 @@ body {
 #payoutsView .payout-settings-stack {
   align-content: start;
 }
+
+
+/* Milestones uses the same direct toggle alignment as % based */
+#payoutsView .payout-milestones-field {
+  display: flex !important;
+  align-items: center;
+  flex-flow: row nowrap;
+  gap: 10px;
+}
+
+#payoutsView .payout-milestones-field > .payout-secondary-toggle {
+  flex: 0 0 auto;
+}
+
+#payoutsView .payout-milestones-field > .payout-milestone-rate,
+#payoutsView .payout-milestones-field > .payout-setting-value {
+  flex: 0 0 auto;
+}
+
+#payoutsView .payout-milestones-field > .payout-milestone-rate.hidden {
+  display: none !important;
+}
