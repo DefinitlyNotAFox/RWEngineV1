@@ -6,14 +6,6 @@ import {
 } from './core.js?v=5';
 import { buildAutoTags } from './auto-tag-engine.js?v=3';
 
-const filters = [
-  ['attention','Needs attention'],
-  ['inactive','Inactive'],
-  ['war','War concerns'],
-  ['decline','Declining'],
-  ['stats','Stats missing/stale']
-];
-
 const MONTH_DAYS = 30.44;
 
 const factionColumns = [
@@ -561,10 +553,6 @@ function renderFilters() {
           </button>
           <span class="intel-filter-menu${intelFilterMenuOpen ? '' : ' hidden'}">
             <span class="intel-filter-menu-section">
-              <strong>Signals</strong>
-              ${filters.map(([key,label]) => renderCombinedFilterOption(`signal:${key}`, label)).join('')}
-            </span>
-            <span class="intel-filter-menu-section">
               <strong>Tags</strong>
               ${tagOptions.length
                 ? tagOptions.map(tag => renderCombinedFilterOption(`tag:${tag.key}`, tag.label, tag.count)).join('')
@@ -604,11 +592,6 @@ function renderCombinedFilterOption(key, label, count = null) {
 }
 
 function combinedFilterLabel(key) {
-  if (String(key).startsWith('signal:')) {
-    const signalKey = String(key).slice(7);
-    return filters.find(([candidate]) => candidate === signalKey)?.[1] || signalKey;
-  }
-
   if (String(key).startsWith('tag:')) {
     const tagKeyValue = String(key).slice(4);
     return activeTagFilterOptions().find(tag => tag.key === tagKeyValue)?.label ||
@@ -1013,51 +996,18 @@ function matchesFilter(member) {
   if (!memberVisible) return false;
   if (!activeFilters.size) return true;
 
-  const legacyInsights = Array.isArray(member.insights) ? member.insights : [];
-  const legacyCodes = new Set(legacyInsights.map(item => item.code));
-  const appliedTags = automaticTags(member);
-  const autoCodes = new Set(appliedTags.map(item => item.code));
-  const memberTags = new Set(normalizeMemberNotes(member?.notes).tags.map(tagKey));
+  const memberTagKeys = new Set(
+    normalizeMemberNotes(member?.notes).tags.map(tagKey).filter(Boolean)
+  );
+
+  for (const autoTag of automaticTags(member)) {
+    const key = tagKey(autoTag?.title);
+    if (key) memberTagKeys.add(key);
+  }
 
   for (const filterKey of activeFilters) {
-    if (filterKey.startsWith('tag:')) {
-      if (!memberTags.has(filterKey.slice(4))) return false;
-      continue;
-    }
-
-    if (!filterKey.startsWith('signal:')) continue;
-    const signal = filterKey.slice(7);
-
-    if (signal === 'attention') {
-      const legacyAttention = legacyInsights.some(item =>
-        item.kind === 'attention' &&
-        ['activity_down','xanax_down','missing_battle_stats','stale_battle_stats'].includes(item.code)
-      );
-      if (!appliedTags.some(item => item.kind === 'attention') && !legacyAttention) return false;
-      continue;
-    }
-
-    if (signal === 'inactive') {
-      if (!autoCodes.has('auto_inactive')) return false;
-      continue;
-    }
-
-    if (signal === 'war') {
-      if (!appliedTags.some(item =>
-        item.kind === 'attention' &&
-        ['war_hits','respect','outside_hits'].includes(item.category)
-      )) return false;
-      continue;
-    }
-
-    if (signal === 'decline') {
-      if (!(legacyCodes.has('activity_down') || legacyCodes.has('xanax_down'))) return false;
-      continue;
-    }
-
-    if (signal === 'stats') {
-      if (!(legacyCodes.has('missing_battle_stats') || legacyCodes.has('stale_battle_stats'))) return false;
-    }
+    if (!String(filterKey).startsWith('tag:')) continue;
+    if (!memberTagKeys.has(String(filterKey).slice(4))) return false;
   }
 
   return true;
@@ -1773,13 +1723,23 @@ function activeTagFilterOptions() {
   for (const member of overview?.members || []) {
     if (member.current === false && !showFormerMembers) continue;
 
+    const memberTagLabels = new Map();
+
     for (const rawTag of normalizeMemberNotes(member.notes).tags) {
       const key = tagKey(rawTag);
-      if (!key) continue;
+      if (key && !memberTagLabels.has(key)) memberTagLabels.set(key, rawTag);
+    }
 
+    for (const autoTag of automaticTags(member)) {
+      const label = String(autoTag?.title || '').trim();
+      const key = tagKey(label);
+      if (key && !memberTagLabels.has(key)) memberTagLabels.set(key, label);
+    }
+
+    for (const [key,label] of memberTagLabels) {
       const existing = tags.get(key);
       if (existing) existing.count += 1;
-      else tags.set(key, { key, label:rawTag, count:1 });
+      else tags.set(key, { key, label, count:1 });
     }
   }
 
