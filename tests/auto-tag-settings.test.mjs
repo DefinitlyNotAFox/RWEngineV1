@@ -6,11 +6,11 @@ test('auto-tag settings expose the agreed faction defaults', () => {
   const api = readFileSync(new URL('../functions/v2/auto-tags.js', import.meta.url), 'utf8');
 
   assert.match(api, /lowWarHits:[\s\S]*yellow:15[\s\S]*orange:10[\s\S]*red:6/);
-  assert.match(api, /highWarHits:[\s\S]*teal:25[\s\S]*green:40[\s\S]*bright:60/);
+  assert.match(api, /highWarHits:[\\s\\S]*green:25[\\s\\S]*bright:60/);
   assert.match(api, /outsideHits:[\s\S]*yellow:10/);
   assert.match(api, /respectPerHit:[\s\S]*yellow:4\.5[\s\S]*orange:4[\s\S]*red:3\.5[\s\S]*minimumHits:10/);
-  assert.match(api, /assists:[\s\S]*teal:10[\s\S]*green:20[\s\S]*bright:35/);
-  assert.match(api, /trainingEnergy:[\s\S]*red:400[\s\S]*orange:550[\s\S]*yellow:700[\s\S]*teal:1200[\s\S]*green:1350[\s\S]*bright:1500/);
+  assert.match(api, /assists:[\\s\\S]*green:10[\\s\\S]*bright:35/);
+  assert.match(api, /trainingEnergy:[\\s\\S]*red:400[\\s\\S]*orange:550[\\s\\S]*yellow:700[\\s\\S]*green:1200[\\s\\S]*bright:1500/);
   assert.match(api, /inactivity:[\s\S]*yellowHours:24[\s\S]*orangeHours:48[\s\S]*redHours:72/);
 });
 
@@ -26,11 +26,11 @@ test('settings page provides faction auto-tag controls', () => {
   assert.match(html, /<h2>Tags<\/h2>/);
   assert.match(html, /id="autoTagSettingsForm"/);
   assert.match(html, /id="autoTagSettingsReset"/);
-  assert.match(app, /key:'highWarHits'[\s\S]*\['teal'[\s\S]*\['green'[\s\S]*\['bright'/);
-  assert.match(app, /key:'assists'[\s\S]*\['teal'[\s\S]*\['green'[\s\S]*\['bright'/);
+  assert.match(app, /key:'highWarHits'[\\s\\S]*\\['green'[\\s\\S]*\\['bright'/);
+  assert.match(app, /key:'assists'[\\s\\S]*\\['green'[\\s\\S]*\\['bright'/);
   assert.match(app, /key:'lowWarHits'[\s\S]*\['yellow'[\s\S]*\['orange'[\s\S]*\['red'/);
   assert.match(app, /key:'respectPerHit'[\s\S]*\['yellow'[\s\S]*\['orange'[\s\S]*\['red'[\s\S]*\['minimumHits'/);
-  assert.match(app, /key:'trainingEnergy'[\s\S]*\['yellow'[\s\S]*\['orange'[\s\S]*\['red'[\s\S]*\['teal'[\s\S]*\['green'[\s\S]*\['bright'/);
+  assert.match(app, /key:'trainingEnergy'[\\s\\S]*\\['yellow'[\\s\\S]*\\['orange'[\\s\\S]*\\['red'[\\s\\S]*\\['green'[\\s\\S]*\\['bright'/);
   assert.match(app, /key:'inactivity'[\s\S]*\['yellowHours'[\s\S]*\['orangeHours'[\s\S]*\['redHours'/);
   assert.match(app, /group:'War'[\s\S]*title:'Low war hits \/ war'/);
   assert.match(app, /group:'Training'[\s\S]*title:'Training E \/ day'/);
