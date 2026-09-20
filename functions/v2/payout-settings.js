@@ -20,19 +20,22 @@ export async function onRequest(context) {
     const user = await getCurrentUser(env, request);
     const factionId = await resolveFactionId(env.DB, user, body.factionId);
     const action = String(body.action || 'get');
+    await ensurePresetSchema(env.DB);
+    const canEdit = await canEditSettings(env.DB, user, factionId);
 
     if (action === 'get') {
       return json({
         success:true,
         factionId,
-        canEdit:await canEditSettings(env.DB, user, factionId),
+        canEdit,
         catalog:payoutCatalog(),
         defaults:cloneDefaultPayoutProfile(),
-        profile:await loadPayoutProfile(env.DB, factionId)
+        profile:await loadPayoutProfile(env.DB, factionId),
+        presets:canEdit ? await loadPresets(env.DB, factionId) : []
       });
     }
 
-    if (!await canEditSettings(env.DB, user, factionId)) {
+    if (!canEdit) {
       throw httpError(403, 'Faction-admin access is required to change payout settings.');
     }
 
@@ -55,7 +58,87 @@ export async function onRequest(context) {
         factionId,
         profile,
         catalog:payoutCatalog(),
+        presets:await loadPresets(env.DB, factionId),
         message:'Payout profile reset to defaults.'
+      });
+    }
+
+    if (action === 'savePreset') {
+      const name = presetName(body.name);
+      const profile = normalizePayoutProfile(body.profile);
+      const requestedId = Number(body.presetId || 0);
+      const now = unixNow();
+      let presetId = requestedId;
+
+      if (requestedId > 0) {
+        const existing = await env.DB.prepare(
+          'SELECT preset_id FROM payout_setting_presets WHERE faction_id = ? AND preset_id = ? LIMIT 1'
+        ).bind(factionId, requestedId).first();
+        if (!existing) throw httpError(404, 'Payout preset not found.');
+
+        await env.DB.prepare(`
+          UPDATE payout_setting_presets
+          SET name = ?, profile_json = ?, updated_at = ?
+          WHERE faction_id = ? AND preset_id = ?
+        `).bind(name, JSON.stringify(profile), now, factionId, requestedId).run();
+      } else {
+        const sameName = await env.DB.prepare(
+          'SELECT preset_id FROM payout_setting_presets WHERE faction_id = ? AND LOWER(name) = LOWER(?) LIMIT 1'
+        ).bind(factionId, name).first();
+
+        if (sameName?.preset_id) {
+          presetId = Number(sameName.preset_id);
+          await env.DB.prepare(`
+            UPDATE payout_setting_presets
+            SET name = ?, profile_json = ?, updated_at = ?
+            WHERE faction_id = ? AND preset_id = ?
+          `).bind(name, JSON.stringify(profile), now, factionId, presetId).run();
+        } else {
+          const result = await env.DB.prepare(`
+            INSERT INTO payout_setting_presets (
+              faction_id, name, profile_json, created_by_user_id, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?)
+          `).bind(
+            factionId,
+            name,
+            JSON.stringify(profile),
+            Number(user.user_id),
+            now,
+            now
+          ).run();
+          presetId = Number(result.meta?.last_row_id || 0);
+        }
+      }
+
+      const presets = await loadPresets(env.DB, factionId);
+      return json({
+        success:true,
+        factionId,
+        preset:presets.find(item => Number(item.presetId) === Number(presetId)) || null,
+        presets,
+        message:'Payout preset saved.'
+      });
+    }
+
+    if (action === 'deletePreset') {
+      const presetId = Number(body.presetId || 0);
+      if (!Number.isSafeInteger(presetId) || presetId <= 0) {
+        throw httpError(400, 'Select a payout preset to delete.');
+      }
+
+      const result = await env.DB.prepare(
+        'DELETE FROM payout_setting_presets WHERE faction_id = ? AND preset_id = ?'
+      ).bind(factionId, presetId).run();
+
+      if (Number(result.meta?.changes || 0) < 1) {
+        throw httpError(404, 'Payout preset not found.');
+      }
+
+      return json({
+        success:true,
+        factionId,
+        presets:await loadPresets(env.DB, factionId),
+        message:'Payout preset deleted.'
       });
     }
 
@@ -66,6 +149,54 @@ export async function onRequest(context) {
       message:error?.message || 'Unexpected payout settings error.'
     }, error?.status || 500);
   }
+}
+
+async function ensurePresetSchema(db) {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS payout_setting_presets (
+      preset_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      faction_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      profile_json TEXT NOT NULL,
+      created_by_user_id INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )
+  `).run();
+
+  await db.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_payout_setting_presets_faction
+    ON payout_setting_presets(faction_id, name)
+  `).run();
+}
+
+async function loadPresets(db, factionId) {
+  const result = await db.prepare(`
+    SELECT preset_id, name, profile_json, created_at, updated_at
+    FROM payout_setting_presets
+    WHERE faction_id = ?
+    ORDER BY name COLLATE NOCASE, preset_id
+  `).bind(factionId).all();
+
+  return (result.results || []).map(row => {
+    let profile = cloneDefaultPayoutProfile();
+    try { profile = normalizePayoutProfile(JSON.parse(String(row.profile_json || '{}'))); }
+    catch (_) {}
+    return {
+      presetId:Number(row.preset_id),
+      name:String(row.name || 'Preset'),
+      profile,
+      createdAt:Number(row.created_at || 0),
+      updatedAt:Number(row.updated_at || 0)
+    };
+  });
+}
+
+function presetName(value) {
+  const name = String(value || '').trim().replace(/\s+/g, ' ');
+  if (!name) throw httpError(400, 'Enter a preset name.');
+  if (name.length > 60) throw httpError(400, 'Preset names can be up to 60 characters.');
+  return name;
 }
 
 async function canEditSettings(db, user, factionId) {
