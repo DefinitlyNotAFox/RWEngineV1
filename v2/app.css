@@ -14640,3 +14640,23 @@ body {
     max-width: none;
   }
 }
+
+
+/* Anchor ranked-war controls to the page left edge */
+#payoutsView .payout-head-controls {
+  justify-items: stretch;
+}
+
+#payoutsView .payout-war-row,
+#payoutsView .payout-head-war,
+#payoutsView .payout-war-picker,
+#payoutsView .payout-war-select-line {
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  justify-self: stretch;
+}
+
+#payoutsView .payout-war-row {
+  justify-content: flex-start;
+}
