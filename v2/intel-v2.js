@@ -29,7 +29,7 @@ const columnLabels = {
   activity:['Activity / day',''],
   ocs:['OCs / month',''],
   participation:['Wars / participation',''],
-  hits:['Hits per war',''],
+  hits:['Hits',''],
   assists:['Assists',''],
   outsideHits:['Outside hits',''],
   respect:['Respect + / −',''],
@@ -798,7 +798,9 @@ function renderFactionTotalRow() {
         <span class="member-meta">avg / day</span>
       </div>
       <div role="cell" class="faction-grid-cell col-ocs">
-        <strong>${tableCellText(formatDecimal(avgOcsPerMonth, 2))}</strong>
+        ${avgOcsPerMonth === null
+          ? '<span class="member-meta member-meta-primary">No data</span>'
+          : `<strong>${formatDecimal(avgOcsPerMonth, 2)}</strong>`}
         <span class="member-meta">${totalOcs === null ? '' : `${formatNumber(totalOcs)} total in range`}</span>
       </div>
       <div role="cell" class="faction-grid-cell col-participation">
@@ -806,8 +808,8 @@ function renderFactionTotalRow() {
         <span class="member-meta">${escapeHtml(warScope)}</span>
       </div>
       <div role="cell" class="faction-grid-cell col-hits">
-        <strong>${warLoading ? '…' : formatDecimal(hitsPerWar, 1)}</strong>
-        <span class="member-meta">${warLoading ? '…' : `${formatNumber(totalHits)} total`}</span>
+        <strong>${warLoading ? '…' : formatNumber(totalHits)}</strong>
+        <span class="member-meta">${warLoading ? '…' : `${formatDecimal(hitsPerWar, 1)} / war`}</span>
       </div>
       <div role="cell" class="faction-grid-cell col-assists">
         <strong>${warLoading ? '…' : formatNumber(assists)}</strong>
@@ -943,7 +945,7 @@ function renderFactionCell(member, key) {
   if (key === 'ocs') {
     const total = nullable(member.ocs?.total);
     const perMonth = monthlyOcs(member.ocs);
-    return `<div role="cell" class="faction-grid-cell col-ocs"><strong>${perMonth === null ? 'No data' : formatDecimal(perMonth, 2)}</strong><span class="member-meta">${total === null ? '' : `${formatNumber(total)} in range`}</span></div>`;
+    return `<div role="cell" class="faction-grid-cell col-ocs">${perMonth === null ? '<span class="member-meta member-meta-primary">No data</span>' : `<strong>${formatDecimal(perMonth, 2)}</strong>`}<span class="member-meta">${total === null ? '' : `${formatNumber(total)} in range`}</span></div>`;
   }
 
   if (key === 'participation4') {
@@ -975,11 +977,11 @@ function renderFactionCell(member, key) {
   }
 
   if (key === 'participation') {
-    return `<div role="cell" class="faction-grid-cell col-participation"><strong>${formatNumber(performance.wars)} / ${formatNumber(factionPerformance.totalWars)}</strong><span class="member-meta">${formatPercent(performance.participation)} participation</span></div>`;
+    return `<div role="cell" class="faction-grid-cell col-participation"><strong>${formatNumber(performance.wars)} / ${formatNumber(factionPerformance.totalWars)}</strong><span class="member-meta">${formatPercent(performance.participation)}</span></div>`;
   }
 
   if (key === 'hits') {
-    return `<div role="cell" class="faction-grid-cell col-hits"><strong>${formatDecimal(performance.avgHitsPerWar, 1)}</strong><span class="member-meta">${formatNumber(performance.warHits)} total</span></div>`;
+    return `<div role="cell" class="faction-grid-cell col-hits"><strong>${formatNumber(performance.warHits)}</strong><span class="member-meta">${formatDecimal(performance.avgHitsPerWar, 1)} / war</span></div>`;
   }
 
   if (key === 'assists') {
@@ -1084,7 +1086,7 @@ function sortValue(member, key) {
   if (key === 'participation4') return nullable(member.war?.last4?.participation);
   if (key === 'hits4') return nullable(member.war?.last4?.hitsPerWar);
   if (key === 'participation') return nullable(performance?.participation);
-  if (key === 'hits') return nullable(performance?.avgHitsPerWar);
+  if (key === 'hits') return nullable(performance?.warHits);
   if (key === 'assists') return nullable(performance?.assists);
   if (key === 'outsideHits') return nullable(performance?.outsideHits);
   if (key === 'respect') {
