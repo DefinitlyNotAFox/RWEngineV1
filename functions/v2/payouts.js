@@ -146,7 +146,7 @@ function legacyProfileFields(profile) {
   return {
     warRate:Number(war.rate || 0),
     outsideRate:Number(outside.rate || 0),
-    milestoneValue:Number(war.milestoneValue || outside.milestoneValue || 0)
+    milestoneValue:Number(war.milestoneRate || outside.milestoneRate || 0)
   };
 }
 
