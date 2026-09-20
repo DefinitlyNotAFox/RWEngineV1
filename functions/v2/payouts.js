@@ -16,35 +16,107 @@ export async function onRequest(context) {
     const body = await readJson(request);
     const user = await getCurrentUser(env, request);
     const factionId = await resolveFactionId(env.DB, user, body.factionId);
-    const warId = String(body.warId || '').trim();
-    if (!warId) throw httpError(400, 'Missing war ID.');
+    const action = String(body.action || 'preview');
 
     await ensurePayoutSchema(env.DB);
     await ensurePayoutColumns(env.DB);
     await ensureAccessSchema(env.DB);
+    await ensureWarPayoutColumns(env.DB);
+    await ensureMemberPaymentSchema(env.DB);
+
+    const permissions = await loadFactionPermissions(env.DB, user, factionId);
+    const canManage = Number(user.is_admin) === 1 || permissions.isFactionAdmin === true;
+
+    if (action === 'wars') {
+      const result = await env.DB.prepare(`
+        SELECT
+          war_id,
+          report_id,
+          opponent_faction_id,
+          opponent_faction_name,
+          start_timestamp,
+          end_timestamp,
+          imported_at,
+          COALESCE(payout_status, 'outstanding') AS payout_status,
+          payout_confirmed_at
+        FROM wars
+        WHERE faction_id = ?
+        ORDER BY COALESCE(end_timestamp, start_timestamp, imported_at, 0) DESC
+        LIMIT 200
+      `).bind(factionId).all();
+
+      return json({
+        success:true,
+        factionId,
+        canManage,
+        wars:(result.results || []).map(row => ({
+          warId:String(row.war_id || row.report_id || ''),
+          reportId:String(row.report_id || row.war_id || ''),
+          opponentFactionId:Number(row.opponent_faction_id || 0) || null,
+          opponentFactionName:row.opponent_faction_name || 'Unknown opponent',
+          startTimestamp:Number(row.start_timestamp || 0) || null,
+          endTimestamp:Number(row.end_timestamp || 0) || null,
+          importedAt:Number(row.imported_at || 0) || null,
+          payoutStatus:String(row.payout_status || 'outstanding') === 'paid' ? 'paid' : 'outstanding',
+          payoutConfirmedAt:Number(row.payout_confirmed_at || 0) || null
+        }))
+      });
+    }
+
+    const warId = String(body.warId || '').trim();
+    if (!warId) throw httpError(400, 'Missing war ID.');
 
     const war = await loadWar(env.DB, factionId, warId);
     if (!war) throw httpError(404, 'Imported war not found for this faction.');
-    await assertWarAccess(env.DB, user, factionId, war);
 
-    const permissions = await loadFactionPermissions(env.DB, user, factionId);
-    const canSave = Number(user.is_admin) === 1 ||
-      permissions.isFactionAdmin === true ||
-      permissions.isAssistant === true;
+    const payoutStatus = String(war.payout_status || 'outstanding') === 'paid'
+      ? 'paid'
+      : 'outstanding';
+
+    if (!canManage && payoutStatus !== 'paid') {
+      throw httpError(403, 'This payout is still outstanding.');
+    }
+
     const storedProfile = await loadPayoutProfile(env.DB, factionId);
-    const action = String(body.action || 'preview');
+    const confirmedPreview = payoutStatus === 'paid'
+      ? parseSnapshot(war.payout_snapshot_json)
+      : null;
 
     if (action === 'list') {
       return json({
         success:true,
         factionId,
         warId,
-        canSave,
-        profile:storedProfile
+        canSave:canManage,
+        canManage,
+        status:payoutStatus,
+        confirmedAt:Number(war.payout_confirmed_at || 0) || null,
+        profile:confirmedPreview?.profile || storedProfile,
+        preview:confirmedPreview
       });
     }
 
-    const profile = action === 'preview' && body.profile
+    if (payoutStatus === 'paid') {
+      if (action !== 'preview') {
+        throw httpError(409, 'This payout has already been confirmed.');
+      }
+      if (!confirmedPreview) {
+        throw httpError(409, 'Confirmed payout snapshot is unavailable.');
+      }
+      return json({
+        success:true,
+        canSave:canManage,
+        canManage,
+        status:'paid',
+        preview:confirmedPreview
+      });
+    }
+
+    if (!canManage) {
+      throw httpError(403, 'Faction-admin access is required for outstanding payouts.');
+    }
+
+    const profile = body.profile
       ? normalizePayoutProfile(body.profile)
       : storedProfile;
 
@@ -63,65 +135,121 @@ export async function onRequest(context) {
     };
 
     const calculation = calculatePayoutRows(rows, calculationProfile);
-    const preview = {
+    const payments = await loadMemberPayments(env.DB, factionId, warId);
+    const preview = attachPaymentState({
       warId,
       factionId,
       ...calculation,
       profile,
-      unavailableModules
-    };
+      unavailableModules,
+      status:'outstanding'
+    }, payments);
 
     if (action === 'preview') {
       return json({
         success:true,
-        canSave,
+        canSave:true,
+        canManage:true,
+        status:'outstanding',
         preview
       });
     }
 
-    if (action === 'save') {
-      if (!canSave) {
-        throw httpError(403, 'Assistant or faction-admin access is required to save payout runs.');
+    if (action === 'setMemberPaid') {
+      const playerId = Number(body.playerId || 0);
+      const paid = body.paid === true;
+      const member = preview.members.find(item => Number(item.playerId) === playerId);
+      if (!member) throw httpError(404, 'Payout member not found.');
+
+      if (paid && Number(member.totalPayout || 0) > 0) {
+        const now = unixNow();
+        await env.DB.prepare(`
+          INSERT INTO payout_member_payments (
+            faction_id, war_id, player_id, amount, paid_at, paid_by_user_id
+          ) VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(faction_id, war_id, player_id) DO UPDATE SET
+            amount = excluded.amount,
+            paid_at = excluded.paid_at,
+            paid_by_user_id = excluded.paid_by_user_id
+        `).bind(
+          factionId,
+          warId,
+          playerId,
+          Math.round(Number(member.totalPayout || 0)),
+          now,
+          Number(user.user_id)
+        ).run();
+      } else {
+        await env.DB.prepare(
+          'DELETE FROM payout_member_payments WHERE faction_id = ? AND war_id = ? AND player_id = ?'
+        ).bind(factionId, warId, playerId).run();
       }
+
+      const nextPayments = await loadMemberPayments(env.DB, factionId, warId);
+      return json({
+        success:true,
+        canManage:true,
+        preview:attachPaymentState({
+          warId,
+          factionId,
+          ...calculation,
+          profile,
+          unavailableModules,
+          status:'outstanding'
+        }, nextPayments)
+      });
+    }
+
+    if (action === 'confirm') {
       if (unavailableModules.length) {
-        const error = httpError(
+        throw httpError(
           422,
           unavailableModules.map(item => item.reason || (item.label + ' is unavailable for this war.')).join(' ')
         );
-        error.code = 'PAYOUT_MODULE_UNAVAILABLE';
+      }
+
+      const missing = preview.members.filter(member =>
+        Number(member.totalPayout || 0) > 0 && member.paid !== true
+      );
+
+      if (missing.length) {
+        const error = httpError(
+          409,
+          `Mark every payout as paid before confirming. ${missing.length} member${missing.length === 1 ? '' : 's'} remaining.`
+        );
+        error.code = 'PAYOUT_MEMBERS_OUTSTANDING';
         throw error;
       }
 
       const now = unixNow();
-      const legacy = legacyProfileFields(profile);
-      const result = await env.DB.prepare(`
-        INSERT INTO payout_runs (
-          faction_id, war_id, war_rate, outside_rate, milestone_value,
-          total_payout, member_count, payload_json, created_by_user_id, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      const confirmed = {
+        ...preview,
+        status:'paid',
+        confirmedAt:now
+      };
+
+      await env.DB.prepare(`
+        UPDATE wars
+        SET payout_status = 'paid',
+            payout_confirmed_at = ?,
+            payout_confirmed_by_user_id = ?,
+            payout_snapshot_json = ?
+        WHERE faction_id = ? AND war_id = ?
       `).bind(
-        factionId,
-        warId,
-        legacy.warRate,
-        legacy.outsideRate,
-        legacy.milestoneValue,
-        calculation.totalPayout,
-        calculation.members.length,
-        JSON.stringify(preview),
+        now,
         Number(user.user_id),
-        now
+        JSON.stringify(confirmed),
+        factionId,
+        warId
       ).run();
 
       return json({
         success:true,
-        canSave:true,
-        run:{
-          runId:Number(result.meta?.last_row_id || 0),
-          createdAt:now,
-          createdByPlayerId:Number(user.player_id || 0) || null,
-          preview
-        },
-        message:'Payout preset saved.'
+        canManage:true,
+        status:'paid',
+        confirmedAt:now,
+        preview:confirmed,
+        message:'Payout confirmed.'
       });
     }
 
@@ -134,6 +262,89 @@ export async function onRequest(context) {
     }, error?.status || 500);
   }
 }
+function parseSnapshot(value) {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function attachPaymentState(preview, payments) {
+  const byPlayer = new Map(
+    (Array.isArray(payments) ? payments : []).map(item => [Number(item.playerId), item])
+  );
+
+  return {
+    ...preview,
+    members:(preview.members || []).map(member => {
+      const payment = byPlayer.get(Number(member.playerId));
+      const expected = Math.round(Number(member.totalPayout || 0));
+      const paid = Boolean(payment && Number(payment.amount || 0) === expected && expected > 0);
+      return {
+        ...member,
+        paid,
+        paidAt:paid ? Number(payment.paidAt || 0) || null : null
+      };
+    })
+  };
+}
+
+async function loadMemberPayments(db, factionId, warId) {
+  const result = await db.prepare(`
+    SELECT player_id, amount, paid_at, paid_by_user_id
+    FROM payout_member_payments
+    WHERE faction_id = ? AND war_id = ?
+  `).bind(factionId, warId).all();
+
+  return (result.results || []).map(row => ({
+    playerId:Number(row.player_id),
+    amount:Number(row.amount || 0),
+    paidAt:Number(row.paid_at || 0) || null,
+    paidByUserId:Number(row.paid_by_user_id || 0) || null
+  }));
+}
+
+async function ensureMemberPaymentSchema(db) {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS payout_member_payments (
+      faction_id INTEGER NOT NULL,
+      war_id TEXT NOT NULL,
+      player_id INTEGER NOT NULL,
+      amount INTEGER NOT NULL DEFAULT 0,
+      paid_at INTEGER NOT NULL,
+      paid_by_user_id INTEGER NOT NULL,
+      PRIMARY KEY (faction_id, war_id, player_id)
+    )
+  `).run();
+
+  await db.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_payout_member_payments_war
+    ON payout_member_payments(faction_id, war_id)
+  `).run();
+}
+
+async function ensureWarPayoutColumns(db) {
+  const columns = await db.prepare('PRAGMA table_info(wars)').all();
+  const found = new Set((columns.results || []).map(row => String(row.name)));
+  const additions = [
+    ['payout_status', "ALTER TABLE wars ADD COLUMN payout_status TEXT NOT NULL DEFAULT 'outstanding'"],
+    ['payout_confirmed_at', 'ALTER TABLE wars ADD COLUMN payout_confirmed_at INTEGER'],
+    ['payout_confirmed_by_user_id', 'ALTER TABLE wars ADD COLUMN payout_confirmed_by_user_id INTEGER'],
+    ['payout_snapshot_json', 'ALTER TABLE wars ADD COLUMN payout_snapshot_json TEXT']
+  ];
+
+  for (const [name, sql] of additions) {
+    if (found.has(name)) continue;
+    try { await db.prepare(sql).run(); }
+    catch (error) {
+      if (!/duplicate column|already exists/i.test(String(error?.message || error || ''))) throw error;
+    }
+  }
+}
+
 
 function legacyProfileFields(profile) {
   const modules = new Map((profile?.modules || []).map(item => [item.id, item]));
@@ -287,7 +498,10 @@ async function loadWar(db, factionId, warId) {
     SELECT
       war_id,
       faction_id,
-      imported_by_user_id
+      imported_by_user_id,
+      COALESCE(payout_status, 'outstanding') AS payout_status,
+      payout_confirmed_at,
+      payout_snapshot_json
     FROM wars
     WHERE faction_id = ? AND war_id = ?
     LIMIT 1
