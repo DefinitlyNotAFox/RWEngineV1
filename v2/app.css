@@ -10570,3 +10570,241 @@ body {
     margin-left: 0;
   }
 }
+
+
+/* Permanent dense payout admin strip */
+#payoutsView #payoutSettingsSection {
+  min-height: 0;
+  margin: 0 0 9px;
+  padding: 0 0 7px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+#payoutsView .payout-settings-form {
+  display: block;
+  min-height: 0;
+}
+
+#payoutsView .payout-settings-headbar {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 3px;
+}
+
+#payoutsView .payout-settings-headbar > strong {
+  font-size: var(--font-small);
+  font-weight: 680;
+}
+
+#payoutsView .payout-settings-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+#payoutsView .payout-settings-head-actions #payoutSettingsStatus {
+  max-width: 220px;
+  margin: 0 3px 0 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#payoutsView .payout-settings-head-actions .action {
+  min-width: 58px;
+  min-height: 26px;
+  height: 26px;
+  padding: 2px 8px;
+}
+
+#payoutsView .payout-settings-head-actions .text-action {
+  font-size: var(--font-caption);
+}
+
+#payoutsView .payout-settings-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(330px, .65fr);
+  gap: 20px;
+  width: 100%;
+  overflow: visible;
+}
+
+#payoutsView .payout-setting-group {
+  display: block;
+  min-width: 0;
+}
+
+#payoutsView .payout-setting-group + .payout-setting-group {
+  padding-left: 20px;
+  border-left: 1px solid var(--line-soft);
+}
+
+#payoutsView .payout-setting-group-label {
+  margin: 0 0 2px;
+  color: var(--dim);
+  font-size: 10px;
+  font-weight: 720;
+  line-height: 1.15;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+#payoutsView .payout-setting-group-items {
+  display: grid;
+  gap: 0;
+}
+
+#payoutsView .payout-setting-row,
+#payoutsView .payout-setting-row:first-of-type,
+#payoutsView .payout-setting-row:last-child {
+  min-height: 29px;
+  display: grid;
+  grid-template-columns: minmax(145px, .72fr) minmax(0, 1.28fr);
+  align-items: center;
+  gap: 8px;
+  padding: 1px 0;
+  border: 0;
+  border-bottom: 1px solid rgba(255,255,255,.045);
+  border-radius: 0;
+  background: transparent;
+}
+
+#payoutsView .payout-setting-row:last-child {
+  border-bottom: 0;
+}
+
+#payoutsView .payout-setting-row + .payout-setting-row {
+  border-left: 0;
+}
+
+#payoutsView .payout-setting-toggle {
+  min-width: 0;
+  gap: 5px;
+  font-size: var(--font-caption);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+#payoutsView .payout-setting-toggle input {
+  width: 13px;
+  height: 13px;
+}
+
+#payoutsView .payout-setting-controls {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+#payoutsView .payout-setting-row.disabled {
+  opacity: .46;
+}
+
+#payoutsView .payout-setting-row.disabled .payout-setting-controls {
+  display: flex;
+  visibility: hidden;
+}
+
+#payoutsView .payout-rate-field,
+#payoutsView .payout-milestone-field {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+#payoutsView .payout-rate-field > span:first-child,
+#payoutsView .payout-milestone-field > span:first-child {
+  display: none;
+}
+
+#payoutsView .payout-setting-input input {
+  width: 76px;
+  height: 24px;
+  padding: 1px 5px;
+  font-size: var(--font-small);
+}
+
+#payoutsView .payout-milestone-field .payout-setting-input input {
+  width: 40px;
+}
+
+#payoutsView .payout-setting-input em {
+  margin-left: 3px;
+  font-size: 10px;
+}
+
+#payoutsView .payout-normalize-field {
+  min-height: 24px;
+  gap: 4px;
+  font-size: 10px;
+}
+
+#payoutsView .payout-normalize-field input {
+  width: 12px;
+  height: 12px;
+}
+
+#payoutsView [data-payout-group="Hits"] .payout-setting-row {
+  grid-template-columns: minmax(110px, 1fr) auto;
+}
+
+#payoutsView [data-payout-group="Hits"] .payout-setting-controls {
+  justify-content: flex-end;
+}
+
+/* Admins already see the editable profile directly above the calculator. */
+#payoutsView.payout-admin-profile-visible #payoutProfileSummary {
+  display: none;
+}
+
+#payoutsView.payout-admin-profile-visible .payout-toolbar {
+  justify-content: flex-end;
+}
+
+@media (max-width: 1050px) {
+  #payoutsView .payout-settings-list {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  #payoutsView .payout-setting-group + .payout-setting-group {
+    padding: 6px 0 0;
+    border-top: 1px solid var(--line-soft);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 700px) {
+  #payoutsView .payout-settings-headbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  #payoutsView .payout-settings-head-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  #payoutsView .payout-setting-row,
+  #payoutsView .payout-setting-row:first-of-type,
+  #payoutsView .payout-setting-row:last-child {
+    grid-template-columns: minmax(130px,.8fr) minmax(0,1.2fr);
+  }
+
+  #payoutsView .payout-setting-controls {
+    flex-wrap: wrap;
+  }
+}
