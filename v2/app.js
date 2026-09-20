@@ -1202,7 +1202,7 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
     ? definitions
     : definitions.filter(definition => modules.get(String(definition.id || ''))?.enabled !== false);
 
-  list.innerHTML = visibleDefinitions.map(definition => {
+  const renderPayoutModule = definition => {
     const module = modules.get(String(definition.id || '')) || {};
     const enabled = module.enabled !== false;
     const unit = definition.unit === 'R'
@@ -1290,7 +1290,36 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
         </div>
       </section>
     `;
-  }).join('');
+  };
+
+  const definitionsById = new Map(
+    visibleDefinitions.map(definition => [String(definition.id || ''), definition])
+  );
+  const used = new Set();
+
+  const renderGroup = (className, ids) => {
+    const items = ids
+      .map(id => definitionsById.get(id))
+      .filter(Boolean);
+
+    items.forEach(item => used.add(String(item.id || '')));
+    if (!items.length) return '';
+
+    return `
+      <div class="${className}">
+        ${items.map(renderPayoutModule).join('')}
+      </div>
+    `;
+  };
+
+  list.innerHTML = [
+    renderGroup('payout-settings-solo', ['rankedRespect']),
+    renderGroup('payout-settings-stack', ['warHits', 'assists']),
+    renderGroup('payout-settings-stack', ['outsideChainRespect', 'outsideHits']),
+    ...visibleDefinitions
+      .filter(definition => !used.has(String(definition.id || '')))
+      .map(renderPayoutModule)
+  ].join('');
 
   if (!canEdit) return;
 
