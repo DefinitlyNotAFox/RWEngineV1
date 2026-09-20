@@ -221,7 +221,12 @@ async function ensureAggregateSchema(db) {
     ['attack_detail_rows', 'ALTER TABLE war_log ADD COLUMN attack_detail_rows INTEGER NOT NULL DEFAULT 0'],
     ['chain_bonus_hits_in', 'ALTER TABLE war_log ADD COLUMN chain_bonus_hits_in INTEGER NOT NULL DEFAULT 0'],
     ['chain_bonus_score_in', 'ALTER TABLE war_log ADD COLUMN chain_bonus_score_in REAL NOT NULL DEFAULT 0'],
-    ['chain_bonus_respect_lost_in', 'ALTER TABLE war_log ADD COLUMN chain_bonus_respect_lost_in REAL NOT NULL DEFAULT 0']
+    ['chain_bonus_respect_lost_in', 'ALTER TABLE war_log ADD COLUMN chain_bonus_respect_lost_in REAL NOT NULL DEFAULT 0'],
+    ['outside_chain_hits', 'ALTER TABLE war_log ADD COLUMN outside_chain_hits INTEGER NOT NULL DEFAULT 0'],
+    ['outside_chain_respect', 'ALTER TABLE war_log ADD COLUMN outside_chain_respect REAL NOT NULL DEFAULT 0'],
+    ['outside_chain_bonus_hits', 'ALTER TABLE war_log ADD COLUMN outside_chain_bonus_hits INTEGER NOT NULL DEFAULT 0'],
+    ['outside_chain_bonus_respect', 'ALTER TABLE war_log ADD COLUMN outside_chain_bonus_respect REAL NOT NULL DEFAULT 0'],
+    ['payout_detail_version', 'ALTER TABLE war_log ADD COLUMN payout_detail_version INTEGER NOT NULL DEFAULT 0']
   ];
 
   for (const [name, sql] of additions) {
@@ -387,7 +392,7 @@ function attackOverlapsWar(attack, exactStart, exactEnd) {
 
 function createAccumulator(war) {
   return {
-    version:1,
+    version:2,
     warId:String(war.war_id),
     factionId:Number(war.faction_id),
     opponentFactionId:Number(war.opponent_faction_id || 0),
@@ -409,6 +414,10 @@ function emptyPlayerMetric(playerId) {
     playerId:Number(playerId),
     assists:0,
     outsideHits:0,
+    outsideChainHits:0,
+    outsideChainRespect:0,
+    outsideChainBonusHits:0,
+    outsideChainBonusRespect:0,
     scoreDown:0,
     respectEarned:0,
     respectLost:0,
@@ -442,7 +451,8 @@ function accumulateAttack(state, war, attack) {
   );
   const ranked = Boolean(attack.isRankedWar || betweenWarFactions);
   const assist = /assist/i.test(String(attack.result || ''));
-  const milestone = ranked && !assist && isMilestoneAttack(attack);
+  const chainMilestone = !assist && isMilestoneAttack(attack);
+  const milestone = ranked && chainMilestone;
 
   if (ownOutgoing) {
     const metric = playerMetric(state, attack.attackerId);
@@ -465,6 +475,17 @@ function accumulateAttack(state, war, attack) {
 
       if (!assist && (opponentId === 0 || defenderFactionId !== opponentId)) {
         metric.outsideHits += 1;
+
+        const outsideRespect = Number(attack.respectGain || 0);
+        const chainMarked = Number(attack.chain || 0) > 0;
+        if (outsideRespect > 0 && chainMarked) {
+          metric.outsideChainHits += 1;
+          metric.outsideChainRespect += outsideRespect;
+          if (chainMilestone) {
+            metric.outsideChainBonusHits += 1;
+            metric.outsideChainBonusRespect += outsideRespect;
+          }
+        }
       }
     }
   }
@@ -502,6 +523,12 @@ async function loadAccumulator(db, factionId, warId) {
     const state = JSON.parse(row.value);
     if (!state || typeof state !== 'object') return null;
     state.players = state.players && typeof state.players === 'object' ? state.players : {};
+    for (const [playerId, metric] of Object.entries(state.players)) {
+      state.players[playerId] = {
+        ...emptyPlayerMetric(Number(playerId)),
+        ...(metric && typeof metric === 'object' ? metric : {})
+      };
+    }
     state.seenAttackIds = Array.isArray(state.seenAttackIds) ? state.seenAttackIds : [];
     state.seenPageKeys = Array.isArray(state.seenPageKeys) ? state.seenPageKeys : [];
     state.processedTotal = Number(state.processedTotal || 0);
@@ -563,6 +590,11 @@ async function finalizeAccumulator(db, war, state) {
         chain_bonus_hits_in = ?,
         chain_bonus_score_in = ?,
         chain_bonus_respect_lost_in = ?,
+        outside_chain_hits = ?,
+        outside_chain_respect = ?,
+        outside_chain_bonus_hits = ?,
+        outside_chain_bonus_respect = ?,
+        payout_detail_version = 1,
         synced_at = ?
     WHERE war_id = ? AND faction_id = ? AND player_id = ?
   `);
@@ -598,6 +630,10 @@ async function finalizeAccumulator(db, war, state) {
       Number(metric.chainBonusHitsIn || 0),
       Number(metric.chainBonusScoreIn || 0),
       Number(metric.chainBonusRespectLostIn || 0),
+      Number(metric.outsideChainHits || 0),
+      Number(metric.outsideChainRespect || 0),
+      Number(metric.outsideChainBonusHits || 0),
+      Number(metric.outsideChainBonusRespect || 0),
       now,
       warId,
       factionId,
@@ -614,6 +650,14 @@ async function finalizeAccumulator(db, war, state) {
     scoreDown,
     assists,
     outsideHits,
+    outsideChainHits:Object.values(state.players || {}).reduce(
+      (sum, metric) => sum + Number(metric.outsideChainHits || 0),
+      0
+    ),
+    outsideChainRespect:Object.values(state.players || {}).reduce(
+      (sum, metric) => sum + Number(metric.outsideChainRespect || 0),
+      0
+    ),
     verifiedOutgoingScore:Number(state.verifiedOutgoingScore || 0),
     outgoingDelta:scoreUp - Number(state.verifiedOutgoingScore || 0),
     chainBonusesIncluded:true,
