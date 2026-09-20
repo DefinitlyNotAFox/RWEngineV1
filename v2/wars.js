@@ -42,9 +42,15 @@ const detail = {
     profileDirty:false,
     preview:null,
     canSave:false,
+    canManage:false,
+    status:'outstanding',
+    confirmedAt:null,
     needsRebuild:false,
     busy:false,
-    loadedWarId:null
+    loadedWarId:null,
+    wars:[],
+    warsFactionId:null,
+    warsLoading:false
   }
 };
 
@@ -99,7 +105,9 @@ export function initWarViews() {
     selectPayoutWar(String(event.target.value || ''));
   });
   document.querySelector('#payoutCalculate')?.addEventListener('click', () => calculatePayout(true));
+  document.querySelector('#payoutConfirm')?.addEventListener('click', confirmPayout);
   document.querySelector('#payoutCopy')?.addEventListener('click', copyPayoutCsv);
+  document.querySelector('#payoutBody')?.addEventListener('change', handlePayoutPaidChange);
 
   document.querySelector('#shareToggle')?.addEventListener('click', toggleShare);
   document.querySelector('#shareVisibility')?.addEventListener('change', updateShareVisibility);
@@ -126,6 +134,9 @@ export function initWarViews() {
     performance.members = [];
     performance.chain.clear();
     closeWar();
+    detail.payout.wars = [];
+    detail.payout.warsFactionId = null;
+    detail.payout.warsLoading = false;
     renderArchive();
     renderWarOverview();
     if (state.route === 'payouts') renderPayoutPage();
@@ -842,10 +853,37 @@ function renderWarCell(member,key) {
 }
 
 
+async function loadPayoutWars(force = false) {
+  const factionId = Number(currentFactionId() || 0);
+  if (!factionId || detail.payout.warsLoading) return;
+  if (!force && Number(detail.payout.warsFactionId || 0) === factionId) return;
+
+  detail.payout.warsLoading = true;
+  const select = document.querySelector('#payoutWarSelect');
+  if (select) {
+    select.innerHTML = '<option value="">Loading ranked wars…</option>';
+    select.disabled = true;
+  }
+
+  try {
+    const result = await payoutApi('wars');
+    detail.payout.wars = Array.isArray(result.wars) ? result.wars : [];
+    detail.payout.canManage = result.canManage === true;
+    detail.payout.canSave = result.canManage === true;
+    detail.payout.warsFactionId = factionId;
+  } catch (error) {
+    detail.payout.wars = [];
+    detail.payout.warsFactionId = factionId;
+    setPayoutStatus(error.message || 'Failed to load payout wars.', true);
+  } finally {
+    detail.payout.warsLoading = false;
+    renderPayoutPage();
+  }
+}
+
 function renderPayoutPage() {
   const panel = document.querySelector('#payoutPanel');
   const select = document.querySelector('#payoutWarSelect');
-  const meta = document.querySelector('#payoutWarMeta');
   if (!panel || !select) return;
 
   const allowed = Boolean(state.user && currentFactionId());
@@ -857,47 +895,62 @@ function renderPayoutPage() {
     panel.classList.add('hidden');
     select.innerHTML = '';
     select.disabled = true;
-    if (meta) meta.textContent = 'A faction is required to view payouts.';
     return;
   }
 
   panel.classList.remove('hidden');
-  select.disabled = false;
 
-  const wars = [...state.wars]
-    .filter(war => String(war.war_id || war.report_id || '').trim())
-    .sort((a,b) => warStamp(b) - warStamp(a));
+  const factionId = Number(currentFactionId() || 0);
+  if (Number(detail.payout.warsFactionId || 0) !== factionId) {
+    if (!detail.payout.warsLoading) loadPayoutWars();
+    return;
+  }
 
+  const wars = Array.isArray(detail.payout.wars) ? detail.payout.wars : [];
   if (!wars.length) {
     detail.warId = null;
-    resetPayoutPanel(false);
+    clearPayoutCalculation();
     select.innerHTML = '<option value="">No imported wars</option>';
     select.disabled = true;
-    if (meta) meta.textContent = 'Import a ranked war in Archive before calculating payouts.';
     renderPayoutPanel();
     return;
   }
 
+  const canManage = detail.payout.canManage === true;
+  select.disabled = false;
   select.innerHTML = wars.map(war => {
-    const warId = String(war.war_id || war.report_id || '');
-    const opponent = war.opponent_faction_name || 'Unknown opponent';
-    const date = formatDate(war.end_timestamp || war.start_timestamp);
-    return `<option value="${escapeHtml(warId)}">${escapeHtml(opponent)} · #${escapeHtml(warId)} · ${escapeHtml(date)}</option>`;
+    const warId = String(war.warId || war.reportId || '');
+    const opponent = war.opponentFactionName || 'Unknown opponent';
+    const date = formatDate(war.endTimestamp || war.startTimestamp);
+    const status = String(war.payoutStatus || 'outstanding') === 'paid' ? 'Paid' : 'Outstanding';
+    const disabled = !canManage && status !== 'Paid';
+    return `<option value="${escapeHtml(warId)}"${disabled ? ' disabled' : ''}>${escapeHtml(opponent)} · #${escapeHtml(warId)} · ${escapeHtml(date)} · ${status}</option>`;
   }).join('');
 
-  const available = new Set(wars.map(war => String(war.war_id || war.report_id || '')));
-  const selected = available.has(String(detail.warId || ''))
-    ? String(detail.warId)
-    : String(wars[0].war_id || wars[0].report_id || '');
+  const accessible = wars.filter(war =>
+    canManage || String(war.payoutStatus || 'outstanding') === 'paid'
+  );
+  const current = accessible.find(war => String(war.warId) === String(detail.warId || ''));
+  const selected = current
+    ? String(current.warId)
+    : accessible.length
+      ? String(accessible[0].warId)
+      : '';
+
+  if (!selected) {
+    detail.warId = null;
+    clearPayoutCalculation();
+    select.selectedIndex = -1;
+    renderPayoutPanel();
+    return;
+  }
 
   select.value = selected;
 
   if (String(detail.warId || '') !== selected) {
     detail.warId = selected;
-    resetPayoutPanel(false);
+    clearPayoutCalculation();
   }
-
-  renderPayoutWarMeta(wars.find(war => String(war.war_id || war.report_id || '') === selected));
 
   if (selected && detail.payout.loadedWarId !== selected && !detail.payout.busy) {
     loadPayoutState();
@@ -908,27 +961,28 @@ function selectPayoutWar(warId) {
   const selected = String(warId || '').trim();
   if (!selected || selected === String(detail.warId || '')) return;
 
-  detail.warId = selected;
-  resetPayoutPanel(false);
-
-  const war = state.wars.find(item =>
-    String(item.war_id || item.report_id || '') === selected
-  );
-  renderPayoutWarMeta(war);
-  loadPayoutState();
-}
-
-function renderPayoutWarMeta(war) {
-  const meta = document.querySelector('#payoutWarMeta');
-  if (!meta) return;
-  if (!war) {
-    meta.textContent = '';
+  const war = (detail.payout.wars || []).find(item => String(item.warId || '') === selected);
+  if (!war) return;
+  if (String(war.payoutStatus || 'outstanding') !== 'paid' && detail.payout.canManage !== true) {
+    renderPayoutPage();
     return;
   }
 
-  const opponent = war.opponent_faction_name || 'Unknown opponent';
-  const period = `${formatDate(war.start_timestamp)} – ${formatDate(war.end_timestamp)}`;
-  meta.innerHTML = `<strong>${escapeHtml(opponent)}</strong><span>${escapeHtml(period)}</span>`;
+  detail.warId = selected;
+  clearPayoutCalculation();
+  loadPayoutState();
+}
+
+function clearPayoutCalculation() {
+  detail.payout.profile = null;
+  detail.payout.draftProfile = null;
+  detail.payout.profileDirty = false;
+  detail.payout.preview = null;
+  detail.payout.status = 'outstanding';
+  detail.payout.confirmedAt = null;
+  detail.payout.loadedWarId = null;
+  detail.payout.needsRebuild = false;
+  setPayoutStatus('');
 }
 
 async function loadPayoutState(force = false) {
@@ -941,11 +995,17 @@ async function loadPayoutState(force = false) {
     const result = await payoutApi('list', { warId:detail.warId });
     detail.payout.profile = result.profile || null;
     detail.payout.canSave = result.canSave === true;
+    detail.payout.canManage = result.canManage === true;
+    detail.payout.status = String(result.status || 'outstanding');
+    detail.payout.confirmedAt = Number(result.confirmedAt || 0) || null;
+    detail.payout.preview = result.preview || null;
     detail.payout.needsRebuild = false;
     detail.payout.loadedWarId = String(detail.warId || '');
     renderPayoutPanel();
 
-    await calculatePayout(false);
+    if (!detail.payout.preview && detail.payout.status !== 'paid') {
+      await calculatePayout(false);
+    }
   } catch (error) {
     setPayoutStatus(error.message || 'Failed to load payout profile.', true);
   } finally {
@@ -969,6 +1029,8 @@ async function calculatePayout(showStatus = true, profileOverride = null) {
     detail.payout.preview = result.preview || null;
     detail.payout.profile = result.preview?.profile || detail.payout.profile;
     detail.payout.canSave = result.canSave === true;
+    detail.payout.canManage = result.canManage === true;
+    detail.payout.status = String(result.status || detail.payout.status || 'outstanding');
     detail.payout.needsRebuild = false;
 
     renderPayoutPanel();
