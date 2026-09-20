@@ -11932,3 +11932,49 @@ body {
     min-width: 0;
   }
 }
+
+
+/* Payout settlement workflow */
+#payoutsView #payoutWarSelect option:disabled {
+  color: var(--dim);
+}
+
+#payoutsView .payout-paid-col {
+  width: 64px;
+  text-align: center;
+}
+
+#payoutsView .payout-paid-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+#payoutsView .payout-paid-check input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+#payoutsView .payout-paid-mark {
+  color: var(--success);
+  font-size: var(--font-body);
+  font-weight: 750;
+  line-height: 1;
+}
+
+#payoutsView .payout-paid-empty {
+  color: var(--dim);
+  font-size: var(--font-small);
+}
+
+#payoutsView #payoutConfirm {
+  white-space: nowrap;
+}
+
+#payoutsView #payoutConfirm:disabled {
+  opacity: .45;
+}
