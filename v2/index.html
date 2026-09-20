@@ -276,18 +276,17 @@
                   <summary class="action">More</summary>
                   <div class="payout-more-popover">
                     <button id="payoutCopy" class="payout-menu-action" type="button">Copy CSV</button>
-                    <button id="payoutPresetCreate" class="payout-menu-action hidden" type="button">Save as preset…</button>
                     <button id="payoutPresetDelete" class="payout-menu-action hidden" type="button">Delete preset</button>
-                    <button id="payoutSettingsReset" class="payout-menu-action hidden" type="button">Reset settings</button>
                   </div>
                 </details>
               </div>
             </div>
             <div id="payoutPresetControls" class="payout-head-row payout-preset-controls hidden">
-              <span class="payout-control-label">Preset</span>
-              <select id="payoutPresetSelect" class="small-select hidden" aria-label="Payout settings preset">
-                <option value="">Current settings</option>
-              </select>
+              <details id="payoutPresetMenu" class="payout-preset-menu">
+                <summary class="action payout-preset-trigger">Preset</summary>
+                <div id="payoutPresetOptions" class="payout-preset-options"></div>
+              </details>
+              <button id="payoutPresetCreate" class="action hidden" type="button">Save as preset</button>
             </div>
             <div id="payoutPresetCreateRow" class="payout-preset-create-row hidden">
               <input id="payoutPresetName" class="payout-preset-name" type="text" maxlength="60" placeholder="Preset name" aria-label="Payout preset name" />
