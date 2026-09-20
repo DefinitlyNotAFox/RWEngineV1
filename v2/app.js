@@ -1198,9 +1198,7 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
   );
 
   const definitions = Array.isArray(catalog) ? catalog : [];
-  const visibleDefinitions = canEdit
-    ? definitions
-    : definitions.filter(definition => modules.get(String(definition.id || ''))?.enabled !== false);
+  const visibleDefinitions = definitions;
 
   const renderPayoutModule = definition => {
     const id = String(definition.id || '');
@@ -1217,88 +1215,56 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
     const milestoneRate = Number(module.milestoneRate ?? definition.defaultMilestoneRate ?? 0);
     const milestonesIncluded = module.milestonesIncluded !== false;
 
-    const mainMoney = canEdit
-      ? `
-        <span class="payout-setting-input payout-overview-money payout-inline-rate-value${percentageBased ? ' hidden' : ''}">
-          <input type="text" inputmode="numeric" autocomplete="off" value="${escapeHtml(formatPayoutMoneyInput(rate))}" data-payout-money data-payout-rate />
-          <em>${escapeHtml(unit)}</em>
+    const readonlyAttr = canEdit ? '' : ' disabled data-payout-readonly';
+
+    const mainMoney = `
+      <span class="payout-setting-input payout-overview-money payout-inline-rate-value${percentageBased ? ' hidden' : ''}">
+        <input type="text" inputmode="numeric" autocomplete="off" value="${escapeHtml(formatPayoutMoneyInput(rate))}"${readonlyAttr} data-payout-money data-payout-rate />
+        <em>${escapeHtml(unit)}</em>
+      </span>
+      ${definition.supportsPercentage ? `
+        <span class="payout-setting-input payout-overview-money payout-inline-pool-value${percentageBased ? '' : ' hidden'}">
+          <input type="text" inputmode="numeric" autocomplete="off" value="${escapeHtml(formatPayoutMoneyInput(pool))}"${readonlyAttr} data-payout-money data-payout-pool />
+          <em>$ total</em>
         </span>
-        ${definition.supportsPercentage ? `
-          <span class="payout-setting-input payout-overview-money payout-inline-pool-value${percentageBased ? '' : ' hidden'}">
-            <input type="text" inputmode="numeric" autocomplete="off" value="${escapeHtml(formatPayoutMoneyInput(pool))}" data-payout-money data-payout-pool />
-            <em>$ total</em>
-          </span>
-        ` : ''}
-      `
-      : `
-        <span class="payout-setting-value payout-overview-money payout-inline-rate-value${percentageBased ? ' hidden' : ''}">
-          <strong>${escapeHtml(formatNumber(rate))}</strong>
-          <em>${escapeHtml(unit.replace('$ / ', '/ '))}</em>
-        </span>
-        ${definition.supportsPercentage ? `
-          <span class="payout-setting-value payout-overview-money payout-inline-pool-value${percentageBased ? '' : ' hidden'}">
-            <strong>${escapeHtml(formatNumber(pool))}</strong>
-            <em>total</em>
-          </span>
-        ` : ''}
-      `;
+      ` : ''}
+    `;
 
     const milestoneMoney = definition.supportsMilestones
-      ? canEdit
-        ? `
-          <span class="payout-setting-input payout-overview-money payout-milestone-rate${milestonesIncluded ? ' hidden' : ''}">
-            <input type="text" inputmode="numeric" autocomplete="off" value="${escapeHtml(formatPayoutMoneyInput(milestoneRate))}" data-payout-money data-payout-milestone-rate />
-            <em>$ / milestone</em>
-          </span>
-        `
-        : milestonesIncluded
-          ? ''
-          : `
-            <span class="payout-setting-value payout-overview-money payout-milestone-rate">
-              <strong>${escapeHtml(formatNumber(milestoneRate))}</strong>
-              <em>/ milestone</em>
-            </span>
-          `
+      ? `
+        <span class="payout-setting-input payout-overview-money payout-milestone-rate${milestonesIncluded ? ' hidden' : ''}">
+          <input type="text" inputmode="numeric" autocomplete="off" value="${escapeHtml(formatPayoutMoneyInput(milestoneRate))}"${readonlyAttr} data-payout-money data-payout-milestone-rate />
+          <em>$ / milestone</em>
+        </span>
+      `
       : '';
 
     const options = [
       definition.supportsPercentage
-        ? canEdit
-          ? `
-            <label class="payout-secondary-toggle">
-              <input type="checkbox" data-payout-percentage${percentageBased ? ' checked' : ''} />
-              <span>% based</span>
-            </label>
-          `
-          : percentageBased
-            ? '<span class="payout-secondary-toggle readonly"><span class="payout-milestone-check">✓</span><span>% based</span></span>'
-            : ''
+        ? `
+          <label class="payout-secondary-toggle">
+            <input type="checkbox"${percentageBased ? ' checked' : ''}${readonlyAttr} data-payout-percentage />
+            <span>% based</span>
+          </label>
+        `
         : '',
       definition.supportsMilestones
-        ? canEdit
-          ? `
-            <label class="payout-secondary-toggle">
-              <input type="checkbox" data-payout-milestones${milestonesIncluded ? ' checked' : ''} />
-              <span>Milestones</span>
-            </label>
-          `
-          : milestonesIncluded
-            ? '<span class="payout-secondary-toggle readonly"><span class="payout-milestone-check">✓</span><span>Milestones</span></span>'
-            : '<span class="payout-secondary-toggle readonly"><span>Milestones separate</span></span>'
+        ? `
+          <label class="payout-secondary-toggle">
+            <input type="checkbox"${milestonesIncluded ? ' checked' : ''}${readonlyAttr} data-payout-milestones />
+            <span>Milestones</span>
+          </label>
+        `
         : ''
     ].filter(Boolean).join('');
 
     return `
       <section class="payout-module-column payout-overview-module${enabled ? '' : ' disabled'}${canEdit ? ' editable' : ' readonly'}" data-payout-module="${escapeHtml(id)}">
         <div class="payout-overview-name-row">
-          ${canEdit ? `
-            <label class="payout-module-toggle" title="Enable ${escapeHtml(definition.label || id)}">
-              <input type="checkbox" data-payout-enabled${enabled ? ' checked' : ''} />
-              <strong>${escapeHtml(definition.label || id)}</strong>
-            </label>
-          ` : `
+          <label class="payout-module-toggle" title="${canEdit ? 'Enable ' : ''}${escapeHtml(definition.label || id)}">
+            <input type="checkbox"${enabled ? ' checked' : ''}${readonlyAttr} data-payout-enabled />
             <strong>${escapeHtml(definition.label || id)}</strong>
-          `}
+          </label>
         </div>
 
         <div class="payout-overview-options-row">
@@ -1386,32 +1352,16 @@ function renderPayoutGlobalSettings(profile, canEdit) {
   if (!target) return;
 
   const factionCutPercent = Number(profile?.factionCutPercent || 0);
-  const hasPercentage = (Array.isArray(profile?.modules) ? profile.modules : [])
-    .some(module => module?.enabled !== false && module?.percentageBased === true);
-
-  if (!canEdit && !hasPercentage) {
-    target.innerHTML = '';
-    target.classList.add('hidden');
-    return;
-  }
-
   target.classList.remove('hidden');
-  target.innerHTML = canEdit
-    ? `
-      <label class="payout-global-control">
-        <span>Faction cut</span>
-        <span class="payout-setting-input">
-          <input type="number" min="0" max="100" step="0.1" value="${escapeHtml(factionCutPercent)}" data-payout-faction-cut />
-          <em>%</em>
-        </span>
-      </label>
-    `
-    : `
-      <div class="payout-global-readonly">
-        <span>Faction cut</span>
-        <strong>${escapeHtml(formatNumber(factionCutPercent))}%</strong>
-      </div>
-    `;
+  target.innerHTML = `
+    <label class="payout-global-control">
+      <span>Faction cut</span>
+      <span class="payout-setting-input">
+        <input type="number" min="0" max="100" step="0.1" value="${escapeHtml(factionCutPercent)}"${canEdit ? '' : ' disabled data-payout-readonly'} data-payout-faction-cut />
+        <em>%</em>
+      </span>
+    </label>
+  `;
 }
 
 function renderPayoutPresetControls() {
@@ -1731,7 +1681,7 @@ function setPayoutSettingsBusy(busy) {
   document.querySelectorAll(
     '#payoutSettingsForm input, #payoutSettingsForm button, #payoutPresetName, #payoutPresetCreate, #payoutPresetSave, #payoutPresetDelete, #payoutPresetOptions button'
   ).forEach(control => {
-    control.disabled = Boolean(busy);
+    control.disabled = Boolean(busy) || control.hasAttribute('data-payout-readonly');
   });
 
   if (!busy) renderPayoutPresetControls();
