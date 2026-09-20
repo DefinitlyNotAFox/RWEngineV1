@@ -13017,3 +13017,41 @@ body {
     left: 0;
   }
 }
+
+
+/* Workflow order: choose war/preset first, then edit payout settings */
+#payoutsView .payout-top-layout {
+  grid-template-columns: minmax(480px, 520px) minmax(0, 840px);
+  gap: 56px;
+}
+
+#payoutsView .payout-head-controls {
+  width: 100%;
+  max-width: 520px;
+  justify-self: start;
+}
+
+#payoutsView #payoutSettingsSection {
+  width: 840px;
+  max-width: 100%;
+  justify-self: end;
+}
+
+#payoutsView .payout-war-row,
+#payoutsView .payout-preset-controls {
+  justify-content: flex-start;
+}
+
+@media (max-width: 1450px) {
+  #payoutsView .payout-top-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  #payoutsView .payout-head-controls,
+  #payoutsView #payoutSettingsSection {
+    width: min(100%, 840px);
+    max-width: 840px;
+    justify-self: start;
+  }
+}
