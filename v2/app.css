@@ -13962,3 +13962,60 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Box each payout rule as a compact settings card */
+#payoutsView .payout-settings-list {
+  align-items: start;
+}
+
+#payoutsView .payout-settings-solo,
+#payoutsView .payout-settings-stack {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+#payoutsView .payout-settings-solo > .payout-module-column,
+#payoutsView .payout-settings-stack > .payout-module-column,
+#payoutsView .payout-settings-list > .payout-module-column {
+  min-height: 78px;
+  margin: 0;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+#payoutsView .payout-module-header,
+#payoutsView .payout-module-header.payout-inline-rate {
+  min-height: 28px;
+  margin: 0 0 7px;
+  padding: 0 0 7px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+#payoutsView .payout-module-fields {
+  gap: 5px;
+  padding-left: 0;
+}
+
+#payoutsView .payout-module-column.disabled {
+  background: rgba(255,255,255,.012);
+  opacity: .55;
+}
+
+#payoutsView .payout-module-column.disabled .payout-module-fields,
+#payoutsView .payout-module-column.disabled .payout-inline-rate-value,
+#payoutsView .payout-module-column.disabled .payout-inline-pool-value {
+  opacity: .66;
+}
+
+#payoutsView .payout-settings-solo > .payout-module-column {
+  min-height: 166px;
+}
+
+#payoutsView .payout-settings-slot-empty {
+  border: 0;
+  background: transparent;
+}
