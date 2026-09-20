@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=113" />
+  <link rel="stylesheet" href="/v2/app.css?v=114" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -249,6 +249,25 @@
           </div>
         </header>
 
+        <section id="payoutSettingsSection" class="settings-panel payout-settings-section hidden">
+          <header class="settings-panel-head settings-panel-head-simple">
+            <div>
+              <h2>Payout profile</h2>
+            </div>
+          </header>
+          <div class="settings-panel-body">
+            <form id="payoutSettingsForm" class="payout-settings-form">
+              <div id="payoutSettingsList" class="payout-settings-list"></div>
+              <div class="payout-settings-actions">
+                <button id="payoutSettingsSave" class="action primary" type="submit">Save changes</button>
+                <button id="payoutSettingsReset" class="text-action" type="button">Reset defaults</button>
+              </div>
+              <p id="payoutSettingsStatus" class="status-line hidden" role="status"></p>
+            </form>
+          </div>
+        </section>
+
+
         <div class="payout-page-toolbar">
           <label class="payout-war-picker">
             <span>Ranked war</span>
@@ -363,24 +382,6 @@
               </div>
             </section>
 
-            <section id="payoutSettingsSection" class="settings-panel payout-settings-section hidden">
-              <header class="settings-panel-head settings-panel-head-simple">
-                <div>
-                  <h2>Payouts</h2>
-                </div>
-              </header>
-              <div class="settings-panel-body">
-                <form id="payoutSettingsForm" class="payout-settings-form">
-                  <div id="payoutSettingsList" class="payout-settings-list"></div>
-                  <div class="payout-settings-actions">
-                    <button id="payoutSettingsSave" class="action primary" type="submit">Save changes</button>
-                    <button id="payoutSettingsReset" class="text-action" type="button">Reset defaults</button>
-                  </div>
-                  <p id="payoutSettingsStatus" class="status-line hidden" role="status"></p>
-                </form>
-              </div>
-            </section>
-
             <section id="reportAccessSection" class="settings-panel access-section hidden">
               <header class="settings-panel-head settings-panel-head-simple">
                 <div>
@@ -450,6 +451,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=103"></script>
+  <script type="module" src="/v2/app.js?v=104"></script>
 </body>
 </html>
