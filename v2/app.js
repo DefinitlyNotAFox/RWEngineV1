@@ -14,7 +14,7 @@ import { sortFactionAccounts, sortTrackedFactions } from './sort.js?v=1';
 
 import { initIntel, renderIntel, refreshSyncStatus } from './intel.js?v=7';
 import { initIntelV2 } from './intel-v2.js?v=58';
-import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=33';
+import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=34';
 
 const legacyIntelMode = new URL(location.href).searchParams.get('legacyIntel') === '1';
 
@@ -1143,10 +1143,10 @@ function renderPayoutSettingsVisibility() {
   document.querySelector('#payoutSettingsReset')?.classList.toggle('hidden', !editable);
   document.querySelector('#payoutSettingsSave')?.classList.toggle('hidden', !editable);
   document.querySelector('#payoutPresetSelect')?.classList.toggle('hidden', !editable);
-  document.querySelector('#payoutPresetName')?.classList.toggle('hidden', !editable);
-  document.querySelector('#payoutPresetSave')?.classList.toggle('hidden', !editable);
+  document.querySelector('#payoutPresetCreate')?.classList.toggle('hidden', !editable);
   document.querySelector('#payoutPresetDelete')?.classList.toggle('hidden', !editable);
   document.querySelector('#payoutPresetControls')?.classList.toggle('hidden', !editable);
+  if (!editable) togglePayoutPresetCreate(false);
 }
 
 async function loadPayoutSettings() {
