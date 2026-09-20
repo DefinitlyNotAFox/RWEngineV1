@@ -14,7 +14,7 @@ import { sortFactionAccounts, sortTrackedFactions } from './sort.js?v=1';
 
 import { initIntel, renderIntel, refreshSyncStatus } from './intel.js?v=6';
 import { initIntelV2 } from './intel-v2.js?v=54';
-import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=20';
+import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=21';
 
 const legacyIntelMode = new URL(location.href).searchParams.get('legacyIntel') === '1';
 
