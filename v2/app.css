@@ -14456,3 +14456,10 @@ body {
     border-top: 0;
   }
 }
+
+
+/* Reduce payout overview divider noise */
+#payoutsView .payout-settings-list {
+  border-top: 0;
+  border-bottom: 0;
+}
