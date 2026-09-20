@@ -35,6 +35,9 @@ let payoutSettingsProfile = null;
 let payoutSettingsPresets = [];
 let payoutSettingsPresetId = null;
 let payoutSettingsPreviewTimer = null;
+let payoutSettingsAutoSavePending = null;
+let payoutSettingsAutoSaveRunning = false;
+let payoutSettingsSavedStatusTimer = null;
 let accountCloseBusy = false;
 
 init();
@@ -199,7 +202,6 @@ function bindApplication() {
   document.querySelector('#factionRoleAddForm')?.addEventListener('submit', handleFactionRoleAdd);
   document.querySelector('#autoTagSettingsForm')?.addEventListener('submit', saveAutoTagSettings);
   document.querySelector('#autoTagSettingsReset')?.addEventListener('click', resetAutoTagSettings);
-  document.querySelector('#payoutSettingsForm')?.addEventListener('submit', savePayoutSettings);
   document.querySelector('#payoutSettingsForm')?.addEventListener('input', handlePayoutSettingsDraft);
   document.querySelector('#payoutPresetOptions')?.addEventListener('click', handlePayoutPresetOption);
   document.querySelector('#payoutPresetCreate')?.addEventListener('click', () => togglePayoutPresetCreate(true));
@@ -1490,7 +1492,8 @@ function handlePayoutPresetOption(event) {
     factionId:currentFactionId(),
     profile:preset.profile
   });
-  setPayoutSettingsStatus('Preset loaded. Apply changes to make it active.');
+  setPayoutSettingsStatus('Saving…');
+  queuePayoutSettingsAutoSave(preset.profile);
 }
 
 
@@ -1569,19 +1572,74 @@ function handlePayoutSettingsDraft() {
   if (payoutSettingsBusy || payoutSettingsLoading || !canManagePayoutSettingsView()) return;
 
   clearPayoutSettingsPreviewTimer();
-  setPayoutSettingsStatus('Unsaved changes.');
+
+  let profile;
+  try {
+    profile = collectPayoutSettings();
+  } catch (error) {
+    setPayoutSettingsStatus(error.message || 'Invalid payout settings.', true);
+    return;
+  }
+
+  emit('payout-settings-preview', {
+    factionId:currentFactionId(),
+    profile
+  });
+  setPayoutSettingsStatus('Saving…');
 
   payoutSettingsPreviewTimer = window.setTimeout(() => {
     payoutSettingsPreviewTimer = null;
-    try {
-      emit('payout-settings-preview', {
-        factionId:currentFactionId(),
-        profile:collectPayoutSettings()
-      });
-    } catch (error) {
-      setPayoutSettingsStatus(error.message || 'Invalid payout settings.', true);
+    queuePayoutSettingsAutoSave(profile);
+  }, 350);
+}
+
+function queuePayoutSettingsAutoSave(profile) {
+  if (!profile || !canManagePayoutSettingsView()) return;
+  payoutSettingsAutoSavePending = profile;
+  if (!payoutSettingsAutoSaveRunning) flushPayoutSettingsAutoSave();
+}
+
+async function flushPayoutSettingsAutoSave() {
+  if (payoutSettingsAutoSaveRunning) return;
+  payoutSettingsAutoSaveRunning = true;
+
+  try {
+    while (payoutSettingsAutoSavePending) {
+      const profile = payoutSettingsAutoSavePending;
+      payoutSettingsAutoSavePending = null;
+
+      try {
+        const result = await payoutSettingsApi('save', { profile });
+        payoutSettingsCatalog = Array.isArray(result.catalog) ? result.catalog : payoutSettingsCatalog;
+        payoutSettingsProfile = result.profile || profile;
+        payoutSettingsPresetId = null;
+        renderPayoutPresetControls();
+
+        emit('payout-settings', {
+          factionId:currentFactionId(),
+          profile:payoutSettingsProfile
+        });
+
+        if (!payoutSettingsAutoSavePending) {
+          setPayoutSettingsStatus('Saved.');
+          if (payoutSettingsSavedStatusTimer != null) {
+            window.clearTimeout(payoutSettingsSavedStatusTimer);
+          }
+          payoutSettingsSavedStatusTimer = window.setTimeout(() => {
+            payoutSettingsSavedStatusTimer = null;
+            setPayoutSettingsStatus('');
+          }, 1400);
+        }
+      } catch (error) {
+        if (!payoutSettingsAutoSavePending) {
+          setPayoutSettingsStatus(error.message || 'Failed to save payout settings.', true);
+        }
+      }
     }
-  }, 250);
+  } finally {
+    payoutSettingsAutoSaveRunning = false;
+    if (payoutSettingsAutoSavePending) flushPayoutSettingsAutoSave();
+  }
 }
 
 function clearPayoutSettingsPreviewTimer() {
