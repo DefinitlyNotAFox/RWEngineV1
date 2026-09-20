@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=119" />
+  <link rel="stylesheet" href="/v2/app.css?v=120" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -251,13 +251,15 @@
 
         <section id="payoutSettingsSection" class="settings-panel payout-settings-section hidden">
           <form id="payoutSettingsForm" class="payout-settings-form">
-            <h2 class="payout-settings-label">Payout profile</h2>
-            <div id="payoutSettingsList" class="payout-settings-list"></div>
-            <div class="payout-settings-topline-actions">
-              <p id="payoutSettingsStatus" class="status-line hidden" role="status"></p>
-              <button id="payoutSettingsReset" class="text-action" type="button">Reset</button>
-              <button id="payoutSettingsSave" class="action primary" type="submit">Save</button>
+            <div class="payout-settings-head">
+              <h2 class="payout-settings-label">Payout profile</h2>
+              <div class="payout-settings-topline-actions">
+                <p id="payoutSettingsStatus" class="status-line hidden" role="status"></p>
+                <button id="payoutSettingsReset" class="text-action" type="button">Reset</button>
+                <button id="payoutSettingsSave" class="action primary" type="submit">Save</button>
+              </div>
             </div>
+            <div id="payoutSettingsList" class="payout-settings-list"></div>
           </form>
         </section>
 
@@ -445,6 +447,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=109"></script>
+  <script type="module" src="/v2/app.js?v=110"></script>
 </body>
 </html>
