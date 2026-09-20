@@ -1148,7 +1148,7 @@ function renderPayoutPanel() {
 
   payoutSummary.innerHTML = `
     <strong>${escapeHtml(formatMoney(preview.totalPayout))}</strong>
-    <span>Total payout · ${formatNumber(members.length)} members · ${formatNumber(active.length)} active module${active.length === 1 ? '' : 's'}</span>
+    <span>Total payout · ${formatNumber(members.length)} members</span>
   `;
 }
 
