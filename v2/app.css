@@ -12242,3 +12242,43 @@ body {
 #payoutsView .payout-war-actions {
   align-items: flex-end;
 }
+
+
+/* Confirm payout belongs with the result, above Total / Paid */
+#payoutsView .payout-summary-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 16px;
+}
+
+#payoutsView .payout-summary-row .payout-summary {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+#payoutsView .payout-confirm-slot {
+  display: flex;
+  flex: 0 0 190px;
+  align-items: center;
+  justify-content: center;
+  padding-right: 4px;
+}
+
+#payoutsView .payout-confirm-slot #payoutConfirm {
+  min-width: 128px;
+}
+
+@media (max-width: 760px) {
+  #payoutsView .payout-summary-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  #payoutsView .payout-confirm-slot {
+    flex-basis: auto;
+    width: 100%;
+    justify-content: flex-start;
+    padding-right: 0;
+  }
+}
