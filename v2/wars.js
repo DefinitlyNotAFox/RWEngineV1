@@ -38,6 +38,8 @@ const detail = {
   sortDirection: 'desc',
   payout: {
     profile:null,
+    draftProfile:null,
+    profileDirty:false,
     preview:null,
     runs:[],
     canSave:false,
@@ -150,7 +152,19 @@ export function initWarViews() {
     if (state.route === 'payouts') renderPayoutPage();
   });
 
+  on('payout-settings-preview', async event => {
+    if (state.route !== 'payouts' || !detail.warId || !event?.profile) return;
+    detail.payout.draftProfile = event.profile;
+    detail.payout.profileDirty = true;
+    await calculatePayout(false, event.profile);
+    if (detail.payout.profileDirty) {
+      setPayoutStatus('Previewing unsaved payout profile. Save the profile before saving a payout run.');
+    }
+  });
+
   on('payout-settings', () => {
+    detail.payout.draftProfile = null;
+    detail.payout.profileDirty = false;
     if (state.route === 'payouts' && detail.warId) {
       detail.payout.loadedWarId = null;
       loadPayoutState(true);
@@ -949,13 +963,18 @@ async function loadPayoutState(force = false) {
   }
 }
 
-async function calculatePayout(showStatus = true) {
+async function calculatePayout(showStatus = true, profileOverride = null) {
   if (!detail.warId) return;
   if (showStatus) setPayoutStatus('Calculating payout…');
   setPayoutBusy(true);
 
+  const draftProfile = profileOverride || (detail.payout.profileDirty ? detail.payout.draftProfile : null);
+
   try {
-    const result = await payoutApi('preview', { warId:detail.warId });
+    const result = await payoutApi('preview', {
+      warId:detail.warId,
+      ...(draftProfile ? { profile:draftProfile } : {})
+    });
     detail.payout.preview = result.preview || null;
     detail.payout.profile = result.preview?.profile || detail.payout.profile;
     detail.payout.canSave = result.canSave === true;
@@ -977,6 +996,10 @@ async function calculatePayout(showStatus = true) {
 
 async function savePayoutRun() {
   if (!detail.warId || !detail.payout.canSave) return;
+  if (detail.payout.profileDirty) {
+    setPayoutStatus('Save the payout profile before saving a payout run.');
+    return;
+  }
   setPayoutBusy(true);
   setPayoutStatus('Saving payout run…');
 
@@ -1059,7 +1082,7 @@ function renderPayoutPanel() {
   const copy = document.querySelector('#payoutCopy');
 
   rebuild?.classList.toggle('hidden', !detail.payout.needsRebuild);
-  if (save) save.disabled = !detail.payout.canSave || !preview || detail.payout.needsRebuild;
+  if (save) save.disabled = !detail.payout.canSave || !preview || detail.payout.needsRebuild || detail.payout.profileDirty;
   if (copy) copy.disabled = !preview;
 
   if (summary) {
@@ -1067,7 +1090,7 @@ function renderPayoutPanel() {
       ? modules.map(module =>
           `<span><strong>${escapeHtml(payoutModuleName(module))}</strong><small>${escapeHtml(formatMoney(module.rate))} / ${escapeHtml(payoutModuleUnit(module))}${module.normalizeMilestones !== undefined && module.normalizeMilestones !== false ? ` · milestones ${escapeHtml(formatDecimal(module.milestoneValue, 0))} R` : ''}</small></span>`
         ).join('')
-      : '<span><strong>No payout modules enabled</strong><small>Configure payouts in faction Settings.</small></span>';
+      : '<span><strong>No payout modules enabled</strong><small>Configure the payout profile above.</small></span>';
   }
 
   if (!head || !body || !foot || !payoutSummary) return;
@@ -1188,6 +1211,8 @@ function setPayoutStatus(message, error = false) {
 function resetPayoutPanel(hide = false) {
   detail.payout = {
     profile:null,
+    draftProfile:null,
+    profileDirty:false,
     preview:null,
     runs:[],
     canSave:false,
