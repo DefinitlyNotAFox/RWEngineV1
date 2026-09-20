@@ -9130,3 +9130,87 @@ body {
     border-top: 1px solid var(--line-soft);
   }
 }
+
+
+/* Member-column tags; Notes stays manual-note only. */
+#intelTable.faction-grid .intel2-member-tags {
+  grid-column: 1 / 2;
+  min-width: 0;
+  padding: 10px 10px 10px 0;
+}
+
+#intelTable.faction-grid .intel2-member-tags .intel2-member-manual-tags {
+  justify-content: flex-start;
+  margin-bottom: 7px;
+}
+
+#intelTable.faction-grid .intel2-member-tags .intel2-context-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+#intelTable.faction-grid .intel2-member-tags .intel2-trait-group {
+  min-width: 0;
+  padding: 0;
+}
+
+#intelTable.faction-grid .intel2-member-tags .intel2-trait-group > header {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin: 0 0 5px;
+}
+
+#intelTable.faction-grid .intel2-member-tags .intel2-trait-group > header span {
+  display: none;
+}
+
+#intelTable.faction-grid .intel2-member-tags .intel2-trait-group > header strong {
+  min-width: 0;
+  color: var(--muted);
+  font-size: var(--font-caption);
+  font-weight: 700;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+#intelTable.faction-grid .intel2-member-tags .intel2-trait-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+#intelTable.faction-grid .intel2-member-tags .intel2-trait.auto-tag {
+  display: contents;
+}
+
+#intelTable.faction-grid .intel2-member-tags .auto-tag-name {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  padding: 2px 5px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  background: transparent;
+  font-size: var(--font-caption);
+  font-weight: 680;
+  line-height: 1.2;
+  white-space: normal;
+}
+
+#intelTable.faction-grid .intel2-member-tags .auto-tag-empty {
+  display: block;
+  padding: 2px 0;
+  color: #596066;
+  font-size: var(--font-caption);
+}
+
+@media (max-width: 1050px) {
+  #intelTable.faction-grid .intel2-member-tags {
+    grid-column: 1;
+    padding: 9px 0;
+  }
+}
