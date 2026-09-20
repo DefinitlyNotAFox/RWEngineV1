@@ -12282,3 +12282,56 @@ body {
     padding-right: 0;
   }
 }
+
+
+/* Align payout settings beneath their attribute labels */
+#payoutsView .payout-settings-list {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 26px;
+}
+
+#payoutsView .payout-module-column {
+  min-width: 0;
+}
+
+#payoutsView .payout-module-header {
+  margin-bottom: 5px;
+}
+
+#payoutsView .payout-module-fields {
+  padding-left: 20px;
+}
+
+#payoutsView .payout-module-fields > .payout-module-field,
+#payoutsView .payout-module-fields > .payout-module-toggle-row,
+#payoutsView .payout-module-fields > .payout-rate-field,
+#payoutsView .payout-module-fields > .payout-milestones-field,
+#payoutsView .payout-module-fields > .payout-percentage-field,
+#payoutsView .payout-module-fields > .payout-pool-field {
+  grid-template-columns: 80px minmax(0, 1fr) !important;
+  gap: 8px;
+}
+
+#payoutsView .payout-module-column .payout-setting-input input {
+  width: 88px;
+}
+
+#payoutsView .payout-pool-field .payout-setting-input input {
+  width: 104px;
+}
+
+@media (max-width: 1180px) {
+  #payoutsView .payout-settings-list {
+    grid-template-columns: repeat(3, minmax(190px, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  #payoutsView .payout-settings-list {
+    grid-template-columns: 1fr;
+  }
+
+  #payoutsView .payout-module-fields {
+    padding-left: 20px;
+  }
+}
