@@ -12376,3 +12376,44 @@ body {
   opacity: .32;
   pointer-events: none;
 }
+
+
+/* All payout attributes use the same inline amount layout */
+#payoutsView .payout-inline-rate-value,
+#payoutsView .payout-inline-pool-value {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+}
+
+#payoutsView .payout-inline-rate-value.hidden,
+#payoutsView .payout-inline-pool-value.hidden {
+  display: none !important;
+}
+
+#payoutsView .payout-inline-rate-value input,
+#payoutsView .payout-inline-pool-value input {
+  width: 88px;
+  height: 28px;
+  padding: 2px 6px;
+  font-size: var(--font-small);
+}
+
+#payoutsView .payout-inline-pool-value input {
+  width: 104px;
+}
+
+#payoutsView .payout-inline-rate-value em,
+#payoutsView .payout-inline-pool-value em {
+  margin-left: 5px;
+  color: var(--dim);
+  font-size: var(--font-caption);
+  font-style: normal;
+  white-space: nowrap;
+}
+
+#payoutsView .payout-module-column.disabled .payout-inline-rate-value,
+#payoutsView .payout-module-column.disabled .payout-inline-pool-value {
+  opacity: .32;
+  pointer-events: none;
+}
