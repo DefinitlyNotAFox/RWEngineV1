@@ -162,8 +162,8 @@ export function calculatePayoutRows(rows, settings = {}) {
     const totalPayout = warPayout + outsidePayout;
 
     return {
-      playerId:Number(row.player_id ?? row.playerId || 0),
-      playerName:String(row.player_name ?? row.playerName || 'Unknown'),
+      playerId:Number((row.player_id ?? row.playerId) || 0),
+      playerName:String((row.player_name ?? row.playerName) || 'Unknown'),
       warRespectRaw,
       warBonusHits,
       warBonusRespect,
