@@ -9214,3 +9214,12 @@ body {
     padding: 9px 0;
   }
 }
+
+
+/* Primary missing values should keep normal table weight. */
+#intelTable.faction-grid .member-meta.member-meta-primary {
+  margin-top: 0;
+  color: var(--text);
+  font-size: inherit;
+  line-height: inherit;
+}
