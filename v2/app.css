@@ -9311,11 +9311,11 @@ body {
   font-weight: 640;
 }
 
-#settingsView .payout-settings-list {
+#payoutsView .payout-settings-list {
   display: grid;
 }
 
-#settingsView .payout-setting-group-heading {
+#payoutsView .payout-setting-group-heading {
   margin-top: 13px;
   padding: 0 0 5px;
   color: var(--dim);
@@ -9326,11 +9326,11 @@ body {
   border-bottom: 1px solid var(--line-soft);
 }
 
-#settingsView .payout-setting-group-heading:first-child {
+#payoutsView .payout-setting-group-heading:first-child {
   margin-top: 0;
 }
 
-#settingsView .payout-setting-row {
+#payoutsView .payout-setting-row {
   display: grid;
   grid-template-columns: minmax(180px, .72fr) minmax(0, 1.28fr);
   gap: 18px;
@@ -9340,11 +9340,11 @@ body {
   border-bottom: 1px solid var(--line-soft);
 }
 
-#settingsView .payout-setting-row.disabled .payout-setting-controls {
+#payoutsView .payout-setting-row.disabled .payout-setting-controls {
   opacity: .42;
 }
 
-#settingsView .payout-setting-toggle {
+#payoutsView .payout-setting-toggle {
   display: inline-flex;
   width: fit-content;
   align-items: center;
@@ -9355,14 +9355,14 @@ body {
   cursor: pointer;
 }
 
-#settingsView .payout-setting-toggle input {
+#payoutsView .payout-setting-toggle input {
   width: 15px;
   height: 15px;
   margin: 0;
   accent-color: var(--accent);
 }
 
-#settingsView .payout-setting-controls {
+#payoutsView .payout-setting-controls {
   display: flex;
   min-width: 0;
   align-items: end;
@@ -9372,25 +9372,25 @@ body {
   transition: opacity .12s ease;
 }
 
-#settingsView .payout-rate-field,
-#settingsView .payout-milestone-field {
+#payoutsView .payout-rate-field,
+#payoutsView .payout-milestone-field {
   display: grid;
   gap: 4px;
 }
 
-#settingsView .payout-rate-field > span:first-child,
-#settingsView .payout-milestone-field > span:first-child {
+#payoutsView .payout-rate-field > span:first-child,
+#payoutsView .payout-milestone-field > span:first-child {
   color: var(--muted);
   font-size: var(--font-small);
   font-weight: 620;
 }
 
-#settingsView .payout-setting-input {
+#payoutsView .payout-setting-input {
   display: flex;
   align-items: center;
 }
 
-#settingsView .payout-setting-input input {
+#payoutsView .payout-setting-input input {
   box-sizing: border-box;
   width: 112px;
   height: 32px;
@@ -9405,11 +9405,11 @@ body {
   background: #0c0e0f;
 }
 
-#settingsView .payout-setting-input input:focus {
+#payoutsView .payout-setting-input input:focus {
   border-color: #4a5053;
 }
 
-#settingsView .payout-setting-input em {
+#payoutsView .payout-setting-input em {
   margin-left: 6px;
   color: var(--dim);
   font-size: var(--font-caption);
@@ -9417,21 +9417,21 @@ body {
   white-space: nowrap;
 }
 
-#settingsView .payout-normalize-field {
+#payoutsView .payout-normalize-field {
   min-height: 32px;
   align-items: center;
   font-size: var(--font-small);
   white-space: nowrap;
 }
 
-#settingsView .payout-settings-actions {
+#payoutsView .payout-settings-actions {
   display: flex;
   align-items: center;
   gap: 14px;
   margin-top: 12px;
 }
 
-#settingsView .payout-settings-actions .action {
+#payoutsView .payout-settings-actions .action {
   min-width: 104px;
 }
 
@@ -9454,12 +9454,12 @@ body {
     flex: 1 1 190px;
   }
 
-  #settingsView .payout-setting-row {
+  #payoutsView .payout-setting-row {
     grid-template-columns: 1fr;
     gap: 9px;
   }
 
-  #settingsView .payout-setting-controls {
+  #payoutsView .payout-setting-controls {
     justify-content: flex-start;
   }
 }
@@ -9544,4 +9544,47 @@ body {
   .payout-war-meta {
     text-align: left;
   }
+}
+
+
+#payoutsView #payoutSettingsSection {
+  margin: 0 0 18px;
+  padding: 0 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+#payoutsView #payoutSettingsSection .settings-panel-head {
+  display: block;
+  margin: 0;
+  padding: 0 0 10px;
+}
+
+#payoutsView #payoutSettingsSection .settings-panel-head h2 {
+  margin: 0;
+  font-size: var(--font-section);
+  font-weight: 650;
+  letter-spacing: -.012em;
+}
+
+#payoutsView #payoutSettingsSection .settings-panel-body {
+  margin: 0;
+  padding: 0;
+}
+
+#payoutsView .payout-settings-form {
+  max-width: none;
+}
+
+#payoutsView .payout-settings-actions {
+  padding-top: 2px;
+}
+
+#payoutsView #payoutSettingsStatus {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: var(--font-small);
+}
+
+#payoutsView #payoutSettingsStatus.error {
+  color: var(--danger);
 }
