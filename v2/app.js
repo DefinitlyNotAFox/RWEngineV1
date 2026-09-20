@@ -1211,7 +1211,6 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
         ? '$ / assist'
         : '$ / hit';
     const rate = Number(module.rate ?? 0);
-    const simpleInlineRate = definition.supportsPercentage !== true && definition.supportsMilestones !== true;
     const percentageBased = definition.supportsPercentage === true && module.percentageBased === true;
     const pool = Number(module.pool ?? definition.defaultPool ?? 0);
     const milestoneRate = Number(module.milestoneRate ?? definition.defaultMilestoneRate ?? 0);
@@ -1219,7 +1218,7 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
 
     return `
       <section class="payout-module-column${enabled ? '' : ' disabled'}${canEdit ? ' editable' : ' readonly'}" data-payout-module="${escapeHtml(definition.id)}">
-        <header class="payout-module-header${simpleInlineRate ? ' payout-inline-rate' : ''}">
+        <header class="payout-module-header payout-inline-rate">
           ${canEdit ? `
             <label class="payout-module-toggle" title="Enable ${escapeHtml(definition.label || definition.id)}">
               <input type="checkbox" data-payout-enabled${enabled ? ' checked' : ''} />
@@ -1228,14 +1227,30 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
           ` : `
             <strong>${escapeHtml(definition.label || definition.id)}</strong>
           `}
-          ${simpleInlineRate ? (canEdit ? `
-            <span class="payout-setting-input payout-inline-rate-value">
+
+          ${canEdit ? `
+            <span class="payout-setting-input payout-inline-rate-value${percentageBased ? ' hidden' : ''}">
               <input type="number" min="0" max="100000000" step="1000" value="${escapeHtml(rate)}" data-payout-rate />
               <em>${escapeHtml(unit)}</em>
             </span>
+            ${definition.supportsPercentage ? `
+              <span class="payout-setting-input payout-inline-pool-value${percentageBased ? '' : ' hidden'}">
+                <input type="number" min="0" max="100000000000" step="100000" value="${escapeHtml(pool)}" data-payout-pool />
+                <em>$ total</em>
+              </span>
+            ` : ''}
           ` : `
-            <span class="payout-setting-value payout-inline-rate-value"><strong>${escapeHtml(formatNumber(rate))}</strong><em>${escapeHtml(unit.replace('$ / ', '/ '))}</em></span>
-          `) : ''}
+            <span class="payout-setting-value payout-inline-rate-value${percentageBased ? ' hidden' : ''}">
+              <strong>${escapeHtml(formatNumber(rate))}</strong>
+              <em>${escapeHtml(unit.replace('$ / ', '/ '))}</em>
+            </span>
+            ${definition.supportsPercentage ? `
+              <span class="payout-setting-value payout-inline-pool-value${percentageBased ? '' : ' hidden'}">
+                <strong>${escapeHtml(formatNumber(pool))}</strong>
+                <em>total</em>
+              </span>
+            ` : ''}
+          `}
         </header>
 
         <div class="payout-module-fields">
@@ -1248,34 +1263,6 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
                   ? `<span class="payout-milestone-check" aria-label="Percentage based payout">✓</span>`
                   : `<span class="payout-setting-value">No</span>`
               }
-            </div>
-          ` : ''}
-
-          ${simpleInlineRate ? '' : `
-            <div class="payout-module-field payout-rate-field${percentageBased ? ' hidden' : ''}">
-              <span>Rate</span>
-              ${canEdit ? `
-                <span class="payout-setting-input">
-                  <input type="number" min="0" max="100000000" step="1000" value="${escapeHtml(rate)}" data-payout-rate />
-                  <em>${escapeHtml(unit)}</em>
-                </span>
-              ` : `
-                <span class="payout-setting-value"><strong>${escapeHtml(formatNumber(rate))}</strong><em>${escapeHtml(unit.replace('$ / ', '/ '))}</em></span>
-              `}
-            </div>
-          `}
-
-          ${definition.supportsPercentage ? `
-            <div class="payout-module-field payout-pool-field${percentageBased ? '' : ' hidden'}">
-              <span>Pool</span>
-              ${canEdit ? `
-                <span class="payout-setting-input">
-                  <input type="number" min="0" max="100000000000" step="100000" value="${escapeHtml(pool)}" data-payout-pool />
-                  <em>$ total</em>
-                </span>
-              ` : `
-                <span class="payout-setting-value"><strong>${escapeHtml(formatNumber(pool))}</strong><em>total</em></span>
-              `}
             </div>
           ` : ''}
 
@@ -1320,8 +1307,8 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
   list.querySelectorAll('[data-payout-percentage]').forEach(input => {
     input.addEventListener('change', () => {
       const module = input.closest('.payout-module-column');
-      module?.querySelector('.payout-rate-field')?.classList.toggle('hidden', input.checked);
-      module?.querySelector('.payout-pool-field')?.classList.toggle('hidden', !input.checked);
+      module?.querySelector('.payout-inline-rate-value')?.classList.toggle('hidden', input.checked);
+      module?.querySelector('.payout-inline-pool-value')?.classList.toggle('hidden', !input.checked);
     });
   });
 }
