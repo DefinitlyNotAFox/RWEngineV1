@@ -11,7 +11,8 @@ export const PAYOUT_MODULE_CATALOG = [
     defaultEnabled:true,
     defaultRate:120000,
     supportsMilestones:true,
-    defaultMilestoneValue:10
+    defaultMilestonesIncluded:false,
+    defaultMilestoneRate:1200000
   },
   {
     id:'outsideChainRespect',
@@ -23,7 +24,8 @@ export const PAYOUT_MODULE_CATALOG = [
     defaultEnabled:true,
     defaultRate:80000,
     supportsMilestones:true,
-    defaultMilestoneValue:10
+    defaultMilestonesIncluded:false,
+    defaultMilestoneRate:800000
   },
   {
     id:'warHits',
@@ -67,8 +69,8 @@ export const DEFAULT_PAYOUT_PROFILE = {
     enabled:definition.defaultEnabled,
     rate:definition.defaultRate,
     ...(definition.supportsMilestones ? {
-      normalizeMilestones:true,
-      milestoneValue:definition.defaultMilestoneValue
+      milestonesIncluded:definition.defaultMilestonesIncluded,
+      milestoneRate:definition.defaultMilestoneRate
     } : {})
   }))
 };
@@ -108,16 +110,35 @@ export function normalizePayoutProfile(value) {
     };
 
     if (definition.supportsMilestones) {
-      module.normalizeMilestones = Object.prototype.hasOwnProperty.call(incoming, 'normalizeMilestones')
+      const hasNewIncluded = Object.prototype.hasOwnProperty.call(incoming, 'milestonesIncluded');
+      const legacyNormalize = Object.prototype.hasOwnProperty.call(incoming, 'normalizeMilestones')
         ? incoming.normalizeMilestones !== false
-        : true;
-      module.milestoneValue = boundedNumber(
+        : null;
+
+      module.milestonesIncluded = hasNewIncluded
+        ? incoming.milestonesIncluded !== false
+        : legacyNormalize === null
+          ? definition.defaultMilestonesIncluded
+          : !legacyNormalize;
+
+      const legacyMilestoneValue = boundedNumber(
         Object.prototype.hasOwnProperty.call(incoming, 'milestoneValue')
           ? incoming.milestoneValue
-          : definition.defaultMilestoneValue,
-        definition.label + ' milestone value',
+          : 10,
+        definition.label + ' legacy milestone value',
         0,
         1000
+      );
+
+      module.milestoneRate = boundedNumber(
+        Object.prototype.hasOwnProperty.call(incoming, 'milestoneRate')
+          ? incoming.milestoneRate
+          : legacyNormalize === true
+            ? legacyMilestoneValue * module.rate
+            : definition.defaultMilestoneRate,
+        definition.label + ' milestone rate',
+        0,
+        100000000
       );
     }
 
@@ -183,16 +204,24 @@ export function calculatePayoutRows(rows, profileValue) {
       let quantity = rawQuantity;
       let adjustment = 0;
 
-      if (definition?.supportsMilestones && module.normalizeMilestones !== false) {
-        const milestone = milestoneData(module.id, row);
-        quantity = Math.max(
-          0,
-          rawQuantity - milestone.rawRespect + milestone.hits * Number(module.milestoneValue || 0)
-        );
+      const milestone = definition?.supportsMilestones
+        ? milestoneData(module.id, row)
+        : { hits:0, rawRespect:0 };
+      const milestonesIncluded = definition?.supportsMilestones
+        ? module.milestonesIncluded !== false
+        : true;
+
+      let milestonePayout = 0;
+      if (definition?.supportsMilestones && !milestonesIncluded) {
+        quantity = Math.max(0, rawQuantity - milestone.rawRespect);
         adjustment = quantity - rawQuantity;
+        milestonePayout = Math.round(
+          milestone.hits * Number(module.milestoneRate || 0)
+        );
       }
 
-      const payout = Math.round(quantity * Number(module.rate || 0));
+      const basePayout = Math.round(quantity * Number(module.rate || 0));
+      const payout = basePayout + milestonePayout;
 
       return {
         id:module.id,
@@ -205,8 +234,11 @@ export function calculatePayoutRows(rows, profileValue) {
         adjustment,
         payout,
         ...(definition?.supportsMilestones ? {
-          normalizeMilestones:module.normalizeMilestones !== false,
-          milestoneValue:Number(module.milestoneValue || 0)
+          milestonesIncluded,
+          milestoneHits:Number(milestone.hits || 0),
+          milestoneRespect:Number(milestone.rawRespect || 0),
+          milestoneRate:Number(module.milestoneRate || 0),
+          milestonePayout
         } : {})
       };
     });
