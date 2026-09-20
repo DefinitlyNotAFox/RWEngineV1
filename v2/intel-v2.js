@@ -1929,20 +1929,17 @@ async function saveMemberNotesForm(form) {
   renderIntelV2();
 
   try {
-    const payload = detailCache.get(key);
+    const detailPayload = detailCache.get(key);
     const overviewMember = (overview?.members || []).find(row => Number(row.playerId) === playerId);
-    const existingNotes = normalizeMemberNotes(payload?.member?.notes || overviewMember?.notes);
+    const existingNotes = normalizeMemberNotes(detailPayload?.member?.notes || overviewMember?.notes);
     const result = await intelV2Api('saveMemberNotes', {
       playerId,
       noteText:draft.noteText,
       tags:existingNotes.tags
     });
 
-    const payload = detailCache.get(key);
-    if (payload?.member) payload.member.notes = result.notes;
-
-    const member = (overview?.members || []).find(row => Number(row.playerId) === playerId);
-    if (member) member.notes = result.notes;
+    if (detailPayload?.member) detailPayload.member.notes = result.notes;
+    if (overviewMember) overviewMember.notes = result.notes;
     if (overview?.summary) {
       overview.summary.membersWithNotes = (overview.members || [])
         .filter(row => row.current !== false && memberHasNotes(row)).length;
