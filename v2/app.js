@@ -1256,30 +1256,34 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
         <div class="payout-module-fields">
           ${definition.supportsPercentage ? `
             <div class="payout-module-toggle-row payout-percentage-field">
-              <span>% based</span>
-              ${canEdit
-                ? `<input type="checkbox" data-payout-percentage${percentageBased ? ' checked' : ''} />`
-                : percentageBased
-                  ? `<span class="payout-milestone-check" aria-label="Percentage based payout">✓</span>`
-                  : `<span class="payout-setting-value">No</span>`
+              ${canEdit ? `
+                <span class="payout-secondary-toggle">
+                  <input type="checkbox" data-payout-percentage${percentageBased ? ' checked' : ''} />
+                  <span>% based</span>
+                </span>
+              ` : percentageBased
+                ? `<span class="payout-secondary-toggle readonly"><span class="payout-milestone-check" aria-label="Percentage based payout">✓</span><span>% based</span></span>`
+                : `<span class="payout-secondary-toggle readonly"><span class="payout-setting-value">No</span><span>% based</span></span>`
               }
             </div>
           ` : ''}
 
           ${definition.supportsMilestones ? `
             <div class="payout-module-toggle-row payout-milestones-field">
-              <span>Milestones</span>
               ${canEdit ? `
                 <span class="payout-milestone-control">
-                  <input type="checkbox" data-payout-milestones${milestonesIncluded ? ' checked' : ''} />
+                  <span class="payout-secondary-toggle">
+                    <input type="checkbox" data-payout-milestones${milestonesIncluded ? ' checked' : ''} />
+                    <span>Milestones</span>
+                  </span>
                   <span class="payout-setting-input payout-milestone-rate${milestonesIncluded ? ' hidden' : ''}">
                     <input type="number" min="0" max="100000000" step="1000" value="${escapeHtml(milestoneRate)}" data-payout-milestone-rate />
                     <em>$ / hit</em>
                   </span>
                 </span>
               ` : milestonesIncluded
-                ? `<span class="payout-milestone-check" aria-label="Milestones paid normally">✓</span>`
-                : `<span class="payout-setting-value"><strong>${escapeHtml(formatNumber(milestoneRate))}</strong><em>/ hit</em></span>`
+                ? `<span class="payout-secondary-toggle readonly"><span class="payout-milestone-check" aria-label="Milestones paid normally">✓</span><span>Milestones</span></span>`
+                : `<span class="payout-secondary-toggle readonly"><span>Milestones</span><span class="payout-setting-value"><strong>${escapeHtml(formatNumber(milestoneRate))}</strong><em>/ hit</em></span></span>`
               }
             </div>
           ` : ''}
