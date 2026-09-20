@@ -12335,3 +12335,44 @@ body {
     padding-left: 20px;
   }
 }
+
+
+/* Simple payout attributes: title and amount on one row */
+#payoutsView .payout-module-header.payout-inline-rate {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 14px;
+  margin-bottom: 0;
+}
+
+#payoutsView .payout-inline-rate .payout-module-toggle {
+  flex: 0 0 auto;
+}
+
+#payoutsView .payout-inline-rate-value {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+}
+
+#payoutsView .payout-inline-rate-value input {
+  width: 88px;
+  height: 28px;
+  padding: 2px 6px;
+  font-size: var(--font-small);
+}
+
+#payoutsView .payout-inline-rate-value em {
+  margin-left: 5px;
+  color: var(--dim);
+  font-size: var(--font-caption);
+  font-style: normal;
+  white-space: nowrap;
+}
+
+#payoutsView .payout-module-column.disabled .payout-inline-rate-value {
+  opacity: .32;
+  pointer-events: none;
+}
