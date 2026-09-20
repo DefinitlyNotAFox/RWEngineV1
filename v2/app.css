@@ -13867,3 +13867,35 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Center only the payout controls; keep results table full-width */
+#payoutsView {
+  width: 100%;
+  max-width: none;
+  margin-right: 0;
+  margin-left: 0;
+}
+
+#payoutsView .payout-view-head,
+#payoutsView .payout-top-layout {
+  width: min(100%, 1180px);
+  max-width: 1180px;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+#payoutsView .payout-panel,
+#payoutsView .payout-table-wrap,
+#payoutsView .payout-table {
+  width: 100%;
+  max-width: none;
+}
+
+@media (max-width: 1240px) {
+  #payoutsView .payout-view-head,
+  #payoutsView .payout-top-layout {
+    width: 100%;
+    max-width: 100%;
+  }
+}
