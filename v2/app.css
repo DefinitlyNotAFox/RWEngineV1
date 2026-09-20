@@ -8133,9 +8133,9 @@ body {
   left: 0;
   z-index: 30;
   display: grid;
-  width: 310px;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  width: 250px;
+  grid-template-columns: 1fr;
+  gap: 8px;
   padding: 10px;
   border: 1px solid #303538;
   border-radius: 4px;
@@ -8258,7 +8258,7 @@ body {
 
 @media (max-width: 760px) {
   #intelFilters .intel-filter-menu {
-    width: min(310px, calc(100vw - 36px));
+    width: min(250px, calc(100vw - 36px));
     grid-template-columns: 1fr;
   }
 }
