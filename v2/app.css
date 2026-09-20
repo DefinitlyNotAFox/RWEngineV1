@@ -11978,3 +11978,11 @@ body {
 #payoutsView #payoutConfirm:disabled {
   opacity: .45;
 }
+
+
+/* Always-visible payout metrics */
+#payoutsView .payout-table .payout-disabled {
+  color: var(--dim);
+  font-size: var(--font-caption);
+  font-weight: 600;
+}
