@@ -234,12 +234,7 @@ function buildMemberOverview({ row, snapshots, warRows, wars, now, range = null,
     current:Number(row.is_current) === 1,
     daysInFaction:nullableNumber(row.days_in_faction),
 
-    presence:{
-      lastActionAt:nullableNumber(latest?.last_action_at) || extractMemberLastAction(row),
-      lastActionStatus:latest?.last_action_status || extractMemberLastActionStatus(row),
-      statusState:latest?.status_state || extractMemberStatusState(row),
-      statusUntil:nullableNumber(latest?.status_until)
-    },
+    presence:resolveMemberPresence(row, latest),
 
     battleStats:stats,
 
@@ -911,9 +906,23 @@ function extractMemberJson(row) {
   catch (_) { return {}; }
 }
 
+export function resolveMemberPresence(row, latest = null) {
+  const currentLastActionAt = extractMemberLastAction(row);
+  const currentLastActionStatus = extractMemberLastActionStatus(row);
+  const currentStatusState = extractMemberStatusState(row);
+  const currentStatusUntil = extractMemberStatusUntil(row);
+
+  return {
+    lastActionAt:currentLastActionAt ?? nullableNumber(latest?.last_action_at),
+    lastActionStatus:currentLastActionStatus || latest?.last_action_status || null,
+    statusState:currentStatusState || latest?.status_state || null,
+    statusUntil:currentStatusUntil ?? nullableNumber(latest?.status_until)
+  };
+}
+
 function extractMemberLastAction(row) {
   const json = extractMemberJson(row);
-  return nullableNumber(json?.last_action?.timestamp || json?.lastAction?.timestamp);
+  return nullableNumber(json?.last_action?.timestamp ?? json?.lastAction?.timestamp);
 }
 
 function extractMemberLastActionStatus(row) {
@@ -924,6 +933,15 @@ function extractMemberLastActionStatus(row) {
 function extractMemberStatusState(row) {
   const json = extractMemberJson(row);
   return json?.status?.state || null;
+}
+
+function extractMemberStatusUntil(row) {
+  const json = extractMemberJson(row);
+  return nullableNumber(
+    json?.status?.until ??
+    json?.status?.until_timestamp ??
+    json?.status?.timestamp
+  );
 }
 
 function isVerifiedSource(source) {
