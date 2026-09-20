@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=158" />
+  <link rel="stylesheet" href="/v2/app.css?v=159" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -265,24 +265,24 @@
                     </button>
                   </div>
                 </div>
-                <details id="payoutWarMenu" class="payout-war-menu">
-                  <summary class="payout-war-trigger">
-                    <span class="payout-war-trigger-copy">
-                      <strong id="payoutWarTriggerTitle">Select ranked war</strong>
-                      <small id="payoutWarTriggerMeta"></small>
-                    </span>
-                  </summary>
-                  <div id="payoutWarOptions" class="payout-war-options"></div>
-                </details>
-              </div>
-              <div class="payout-actions payout-war-actions">
-                <details id="payoutMoreMenu" class="payout-more-menu">
-                  <summary class="action">More</summary>
-                  <div class="payout-more-popover">
-                    <button id="payoutCopy" class="payout-menu-action" type="button">Copy CSV</button>
-                    <button id="payoutPresetDelete" class="payout-menu-action hidden" type="button">Delete preset</button>
-                  </div>
-                </details>
+                <div class="payout-war-select-line">
+                  <details id="payoutWarMenu" class="payout-war-menu">
+                    <summary class="payout-war-trigger">
+                      <span class="payout-war-trigger-copy">
+                        <strong id="payoutWarTriggerTitle">Select ranked war</strong>
+                        <small id="payoutWarTriggerMeta"></small>
+                      </span>
+                    </summary>
+                    <div id="payoutWarOptions" class="payout-war-options"></div>
+                  </details>
+                  <details id="payoutMoreMenu" class="payout-more-menu payout-war-more">
+                    <summary class="action" aria-label="More payout actions" title="More payout actions">⋯</summary>
+                    <div class="payout-more-popover">
+                      <button id="payoutCopy" class="payout-menu-action" type="button">Copy CSV</button>
+                      <button id="payoutPresetDelete" class="payout-menu-action hidden" type="button">Delete preset</button>
+                    </div>
+                  </details>
+                </div>
               </div>
             </div>
             <div id="payoutPresetControls" class="payout-head-row payout-preset-controls hidden">
