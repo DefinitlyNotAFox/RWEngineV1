@@ -1186,9 +1186,9 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog) {
     return `
       <section class="payout-module-column${enabled ? '' : ' disabled'}" data-payout-module="${escapeHtml(definition.id)}">
         <header class="payout-module-header">
-          <strong>${escapeHtml(definition.label || definition.id)}</strong>
           <label class="payout-module-toggle" title="Enable ${escapeHtml(definition.label || definition.id)}">
             <input type="checkbox" data-payout-enabled${enabled ? ' checked' : ''} />
+            <strong>${escapeHtml(definition.label || definition.id)}</strong>
           </label>
         </header>
 
