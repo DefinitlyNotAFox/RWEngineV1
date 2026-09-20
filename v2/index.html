@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=163" />
+  <link rel="stylesheet" href="/v2/app.css?v=164" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -279,7 +279,6 @@
                     <summary class="action" aria-label="More payout actions" title="More payout actions">⋯</summary>
                     <div class="payout-more-popover">
                       <button id="payoutCopy" class="payout-menu-action" type="button">Copy CSV</button>
-                      <button id="payoutPresetDelete" class="payout-menu-action hidden" type="button">Delete preset</button>
                     </div>
                   </details>
                 </div>
@@ -291,6 +290,7 @@
                 <div id="payoutPresetOptions" class="payout-preset-options"></div>
               </details>
               <button id="payoutPresetCreate" class="action hidden" type="button">Save as preset</button>
+              <button id="payoutPresetDelete" class="action hidden" type="button" disabled>Delete preset</button>
             </div>
             <div id="payoutPresetCreateRow" class="payout-preset-create-row hidden">
               <input id="payoutPresetName" class="payout-preset-name" type="text" maxlength="60" placeholder="Preset name" aria-label="Payout preset name" />
@@ -301,12 +301,12 @@
             <form id="payoutSettingsForm" class="payout-settings-form">
               <div class="payout-settings-headbar">
                 <div id="payoutProfileGlobal" class="payout-profile-global"></div>
-                <div class="payout-settings-head-actions">
-                  <button id="payoutSettingsSave" class="action primary" type="submit">Apply changes</button>
-                  <p id="payoutSettingsStatus" class="status-line hidden" role="status"></p>
-                </div>
               </div>
               <div id="payoutSettingsList" class="payout-settings-list"></div>
+              <div class="payout-settings-footer">
+                <p id="payoutSettingsStatus" class="status-line hidden" role="status"></p>
+                <button id="payoutSettingsSave" class="action primary" type="submit">Apply changes</button>
+              </div>
             </form>
           </section>
         </div>
