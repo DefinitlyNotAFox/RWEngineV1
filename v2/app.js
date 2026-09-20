@@ -14,7 +14,7 @@ import { sortFactionAccounts, sortTrackedFactions } from './sort.js?v=1';
 
 import { initIntel, renderIntel, refreshSyncStatus } from './intel.js?v=7';
 import { initIntelV2 } from './intel-v2.js?v=58';
-import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=36';
+import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=37';
 
 const legacyIntelMode = new URL(location.href).searchParams.get('legacyIntel') === '1';
 
@@ -1201,7 +1201,8 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
     : definitions.filter(definition => modules.get(String(definition.id || ''))?.enabled !== false);
 
   const renderPayoutModule = definition => {
-    const module = modules.get(String(definition.id || '')) || {};
+    const id = String(definition.id || '');
+    const module = modules.get(id) || {};
     const enabled = module.enabled !== false;
     const unit = definition.unit === 'R'
       ? '$ / R'
@@ -1214,75 +1215,97 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
     const milestoneRate = Number(module.milestoneRate ?? definition.defaultMilestoneRate ?? 0);
     const milestonesIncluded = module.milestonesIncluded !== false;
 
+    const mainMoney = canEdit
+      ? `
+        <span class="payout-setting-input payout-overview-money payout-inline-rate-value${percentageBased ? ' hidden' : ''}">
+          <input type="text" inputmode="numeric" autocomplete="off" value="${escapeHtml(formatPayoutMoneyInput(rate))}" data-payout-money data-payout-rate />
+          <em>${escapeHtml(unit)}</em>
+        </span>
+        ${definition.supportsPercentage ? `
+          <span class="payout-setting-input payout-overview-money payout-inline-pool-value${percentageBased ? '' : ' hidden'}">
+            <input type="text" inputmode="numeric" autocomplete="off" value="${escapeHtml(formatPayoutMoneyInput(pool))}" data-payout-money data-payout-pool />
+            <em>$ total</em>
+          </span>
+        ` : ''}
+      `
+      : `
+        <span class="payout-setting-value payout-overview-money payout-inline-rate-value${percentageBased ? ' hidden' : ''}">
+          <strong>${escapeHtml(formatNumber(rate))}</strong>
+          <em>${escapeHtml(unit.replace('$ / ', '/ '))}</em>
+        </span>
+        ${definition.supportsPercentage ? `
+          <span class="payout-setting-value payout-overview-money payout-inline-pool-value${percentageBased ? '' : ' hidden'}">
+            <strong>${escapeHtml(formatNumber(pool))}</strong>
+            <em>total</em>
+          </span>
+        ` : ''}
+      `;
+
+    const milestoneMoney = definition.supportsMilestones
+      ? canEdit
+        ? `
+          <span class="payout-setting-input payout-overview-money payout-milestone-rate${milestonesIncluded ? ' hidden' : ''}">
+            <input type="text" inputmode="numeric" autocomplete="off" value="${escapeHtml(formatPayoutMoneyInput(milestoneRate))}" data-payout-money data-payout-milestone-rate />
+            <em>$ / milestone</em>
+          </span>
+        `
+        : milestonesIncluded
+          ? ''
+          : `
+            <span class="payout-setting-value payout-overview-money payout-milestone-rate">
+              <strong>${escapeHtml(formatNumber(milestoneRate))}</strong>
+              <em>/ milestone</em>
+            </span>
+          `
+      : '';
+
+    const options = [
+      definition.supportsPercentage
+        ? canEdit
+          ? `
+            <label class="payout-secondary-toggle">
+              <input type="checkbox" data-payout-percentage${percentageBased ? ' checked' : ''} />
+              <span>% based</span>
+            </label>
+          `
+          : percentageBased
+            ? '<span class="payout-secondary-toggle readonly"><span class="payout-milestone-check">✓</span><span>% based</span></span>'
+            : ''
+        : '',
+      definition.supportsMilestones
+        ? canEdit
+          ? `
+            <label class="payout-secondary-toggle">
+              <input type="checkbox" data-payout-milestones${milestonesIncluded ? ' checked' : ''} />
+              <span>Milestones</span>
+            </label>
+          `
+          : milestonesIncluded
+            ? '<span class="payout-secondary-toggle readonly"><span class="payout-milestone-check">✓</span><span>Milestones</span></span>'
+            : '<span class="payout-secondary-toggle readonly"><span>Milestones separate</span></span>'
+        : ''
+    ].filter(Boolean).join('');
+
     return `
-      <section class="payout-module-column${enabled ? '' : ' disabled'}${canEdit ? ' editable' : ' readonly'}" data-payout-module="${escapeHtml(definition.id)}">
-        <header class="payout-module-header payout-inline-rate">
+      <section class="payout-module-column payout-overview-module${enabled ? '' : ' disabled'}${canEdit ? ' editable' : ' readonly'}" data-payout-module="${escapeHtml(id)}">
+        <div class="payout-overview-name-row">
           ${canEdit ? `
-            <label class="payout-module-toggle" title="Enable ${escapeHtml(definition.label || definition.id)}">
+            <label class="payout-module-toggle" title="Enable ${escapeHtml(definition.label || id)}">
               <input type="checkbox" data-payout-enabled${enabled ? ' checked' : ''} />
-              <strong>${escapeHtml(definition.label || definition.id)}</strong>
+              <strong>${escapeHtml(definition.label || id)}</strong>
             </label>
           ` : `
-            <strong>${escapeHtml(definition.label || definition.id)}</strong>
+            <strong>${escapeHtml(definition.label || id)}</strong>
           `}
+        </div>
 
-          ${canEdit ? `
-            <span class="payout-setting-input payout-inline-rate-value${percentageBased ? ' hidden' : ''}">
-              <input type="text" inputmode="numeric" autocomplete="off" value="${escapeHtml(formatPayoutMoneyInput(rate))}" data-payout-money data-payout-rate />
-              <em>${escapeHtml(unit)}</em>
-            </span>
-            ${definition.supportsPercentage ? `
-              <span class="payout-setting-input payout-inline-pool-value${percentageBased ? '' : ' hidden'}">
-                <input type="text" inputmode="numeric" autocomplete="off" value="${escapeHtml(formatPayoutMoneyInput(pool))}" data-payout-money data-payout-pool />
-                <em>$ total</em>
-              </span>
-            ` : ''}
-          ` : `
-            <span class="payout-setting-value payout-inline-rate-value${percentageBased ? ' hidden' : ''}">
-              <strong>${escapeHtml(formatNumber(rate))}</strong>
-              <em>${escapeHtml(unit.replace('$ / ', '/ '))}</em>
-            </span>
-            ${definition.supportsPercentage ? `
-              <span class="payout-setting-value payout-inline-pool-value${percentageBased ? '' : ' hidden'}">
-                <strong>${escapeHtml(formatNumber(pool))}</strong>
-                <em>total</em>
-              </span>
-            ` : ''}
-          `}
-        </header>
+        <div class="payout-overview-options-row">
+          ${options}
+        </div>
 
-        <div class="payout-module-fields">
-          ${definition.supportsPercentage ? `
-            <div class="payout-module-toggle-row payout-percentage-field">
-              ${canEdit ? `
-                <span class="payout-secondary-toggle">
-                  <input type="checkbox" data-payout-percentage${percentageBased ? ' checked' : ''} />
-                  <span>% based</span>
-                </span>
-              ` : percentageBased
-                ? `<span class="payout-secondary-toggle readonly"><span class="payout-milestone-check" aria-label="Percentage based payout">✓</span><span>% based</span></span>`
-                : ''
-              }
-            </div>
-          ` : ''}
-
-          ${definition.supportsMilestones ? `
-            <div class="payout-module-toggle-row payout-milestones-field">
-              ${canEdit ? `
-                <span class="payout-secondary-toggle">
-                  <input type="checkbox" data-payout-milestones${milestonesIncluded ? ' checked' : ''} />
-                  <span>Milestones</span>
-                </span>
-                <span class="payout-setting-input payout-milestone-rate${milestonesIncluded ? ' hidden' : ''}">
-                  <input type="text" inputmode="numeric" autocomplete="off" value="${escapeHtml(formatPayoutMoneyInput(milestoneRate))}" data-payout-money data-payout-milestone-rate />
-                  <em>$ / hit</em>
-                </span>
-              ` : milestonesIncluded
-                ? `<span class="payout-secondary-toggle readonly"><span class="payout-milestone-check" aria-label="Milestones paid normally">✓</span><span>Milestones</span></span>`
-                : `<span class="payout-secondary-toggle readonly"><span>Milestones</span></span><span class="payout-setting-value"><strong>${escapeHtml(formatNumber(milestoneRate))}</strong><em>/ hit</em></span>`
-              }
-            </div>
-          ` : ''}
+        <div class="payout-overview-money-row">
+          ${mainMoney}
+          ${milestoneMoney}
         </div>
       </section>
     `;
@@ -1291,32 +1314,22 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
   const definitionsById = new Map(
     visibleDefinitions.map(definition => [String(definition.id || ''), definition])
   );
-  const used = new Set();
-
-  const layoutSlots = [
+  const preferredOrder = [
     'rankedRespect',
-    'warHits',
     'outsideChainRespect',
-    null,
+    'warHits',
     'assists',
     'outsideHits'
   ];
+  const used = new Set();
+  const ordered = preferredOrder
+    .map(id => definitionsById.get(id))
+    .filter(Boolean);
 
-  const layoutCards = layoutSlots.map(id => {
-    if (!id) {
-      return '<div class="payout-settings-slot-empty" aria-hidden="true"></div>';
-    }
-
-    const definition = definitionsById.get(id);
-    used.add(id);
-
-    return definition
-      ? renderPayoutModule(definition)
-      : '<div class="payout-settings-slot-empty" aria-hidden="true"></div>';
-  });
+  ordered.forEach(definition => used.add(String(definition.id || '')));
 
   list.innerHTML = [
-    ...layoutCards,
+    ...ordered.map(renderPayoutModule),
     ...visibleDefinitions
       .filter(definition => !used.has(String(definition.id || '')))
       .map(renderPayoutModule)
@@ -1338,7 +1351,7 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
 
   list.querySelectorAll('[data-payout-milestones]').forEach(input => {
     input.addEventListener('change', () => {
-      input.closest('.payout-milestones-field')
+      input.closest('.payout-module-column')
         ?.querySelector('.payout-milestone-rate')
         ?.classList.toggle('hidden', input.checked);
     });
