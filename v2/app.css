@@ -10948,3 +10948,191 @@ body {
     display: flex;
   }
 }
+
+
+/* Payout profile matrix */
+#payoutsView .payout-settings-list {
+  display: grid;
+  grid-template-columns: minmax(560px, 1.45fr) minmax(360px, .75fr);
+  gap: 24px;
+  width: 100%;
+  overflow: visible;
+}
+
+#payoutsView .payout-setting-group,
+#payoutsView .payout-setting-group + .payout-setting-group {
+  display: block;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+#payoutsView .payout-setting-group + .payout-setting-group {
+  padding-left: 24px;
+  border-left: 1px solid var(--line-soft);
+}
+
+#payoutsView .payout-setting-group-head {
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) auto;
+  align-items: end;
+  min-height: 18px;
+  margin-bottom: 2px;
+  color: var(--dim);
+}
+
+#payoutsView .payout-setting-group-head > strong {
+  font-size: 10px;
+  font-weight: 720;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+#payoutsView .payout-setting-column-labels {
+  display: grid;
+  grid-template-columns: 118px;
+  align-items: end;
+  color: #697076;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: .045em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+#payoutsView .payout-setting-column-labels.with-milestones {
+  grid-template-columns: 118px 72px 78px;
+}
+
+#payoutsView .payout-setting-group-items {
+  display: grid;
+  gap: 0;
+}
+
+#payoutsView .payout-setting-row,
+#payoutsView .payout-setting-row:first-of-type,
+#payoutsView .payout-setting-row:last-child,
+#payoutsView [data-payout-group="Hits"] .payout-setting-row {
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) 118px;
+  align-items: center;
+  min-height: 30px;
+  width: 100%;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid rgba(255,255,255,.045);
+  background: transparent;
+}
+
+#payoutsView .payout-setting-row.with-milestones {
+  grid-template-columns: minmax(190px, 1fr) 118px 72px 78px;
+}
+
+#payoutsView .payout-setting-row:last-child {
+  border-bottom: 1px solid rgba(255,255,255,.045);
+}
+
+#payoutsView .payout-setting-row + .payout-setting-row,
+#payoutsView [data-payout-group="Hits"] .payout-setting-row + .payout-setting-row {
+  padding-left: 0;
+  border-left: 0;
+}
+
+#payoutsView .payout-setting-toggle {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  padding-right: 12px;
+  font-size: var(--font-caption);
+  white-space: nowrap;
+}
+
+#payoutsView .payout-setting-toggle input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+}
+
+#payoutsView .payout-rate-field,
+#payoutsView .payout-milestone-field {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+#payoutsView .payout-normalize-field {
+  display: flex;
+  min-height: 0;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0;
+}
+
+#payoutsView .payout-normalize-field input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+}
+
+#payoutsView .payout-setting-input {
+  display: flex;
+  align-items: center;
+}
+
+#payoutsView .payout-setting-input input {
+  width: 72px;
+  height: 24px;
+  padding: 1px 5px;
+  font-size: var(--font-small);
+}
+
+#payoutsView .payout-milestone-field .payout-setting-input input {
+  width: 40px;
+}
+
+#payoutsView .payout-setting-input em {
+  margin-left: 4px;
+  font-size: 9px;
+}
+
+#payoutsView .payout-setting-row.disabled {
+  opacity: .42;
+}
+
+#payoutsView .payout-setting-row.disabled .payout-rate-field,
+#payoutsView .payout-setting-row.disabled .payout-normalize-field,
+#payoutsView .payout-setting-row.disabled .payout-milestone-field {
+  visibility: hidden;
+}
+
+@media (max-width: 1120px) {
+  #payoutsView .payout-settings-list {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  #payoutsView .payout-setting-group + .payout-setting-group {
+    padding: 8px 0 0;
+    border-top: 1px solid var(--line-soft);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 700px) {
+  #payoutsView .payout-setting-group-head {
+    grid-template-columns: 1fr;
+  }
+
+  #payoutsView .payout-setting-column-labels {
+    display: none;
+  }
+
+  #payoutsView .payout-setting-row,
+  #payoutsView .payout-setting-row.with-milestones,
+  #payoutsView [data-payout-group="Hits"] .payout-setting-row {
+    grid-template-columns: minmax(140px,1fr) auto auto auto;
+    column-gap: 8px;
+  }
+}
