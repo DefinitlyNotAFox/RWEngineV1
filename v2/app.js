@@ -1271,19 +1271,17 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
           ${definition.supportsMilestones ? `
             <div class="payout-module-toggle-row payout-milestones-field">
               ${canEdit ? `
-                <span class="payout-milestone-control">
-                  <span class="payout-secondary-toggle">
-                    <input type="checkbox" data-payout-milestones${milestonesIncluded ? ' checked' : ''} />
-                    <span>Milestones</span>
-                  </span>
-                  <span class="payout-setting-input payout-milestone-rate${milestonesIncluded ? ' hidden' : ''}">
-                    <input type="text" inputmode="numeric" autocomplete="off" value="${escapeHtml(formatPayoutMoneyInput(milestoneRate))}" data-payout-money data-payout-milestone-rate />
-                    <em>$ / hit</em>
-                  </span>
+                <span class="payout-secondary-toggle">
+                  <input type="checkbox" data-payout-milestones${milestonesIncluded ? ' checked' : ''} />
+                  <span>Milestones</span>
+                </span>
+                <span class="payout-setting-input payout-milestone-rate${milestonesIncluded ? ' hidden' : ''}">
+                  <input type="text" inputmode="numeric" autocomplete="off" value="${escapeHtml(formatPayoutMoneyInput(milestoneRate))}" data-payout-money data-payout-milestone-rate />
+                  <em>$ / hit</em>
                 </span>
               ` : milestonesIncluded
                 ? `<span class="payout-secondary-toggle readonly"><span class="payout-milestone-check" aria-label="Milestones paid normally">✓</span><span>Milestones</span></span>`
-                : `<span class="payout-secondary-toggle readonly"><span>Milestones</span><span class="payout-setting-value"><strong>${escapeHtml(formatNumber(milestoneRate))}</strong><em>/ hit</em></span></span>`
+                : `<span class="payout-secondary-toggle readonly"><span>Milestones</span></span><span class="payout-setting-value"><strong>${escapeHtml(formatNumber(milestoneRate))}</strong><em>/ hit</em></span>`
               }
             </div>
           ` : ''}
