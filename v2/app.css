@@ -10338,3 +10338,235 @@ body {
     min-height: 104px;
   }
 }
+
+
+/* Final payout profile editor: admin-only, collapsed by default */
+#payoutsView #payoutSettingsSection {
+  min-height: 0;
+  margin: 0 0 9px;
+  padding: 0;
+  border: 0;
+}
+
+#payoutsView .payout-settings-form {
+  display: block;
+  min-height: 0;
+}
+
+#payoutsView .payout-settings-adminbar {
+  box-sizing: border-box;
+  min-height: var(--war-first-row-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 0 0 9px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+#payoutsView .payout-settings-adminbar-copy {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 14px;
+}
+
+#payoutsView .payout-settings-adminbar-copy strong {
+  flex: 0 0 auto;
+  font-size: var(--font-small);
+  font-weight: 680;
+}
+
+#payoutsView #payoutSettingsSummary {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--font-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#payoutsView .payout-settings-toggle {
+  flex: 0 0 auto;
+  min-width: 84px;
+  min-height: 30px;
+  height: 30px;
+  padding: 3px 10px;
+}
+
+#payoutsView .payout-settings-editor {
+  padding: 13px 0 11px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+#payoutsView .payout-settings-editor.hidden {
+  display: none !important;
+}
+
+#payoutsView .payout-settings-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(340px, .65fr);
+  gap: 28px;
+  width: 100%;
+  overflow: visible;
+}
+
+#payoutsView .payout-setting-group {
+  display: block;
+  min-width: 0;
+}
+
+#payoutsView .payout-setting-group + .payout-setting-group {
+  padding-left: 28px;
+  border-left: 1px solid var(--line-soft);
+}
+
+#payoutsView .payout-setting-group-label {
+  margin-bottom: 6px;
+  color: var(--dim);
+  font-size: var(--font-caption);
+  font-weight: 720;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+#payoutsView .payout-setting-group-items {
+  display: grid;
+  gap: 0;
+}
+
+#payoutsView .payout-setting-row,
+#payoutsView .payout-setting-row:first-of-type,
+#payoutsView .payout-setting-row:last-child {
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: minmax(150px, .7fr) minmax(0, 1.3fr);
+  align-items: center;
+  gap: 14px;
+  padding: 6px 0;
+  border: 0;
+  border-bottom: 1px solid rgba(255,255,255,.055);
+  border-radius: 0;
+  background: transparent;
+}
+
+#payoutsView .payout-setting-row:last-child {
+  border-bottom: 0;
+}
+
+#payoutsView .payout-setting-row + .payout-setting-row {
+  border-left: 0;
+}
+
+#payoutsView .payout-setting-toggle {
+  min-width: 0;
+  font-size: var(--font-small);
+  white-space: normal;
+}
+
+#payoutsView .payout-setting-controls {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 11px;
+  flex-wrap: nowrap;
+}
+
+#payoutsView .payout-setting-row.disabled {
+  opacity: .48;
+}
+
+#payoutsView .payout-setting-row.disabled .payout-setting-controls {
+  display: flex;
+  visibility: hidden;
+}
+
+#payoutsView .payout-setting-input input {
+  width: 88px;
+  height: 29px;
+}
+
+#payoutsView .payout-milestone-field .payout-setting-input input {
+  width: 48px;
+}
+
+#payoutsView .payout-settings-footer {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
+}
+
+#payoutsView .payout-settings-footer #payoutSettingsStatus {
+  max-width: none;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-caption);
+  white-space: normal;
+}
+
+#payoutsView .payout-settings-topline-actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+#payoutsView .payout-settings-topline-actions .action {
+  min-width: 96px;
+}
+
+@media (max-width: 1050px) {
+  #payoutsView .payout-settings-list {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  #payoutsView .payout-setting-group + .payout-setting-group {
+    padding: 12px 0 0;
+    border-top: 1px solid var(--line-soft);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 700px) {
+  #payoutsView .payout-settings-adminbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 0;
+  }
+
+  #payoutsView .payout-settings-adminbar-copy {
+    display: grid;
+    gap: 2px;
+  }
+
+  #payoutsView #payoutSettingsSummary {
+    white-space: normal;
+  }
+
+  #payoutsView .payout-setting-row,
+  #payoutsView .payout-setting-row:first-of-type,
+  #payoutsView .payout-setting-row:last-child {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  #payoutsView .payout-setting-controls {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  #payoutsView .payout-settings-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  #payoutsView .payout-settings-topline-actions {
+    margin-left: 0;
+  }
+}
