@@ -12907,3 +12907,113 @@ body {
     width: 100%;
   }
 }
+
+
+/* Compact preset button + saved-preset menu */
+#payoutsView .payout-preset-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+#payoutsView .payout-preset-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+#payoutsView .payout-preset-menu > summary {
+  display: inline-flex;
+  min-width: 92px;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+#payoutsView .payout-preset-menu > summary::after {
+  content: '▾';
+  color: var(--dim);
+  font-size: var(--font-caption);
+}
+
+#payoutsView .payout-preset-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+#payoutsView .payout-preset-menu[open] > summary {
+  border-color: #4a5053;
+}
+
+#payoutsView .payout-preset-options {
+  position: absolute;
+  z-index: 45;
+  top: calc(100% + 5px);
+  right: 0;
+  display: grid;
+  min-width: 210px;
+  max-width: 300px;
+  max-height: 260px;
+  padding: 4px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: #0c0e0f;
+  box-shadow: 0 8px 22px rgba(0,0,0,.35);
+}
+
+#payoutsView .payout-preset-option {
+  position: relative;
+  width: 100%;
+  min-height: 31px;
+  padding: 5px 28px 5px 8px;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--font-small);
+  text-align: left;
+  cursor: pointer;
+}
+
+#payoutsView .payout-preset-option:hover,
+#payoutsView .payout-preset-option:focus-visible {
+  background: rgba(255,255,255,.055);
+}
+
+#payoutsView .payout-preset-option.selected {
+  font-weight: 650;
+}
+
+#payoutsView .payout-preset-option.selected::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  right: 9px;
+  transform: translateY(-50%);
+  color: var(--text);
+}
+
+#payoutsView #payoutPresetCreate {
+  white-space: nowrap;
+}
+
+#payoutsView .payout-preset-create-row {
+  margin-top: 2px;
+}
+
+@media (max-width: 620px) {
+  #payoutsView .payout-preset-controls {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  #payoutsView .payout-preset-options {
+    right: auto;
+    left: 0;
+  }
+}
