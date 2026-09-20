@@ -11602,3 +11602,45 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Resolve legacy payout grid cascade */
+#payoutsView .payout-module-fields {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  grid-auto-flow: row !important;
+  gap: 4px;
+}
+
+#payoutsView .payout-module-fields > .payout-module-field,
+#payoutsView .payout-module-fields > .payout-module-toggle-row,
+#payoutsView .payout-module-fields > .payout-rate-field,
+#payoutsView .payout-module-fields > .payout-normalize-field,
+#payoutsView .payout-module-fields > .payout-milestone-field {
+  display: grid !important;
+  grid-template-columns: 62px minmax(0, 1fr) !important;
+  grid-column: 1 !important;
+  align-items: center;
+  min-height: 24px;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+}
+
+#payoutsView .payout-module-fields > .payout-normalize-field {
+  min-height: 24px;
+}
+
+#payoutsView .payout-module-fields > .payout-normalize-field > span:first-child {
+  display: block !important;
+  visibility: visible !important;
+}
+
+#payoutsView .payout-module-fields > .payout-normalize-field > input {
+  justify-self: start;
+  margin: 0;
+}
+
+#payoutsView .payout-module-fields .payout-setting-input {
+  justify-self: start;
+}
