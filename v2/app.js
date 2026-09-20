@@ -13,7 +13,7 @@ import {
 import { sortFactionAccounts, sortTrackedFactions } from './sort.js?v=1';
 
 import { initIntel, renderIntel, refreshSyncStatus } from './intel.js?v=6';
-import { initIntelV2 } from './intel-v2.js?v=53';
+import { initIntelV2 } from './intel-v2.js?v=54';
 import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=19';
 
 const legacyIntelMode = new URL(location.href).searchParams.get('legacyIntel') === '1';
@@ -866,7 +866,6 @@ const AUTO_TAG_SETTING_ROWS = [
     group:'War',
     title:'High war hits / war',
     thresholds:[
-      ['teal','Teal','≥','positive teal',1],
       ['green','Green','≥','positive green',1],
       ['bright','Bright green','≥','positive bright',1]
     ]
@@ -895,7 +894,6 @@ const AUTO_TAG_SETTING_ROWS = [
     group:'War',
     title:'Assists / war',
     thresholds:[
-      ['teal','Teal','≥','positive teal',1],
       ['green','Green','≥','positive green',1],
       ['bright','Bright green','≥','positive bright',1]
     ]
@@ -908,7 +906,6 @@ const AUTO_TAG_SETTING_ROWS = [
       ['yellow','Yellow','<','negative yellow',1],
       ['orange','Orange','<','negative orange',1],
       ['red','Red','<','negative red',1],
-      ['teal','Teal','≥','positive teal',1],
       ['green','Green','≥','positive green',1],
       ['bright','Bright green','≥','positive bright',1]
     ]
