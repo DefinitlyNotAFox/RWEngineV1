@@ -13899,3 +13899,19 @@ body {
     max-width: 100%;
   }
 }
+
+
+/* Payout confirmation belongs on the far right */
+#payoutsView .payout-summary-row {
+  width: 100%;
+  max-width: none;
+}
+
+#payoutsView .payout-summary-row .payout-summary {
+  flex: 1 1 auto;
+}
+
+#payoutsView .payout-confirm-slot {
+  margin-left: auto;
+  justify-content: flex-end;
+}
