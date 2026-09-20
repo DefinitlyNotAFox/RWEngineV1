@@ -15,3 +15,20 @@ test('tag manager keeps table geometry stable', () => {
   assert.match(css, /\.tag-row-selector[\s\S]*position:\s*absolute/);
   assert.match(css, /\.faction-grid-cell:not\(\.col-member\)[\s\S]*text-align:\s*center/);
 });
+
+
+test('notes editor is separate from tag management and sits under Notes', () => {
+  const source = readFileSync(new URL('../v2/intel-v2.js', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../v2/app.css', import.meta.url), 'utf8');
+
+  const notesPanelStart = source.indexOf('function renderMemberNotesPanel');
+  const notesPanelEnd = source.indexOf('function renderTraitGroup', notesPanelStart);
+  const notesPanel = source.slice(notesPanelStart, notesPanelEnd);
+
+  assert.ok(notesPanelStart >= 0 && notesPanelEnd > notesPanelStart);
+  assert.match(notesPanel, /textarea name="noteText"/);
+  assert.doesNotMatch(notesPanel, /name="tags"/);
+  assert.doesNotMatch(notesPanel, />Tags</);
+  assert.match(source, /tags:existingNotes\.tags/);
+  assert.match(css, /\.intel2-notes\s*\{[\s\S]*grid-column:\s*13\s*\/\s*14/);
+});
