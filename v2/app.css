@@ -9463,3 +9463,85 @@ body {
     justify-content: flex-start;
   }
 }
+
+
+/* Dedicated payouts page */
+.payout-view-head {
+  margin-bottom: 16px;
+}
+
+.payout-page-toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 14px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.payout-war-picker {
+  display: grid;
+  min-width: min(460px, 100%);
+  gap: 5px;
+}
+
+.payout-war-picker > span {
+  color: var(--muted);
+  font-size: var(--font-small);
+  font-weight: 640;
+}
+
+.payout-war-picker select {
+  width: 100%;
+  min-height: 36px;
+}
+
+.payout-war-meta {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  text-align: right;
+}
+
+.payout-war-meta strong {
+  font-size: var(--font-small);
+  font-weight: 640;
+}
+
+.payout-war-meta span {
+  color: var(--dim);
+  font-size: var(--font-caption);
+}
+
+#payoutsView .payout-panel {
+  margin: 0;
+  padding-top: 12px;
+  border-top: 0;
+}
+
+#payoutsView .payout-table-wrap {
+  margin-top: 8px;
+}
+
+#payoutsView .payout-table th,
+#payoutsView .payout-table td {
+  padding-left: 7px;
+  padding-right: 7px;
+}
+
+@media (max-width: 760px) {
+  .payout-page-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .payout-war-picker {
+    min-width: 0;
+  }
+
+  .payout-war-meta {
+    text-align: left;
+  }
+}
