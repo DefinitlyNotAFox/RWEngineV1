@@ -41,7 +41,6 @@ const detail = {
     draftProfile:null,
     profileDirty:false,
     preview:null,
-    runs:[],
     canSave:false,
     needsRebuild:false,
     busy:false,
@@ -100,9 +99,7 @@ export function initWarViews() {
     selectPayoutWar(String(event.target.value || ''));
   });
   document.querySelector('#payoutCalculate')?.addEventListener('click', () => calculatePayout(true));
-  document.querySelector('#payoutSave')?.addEventListener('click', savePayoutRun);
   document.querySelector('#payoutCopy')?.addEventListener('click', copyPayoutCsv);
-  document.querySelector('#payoutHistory')?.addEventListener('change', handlePayoutHistory);
 
   document.querySelector('#shareToggle')?.addEventListener('click', toggleShare);
   document.querySelector('#shareVisibility')?.addEventListener('change', updateShareVisibility);
@@ -943,11 +940,9 @@ async function loadPayoutState(force = false) {
   try {
     const result = await payoutApi('list', { warId:detail.warId });
     detail.payout.profile = result.profile || null;
-    detail.payout.runs = Array.isArray(result.runs) ? result.runs : [];
     detail.payout.canSave = result.canSave === true;
     detail.payout.needsRebuild = false;
     detail.payout.loadedWarId = String(detail.warId || '');
-    renderPayoutHistory();
     renderPayoutPanel();
 
     await calculatePayout(false);
@@ -976,8 +971,6 @@ async function calculatePayout(showStatus = true, profileOverride = null) {
     detail.payout.canSave = result.canSave === true;
     detail.payout.needsRebuild = false;
 
-    const history = document.querySelector('#payoutHistory');
-    if (history) history.value = '';
     renderPayoutPanel();
 
     const unavailable = Array.isArray(detail.payout.preview?.unavailableModules)
@@ -998,80 +991,6 @@ async function calculatePayout(showStatus = true, profileOverride = null) {
   }
 }
 
-async function savePayoutRun() {
-  if (!detail.warId || !detail.payout.canSave) return;
-  if (detail.payout.profileDirty) {
-    setPayoutStatus('Save the payout profile before saving a payout preset.');
-    return;
-  }
-  setPayoutBusy(true);
-  setPayoutStatus('Saving payout preset…');
-
-  try {
-    const result = await payoutApi('save', { warId:detail.warId });
-    if (result.run) {
-      detail.payout.runs = [
-        {
-          runId:Number(result.run.runId || 0),
-          createdAt:Number(result.run.createdAt || 0),
-          createdByPlayerId:result.run.createdByPlayerId || null,
-          totalPayout:Number(result.run.preview?.totalPayout || 0),
-          memberCount:Number(result.run.preview?.members?.length || 0),
-          preview:result.run.preview || null
-        },
-        ...detail.payout.runs.filter(run => Number(run.runId) !== Number(result.run.runId))
-      ];
-      detail.payout.preview = result.run.preview || detail.payout.preview;
-    }
-
-    renderPayoutHistory();
-    renderPayoutPanel();
-    setPayoutStatus(result.message || 'Payout preset saved.');
-  } catch (error) {
-    detail.payout.needsRebuild = false;
-    renderPayoutPanel();
-    setPayoutStatus(error.message || 'Failed to save payout preset.', true);
-  } finally {
-    setPayoutBusy(false);
-  }
-}
-
-function handlePayoutHistory(event) {
-  const value = String(event.target?.value || '');
-  if (!value) {
-    calculatePayout(false);
-    return;
-  }
-
-  const run = detail.payout.runs.find(item => String(item.runId) === value);
-  if (!run?.preview) return;
-
-  detail.payout.preview = run.preview;
-  detail.payout.profile = run.preview.profile || detail.payout.profile;
-  detail.payout.needsRebuild = false;
-  renderPayoutPanel();
-  setPayoutStatus(
-    `Saved preset #${formatNumber(run.runId)} · ${formatPayoutDate(run.createdAt)}`
-  );
-}
-
-function renderPayoutHistory() {
-  const select = document.querySelector('#payoutHistory');
-  if (!select) return;
-
-  const current = String(select.value || '');
-  select.innerHTML = [
-    '<option value="">Current preset</option>',
-    ...detail.payout.runs.map(run =>
-      `<option value="${escapeHtml(run.runId)}">#${escapeHtml(run.runId)} · ${escapeHtml(formatPayoutDate(run.createdAt))} · ${escapeHtml(formatMoney(run.totalPayout))}</option>`
-    )
-  ].join('');
-
-  if ([...select.options].some(option => option.value === current)) {
-    select.value = current;
-  }
-}
-
 function renderPayoutPanel() {
   const preview = detail.payout.preview;
   const profile = preview?.profile || detail.payout.profile;
@@ -1081,20 +1000,11 @@ function renderPayoutPanel() {
   const body = document.querySelector('#payoutBody');
   const foot = document.querySelector('#payoutFoot');
   const payoutSummary = document.querySelector('#payoutSummary');
-  const history = document.querySelector('#payoutHistory');
   const calculate = document.querySelector('#payoutCalculate');
-  const save = document.querySelector('#payoutSave');
   const copy = document.querySelector('#payoutCopy');
-  const unavailable = Array.isArray(preview?.unavailableModules) ? preview.unavailableModules : [];
   const canManagePayouts = detail.payout.canSave && canEditFactionView();
 
-  history?.classList.toggle('hidden', !canManagePayouts);
   calculate?.classList.toggle('hidden', !canManagePayouts);
-
-  if (save) {
-    save.classList.toggle('hidden', !canManagePayouts);
-    save.disabled = !canManagePayouts || !preview || detail.payout.profileDirty || unavailable.length > 0;
-  }
   if (copy) copy.disabled = !preview;
 
   if (summary) {
@@ -1207,19 +1117,10 @@ function setPayoutBusy(busy) {
     control.disabled = Boolean(busy);
   });
 
-  const save = document.querySelector('#payoutSave');
   const copy = document.querySelector('#payoutCopy');
   if (!busy) {
-    const unavailable = Array.isArray(detail.payout.preview?.unavailableModules)
-      ? detail.payout.preview.unavailableModules
-      : [];
     const canManagePayouts = detail.payout.canSave && canEditFactionView();
-    document.querySelector('#payoutHistory')?.classList.toggle('hidden', !canManagePayouts);
     document.querySelector('#payoutCalculate')?.classList.toggle('hidden', !canManagePayouts);
-    if (save) {
-      save.classList.toggle('hidden', !canManagePayouts);
-      save.disabled = !canManagePayouts || !detail.payout.preview || detail.payout.profileDirty || unavailable.length > 0;
-    }
     if (copy) copy.disabled = !detail.payout.preview;
   }
 }
@@ -1247,8 +1148,6 @@ function resetPayoutPanel(hide = false) {
 
   const panel = document.querySelector('#payoutPanel');
   if (panel) panel.classList.toggle('hidden', Boolean(hide && state.route !== 'payouts'));
-  const history = document.querySelector('#payoutHistory');
-  if (history) history.innerHTML = '<option value="">Current preset</option>';
   const summary = document.querySelector('#payoutProfileSummary');
   if (summary) summary.innerHTML = '';
   const payoutSummary = document.querySelector('#payoutSummary');
