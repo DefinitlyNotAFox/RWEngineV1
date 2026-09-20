@@ -11892,3 +11892,43 @@ body {
 #payoutsView .payout-settings-headbar {
   justify-content: flex-end;
 }
+
+
+/* Named payout settings presets */
+#payoutsView .payout-preset-name {
+  width: 150px;
+  height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  outline: 0;
+  background: #0c0e0f;
+  color: var(--text);
+  font-size: var(--font-small);
+}
+
+#payoutsView .payout-preset-name:focus {
+  border-color: #4a5053;
+}
+
+#payoutsView #payoutPresetSelect {
+  min-width: 170px;
+}
+
+#payoutsView #payoutPresetDelete:disabled {
+  opacity: .4;
+}
+
+@media (max-width: 1180px) {
+  #payoutsView .payout-preset-name {
+    width: 170px;
+  }
+}
+
+@media (max-width: 760px) {
+  #payoutsView .payout-preset-name,
+  #payoutsView #payoutPresetSelect {
+    width: 100%;
+    min-width: 0;
+  }
+}
