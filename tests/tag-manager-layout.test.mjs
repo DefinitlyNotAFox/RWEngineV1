@@ -38,12 +38,19 @@ test('notes editor is separate from tag management and sits under Notes', () => 
 });
 
 
-test('tag filters only show tags that are actually assigned', () => {
+test('tag filters merge automatic and manual tags that actually exist', () => {
   const source = readFileSync(new URL('../v2/intel-v2.js', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../v2/app.css', import.meta.url), 'utf8');
 
   assert.match(source, /const tagOptions = activeTagFilterOptions\(\)/);
   assert.match(source, /function activeTagFilterOptions\(\)/);
   assert.match(source, /if \(member\.current === false && !showFormerMembers\) continue/);
+  assert.match(source, /for \(const autoTag of automaticTags\(member\)\)/);
+  assert.match(source, /normalizeMemberNotes\(member\.notes\)\.tags/);
   assert.match(source, /filter\(tag => tag\.count > 0\)/);
+  assert.doesNotMatch(source, /<strong>Signals<\/strong>/);
+  assert.doesNotMatch(source, /signal:\$\{key\}/);
+  assert.match(source, /<strong>Tags<\/strong>/);
   assert.match(source, /const suggestions = workflowTagOptions\(\)/);
+  assert.match(css, /#intelFilters \.intel-filter-menu\s*\{[\s\S]*width:\s*250px;[\s\S]*grid-template-columns:\s*1fr;/);
 });
