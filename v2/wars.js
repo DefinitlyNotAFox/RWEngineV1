@@ -50,8 +50,7 @@ const detail = {
     loadedWarId:null,
     wars:[],
     warsFactionId:null,
-    warsLoading:false,
-    warStatusFilter:'outstanding'
+    warsLoading:false
   }
 };
 
@@ -102,11 +101,6 @@ export function initWarViews() {
   });
   document.querySelector('#importForm')?.addEventListener('submit', handleImport);
 
-  document.querySelector('#payoutWarStatusFilter')?.addEventListener('click', event => {
-    const button = event.target.closest('[data-payout-war-status]');
-    if (!button || button.disabled) return;
-    selectPayoutWarStatus(String(button.dataset.payoutWarStatus || ''));
-  });
   document.querySelector('#payoutWarOptions')?.addEventListener('click', event => {
     const option = event.target.closest('[data-payout-war-id]');
     if (!option || option.disabled) return;
@@ -144,7 +138,6 @@ export function initWarViews() {
     detail.payout.wars = [];
     detail.payout.warsFactionId = null;
     detail.payout.warsLoading = false;
-    detail.payout.warStatusFilter = 'outstanding';
     renderArchive();
     renderWarOverview();
     if (state.route === 'payouts') renderPayoutPage();
@@ -901,7 +894,6 @@ function renderPayoutPage() {
   if (!allowed) {
     panel.classList.add('hidden');
     options.innerHTML = '';
-    renderPayoutWarStatusFilter([], false);
     renderPayoutWarTrigger(null);
     menu.removeAttribute('open');
     return;
@@ -922,36 +914,28 @@ function renderPayoutPage() {
     detail.warId = null;
     clearPayoutCalculation();
     options.innerHTML = '<div class="payout-war-empty">No imported wars</div>';
-    renderPayoutWarStatusFilter([], canManage);
     renderPayoutWarTrigger(null, { empty:true });
     renderPayoutPanel();
     return;
   }
 
-  const outstandingWars = wars.filter(war => String(war.payoutStatus || 'outstanding') !== 'paid');
-  const paidWars = wars.filter(war => String(war.payoutStatus || 'outstanding') === 'paid');
+  const accessible = canManage
+    ? wars
+    : wars.filter(war => String(war.payoutStatus || 'outstanding') === 'paid');
 
-  let filter = String(detail.payout.warStatusFilter || 'outstanding');
-  if (!canManage) filter = 'paid';
-  else if (filter === 'outstanding' && !outstandingWars.length && paidWars.length) filter = 'paid';
-  else if (filter === 'paid' && !paidWars.length && outstandingWars.length) filter = 'outstanding';
-
-  detail.payout.warStatusFilter = filter;
-  renderPayoutWarStatusFilter(wars, canManage);
-
-  const visibleWars = filter === 'paid' ? paidWars : outstandingWars;
-  const current = visibleWars.find(war => String(war.warId) === String(detail.warId || ''));
+  const current = accessible.find(war => String(war.warId) === String(detail.warId || ''));
   const selected = current
     ? String(current.warId)
-    : visibleWars.length
-      ? String(visibleWars[0].warId)
+    : accessible.length
+      ? String(accessible[0].warId)
       : '';
 
-  options.innerHTML = visibleWars.length
-    ? visibleWars.map(war => {
+  options.innerHTML = accessible.length
+    ? accessible.map(war => {
         const warId = String(war.warId || war.reportId || '');
         const opponent = war.opponentFactionName || 'Unknown opponent';
         const date = formatDate(war.endTimestamp || war.startTimestamp);
+        const paid = String(war.payoutStatus || 'outstanding') === 'paid';
         const selectedClass = warId === selected ? ' selected' : '';
 
         return `
@@ -964,16 +948,16 @@ function renderPayoutPage() {
               <strong>${escapeHtml(opponent)}</strong>
               <small>#${escapeHtml(warId)} · ${escapeHtml(date)}</small>
             </span>
-            <span class="payout-war-option-check" aria-hidden="true">${warId === selected ? '✓' : ''}</span>
+            <span class="payout-war-option-status ${paid ? 'paid' : 'outstanding'}">${paid ? 'Paid' : 'Outstanding'}</span>
           </button>
         `;
       }).join('')
-    : `<div class="payout-war-empty">No ${filter === 'paid' ? 'paid' : 'outstanding'} wars</div>`;
+    : '<div class="payout-war-empty">No paid payouts available</div>';
 
   if (!selected) {
     detail.warId = null;
     clearPayoutCalculation();
-    renderPayoutWarTrigger(null, { unavailable:true, filter });
+    renderPayoutWarTrigger(null, { unavailable:true });
     renderPayoutPanel();
     return;
   }
@@ -991,57 +975,14 @@ function renderPayoutPage() {
   }
 }
 
-function renderPayoutWarStatusFilter(wars, canManage) {
-  const controls = document.querySelector('#payoutWarStatusFilter');
-  if (!controls) return;
-
-  const list = Array.isArray(wars) ? wars : [];
-  const counts = {
-    outstanding:list.filter(war => String(war.payoutStatus || 'outstanding') !== 'paid').length,
-    paid:list.filter(war => String(war.payoutStatus || 'outstanding') === 'paid').length
-  };
-  const active = canManage ? String(detail.payout.warStatusFilter || 'outstanding') : 'paid';
-
-  controls.querySelectorAll('[data-payout-war-status]').forEach(button => {
-    const status = String(button.dataset.payoutWarStatus || '');
-    const selected = status === active;
-    const locked = status === 'outstanding' && !canManage;
-    const count = button.querySelector('[data-payout-war-count]');
-
-    button.classList.toggle('active', selected);
-    button.disabled = locked;
-    button.setAttribute('aria-pressed', selected ? 'true' : 'false');
-    if (locked) button.title = 'Outstanding payouts are available to faction admins.';
-    else button.removeAttribute('title');
-    if (count) count.textContent = String(counts[status] || 0);
-  });
-}
-
-function selectPayoutWarStatus(status) {
-  const next = String(status || '').trim();
-  if (!['outstanding', 'paid'].includes(next)) return;
-  if (next === 'outstanding' && detail.payout.canManage !== true) return;
-  if (next === String(detail.payout.warStatusFilter || '')) return;
-
-  detail.payout.warStatusFilter = next;
-  document.querySelector('#payoutWarMenu')?.removeAttribute('open');
-
-  const wars = Array.isArray(detail.payout.wars) ? detail.payout.wars : [];
-  const first = wars.find(war =>
-    (next === 'paid')
-      ? String(war.payoutStatus || 'outstanding') === 'paid'
-      : String(war.payoutStatus || 'outstanding') !== 'paid'
-  );
-
-  detail.warId = first ? String(first.warId || first.reportId || '') : null;
-  clearPayoutCalculation();
-  renderPayoutPage();
-}
-
 function renderPayoutWarTrigger(war, state = {}) {
   const title = document.querySelector('#payoutWarTriggerTitle');
   const meta = document.querySelector('#payoutWarTriggerMeta');
-  if (!title || !meta) return;
+  const status = document.querySelector('#payoutWarStatus');
+  if (!title || !meta || !status) return;
+
+  status.className = 'payout-war-status-display';
+  status.textContent = '';
 
   if (state.loading) {
     title.textContent = 'Loading ranked wars…';
@@ -1056,17 +997,18 @@ function renderPayoutWarTrigger(war, state = {}) {
   }
 
   if (state.unavailable || !war) {
-    const filter = String(state.filter || detail.payout.warStatusFilter || 'outstanding');
-    title.textContent = filter === 'paid' ? 'No paid wars' : 'No outstanding wars';
-    meta.textContent = filter === 'paid'
-      ? 'Confirmed payouts will appear here'
-      : 'Nothing currently needs payout';
+    title.textContent = 'No paid war available';
+    meta.textContent = 'Outstanding payouts require faction payout access';
     return;
   }
 
   const warId = String(war.warId || war.reportId || '');
+  const paid = String(war.payoutStatus || 'outstanding') === 'paid';
+
   title.textContent = war.opponentFactionName || 'Unknown opponent';
   meta.textContent = `#${warId} · ${formatDate(war.endTimestamp || war.startTimestamp)}`;
+  status.textContent = paid ? 'Paid' : 'Outstanding';
+  status.classList.add(paid ? 'paid' : 'outstanding');
 }
 
 function selectPayoutWar(warId) {
@@ -1444,7 +1386,6 @@ function resetPayoutPanel(hide = false) {
   const warsFactionId = detail.payout.warsFactionId;
   const warsLoading = detail.payout.warsLoading === true;
   const canManage = detail.payout.canManage === true;
-  const warStatusFilter = String(detail.payout.warStatusFilter || (canManage ? 'outstanding' : 'paid'));
 
   detail.payout = {
     profile:null,
@@ -1460,8 +1401,7 @@ function resetPayoutPanel(hide = false) {
     loadedWarId:null,
     wars,
     warsFactionId,
-    warsLoading,
-    warStatusFilter
+    warsLoading
   };
 
   const panel = document.querySelector('#payoutPanel');
