@@ -1063,10 +1063,13 @@ function renderPayoutPanel() {
   const foot = document.querySelector('#payoutFoot');
   const payoutSummary = document.querySelector('#payoutSummary');
   const calculate = document.querySelector('#payoutCalculate');
+  const confirm = document.querySelector('#payoutConfirm');
   const copy = document.querySelector('#payoutCopy');
-  const canManagePayouts = detail.payout.canSave && canEditFactionView();
+  const status = String(detail.payout.status || preview?.status || 'outstanding');
+  const canManagePayouts = detail.payout.canManage === true && status !== 'paid';
 
   calculate?.classList.toggle('hidden', !canManagePayouts);
+  confirm?.classList.toggle('hidden', !canManagePayouts);
   if (copy) copy.disabled = !preview;
 
   if (summary) {
@@ -1086,20 +1089,32 @@ function renderPayoutPanel() {
 
   if (!preview) {
     head.innerHTML = '';
-    body.innerHTML = '<tr class="empty-row"><td>Calculate to preview this payout.</td></tr>';
+    body.innerHTML = '<tr class="empty-row"><td>No paid payout is available for this war yet.</td></tr>';
     foot.innerHTML = '';
     payoutSummary.innerHTML = '';
+    if (confirm) confirm.disabled = true;
     return;
   }
 
   const active = Array.isArray(preview.activeModules) ? preview.activeModules : [];
+  const members = Array.isArray(preview.members) ? preview.members : [];
+  const unavailable = Array.isArray(preview.unavailableModules) ? preview.unavailableModules : [];
+  const unpaid = members.filter(member => Number(member.totalPayout || 0) > 0 && member.paid !== true);
+
+  if (confirm) {
+    confirm.disabled = !canManagePayouts || unavailable.length > 0 || unpaid.length > 0;
+    confirm.title = unpaid.length
+      ? `${unpaid.length} payout${unpaid.length === 1 ? '' : 's'} still outstanding`
+      : '';
+  }
+
   head.innerHTML = `<tr>
     <th>Member</th>
     ${active.map(module => `<th>${escapeHtml(module.shortLabel || module.label || module.id)}</th>`).join('')}
     <th class="net">Total</th>
+    <th class="payout-paid-col">Paid</th>
   </tr>`;
 
-  const members = Array.isArray(preview.members) ? preview.members : [];
   body.innerHTML = members.length
     ? members.map(member => `<tr>
         <td>
@@ -1112,19 +1127,124 @@ function renderPayoutPanel() {
           return `<td><strong>${escapeHtml(formatPayoutQuantity(component.quantity, module.unit))}</strong><span class="member-meta">${escapeHtml(formatMoney(component.payout))}</span></td>`;
         }).join('')}
         <td class="net"><strong>${escapeHtml(formatMoney(member.totalPayout))}</strong></td>
+        ${renderPayoutPaidCell(member, canManagePayouts, status)}
       </tr>`).join('')
-    : `<tr class="empty-row"><td colspan="${active.length + 2}">No payout rows.</td></tr>`;
+    : `<tr class="empty-row"><td colspan="${active.length + 3}">No payout rows.</td></tr>`;
 
   foot.innerHTML = `<tr class="war-total-row">
     <td><strong>Faction total</strong><span class="secondary">${formatNumber(members.length)} members</span></td>
     ${active.map(module => `<td><strong>${escapeHtml(formatPayoutQuantity(module.quantity, module.unit))}</strong><span class="member-meta">${escapeHtml(formatMoney(module.payout))}</span></td>`).join('')}
     <td class="net"><strong>${escapeHtml(formatMoney(preview.totalPayout))}</strong></td>
+    <td class="payout-paid-col">${status === 'paid' ? '<span class="payout-paid-mark">✓</span>' : ''}</td>
   </tr>`;
 
   payoutSummary.innerHTML = `
     <strong>${escapeHtml(formatMoney(preview.totalPayout))}</strong>
     <span>Total payout · ${formatNumber(members.length)} members</span>
   `;
+}
+
+function renderPayoutPaidCell(member, canManage, status) {
+  const amount = Math.round(Number(member?.totalPayout || 0));
+  if (amount <= 0) return '<td class="payout-paid-col"><span class="payout-paid-empty">—</span></td>';
+
+  if (status === 'paid' || !canManage) {
+    return `<td class="payout-paid-col"><span class="payout-paid-mark" title="Paid">✓</span></td>`;
+  }
+
+  return `
+    <td class="payout-paid-col">
+      <label class="payout-paid-check" title="Open faction bank with ${escapeHtml(formatMoney(amount))} prefilled">
+        <input
+          type="checkbox"
+          data-payout-paid
+          data-player-id="${escapeHtml(member.playerId)}"
+          data-payout-amount="${escapeHtml(amount)}"
+          ${member.paid === true ? 'checked' : ''}
+        />
+      </label>
+    </td>
+  `;
+}
+
+async function handlePayoutPaidChange(event) {
+  const input = event.target.closest('[data-payout-paid]');
+  if (!input || !detail.warId || detail.payout.canManage !== true) return;
+
+  const playerId = Number(input.dataset.playerId || 0);
+  const amount = Math.round(Number(input.dataset.payoutAmount || 0));
+  const paid = input.checked === true;
+  if (!playerId || amount <= 0) return;
+
+  if (paid) {
+    const bankWindow = window.open(
+      buildFactionBankUrl(playerId, amount),
+      '_blank',
+      'noopener,noreferrer'
+    );
+    if (bankWindow) bankWindow.opener = null;
+  }
+
+  input.disabled = true;
+
+  try {
+    const result = await payoutApi('setMemberPaid', {
+      warId:detail.warId,
+      playerId,
+      paid,
+      profile:detail.payout.preview?.profile || detail.payout.profile || null
+    });
+    detail.payout.preview = result.preview || detail.payout.preview;
+    renderPayoutPanel();
+    setPayoutStatus('');
+  } catch (error) {
+    input.checked = !paid;
+    input.disabled = false;
+    setPayoutStatus(error.message || 'Failed to update paid status.', true);
+  }
+}
+
+function buildFactionBankUrl(playerId, amount) {
+  const user = encodeURIComponent(String(playerId));
+  const money = encodeURIComponent(String(Math.round(Number(amount || 0))));
+  return `https://www.torn.com/factions.php?step=your&u=${user}&a=${money}#/tab=controls&option=give-to-user&giveMoneyTo=${user}&money=${money}`;
+}
+
+async function confirmPayout() {
+  if (!detail.warId || detail.payout.canManage !== true || !detail.payout.preview) return;
+
+  const outstanding = (detail.payout.preview.members || []).filter(member =>
+    Number(member.totalPayout || 0) > 0 && member.paid !== true
+  );
+  if (outstanding.length) {
+    setPayoutStatus(
+      `Mark every payout as paid before confirming. ${outstanding.length} member${outstanding.length === 1 ? '' : 's'} remaining.`,
+      true
+    );
+    return;
+  }
+
+  setPayoutBusy(true);
+  setPayoutStatus('Confirming payout…');
+
+  try {
+    const result = await payoutApi('confirm', {
+      warId:detail.warId,
+      profile:detail.payout.preview.profile || detail.payout.profile || null
+    });
+
+    detail.payout.preview = result.preview || detail.payout.preview;
+    detail.payout.status = 'paid';
+    detail.payout.confirmedAt = Number(result.confirmedAt || 0) || null;
+    detail.payout.loadedWarId = String(detail.warId || '');
+    renderPayoutPanel();
+    setPayoutStatus('');
+    await loadPayoutWars(true);
+  } catch (error) {
+    setPayoutStatus(error.message || 'Failed to confirm payout.', true);
+  } finally {
+    setPayoutBusy(false);
+  }
 }
 
 function activePayoutModules(profile) {
@@ -1175,16 +1295,13 @@ function formatPayoutDate(timestamp) {
 
 function setPayoutBusy(busy) {
   detail.payout.busy = Boolean(busy);
-  document.querySelectorAll('#payoutPanel button, #payoutPanel select').forEach(control => {
+  document.querySelectorAll(
+    '#payoutPanel button, #payoutPanel select, #payoutPanel input, #payoutCalculate, #payoutConfirm'
+  ).forEach(control => {
     control.disabled = Boolean(busy);
   });
 
-  const copy = document.querySelector('#payoutCopy');
-  if (!busy) {
-    const canManagePayouts = detail.payout.canSave && canEditFactionView();
-    document.querySelector('#payoutCalculate')?.classList.toggle('hidden', !canManagePayouts);
-    if (copy) copy.disabled = !detail.payout.preview;
-  }
+  if (!busy) renderPayoutPanel();
 }
 
 function setPayoutStatus(message, error = false) {
@@ -1196,16 +1313,26 @@ function setPayoutStatus(message, error = false) {
 }
 
 function resetPayoutPanel(hide = false) {
+  const wars = Array.isArray(detail.payout.wars) ? detail.payout.wars : [];
+  const warsFactionId = detail.payout.warsFactionId;
+  const warsLoading = detail.payout.warsLoading === true;
+  const canManage = detail.payout.canManage === true;
+
   detail.payout = {
     profile:null,
     draftProfile:null,
     profileDirty:false,
     preview:null,
-    runs:[],
-    canSave:false,
+    canSave:canManage,
+    canManage,
+    status:'outstanding',
+    confirmedAt:null,
     needsRebuild:false,
     busy:false,
-    loadedWarId:null
+    loadedWarId:null,
+    wars,
+    warsFactionId,
+    warsLoading
   };
 
   const panel = document.querySelector('#payoutPanel');
@@ -1235,7 +1362,8 @@ async function copyPayoutCsv() {
       `${module.shortLabel || module.label || module.id} quantity`,
       `${module.shortLabel || module.label || module.id} payout`
     ]),
-    'Total payout'
+    'Total payout',
+    'Paid'
   ];
 
   const rows = (preview.members || []).map(member => {
@@ -1247,7 +1375,8 @@ async function copyPayoutCsv() {
         const component = components.get(module.id) || {};
         return [Number(component.quantity || 0), Number(component.payout || 0)];
       }),
-      Number(member.totalPayout || 0)
+      Number(member.totalPayout || 0),
+      member.paid === true ? 'Yes' : 'No'
     ];
   });
 
