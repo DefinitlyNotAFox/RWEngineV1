@@ -30,5 +30,9 @@ test('notes editor is separate from tag management and sits under Notes', () => 
   assert.doesNotMatch(notesPanel, /name="tags"/);
   assert.doesNotMatch(notesPanel, />Tags</);
   assert.match(source, /tags:existingNotes\.tags/);
+  assert.match(source, /function renderMemberTagsPanel/);
+  assert.match(source, /class="intel2-member-tags"/);
+  assert.doesNotMatch(notesPanel, /intel2-note-tags/);
+  assert.match(css, /\.intel2-member-tags\s*\{[\s\S]*grid-column:\s*1\s*\/\s*2/);
   assert.match(css, /\.intel2-notes\s*\{[\s\S]*grid-column:\s*13\s*\/\s*14/);
 });
