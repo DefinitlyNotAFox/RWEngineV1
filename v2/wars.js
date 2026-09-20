@@ -42,7 +42,8 @@ const detail = {
     runs:[],
     canSave:false,
     needsRebuild:false,
-    busy:false
+    busy:false,
+    loadedWarId:null
   }
 };
 
@@ -93,7 +94,9 @@ export function initWarViews() {
   });
   document.querySelector('#importForm')?.addEventListener('submit', handleImport);
 
-  document.querySelector('#payoutToggle')?.addEventListener('click', togglePayout);
+  document.querySelector('#payoutWarSelect')?.addEventListener('change', event => {
+    selectPayoutWar(String(event.target.value || ''));
+  });
   document.querySelector('#payoutCalculate')?.addEventListener('click', () => calculatePayout(true));
   document.querySelector('#payoutSave')?.addEventListener('click', savePayoutRun);
   document.querySelector('#payoutCopy')?.addEventListener('click', copyPayoutCsv);
@@ -111,6 +114,7 @@ export function initWarViews() {
       renderArchive();
       resumeBackgroundImports();
     }
+    if (route === 'payouts') renderPayoutPage();
     if (route === 'performance') loadPerformance(false);
   });
 
@@ -126,12 +130,14 @@ export function initWarViews() {
     closeWar();
     renderArchive();
     renderWarOverview();
+    if (state.route === 'payouts') renderPayoutPage();
   });
 
   on('data', () => {
     renderWarOverview();
     renderArchive();
     performance.loadedKey = '';
+    if (state.route === 'payouts') renderPayoutPage();
     if (state.route === 'performance' && !performance.loading) loadPerformance(true);
   });
 
@@ -141,11 +147,13 @@ export function initWarViews() {
     renderWarOverview();
     renderPerformance();
     renderWarDetail();
+    if (state.route === 'payouts') renderPayoutPage();
   });
 
   on('payout-settings', () => {
-    if (detail.warId && !document.querySelector('#payoutPanel')?.classList.contains('hidden')) {
-      loadPayoutState();
+    if (state.route === 'payouts' && detail.warId) {
+      detail.payout.loadedWarId = null;
+      loadPayoutState(true);
     }
   });
 }
@@ -678,7 +686,6 @@ function setDetailLoading() {
 function renderWarDetail() {
   const canManageAccess = canEditFactionView();
   document.querySelector('#shareToggle')?.classList.toggle('hidden', !canManageAccess);
-  document.querySelector('#payoutToggle')?.classList.toggle('hidden', !canManageAccess);
   if (!canManageAccess) {
     resetSharePanel(true);
     resetPayoutPanel(true);
@@ -828,16 +835,93 @@ function renderWarCell(member,key) {
 }
 
 
-async function togglePayout() {
-  if (!canEditFactionView() || !detail.warId) return;
+function renderPayoutPage() {
   const panel = document.querySelector('#payoutPanel');
-  if (!panel) return;
+  const select = document.querySelector('#payoutWarSelect');
+  const meta = document.querySelector('#payoutWarMeta');
+  if (!panel || !select) return;
 
-  const opening = panel.classList.contains('hidden');
-  panel.classList.toggle('hidden', !opening);
-  if (!opening) return;
+  const allowed = canEditFactionView();
+  document.querySelectorAll('[data-route="payouts"]').forEach(button => {
+    button.classList.toggle('hidden', !allowed);
+  });
 
-  await loadPayoutState();
+  if (!allowed) {
+    panel.classList.add('hidden');
+    select.innerHTML = '';
+    select.disabled = true;
+    if (meta) meta.textContent = 'Faction management access is required.';
+    return;
+  }
+
+  panel.classList.remove('hidden');
+  select.disabled = false;
+
+  const wars = [...state.wars]
+    .filter(war => String(war.war_id || war.report_id || '').trim())
+    .sort((a,b) => warStamp(b) - warStamp(a));
+
+  if (!wars.length) {
+    detail.warId = null;
+    resetPayoutPanel(false);
+    select.innerHTML = '<option value="">No imported wars</option>';
+    select.disabled = true;
+    if (meta) meta.textContent = 'Import a ranked war in Archive before calculating payouts.';
+    renderPayoutPanel();
+    return;
+  }
+
+  select.innerHTML = wars.map(war => {
+    const warId = String(war.war_id || war.report_id || '');
+    const opponent = war.opponent_faction_name || 'Unknown opponent';
+    const date = formatDate(war.end_timestamp || war.start_timestamp);
+    return `<option value="${escapeHtml(warId)}">${escapeHtml(opponent)} · #${escapeHtml(warId)} · ${escapeHtml(date)}</option>`;
+  }).join('');
+
+  const available = new Set(wars.map(war => String(war.war_id || war.report_id || '')));
+  const selected = available.has(String(detail.warId || ''))
+    ? String(detail.warId)
+    : String(wars[0].war_id || wars[0].report_id || '');
+
+  select.value = selected;
+
+  if (String(detail.warId || '') !== selected) {
+    detail.warId = selected;
+    resetPayoutPanel(false);
+  }
+
+  renderPayoutWarMeta(wars.find(war => String(war.war_id || war.report_id || '') === selected));
+
+  if (selected && detail.payout.loadedWarId !== selected && !detail.payout.busy) {
+    loadPayoutState();
+  }
+}
+
+function selectPayoutWar(warId) {
+  const selected = String(warId || '').trim();
+  if (!selected || selected === String(detail.warId || '')) return;
+
+  detail.warId = selected;
+  resetPayoutPanel(false);
+
+  const war = state.wars.find(item =>
+    String(item.war_id || item.report_id || '') === selected
+  );
+  renderPayoutWarMeta(war);
+  loadPayoutState();
+}
+
+function renderPayoutWarMeta(war) {
+  const meta = document.querySelector('#payoutWarMeta');
+  if (!meta) return;
+  if (!war) {
+    meta.textContent = '';
+    return;
+  }
+
+  const opponent = war.opponent_faction_name || 'Unknown opponent';
+  const period = `${formatDate(war.start_timestamp)} – ${formatDate(war.end_timestamp)}`;
+  meta.innerHTML = `<strong>${escapeHtml(opponent)}</strong><span>${escapeHtml(period)}</span>`;
 }
 
 async function loadPayoutState(force = false) {
@@ -852,6 +936,7 @@ async function loadPayoutState(force = false) {
     detail.payout.runs = Array.isArray(result.runs) ? result.runs : [];
     detail.payout.canSave = result.canSave === true;
     detail.payout.needsRebuild = false;
+    detail.payout.loadedWarId = String(detail.warId || '');
     renderPayoutHistory();
     renderPayoutPanel();
 
@@ -1107,10 +1192,12 @@ function resetPayoutPanel(hide = false) {
     runs:[],
     canSave:false,
     needsRebuild:false,
-    busy:false
+    busy:false,
+    loadedWarId:null
   };
 
-  if (hide) document.querySelector('#payoutPanel')?.classList.add('hidden');
+  const panel = document.querySelector('#payoutPanel');
+  if (panel) panel.classList.toggle('hidden', Boolean(hide && state.route !== 'payouts'));
   const history = document.querySelector('#payoutHistory');
   if (history) history.innerHTML = '<option value="">Current profile</option>';
   const summary = document.querySelector('#payoutProfileSummary');
@@ -1216,12 +1303,7 @@ async function rebuildPayoutData() {
 
     if (!completed) throw new Error('Payout detail rebuild exceeded the safety limit.');
 
-    const excludeChainBonuses = Boolean(document.querySelector('#warDetailChain')?.checked);
-    detail.payload = await warDetailApi({
-      warId:detail.warId,
-      excludeChainBonuses
-    });
-    renderWarDetail();
+    detail.payout.loadedWarId = null;
     await loadPayoutState(true);
     setPayoutStatus('Payout detail rebuilt.');
   } catch (error) {
