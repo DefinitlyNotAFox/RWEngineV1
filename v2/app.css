@@ -13915,3 +13915,50 @@ body {
   margin-left: auto;
   justify-content: flex-end;
 }
+
+
+/* Payout action placement cleanup */
+#payoutsView .payout-view-head {
+  width: 100%;
+  max-width: none;
+  margin-right: 0;
+  margin-left: 0;
+}
+
+#payoutsView .payout-settings-headbar {
+  justify-content: flex-end;
+}
+
+#payoutsView .payout-settings-footer {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+#payoutsView .payout-settings-footer .status-line {
+  margin: 0 auto 0 0;
+}
+
+#payoutsView .payout-preset-controls {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+#payoutsView #payoutPresetDelete {
+  width: 100%;
+  justify-content: center;
+}
+
+#payoutsView #payoutPresetDelete:disabled {
+  opacity: .38;
+  cursor: default;
+  color: var(--dim);
+}
+
+@media (max-width: 560px) {
+  #payoutsView .payout-preset-controls {
+    grid-template-columns: 1fr;
+  }
+}
