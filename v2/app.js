@@ -1172,71 +1172,62 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog) {
       .map(module => [String(module?.id || ''), module])
   );
 
-  const groups = [];
-  for (const definition of catalog || []) {
-    const group = String(definition.group || 'Payout');
-    let entry = groups.find(item => item.name === group);
-    if (!entry) {
-      entry = { name:group, definitions:[] };
-      groups.push(entry);
-    }
-    entry.definitions.push(definition);
-  }
+  const definitions = Array.isArray(catalog) ? catalog : [];
 
-  list.innerHTML = groups.map(group => {
-    const supportsMilestones = group.definitions.some(definition => definition.supportsMilestones);
+  list.innerHTML = `
+    <div class="payout-profile-grid payout-profile-grid-head" aria-hidden="true">
+      <span>Type</span>
+      <span>Module</span>
+      <span>Rate</span>
+      <span>Normalize</span>
+      <span>Milestone</span>
+    </div>
+    ${definitions.map((definition, index) => {
+      const module = modules.get(String(definition.id || '')) || {};
+      const enabled = module.enabled !== false;
+      const group = String(definition.group || 'Payout');
+      const previousGroup = index > 0 ? String(definitions[index - 1]?.group || 'Payout') : '';
+      const showGroup = index === 0 || previousGroup !== group;
+      const unit = definition.unit === 'R'
+        ? '$ / R'
+        : definition.unit === 'assist'
+          ? '$ / assist'
+          : '$ / hit';
 
-    return `
-      <section class="payout-setting-group" data-payout-group="${escapeHtml(group.name)}">
-        <div class="payout-setting-group-head">
-          <strong>${escapeHtml(group.name)}</strong>
-          <div class="payout-setting-column-labels${supportsMilestones ? ' with-milestones' : ''}">
-            <span>Rate</span>
-            ${supportsMilestones ? '<span>Normalize</span><span>Milestone</span>' : ''}
-          </div>
+      return `
+        <div class="payout-profile-grid payout-setting-row${enabled ? '' : ' disabled'}${showGroup ? ' group-start' : ''}" data-payout-module="${escapeHtml(definition.id)}">
+          <span class="payout-setting-type">${showGroup ? escapeHtml(group) : ''}</span>
+
+          <label class="payout-setting-toggle">
+            <input type="checkbox" data-payout-enabled${enabled ? ' checked' : ''} />
+            <span>${escapeHtml(definition.label || definition.id)}</span>
+          </label>
+
+          <label class="payout-rate-field" title="Payout rate">
+            <span class="payout-setting-input">
+              <input type="number" min="0" max="100000000" step="1000" value="${escapeHtml(module.rate ?? 0)}" data-payout-rate />
+              <em>${escapeHtml(unit)}</em>
+            </span>
+          </label>
+
+          ${definition.supportsMilestones ? `
+            <label class="check payout-normalize-field">
+              <input type="checkbox" data-payout-normalize${module.normalizeMilestones !== false ? ' checked' : ''} />
+            </label>
+            <label class="payout-milestone-field" title="Milestone respect value">
+              <span class="payout-setting-input">
+                <input type="number" min="0" max="1000" step="1" value="${escapeHtml(module.milestoneValue ?? definition.defaultMilestoneValue ?? 10)}" data-payout-milestone />
+                <em>R</em>
+              </span>
+            </label>
+          ` : `
+            <span class="payout-setting-na">—</span>
+            <span class="payout-setting-na">—</span>
+          `}
         </div>
-        <div class="payout-setting-group-items">
-          ${group.definitions.map(definition => {
-            const module = modules.get(String(definition.id || '')) || {};
-            const enabled = module.enabled !== false;
-            const unit = definition.unit === 'R'
-              ? '$ / R'
-              : definition.unit === 'assist'
-                ? '$ / assist'
-                : '$ / hit';
-
-            return `
-              <div class="payout-setting-row${enabled ? '' : ' disabled'}${definition.supportsMilestones ? ' with-milestones' : ''}" data-payout-module="${escapeHtml(definition.id)}">
-                <label class="payout-setting-toggle">
-                  <input type="checkbox" data-payout-enabled${enabled ? ' checked' : ''} />
-                  <span>${escapeHtml(definition.label || definition.id)}</span>
-                </label>
-
-                <label class="payout-rate-field" title="Payout rate">
-                  <span class="payout-setting-input">
-                    <input type="number" min="0" max="100000000" step="1000" value="${escapeHtml(module.rate ?? 0)}" data-payout-rate />
-                    <em>${escapeHtml(unit)}</em>
-                  </span>
-                </label>
-
-                ${definition.supportsMilestones ? `
-                  <label class="check payout-normalize-field">
-                    <input type="checkbox" data-payout-normalize${module.normalizeMilestones !== false ? ' checked' : ''} />
-                  </label>
-                  <label class="payout-milestone-field" title="Milestone respect value">
-                    <span class="payout-setting-input">
-                      <input type="number" min="0" max="1000" step="1" value="${escapeHtml(module.milestoneValue ?? definition.defaultMilestoneValue ?? 10)}" data-payout-milestone />
-                      <em>R</em>
-                    </span>
-                  </label>
-                ` : ''}
-              </div>
-            `;
-          }).join('')}
-        </div>
-      </section>
-    `;
-  }).join('');
+      `;
+    }).join('')}
+  `;
 
   list.querySelectorAll('[data-payout-enabled]').forEach(input => {
     input.addEventListener('change', () => {
