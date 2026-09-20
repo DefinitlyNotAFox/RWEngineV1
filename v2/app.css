@@ -13654,3 +13654,116 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Payout top composition: shared alignment */
+#payoutsView .payout-top-layout {
+  grid-template-columns: 430px 800px;
+  align-items: start;
+  gap: 22px;
+}
+
+#payoutsView .payout-head-controls {
+  width: 430px;
+  max-width: 100%;
+}
+
+#payoutsView #payoutSettingsSection,
+#payoutsView .payout-settings-list {
+  width: 800px;
+  max-width: 100%;
+}
+
+#payoutsView .payout-war-picker-head,
+#payoutsView .payout-settings-headbar {
+  box-sizing: border-box;
+  min-height: 32px;
+  margin: 0 0 8px;
+}
+
+#payoutsView .payout-war-picker-head {
+  align-items: center;
+}
+
+#payoutsView .payout-settings-headbar {
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+#payoutsView .payout-profile-global {
+  margin-left: 0;
+}
+
+#payoutsView .payout-settings-list {
+  grid-template-columns: repeat(3, 260px);
+  gap: 10px;
+}
+
+#payoutsView .payout-settings-solo,
+#payoutsView .payout-settings-stack {
+  width: 260px;
+  max-width: 260px;
+}
+
+#payoutsView .payout-module-header.payout-inline-rate {
+  width: 100%;
+  gap: 9px;
+}
+
+#payoutsView .payout-inline-rate .payout-module-toggle {
+  min-width: 0;
+}
+
+#payoutsView .payout-inline-rate .payout-module-toggle strong {
+  white-space: nowrap;
+}
+
+#payoutsView .payout-inline-rate-value,
+#payoutsView .payout-inline-pool-value {
+  flex: 0 0 auto;
+}
+
+#payoutsView .payout-war-select-line {
+  min-height: 46px;
+}
+
+#payoutsView .payout-preset-controls {
+  margin-top: 8px;
+}
+
+@media (max-width: 1320px) {
+  #payoutsView .payout-top-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  #payoutsView .payout-head-controls,
+  #payoutsView #payoutSettingsSection {
+    width: min(100%, 800px);
+    max-width: 800px;
+  }
+
+  #payoutsView .payout-settings-list {
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  #payoutsView .payout-settings-solo,
+  #payoutsView .payout-settings-stack {
+    width: auto;
+    max-width: none;
+  }
+}
+
+@media (max-width: 820px) {
+  #payoutsView .payout-settings-list {
+    grid-template-columns: repeat(2, minmax(240px, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  #payoutsView .payout-settings-list {
+    grid-template-columns: 1fr;
+  }
+}
