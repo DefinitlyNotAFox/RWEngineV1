@@ -11518,3 +11518,87 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Payout profile spacing correction */
+#payoutsView .payout-settings-list {
+  grid-template-columns:
+    minmax(250px, 1.25fr)
+    minmax(250px, 1.25fr)
+    repeat(3, minmax(145px, .75fr));
+  gap: 24px;
+}
+
+#payoutsView .payout-module-fields {
+  display: grid;
+  gap: 4px;
+}
+
+#payoutsView .payout-module-field,
+#payoutsView .payout-module-toggle-row,
+#payoutsView .payout-rate-field,
+#payoutsView .payout-milestone-field {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr);
+  align-items: center;
+  min-height: 24px;
+  gap: 7px;
+}
+
+#payoutsView .payout-module-field > span:first-child,
+#payoutsView .payout-module-toggle-row > span:first-child,
+#payoutsView .payout-rate-field > span:first-child,
+#payoutsView .payout-milestone-field > span:first-child {
+  display: block !important;
+  visibility: visible !important;
+  width: auto !important;
+  margin: 0 !important;
+  color: var(--dim);
+  font-size: 10px;
+  font-weight: 620;
+  line-height: 1.1;
+}
+
+#payoutsView .payout-module-column .payout-setting-input {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+#payoutsView .payout-module-column .payout-setting-input input {
+  width: 78px;
+}
+
+#payoutsView .payout-module-column .payout-milestone-field .payout-setting-input input {
+  width: 44px;
+}
+
+#payoutsView .payout-normalize-field {
+  min-height: 24px;
+  padding: 0;
+}
+
+#payoutsView .payout-normalize-field input {
+  justify-self: start;
+}
+
+#payoutsView .payout-module-column.disabled .payout-module-fields {
+  opacity: .28;
+}
+
+#payoutsView .payout-module-column.disabled .payout-module-toggle strong {
+  color: var(--dim);
+}
+
+@media (max-width: 1180px) {
+  #payoutsView .payout-settings-list {
+    grid-template-columns: repeat(3, minmax(190px, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  #payoutsView .payout-settings-list {
+    grid-template-columns: 1fr;
+  }
+}
