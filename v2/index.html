@@ -197,7 +197,10 @@
               </div>
               <span id="warDetailDate"></span>
             </div>
-            <button id="shareToggle" class="action" type="button">Share</button>
+            <div class="detail-actions">
+              <button id="payoutToggle" class="action" type="button">Payout</button>
+              <button id="shareToggle" class="action" type="button">Share</button>
+            </div>
           </header>
 
           <section id="sharePanel" class="share-panel hidden">
@@ -211,6 +214,51 @@
             <button id="shareGenerate" class="action hidden" type="button">New link</button>
             <button id="shareCopy" class="action hidden" type="button">Copy</button>
             <span id="shareStatus"></span>
+          </section>
+
+          <section id="payoutPanel" class="payout-panel hidden">
+            <div class="payout-toolbar">
+              <div class="payout-rates">
+                <label>
+                  <span>War / R</span>
+                  <input id="payoutWarRate" type="number" min="0" step="1000" value="120000" />
+                </label>
+                <label>
+                  <span>Outside / R</span>
+                  <input id="payoutOutsideRate" type="number" min="0" step="1000" value="80000" />
+                </label>
+                <label>
+                  <span>Milestone R</span>
+                  <input id="payoutMilestoneValue" type="number" min="0" step="1" value="10" />
+                </label>
+              </div>
+              <div class="payout-actions">
+                <select id="payoutHistory" class="small-select" aria-label="Saved payout runs">
+                  <option value="">Current</option>
+                </select>
+                <button id="payoutCalculate" class="action" type="button">Calculate</button>
+                <button id="payoutSave" class="action primary" type="button">Save run</button>
+                <button id="payoutCopy" class="action" type="button">Copy CSV</button>
+                <button id="payoutRebuild" class="text-action hidden" type="button">Rebuild payout data</button>
+              </div>
+            </div>
+            <div id="payoutSummary" class="payout-summary"></div>
+            <p id="payoutStatus" class="status-line hidden" role="status"></p>
+            <div class="data-table-wrap payout-table-wrap">
+              <table class="data-table payout-table">
+                <thead>
+                  <tr>
+                    <th>Member</th>
+                    <th>War R</th>
+                    <th>Outside R</th>
+                    <th>War payout</th>
+                    <th>Outside payout</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody id="payoutBody"></tbody>
+              </table>
+            </div>
           </section>
 
           <div id="warDetailScore" class="score-line"></div>
@@ -388,6 +436,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=98"></script>
+  <script type="module" src="/v2/app.js?v=99"></script>
 </body>
 </html>
