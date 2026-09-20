@@ -1202,16 +1202,16 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog) {
           </label>
 
           ${definition.supportsMilestones ? `
-            <label class="payout-module-toggle-row payout-normalize-field">
-              <span>Normalize</span>
-              <input type="checkbox" data-payout-normalize${module.normalizeMilestones !== false ? ' checked' : ''} />
+            <label class="payout-module-toggle-row payout-milestones-field">
+              <span>Milestones</span>
+              <input type="checkbox" data-payout-milestones${module.milestonesIncluded !== false ? ' checked' : ''} />
             </label>
 
-            <label class="payout-module-field payout-milestone-field">
-              <span>Milestone</span>
+            <label class="payout-module-field payout-milestone-pay-field${module.milestonesIncluded !== false ? ' hidden' : ''}">
+              <span>Milestone pay</span>
               <span class="payout-setting-input">
-                <input type="number" min="0" max="1000" step="1" value="${escapeHtml(module.milestoneValue ?? definition.defaultMilestoneValue ?? 10)}" data-payout-milestone />
-                <em>R</em>
+                <input type="number" min="0" max="100000000" step="1000" value="${escapeHtml(module.milestoneRate ?? definition.defaultMilestoneRate ?? 0)}" data-payout-milestone-rate />
+                <em>$ / hit</em>
               </span>
             </label>
           ` : ''}
@@ -1223,6 +1223,14 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog) {
   list.querySelectorAll('[data-payout-enabled]').forEach(input => {
     input.addEventListener('change', () => {
       input.closest('.payout-module-column')?.classList.toggle('disabled', !input.checked);
+    });
+  });
+
+  list.querySelectorAll('[data-payout-milestones]').forEach(input => {
+    input.addEventListener('change', () => {
+      input.closest('.payout-module-column')
+        ?.querySelector('.payout-milestone-pay-field')
+        ?.classList.toggle('hidden', input.checked);
     });
   });
 }
@@ -1268,14 +1276,14 @@ function collectPayoutSettings() {
       rate
     };
 
-    const milestoneInput = row.querySelector('[data-payout-milestone]');
-    if (milestoneInput) {
-      const milestoneValue = Number(milestoneInput.value);
-      if (!Number.isFinite(milestoneValue)) {
-        throw new Error('Milestone values must be numeric.');
+    const milestoneRateInput = row.querySelector('[data-payout-milestone-rate]');
+    if (milestoneRateInput) {
+      const milestoneRate = Number(milestoneRateInput.value);
+      if (!Number.isFinite(milestoneRate)) {
+        throw new Error('Milestone pay must be numeric.');
       }
-      module.normalizeMilestones = row.querySelector('[data-payout-normalize]')?.checked !== false;
-      module.milestoneValue = milestoneValue;
+      module.milestonesIncluded = row.querySelector('[data-payout-milestones]')?.checked !== false;
+      module.milestoneRate = milestoneRate;
     }
 
     modules.push(module);
