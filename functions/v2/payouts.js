@@ -125,7 +125,7 @@ export async function onRequest(context) {
           createdByPlayerId:Number(user.player_id || 0) || null,
           preview
         },
-        message:'Payout run saved.'
+        message:'Payout preset saved.'
       });
     }
 
