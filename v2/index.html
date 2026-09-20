@@ -253,9 +253,15 @@
                 <select id="payoutWarSelect" class="small-select" aria-label="Ranked war for payout"></select>
               </label>
               <div class="payout-actions payout-war-actions">
-                <button id="payoutCalculate" class="action hidden" type="button">Calculate</button>
                 <button id="payoutConfirm" class="action primary hidden" type="button">Confirm payout</button>
-                <button id="payoutCopy" class="action" type="button">Copy CSV</button>
+                <details id="payoutMoreMenu" class="payout-more-menu">
+                  <summary class="action">More</summary>
+                  <div class="payout-more-popover">
+                    <button id="payoutCopy" class="payout-menu-action" type="button">Copy CSV</button>
+                    <button id="payoutPresetDelete" class="payout-menu-action hidden" type="button">Delete preset</button>
+                    <button id="payoutSettingsReset" class="payout-menu-action hidden" type="button">Reset settings</button>
+                  </div>
+                </details>
               </div>
             </div>
             <div id="payoutPresetControls" class="payout-head-row payout-preset-controls hidden">
@@ -265,7 +271,6 @@
               </select>
               <input id="payoutPresetName" class="payout-preset-name hidden" type="text" maxlength="60" placeholder="Preset name" aria-label="Payout preset name" />
               <button id="payoutPresetSave" class="action primary hidden" type="button">Save preset</button>
-              <button id="payoutPresetDelete" class="text-action hidden" type="button">Delete</button>
             </div>
           </div>
         </header>
@@ -276,7 +281,6 @@
               <div id="payoutProfileGlobal" class="payout-profile-global"></div>
               <div class="payout-settings-head-actions">
                 <p id="payoutSettingsStatus" class="status-line hidden" role="status"></p>
-                <button id="payoutSettingsReset" class="text-action" type="button">Reset</button>
                 <button id="payoutSettingsSave" class="action primary" type="submit">Save</button>
               </div>
             </div>
