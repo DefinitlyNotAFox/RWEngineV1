@@ -1138,7 +1138,6 @@ function renderPayoutSettingsVisibility() {
   const editable = payoutSettingsCanEdit && canManagePayoutSettingsView();
 
   section.classList.toggle('hidden', !visible);
-  section.classList.toggle('readonly', !editable);
   document.querySelector('#payoutsView')?.classList.toggle('payout-admin-profile-visible', editable);
 
   document.querySelector('#payoutSettingsSave')?.classList.toggle('hidden', !editable);
@@ -1215,7 +1214,7 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
     const milestoneRate = Number(module.milestoneRate ?? definition.defaultMilestoneRate ?? 0);
     const milestonesIncluded = module.milestonesIncluded !== false;
 
-    const readonlyAttr = canEdit ? '' : ' disabled data-payout-readonly';
+    const readonlyAttr = canEdit ? '' : ' data-payout-readonly tabindex="-1" aria-disabled="true"';
 
     const mainMoney = `
       <span class="payout-setting-input payout-overview-money payout-inline-rate-value${percentageBased ? ' hidden' : ''}">
@@ -1259,7 +1258,7 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
     ].filter(Boolean).join('');
 
     return `
-      <section class="payout-module-column payout-overview-module${enabled ? '' : ' disabled'}${canEdit ? ' editable' : ' readonly'}" data-payout-module="${escapeHtml(id)}">
+      <section class="payout-module-column payout-overview-module${enabled ? '' : ' disabled'}" data-payout-module="${escapeHtml(id)}">
         <div class="payout-overview-name-row">
           <label class="payout-module-toggle" title="${canEdit ? 'Enable ' : ''}${escapeHtml(definition.label || id)}">
             <input type="checkbox"${enabled ? ' checked' : ''}${readonlyAttr} data-payout-enabled />
@@ -1357,7 +1356,7 @@ function renderPayoutGlobalSettings(profile, canEdit) {
     <label class="payout-global-control">
       <span>Faction cut</span>
       <span class="payout-setting-input">
-        <input type="number" min="0" max="100" step="0.1" value="${escapeHtml(factionCutPercent)}"${canEdit ? '' : ' disabled data-payout-readonly'} data-payout-faction-cut />
+        <input type="number" min="0" max="100" step="0.1" value="${escapeHtml(factionCutPercent)}"${canEdit ? '' : ' data-payout-readonly tabindex="-1" aria-disabled="true"'} data-payout-faction-cut />
         <em>%</em>
       </span>
     </label>
@@ -1681,7 +1680,8 @@ function setPayoutSettingsBusy(busy) {
   document.querySelectorAll(
     '#payoutSettingsForm input, #payoutSettingsForm button, #payoutPresetName, #payoutPresetCreate, #payoutPresetSave, #payoutPresetDelete, #payoutPresetOptions button'
   ).forEach(control => {
-    control.disabled = Boolean(busy) || control.hasAttribute('data-payout-readonly');
+    if (control.hasAttribute('data-payout-readonly')) return;
+    control.disabled = Boolean(busy);
   });
 
   if (!busy) renderPayoutPresetControls();
