@@ -157,7 +157,7 @@ export function initWarViews() {
     detail.payout.profileDirty = true;
     await calculatePayout(false, event.profile);
     if (detail.payout.profileDirty) {
-      setPayoutStatus('Previewing unsaved payout profile. Save the profile before saving a payout run.');
+      setPayoutStatus('Previewing unsaved payout profile. Save the profile before saving a payout preset.');
     }
   });
 
@@ -1004,11 +1004,11 @@ async function calculatePayout(showStatus = true, profileOverride = null) {
 async function savePayoutRun() {
   if (!detail.warId || !detail.payout.canSave) return;
   if (detail.payout.profileDirty) {
-    setPayoutStatus('Save the payout profile before saving a payout run.');
+    setPayoutStatus('Save the payout profile before saving a payout preset.');
     return;
   }
   setPayoutBusy(true);
-  setPayoutStatus('Saving payout run…');
+  setPayoutStatus('Saving payout preset…');
 
   try {
     const result = await payoutApi('save', { warId:detail.warId });
@@ -1029,11 +1029,11 @@ async function savePayoutRun() {
 
     renderPayoutHistory();
     renderPayoutPanel();
-    setPayoutStatus(result.message || 'Payout run saved.');
+    setPayoutStatus(result.message || 'Payout preset saved.');
   } catch (error) {
     detail.payout.needsRebuild = false;
     renderPayoutPanel();
-    setPayoutStatus(error.message || 'Failed to save payout run.', true);
+    setPayoutStatus(error.message || 'Failed to save payout preset.', true);
   } finally {
     setPayoutBusy(false);
   }
@@ -1054,7 +1054,7 @@ function handlePayoutHistory(event) {
   detail.payout.needsRebuild = false;
   renderPayoutPanel();
   setPayoutStatus(
-    `Saved run #${formatNumber(run.runId)} · ${formatPayoutDate(run.createdAt)}`
+    `Saved preset #${formatNumber(run.runId)} · ${formatPayoutDate(run.createdAt)}`
   );
 }
 
@@ -1064,7 +1064,7 @@ function renderPayoutHistory() {
 
   const current = String(select.value || '');
   select.innerHTML = [
-    '<option value="">Current profile</option>',
+    '<option value="">Current preset</option>',
     ...detail.payout.runs.map(run =>
       `<option value="${escapeHtml(run.runId)}">#${escapeHtml(run.runId)} · ${escapeHtml(formatPayoutDate(run.createdAt))} · ${escapeHtml(formatMoney(run.totalPayout))}</option>`
     )
@@ -1093,9 +1093,14 @@ function renderPayoutPanel() {
 
   if (summary) {
     summary.innerHTML = modules.length
-      ? modules.map(module =>
-          `<span><strong>${escapeHtml(payoutModuleName(module))}</strong><small>${escapeHtml(formatMoney(module.rate))} / ${escapeHtml(payoutModuleUnit(module))}${module.normalizeMilestones !== undefined && module.normalizeMilestones !== false ? ` · milestones ${escapeHtml(formatDecimal(module.milestoneValue, 0))} R` : ''}</small></span>`
-        ).join('')
+      ? modules.map(module => {
+          const milestoneText = module.milestonesIncluded === undefined
+            ? ''
+            : module.milestonesIncluded !== false
+              ? ' · milestones included'
+              : ` · milestones ${formatMoney(module.milestoneRate)} / hit`;
+          return `<span><strong>${escapeHtml(payoutModuleName(module))}</strong><small>${escapeHtml(formatMoney(module.rate))} / ${escapeHtml(payoutModuleUnit(module))}${escapeHtml(milestoneText)}</small></span>`;
+        }).join('')
       : '<span><strong>No payout modules enabled</strong><small>Configure the payout profile above.</small></span>';
   }
 
