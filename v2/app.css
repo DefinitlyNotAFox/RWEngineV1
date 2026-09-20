@@ -14156,3 +14156,53 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Final payout positioning and card-height cleanup */
+#payoutsView .payout-top-layout {
+  justify-content: start;
+  margin-right: 0;
+  margin-left: 0;
+}
+
+#payoutsView .payout-settings-list {
+  grid-auto-rows: 98px;
+}
+
+#payoutsView .payout-settings-list > .payout-module-column,
+#payoutsView .payout-settings-list > .payout-settings-slot-empty {
+  min-height: 98px;
+  height: 98px;
+}
+
+#payoutsView .payout-settings-list > .payout-module-column {
+  padding: 8px 10px;
+}
+
+#payoutsView .payout-module-header,
+#payoutsView .payout-module-header.payout-inline-rate {
+  min-height: 24px;
+  margin-bottom: 5px;
+  padding-bottom: 5px;
+}
+
+#payoutsView .payout-module-fields {
+  gap: 3px;
+}
+
+#payoutsView .payout-percentage-field,
+#payoutsView .payout-milestones-field {
+  min-height: 20px !important;
+}
+
+@media (max-width: 820px) {
+  #payoutsView .payout-settings-list {
+    grid-auto-rows: auto;
+  }
+
+  #payoutsView .payout-settings-list > .payout-module-column,
+  #payoutsView .payout-settings-list > .payout-settings-slot-empty {
+    min-height: 92px;
+    height: auto;
+  }
+}
