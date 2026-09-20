@@ -156,9 +156,6 @@ export function initWarViews() {
     detail.payout.draftProfile = event.profile;
     detail.payout.profileDirty = true;
     await calculatePayout(false, event.profile);
-    if (detail.payout.profileDirty) {
-      setPayoutStatus('Previewing unsaved payout profile. Save the profile before saving a payout preset.');
-    }
   });
 
   on('payout-settings', () => {
