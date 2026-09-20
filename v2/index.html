@@ -253,7 +253,6 @@
                 <select id="payoutWarSelect" class="small-select" aria-label="Ranked war for payout"></select>
               </label>
               <div class="payout-actions payout-war-actions">
-                <button id="payoutConfirm" class="action primary hidden" type="button">Confirm payout</button>
                 <details id="payoutMoreMenu" class="payout-more-menu">
                   <summary class="action">More</summary>
                   <div class="payout-more-popover">
@@ -293,7 +292,12 @@
           <div class="payout-toolbar">
             <div id="payoutProfileSummary" class="payout-profile-summary"></div>
           </div>
-          <div id="payoutSummary" class="payout-summary"></div>
+          <div class="payout-summary-row">
+            <div id="payoutSummary" class="payout-summary"></div>
+            <div class="payout-confirm-slot">
+              <button id="payoutConfirm" class="action primary hidden" type="button">Confirm payout</button>
+            </div>
+          </div>
           <p id="payoutStatus" class="status-line hidden" role="status"></p>
           <div class="data-table-wrap payout-table-wrap">
             <table class="data-table payout-table">
