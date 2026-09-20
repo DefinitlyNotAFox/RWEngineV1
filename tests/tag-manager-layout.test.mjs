@@ -36,3 +36,14 @@ test('notes editor is separate from tag management and sits under Notes', () => 
   assert.match(css, /\.intel2-member-tags\s*\{[\s\S]*grid-column:\s*1\s*\/\s*2/);
   assert.match(css, /\.intel2-notes\s*\{[\s\S]*grid-column:\s*13\s*\/\s*14/);
 });
+
+
+test('tag filters only show tags that are actually assigned', () => {
+  const source = readFileSync(new URL('../v2/intel-v2.js', import.meta.url), 'utf8');
+
+  assert.match(source, /const tagOptions = activeTagFilterOptions\(\)/);
+  assert.match(source, /function activeTagFilterOptions\(\)/);
+  assert.match(source, /if \(member\.current === false && !showFormerMembers\) continue/);
+  assert.match(source, /filter\(tag => tag\.count > 0\)/);
+  assert.match(source, /const suggestions = workflowTagOptions\(\)/);
+});
