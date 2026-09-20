@@ -1230,12 +1230,12 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
 
           ${canEdit ? `
             <span class="payout-setting-input payout-inline-rate-value${percentageBased ? ' hidden' : ''}">
-              <input type="number" min="0" max="100000000" step="1000" value="${escapeHtml(rate)}" data-payout-rate />
+              <input type="text" inputmode="numeric" autocomplete="off" value="${escapeHtml(formatPayoutMoneyInput(rate))}" data-payout-money data-payout-rate />
               <em>${escapeHtml(unit)}</em>
             </span>
             ${definition.supportsPercentage ? `
               <span class="payout-setting-input payout-inline-pool-value${percentageBased ? '' : ' hidden'}">
-                <input type="number" min="0" max="100000000000" step="100000" value="${escapeHtml(pool)}" data-payout-pool />
+                <input type="text" inputmode="numeric" autocomplete="off" value="${escapeHtml(formatPayoutMoneyInput(pool))}" data-payout-money data-payout-pool />
                 <em>$ total</em>
               </span>
             ` : ''}
@@ -1277,7 +1277,7 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
                     <span>Milestones</span>
                   </span>
                   <span class="payout-setting-input payout-milestone-rate${milestonesIncluded ? ' hidden' : ''}">
-                    <input type="number" min="0" max="100000000" step="1000" value="${escapeHtml(milestoneRate)}" data-payout-milestone-rate />
+                    <input type="text" inputmode="numeric" autocomplete="off" value="${escapeHtml(formatPayoutMoneyInput(milestoneRate))}" data-payout-money data-payout-milestone-rate />
                     <em>$ / hit</em>
                   </span>
                 </span>
@@ -1293,6 +1293,12 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
   }).join('');
 
   if (!canEdit) return;
+
+  list.querySelectorAll('[data-payout-money]').forEach(input => {
+    input.addEventListener('input', () => {
+      input.value = formatPayoutMoneyInput(input.value);
+    });
+  });
 
   list.querySelectorAll('[data-payout-enabled]').forEach(input => {
     input.addEventListener('change', () => {
@@ -1315,6 +1321,19 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
       module?.querySelector('.payout-inline-pool-value')?.classList.toggle('hidden', !input.checked);
     });
   });
+}
+
+function formatPayoutMoneyInput(value) {
+  const digits = String(value ?? '').replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  if (!digits) return '0';
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function parsePayoutMoneyInput(value) {
+  const digits = String(value ?? '').replace(/\D/g, '');
+  if (!digits) return 0;
+  const number = Number(digits);
+  return Number.isFinite(number) ? number : NaN;
 }
 
 function renderPayoutGlobalSettings(profile, canEdit) {
@@ -1518,7 +1537,7 @@ function collectPayoutSettings() {
 
   document.querySelectorAll('#payoutSettingsList [data-payout-module]').forEach(row => {
     const id = String(row.dataset.payoutModule || '');
-    const rate = Number(row.querySelector('[data-payout-rate]')?.value);
+    const rate = parsePayoutMoneyInput(row.querySelector('[data-payout-rate]')?.value);
     if (!id || !Number.isFinite(rate)) {
       throw new Error('Every payout module needs a numeric rate.');
     }
@@ -1532,7 +1551,7 @@ function collectPayoutSettings() {
     const percentageInput = row.querySelector('[data-payout-percentage]');
     const poolInput = row.querySelector('[data-payout-pool]');
     if (percentageInput && poolInput) {
-      const pool = Number(poolInput.value);
+      const pool = parsePayoutMoneyInput(poolInput.value);
       if (!Number.isFinite(pool) || pool < 0) {
         throw new Error('Percentage payout pools must be numeric.');
       }
@@ -1542,7 +1561,7 @@ function collectPayoutSettings() {
 
     const milestoneRateInput = row.querySelector('[data-payout-milestone-rate]');
     if (milestoneRateInput) {
-      const milestoneRate = Number(milestoneRateInput.value);
+      const milestoneRate = parsePayoutMoneyInput(milestoneRateInput.value);
       if (!Number.isFinite(milestoneRate)) {
         throw new Error('Milestone pay must be numeric.');
       }
