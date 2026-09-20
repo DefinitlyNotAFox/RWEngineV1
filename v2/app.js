@@ -30,6 +30,7 @@ let autoTagSettingsBusy = false;
 let payoutSettingsLoading = false;
 let payoutSettingsBusy = false;
 let payoutSettingsCatalog = [];
+let payoutSettingsPreviewTimer = null;
 let accountCloseBusy = false;
 
 init();
@@ -195,6 +196,7 @@ function bindApplication() {
   document.querySelector('#autoTagSettingsForm')?.addEventListener('submit', saveAutoTagSettings);
   document.querySelector('#autoTagSettingsReset')?.addEventListener('click', resetAutoTagSettings);
   document.querySelector('#payoutSettingsForm')?.addEventListener('submit', savePayoutSettings);
+  document.querySelector('#payoutSettingsForm')?.addEventListener('input', handlePayoutSettingsDraft);
   document.querySelector('#payoutSettingsReset')?.addEventListener('click', resetPayoutSettings);
 
   on('request-refresh', () => refreshAll(false));
@@ -1133,6 +1135,7 @@ function renderPayoutSettingsVisibility() {
 }
 
 async function loadPayoutSettings() {
+  clearPayoutSettingsPreviewTimer();
   const list = document.querySelector('#payoutSettingsList');
   const status = document.querySelector('#payoutSettingsStatus');
   renderPayoutSettingsVisibility();
@@ -1224,6 +1227,31 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog) {
   });
 }
 
+function handlePayoutSettingsDraft() {
+  if (payoutSettingsBusy || payoutSettingsLoading || !canManagePayoutSettingsView()) return;
+
+  clearPayoutSettingsPreviewTimer();
+  setPayoutSettingsStatus('Unsaved changes.');
+
+  payoutSettingsPreviewTimer = window.setTimeout(() => {
+    payoutSettingsPreviewTimer = null;
+    try {
+      emit('payout-settings-preview', {
+        factionId:currentFactionId(),
+        profile:collectPayoutSettings()
+      });
+    } catch (error) {
+      setPayoutSettingsStatus(error.message || 'Invalid payout settings.', true);
+    }
+  }, 250);
+}
+
+function clearPayoutSettingsPreviewTimer() {
+  if (payoutSettingsPreviewTimer == null) return;
+  window.clearTimeout(payoutSettingsPreviewTimer);
+  payoutSettingsPreviewTimer = null;
+}
+
 function collectPayoutSettings() {
   const modules = [];
 
@@ -1260,6 +1288,7 @@ async function savePayoutSettings(event) {
   event.preventDefault();
   if (payoutSettingsBusy || !canManagePayoutSettingsView()) return;
 
+  clearPayoutSettingsPreviewTimer();
   payoutSettingsBusy = true;
   setPayoutSettingsBusy(true);
   setPayoutSettingsStatus('Saving payout profile…');
@@ -1286,6 +1315,7 @@ async function savePayoutSettings(event) {
 async function resetPayoutSettings() {
   if (payoutSettingsBusy || !canManagePayoutSettingsView()) return;
 
+  clearPayoutSettingsPreviewTimer();
   payoutSettingsBusy = true;
   setPayoutSettingsBusy(true);
   setPayoutSettingsStatus('Restoring payout defaults…');
