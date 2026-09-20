@@ -511,6 +511,24 @@ export async function loadIntelV2(force = false) {
   }
 }
 
+
+function updateFactionTitle() {
+  const title = document.querySelector('#factionTitle');
+  if (!title) return;
+
+  const factionId = Number(state.selectedFactionId || state.user?.factionId || 0);
+  const name = String(
+    overview?.faction?.factionName ||
+    state.adminFactions?.find(item => Number(item.factionId) === factionId)?.factionName ||
+    state.user?.factionName ||
+    ''
+  ).trim();
+
+  title.textContent = name && !/^Faction\s+\d+$/i.test(name)
+    ? name
+    : (factionId ? `Faction ${factionId}` : 'Faction');
+}
+
 async function loadFactionPerformance(force = false) {
   if (factionPerformance.loading) return;
 
