@@ -1171,54 +1171,64 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog) {
       .map(module => [String(module?.id || ''), module])
   );
 
-  let previousGroup = '';
-  list.innerHTML = (catalog || []).map(definition => {
-    const module = modules.get(String(definition.id || '')) || {};
-    const enabled = module.enabled !== false;
+  const groups = [];
+  for (const definition of catalog || []) {
     const group = String(definition.group || 'Payout');
-    const groupHeading = group !== previousGroup
-      ? `<div class="payout-setting-group-heading">${escapeHtml(group)}</div>`
-      : '';
-    previousGroup = group;
+    let entry = groups.find(item => item.name === group);
+    if (!entry) {
+      entry = { name:group, definitions:[] };
+      groups.push(entry);
+    }
+    entry.definitions.push(definition);
+  }
 
-    const unit = definition.unit === 'R'
-      ? '$ / R'
-      : definition.unit === 'assist'
-        ? '$ / assist'
-        : '$ / hit';
+  list.innerHTML = groups.map(group => `
+    <section class="payout-setting-group" data-payout-group="${escapeHtml(group.name)}">
+      <div class="payout-setting-group-label">${escapeHtml(group.name)}</div>
+      <div class="payout-setting-group-items">
+        ${group.definitions.map(definition => {
+          const module = modules.get(String(definition.id || '')) || {};
+          const enabled = module.enabled !== false;
+          const unit = definition.unit === 'R'
+            ? '$ / R'
+            : definition.unit === 'assist'
+              ? '$ / assist'
+              : '$ / hit';
 
-    return `
-      ${groupHeading}
-      <section class="payout-setting-row${enabled ? '' : ' disabled'}" data-payout-module="${escapeHtml(definition.id)}">
-        <label class="payout-setting-toggle">
-          <input type="checkbox" data-payout-enabled${enabled ? ' checked' : ''} />
-          <span>${escapeHtml(definition.label || definition.id)}</span>
-        </label>
-        <div class="payout-setting-controls">
-          <label class="payout-rate-field">
-            <span>Rate</span>
-            <span class="payout-setting-input">
-              <input type="number" min="0" max="100000000" step="1000" value="${escapeHtml(module.rate ?? 0)}" data-payout-rate />
-              <em>${escapeHtml(unit)}</em>
-            </span>
-          </label>
-          ${definition.supportsMilestones ? `
-            <label class="check payout-normalize-field">
-              <input type="checkbox" data-payout-normalize${module.normalizeMilestones !== false ? ' checked' : ''} />
-              Normalize
-            </label>
-            <label class="payout-milestone-field">
-              <span>Milestone</span>
-              <span class="payout-setting-input">
-                <input type="number" min="0" max="1000" step="1" value="${escapeHtml(module.milestoneValue ?? definition.defaultMilestoneValue ?? 10)}" data-payout-milestone />
-                <em>R</em>
-              </span>
-            </label>
-          ` : ''}
-        </div>
-      </section>
-    `;
-  }).join('');
+          return `
+            <div class="payout-setting-row${enabled ? '' : ' disabled'}" data-payout-module="${escapeHtml(definition.id)}">
+              <label class="payout-setting-toggle">
+                <input type="checkbox" data-payout-enabled${enabled ? ' checked' : ''} />
+                <span>${escapeHtml(definition.label || definition.id)}</span>
+              </label>
+              <div class="payout-setting-controls">
+                <label class="payout-rate-field" title="Payout rate">
+                  <span>Rate</span>
+                  <span class="payout-setting-input">
+                    <input type="number" min="0" max="100000000" step="1000" value="${escapeHtml(module.rate ?? 0)}" data-payout-rate />
+                    <em>${escapeHtml(unit)}</em>
+                  </span>
+                </label>
+                ${definition.supportsMilestones ? `
+                  <label class="check payout-normalize-field">
+                    <input type="checkbox" data-payout-normalize${module.normalizeMilestones !== false ? ' checked' : ''} />
+                    Normalize
+                  </label>
+                  <label class="payout-milestone-field" title="Milestone respect value">
+                    <span>Milestone</span>
+                    <span class="payout-setting-input">
+                      <input type="number" min="0" max="1000" step="1" value="${escapeHtml(module.milestoneValue ?? definition.defaultMilestoneValue ?? 10)}" data-payout-milestone />
+                      <em>R</em>
+                    </span>
+                  </label>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </section>
+  `).join('');
 
   list.querySelectorAll('[data-payout-enabled]').forEach(input => {
     input.addEventListener('change', () => {
