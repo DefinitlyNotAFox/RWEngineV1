@@ -87,6 +87,14 @@ export async function onRequest(context) {
       if (!canSave) {
         throw httpError(403, 'Assistant or faction-admin access is required to save payout runs.');
       }
+      if (unavailableModules.length) {
+        const error = httpError(
+          422,
+          unavailableModules.map(item => item.reason || (item.label + ' is unavailable for this war.')).join(' ')
+        );
+        error.code = 'PAYOUT_MODULE_UNAVAILABLE';
+        throw error;
+      }
 
       const now = unixNow();
       const legacy = legacyProfileFields(profile);
