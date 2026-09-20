@@ -14586,3 +14586,57 @@ body {
 #payoutsView input[type="checkbox"][data-payout-readonly] {
   accent-color: var(--accent);
 }
+
+
+/* Payout top row always spans the full workspace for every role */
+#payoutsView .payout-top-layout {
+  width: 100%;
+  max-width: none;
+  margin-right: 0;
+  margin-left: 0;
+  grid-template-columns: 340px minmax(0, 1fr);
+  justify-content: stretch;
+}
+
+#payoutsView .payout-head-controls {
+  width: 340px;
+  max-width: 340px;
+  min-width: 0;
+  justify-self: start;
+}
+
+#payoutsView #payoutSettingsSection {
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  justify-self: stretch;
+}
+
+#payoutsView .payout-settings-form,
+#payoutsView .payout-settings-list {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+@media (max-width: 1260px) {
+  #payoutsView .payout-top-layout {
+    grid-template-columns: 320px minmax(0, 1fr);
+  }
+
+  #payoutsView .payout-head-controls {
+    width: 320px;
+    max-width: 320px;
+  }
+}
+
+@media (max-width: 980px) {
+  #payoutsView .payout-top-layout {
+    grid-template-columns: 1fr;
+  }
+
+  #payoutsView .payout-head-controls {
+    width: 100%;
+    max-width: none;
+  }
+}
