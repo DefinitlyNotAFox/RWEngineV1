@@ -547,7 +547,7 @@ function renderFilters() {
 
   if (container) {
     const activeCount = activeFilters.size;
-    const tagOptions = workflowTagOptions();
+    const tagOptions = activeTagFilterOptions();
     const chips = [...activeFilters]
       .map(key => ({ key, label:combinedFilterLabel(key) }))
       .filter(item => item.label);
@@ -611,7 +611,9 @@ function combinedFilterLabel(key) {
 
   if (String(key).startsWith('tag:')) {
     const tagKeyValue = String(key).slice(4);
-    return workflowTagOptions().find(tag => tag.key === tagKeyValue)?.label || tagKeyValue;
+    return activeTagFilterOptions().find(tag => tag.key === tagKeyValue)?.label ||
+      workflowTagOptions().find(tag => tag.key === tagKeyValue)?.label ||
+      tagKeyValue;
   }
 
   return String(key || '');
@@ -1763,6 +1765,29 @@ function workflowTagOptions() {
     .sort((a,b) => a.label.localeCompare(b.label, undefined, { sensitivity:'base', numeric:true }));
 
   return [...standard, ...custom];
+}
+
+function activeTagFilterOptions() {
+  const tags = new Map();
+
+  for (const member of overview?.members || []) {
+    if (member.current === false && !showFormerMembers) continue;
+
+    for (const rawTag of normalizeMemberNotes(member.notes).tags) {
+      const key = tagKey(rawTag);
+      if (!key) continue;
+
+      const existing = tags.get(key);
+      if (existing) existing.count += 1;
+      else tags.set(key, { key, label:rawTag, count:1 });
+    }
+  }
+
+  return [...tags.values()]
+    .filter(tag => tag.count > 0)
+    .sort((a,b) =>
+      a.label.localeCompare(b.label, undefined, { sensitivity:'base', numeric:true })
+    );
 }
 
 function canManageTags() {
