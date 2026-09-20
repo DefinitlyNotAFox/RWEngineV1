@@ -102,7 +102,6 @@ export function initWarViews() {
   document.querySelector('#payoutCalculate')?.addEventListener('click', () => calculatePayout(true));
   document.querySelector('#payoutSave')?.addEventListener('click', savePayoutRun);
   document.querySelector('#payoutCopy')?.addEventListener('click', copyPayoutCsv);
-  document.querySelector('#payoutRebuild')?.addEventListener('click', rebuildPayoutData);
   document.querySelector('#payoutHistory')?.addEventListener('change', handlePayoutHistory);
 
   document.querySelector('#shareToggle')?.addEventListener('click', toggleShare);
@@ -983,10 +982,18 @@ async function calculatePayout(showStatus = true, profileOverride = null) {
     const history = document.querySelector('#payoutHistory');
     if (history) history.value = '';
     renderPayoutPanel();
-    setPayoutStatus('');
+
+    const unavailable = Array.isArray(detail.payout.preview?.unavailableModules)
+      ? detail.payout.preview.unavailableModules
+      : [];
+    setPayoutStatus(
+      unavailable.length
+        ? unavailable.map(item => item.reason || `${item.label || item.id} is unavailable for this war.`).join(' ')
+        : ''
+    );
   } catch (error) {
     detail.payout.preview = null;
-    detail.payout.needsRebuild = Number(error?.status || 0) === 409;
+    detail.payout.needsRebuild = false;
     renderPayoutPanel();
     setPayoutStatus(error.message || 'Failed to calculate payout.', true);
   } finally {
@@ -1024,7 +1031,7 @@ async function savePayoutRun() {
     renderPayoutPanel();
     setPayoutStatus(result.message || 'Payout run saved.');
   } catch (error) {
-    detail.payout.needsRebuild = Number(error?.status || 0) === 409;
+    detail.payout.needsRebuild = false;
     renderPayoutPanel();
     setPayoutStatus(error.message || 'Failed to save payout run.', true);
   } finally {
@@ -1077,12 +1084,11 @@ function renderPayoutPanel() {
   const body = document.querySelector('#payoutBody');
   const foot = document.querySelector('#payoutFoot');
   const payoutSummary = document.querySelector('#payoutSummary');
-  const rebuild = document.querySelector('#payoutRebuild');
   const save = document.querySelector('#payoutSave');
   const copy = document.querySelector('#payoutCopy');
+  const unavailable = Array.isArray(preview?.unavailableModules) ? preview.unavailableModules : [];
 
-  rebuild?.classList.toggle('hidden', !detail.payout.needsRebuild);
-  if (save) save.disabled = !detail.payout.canSave || !preview || detail.payout.needsRebuild || detail.payout.profileDirty;
+  if (save) save.disabled = !detail.payout.canSave || !preview || detail.payout.profileDirty || unavailable.length > 0;
   if (copy) copy.disabled = !preview;
 
   if (summary) {
@@ -1097,9 +1103,7 @@ function renderPayoutPanel() {
 
   if (!preview) {
     head.innerHTML = '';
-    body.innerHTML = detail.payout.needsRebuild
-      ? '<tr class="empty-row"><td>Payout detail needs to be rebuilt for this imported war.</td></tr>'
-      : '<tr class="empty-row"><td>Calculate to preview this payout.</td></tr>';
+    body.innerHTML = '<tr class="empty-row"><td>Calculate to preview this payout.</td></tr>';
     foot.innerHTML = '';
     payoutSummary.innerHTML = '';
     return;
@@ -1195,7 +1199,10 @@ function setPayoutBusy(busy) {
   const save = document.querySelector('#payoutSave');
   const copy = document.querySelector('#payoutCopy');
   if (!busy) {
-    if (save) save.disabled = !detail.payout.canSave || !detail.payout.preview || detail.payout.needsRebuild;
+    const unavailable = Array.isArray(detail.payout.preview?.unavailableModules)
+      ? detail.payout.preview.unavailableModules
+      : [];
+    if (save) save.disabled = !detail.payout.canSave || !detail.payout.preview || detail.payout.profileDirty || unavailable.length > 0;
     if (copy) copy.disabled = !detail.payout.preview;
   }
 }
@@ -1235,7 +1242,6 @@ function resetPayoutPanel(hide = false) {
   if (head) head.innerHTML = '';
   if (body) body.innerHTML = '';
   if (foot) foot.innerHTML = '';
-  document.querySelector('#payoutRebuild')?.classList.add('hidden');
   setPayoutStatus('');
 }
 
