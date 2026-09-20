@@ -31,9 +31,6 @@ export async function onRequest(context) {
     const canSave = Number(user.is_admin) === 1 ||
       permissions.isFactionAdmin === true ||
       permissions.isAssistant === true;
-    if (!canSave) {
-      throw httpError(403, 'Faction management access is required to use payout tools.');
-    }
     const storedProfile = await loadPayoutProfile(env.DB, factionId);
     const action = String(body.action || 'preview');
 
