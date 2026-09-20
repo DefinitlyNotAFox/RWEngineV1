@@ -1,6 +1,6 @@
 import {
   state, on, emit,
-  api, adminApi, rangeApi, loadWarsApi, freshnessApi, shareApi, rolesApi, autoTagsApi,
+  api, adminApi, rangeApi, loadWarsApi, freshnessApi, shareApi, rolesApi, autoTagsApi, payoutSettingsApi,
   periodPayload, restorePeriod, setPeriodPreset, renderPeriodControls,
   currentFactionName, currentFactionId,
   actualUserRole, availableViewRoles, currentViewRole,
@@ -8,13 +8,13 @@ import {
   roleLabel, setRolePreview,
   routeTo, routeFromHash, setNotice,
   formatNumber, formatDate, formatDateTime, formatAge, escapeHtml
-} from './core.js?v=5';
+} from './core.js?v=6';
 
 import { sortFactionAccounts, sortTrackedFactions } from './sort.js?v=1';
 
 import { initIntel, renderIntel, refreshSyncStatus } from './intel.js?v=6';
 import { initIntelV2 } from './intel-v2.js?v=54';
-import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=19';
+import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=20';
 
 const legacyIntelMode = new URL(location.href).searchParams.get('legacyIntel') === '1';
 
@@ -27,6 +27,9 @@ let factionRolesLoading = false;
 let factionRoleCandidates = [];
 let autoTagSettingsLoading = false;
 let autoTagSettingsBusy = false;
+let payoutSettingsLoading = false;
+let payoutSettingsBusy = false;
+let payoutSettingsCatalog = [];
 let accountCloseBusy = false;
 
 init();
@@ -191,6 +194,8 @@ function bindApplication() {
   document.querySelector('#factionRoleAddForm')?.addEventListener('submit', handleFactionRoleAdd);
   document.querySelector('#autoTagSettingsForm')?.addEventListener('submit', saveAutoTagSettings);
   document.querySelector('#autoTagSettingsReset')?.addEventListener('click', resetAutoTagSettings);
+  document.querySelector('#payoutSettingsForm')?.addEventListener('submit', savePayoutSettings);
+  document.querySelector('#payoutSettingsReset')?.addEventListener('click', resetPayoutSettings);
 
   on('request-refresh', () => refreshAll(false));
 
@@ -208,6 +213,7 @@ function bindApplication() {
       loadAccessList();
       loadFactionRoles();
       loadAutoTagSettings();
+      loadPayoutSettings();
     }
   });
 
@@ -221,6 +227,7 @@ function bindApplication() {
       loadAccessList();
       loadFactionRoles();
       loadAutoTagSettings();
+      loadPayoutSettings();
     }
   });
 }
@@ -665,15 +672,18 @@ function renderSettingsPermissions() {
   const reportSection = document.querySelector('#reportAccessSection');
   const rolesSection = document.querySelector('#factionRolesSection');
   const autoTagsSection = document.querySelector('#autoTagSettingsSection');
+  const payoutSection = document.querySelector('#payoutSettingsSection');
   const factionHeading = document.querySelector('#factionSettingsHeading');
   const canManageReports = canEditFactionView();
   const canManageRoles = canManageFactionRolesView();
   const canManageAutoTags = canManageAutoTagSettingsView();
-  const showFactionSettings = canManageReports || canManageRoles || canManageAutoTags;
+  const canManagePayouts = canManagePayoutSettingsView();
+  const showFactionSettings = canManageReports || canManageRoles || canManageAutoTags || canManagePayouts;
 
   reportSection?.classList.toggle('hidden', !canManageReports);
   rolesSection?.classList.toggle('hidden', !canManageRoles);
   autoTagsSection?.classList.toggle('hidden', !canManageAutoTags);
+  payoutSection?.classList.toggle('hidden', !canManagePayouts);
   factionHeading?.classList.toggle('hidden', !showFactionSettings);
 
   if (!canManageReports) {
@@ -688,6 +698,10 @@ function renderSettingsPermissions() {
     const list = document.querySelector('#autoTagSettingsList');
     if (list) list.innerHTML = '';
   }
+  if (!canManagePayouts) {
+    const list = document.querySelector('#payoutSettingsList');
+    if (list) list.innerHTML = '';
+  }
 }
 
 function canManageAutoTagSettingsView() {
@@ -698,6 +712,10 @@ function canManageAutoTagSettingsView() {
   if (state.user.isAdmin) return Boolean(currentFactionId());
 
   return Number(state.user.factionId || 0) === Number(currentFactionId() || 0);
+}
+
+function canManagePayoutSettingsView() {
+  return canManageAutoTagSettingsView();
 }
 
 function canManageFactionRolesView() {
@@ -1091,6 +1109,196 @@ function setAutoTagSettingsBusy(busy) {
 
 function setAutoTagSettingsStatus(message, error = false) {
   const status = document.querySelector('#autoTagSettingsStatus');
+  if (!status) return;
+  status.textContent = message || '';
+  status.classList.toggle('hidden', !message);
+  status.classList.toggle('error', Boolean(error));
+}
+
+
+async function loadPayoutSettings() {
+  const list = document.querySelector('#payoutSettingsList');
+  const status = document.querySelector('#payoutSettingsStatus');
+  renderSettingsPermissions();
+  if (!list || !canManagePayoutSettingsView() || payoutSettingsLoading) return;
+
+  payoutSettingsLoading = true;
+  setPayoutSettingsBusy(true);
+  if (status) {
+    status.textContent = '';
+    status.classList.add('hidden');
+    status.classList.remove('error');
+  }
+
+  try {
+    const result = await payoutSettingsApi('get');
+    payoutSettingsCatalog = Array.isArray(result.catalog) ? result.catalog : [];
+    renderPayoutSettings(result.profile || result.defaults || {}, payoutSettingsCatalog);
+  } catch (error) {
+    list.innerHTML = '';
+    setPayoutSettingsStatus(error.message || 'Failed to load payout settings.', true);
+  } finally {
+    payoutSettingsLoading = false;
+    setPayoutSettingsBusy(false);
+  }
+}
+
+function renderPayoutSettings(profile, catalog = payoutSettingsCatalog) {
+  const list = document.querySelector('#payoutSettingsList');
+  if (!list) return;
+
+  const modules = new Map(
+    (Array.isArray(profile?.modules) ? profile.modules : [])
+      .map(module => [String(module?.id || ''), module])
+  );
+
+  let previousGroup = '';
+  list.innerHTML = (catalog || []).map(definition => {
+    const module = modules.get(String(definition.id || '')) || {};
+    const enabled = module.enabled !== false;
+    const group = String(definition.group || 'Payout');
+    const groupHeading = group !== previousGroup
+      ? `<div class="payout-setting-group-heading">${escapeHtml(group)}</div>`
+      : '';
+    previousGroup = group;
+
+    const unit = definition.unit === 'R'
+      ? '$ / R'
+      : definition.unit === 'assist'
+        ? '$ / assist'
+        : '$ / hit';
+
+    return `
+      ${groupHeading}
+      <section class="payout-setting-row${enabled ? '' : ' disabled'}" data-payout-module="${escapeHtml(definition.id)}">
+        <label class="payout-setting-toggle">
+          <input type="checkbox" data-payout-enabled${enabled ? ' checked' : ''} />
+          <span>${escapeHtml(definition.label || definition.id)}</span>
+        </label>
+        <div class="payout-setting-controls">
+          <label class="payout-rate-field">
+            <span>Rate</span>
+            <span class="payout-setting-input">
+              <input type="number" min="0" max="100000000" step="1000" value="${escapeHtml(module.rate ?? 0)}" data-payout-rate />
+              <em>${escapeHtml(unit)}</em>
+            </span>
+          </label>
+          ${definition.supportsMilestones ? `
+            <label class="check payout-normalize-field">
+              <input type="checkbox" data-payout-normalize${module.normalizeMilestones !== false ? ' checked' : ''} />
+              Normalize milestones
+            </label>
+            <label class="payout-milestone-field">
+              <span>Milestone value</span>
+              <span class="payout-setting-input">
+                <input type="number" min="0" max="1000" step="1" value="${escapeHtml(module.milestoneValue ?? definition.defaultMilestoneValue ?? 10)}" data-payout-milestone />
+                <em>R</em>
+              </span>
+            </label>
+          ` : ''}
+        </div>
+      </section>
+    `;
+  }).join('');
+
+  list.querySelectorAll('[data-payout-enabled]').forEach(input => {
+    input.addEventListener('change', () => {
+      input.closest('.payout-setting-row')?.classList.toggle('disabled', !input.checked);
+    });
+  });
+}
+
+function collectPayoutSettings() {
+  const modules = [];
+
+  document.querySelectorAll('#payoutSettingsList [data-payout-module]').forEach(row => {
+    const id = String(row.dataset.payoutModule || '');
+    const rate = Number(row.querySelector('[data-payout-rate]')?.value);
+    if (!id || !Number.isFinite(rate)) {
+      throw new Error('Every enabled payout module needs a numeric rate.');
+    }
+
+    const module = {
+      id,
+      enabled:row.querySelector('[data-payout-enabled]')?.checked !== false,
+      rate
+    };
+
+    const milestoneInput = row.querySelector('[data-payout-milestone]');
+    if (milestoneInput) {
+      const milestoneValue = Number(milestoneInput.value);
+      if (!Number.isFinite(milestoneValue)) {
+        throw new Error('Milestone values must be numeric.');
+      }
+      module.normalizeMilestones = row.querySelector('[data-payout-normalize]')?.checked !== false;
+      module.milestoneValue = milestoneValue;
+    }
+
+    modules.push(module);
+  });
+
+  return { version:1, modules };
+}
+
+async function savePayoutSettings(event) {
+  event.preventDefault();
+  if (payoutSettingsBusy || !canManagePayoutSettingsView()) return;
+
+  payoutSettingsBusy = true;
+  setPayoutSettingsBusy(true);
+  setPayoutSettingsStatus('Saving payout profile…');
+
+  try {
+    const result = await payoutSettingsApi('save', {
+      profile:collectPayoutSettings()
+    });
+    payoutSettingsCatalog = Array.isArray(result.catalog) ? result.catalog : payoutSettingsCatalog;
+    renderPayoutSettings(result.profile || {}, payoutSettingsCatalog);
+    emit('payout-settings', {
+      factionId:currentFactionId(),
+      profile:result.profile || {}
+    });
+    setPayoutSettingsStatus(result.message || 'Payout profile saved.');
+  } catch (error) {
+    setPayoutSettingsStatus(error.message || 'Failed to save payout profile.', true);
+  } finally {
+    payoutSettingsBusy = false;
+    setPayoutSettingsBusy(false);
+  }
+}
+
+async function resetPayoutSettings() {
+  if (payoutSettingsBusy || !canManagePayoutSettingsView()) return;
+
+  payoutSettingsBusy = true;
+  setPayoutSettingsBusy(true);
+  setPayoutSettingsStatus('Restoring payout defaults…');
+
+  try {
+    const result = await payoutSettingsApi('reset');
+    payoutSettingsCatalog = Array.isArray(result.catalog) ? result.catalog : payoutSettingsCatalog;
+    renderPayoutSettings(result.profile || {}, payoutSettingsCatalog);
+    emit('payout-settings', {
+      factionId:currentFactionId(),
+      profile:result.profile || {}
+    });
+    setPayoutSettingsStatus(result.message || 'Payout profile reset.');
+  } catch (error) {
+    setPayoutSettingsStatus(error.message || 'Failed to reset payout profile.', true);
+  } finally {
+    payoutSettingsBusy = false;
+    setPayoutSettingsBusy(false);
+  }
+}
+
+function setPayoutSettingsBusy(busy) {
+  document.querySelectorAll('#payoutSettingsForm input, #payoutSettingsForm button').forEach(control => {
+    control.disabled = Boolean(busy);
+  });
+}
+
+function setPayoutSettingsStatus(message, error = false) {
+  const status = document.querySelector('#payoutSettingsStatus');
   if (!status) return;
   status.textContent = message || '';
   status.classList.toggle('hidden', !message);
