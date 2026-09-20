@@ -11783,3 +11783,70 @@ body {
     max-width: none;
   }
 }
+
+
+/* Payout profile permissions: readable for all, editable for faction admin+ */
+#payoutsView #payoutSettingsSection {
+  display: block;
+}
+
+#payoutsView #payoutSettingsSection.readonly .payout-settings-head-actions {
+  display: none;
+}
+
+#payoutsView #payoutSettingsSection.readonly .payout-settings-list {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+#payoutsView .payout-module-column.readonly {
+  opacity: 1;
+}
+
+#payoutsView .payout-module-column.readonly .payout-module-header {
+  min-height: 24px;
+}
+
+#payoutsView .payout-module-column.readonly .payout-module-header > strong {
+  color: var(--text);
+  font-size: var(--font-small);
+  font-weight: 680;
+}
+
+#payoutsView .payout-setting-value {
+  display: inline-flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 5px;
+  color: var(--text);
+  font-size: var(--font-small);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+#payoutsView .payout-setting-value strong {
+  font-size: var(--font-small);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+#payoutsView .payout-setting-value em {
+  color: var(--dim);
+  font-size: var(--font-caption);
+  font-style: normal;
+}
+
+#payoutsView .payout-module-column.readonly .payout-module-field,
+#payoutsView .payout-module-column.readonly .payout-module-toggle-row {
+  grid-template-columns: 92px minmax(0, 1fr) !important;
+  min-height: 28px;
+}
+
+#payoutsView .payout-module-column.readonly .payout-module-field > span:first-child,
+#payoutsView .payout-module-column.readonly .payout-module-toggle-row > span:first-child {
+  font-size: var(--font-caption) !important;
+}
+
+/* The profile strip already shows the active rates, so don't repeat them below. */
+#payoutsView .payout-toolbar {
+  display: none !important;
+}
