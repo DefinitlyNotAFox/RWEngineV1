@@ -1226,22 +1226,18 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
           ${definition.supportsMilestones ? `
             <div class="payout-module-toggle-row payout-milestones-field">
               <span>Milestones</span>
-              ${canEdit
-                ? `<input type="checkbox" data-payout-milestones${milestonesIncluded ? ' checked' : ''} />`
-                : `<span class="payout-setting-value">${milestonesIncluded ? 'Included' : 'Alternative pay'}</span>`
-              }
-            </div>
-
-            <div class="payout-module-field payout-milestone-pay-field${milestonesIncluded ? ' hidden' : ''}">
-              <span>Milestone pay</span>
               ${canEdit ? `
-                <span class="payout-setting-input">
-                  <input type="number" min="0" max="100000000" step="1000" value="${escapeHtml(milestoneRate)}" data-payout-milestone-rate />
-                  <em>$ / hit</em>
+                <span class="payout-milestone-control">
+                  <input type="checkbox" data-payout-milestones${milestonesIncluded ? ' checked' : ''} />
+                  <span class="payout-setting-input payout-milestone-rate${milestonesIncluded ? ' hidden' : ''}">
+                    <input type="number" min="0" max="100000000" step="1000" value="${escapeHtml(milestoneRate)}" data-payout-milestone-rate />
+                    <em>$ / hit</em>
+                  </span>
                 </span>
-              ` : `
-                <span class="payout-setting-value"><strong>$${escapeHtml(formatNumber(milestoneRate))}</strong><em>/ hit</em></span>
-              `}
+              ` : milestonesIncluded
+                ? `<span class="payout-milestone-check" aria-label="Milestones paid normally">✓</span>`
+                : `<span class="payout-setting-value"><strong>${escapeHtml(formatNumber(milestoneRate))}</strong><em>/ hit</em></span>`
+              }
             </div>
           ` : ''}
         </div>
@@ -1259,8 +1255,8 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
 
   list.querySelectorAll('[data-payout-milestones]').forEach(input => {
     input.addEventListener('change', () => {
-      input.closest('.payout-module-column')
-        ?.querySelector('.payout-milestone-pay-field')
+      input.closest('.payout-milestones-field')
+        ?.querySelector('.payout-milestone-rate')
         ?.classList.toggle('hidden', input.checked);
     });
   });
