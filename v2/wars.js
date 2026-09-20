@@ -840,8 +840,8 @@ async function togglePayout() {
   await loadPayoutState();
 }
 
-async function loadPayoutState() {
-  if (!detail.warId || detail.payout.busy) return;
+async function loadPayoutState(force = false) {
+  if (!detail.warId || (detail.payout.busy && !force)) return;
   detail.payout.busy = true;
   setPayoutStatus('Loading payout profile…');
   setPayoutBusy(true);
@@ -1222,7 +1222,7 @@ async function rebuildPayoutData() {
       excludeChainBonuses
     });
     renderWarDetail();
-    await loadPayoutState();
+    await loadPayoutState(true);
     setPayoutStatus('Payout detail rebuilt.');
   } catch (error) {
     setPayoutStatus(error.message || 'Failed to rebuild payout detail.', true);
