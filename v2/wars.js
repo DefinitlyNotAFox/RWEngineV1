@@ -1081,13 +1081,19 @@ function renderPayoutPanel() {
   const body = document.querySelector('#payoutBody');
   const foot = document.querySelector('#payoutFoot');
   const payoutSummary = document.querySelector('#payoutSummary');
+  const history = document.querySelector('#payoutHistory');
+  const calculate = document.querySelector('#payoutCalculate');
   const save = document.querySelector('#payoutSave');
   const copy = document.querySelector('#payoutCopy');
   const unavailable = Array.isArray(preview?.unavailableModules) ? preview.unavailableModules : [];
+  const canManagePayouts = detail.payout.canSave && canEditFactionView();
+
+  history?.classList.toggle('hidden', !canManagePayouts);
+  calculate?.classList.toggle('hidden', !canManagePayouts);
 
   if (save) {
-    save.classList.toggle('hidden', !detail.payout.canSave);
-    save.disabled = !detail.payout.canSave || !preview || detail.payout.profileDirty || unavailable.length > 0;
+    save.classList.toggle('hidden', !canManagePayouts);
+    save.disabled = !canManagePayouts || !preview || detail.payout.profileDirty || unavailable.length > 0;
   }
   if (copy) copy.disabled = !preview;
 
@@ -1207,9 +1213,12 @@ function setPayoutBusy(busy) {
     const unavailable = Array.isArray(detail.payout.preview?.unavailableModules)
       ? detail.payout.preview.unavailableModules
       : [];
+    const canManagePayouts = detail.payout.canSave && canEditFactionView();
+    document.querySelector('#payoutHistory')?.classList.toggle('hidden', !canManagePayouts);
+    document.querySelector('#payoutCalculate')?.classList.toggle('hidden', !canManagePayouts);
     if (save) {
-      save.classList.toggle('hidden', !detail.payout.canSave);
-      save.disabled = !detail.payout.canSave || !detail.payout.preview || detail.payout.profileDirty || unavailable.length > 0;
+      save.classList.toggle('hidden', !canManagePayouts);
+      save.disabled = !canManagePayouts || !detail.payout.preview || detail.payout.profileDirty || unavailable.length > 0;
     }
     if (copy) copy.disabled = !detail.payout.preview;
   }
@@ -1239,7 +1248,7 @@ function resetPayoutPanel(hide = false) {
   const panel = document.querySelector('#payoutPanel');
   if (panel) panel.classList.toggle('hidden', Boolean(hide && state.route !== 'payouts'));
   const history = document.querySelector('#payoutHistory');
-  if (history) history.innerHTML = '<option value="">Current profile</option>';
+  if (history) history.innerHTML = '<option value="">Current preset</option>';
   const summary = document.querySelector('#payoutProfileSummary');
   if (summary) summary.innerHTML = '';
   const payoutSummary = document.querySelector('#payoutSummary');
