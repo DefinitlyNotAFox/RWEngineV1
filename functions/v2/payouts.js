@@ -1,8 +1,8 @@
 import { loadFactionPermissions } from './faction-leadership.js';
-
-const DEFAULT_WAR_RATE = 120000;
-const DEFAULT_OUTSIDE_RATE = 80000;
-const DEFAULT_MILESTONE_VALUE = 10;
+import {
+  calculatePayoutRows,
+  loadPayoutProfile
+} from './payout-profile.js';
 
 export async function onRequest(context) {
   try {
@@ -29,22 +29,20 @@ export async function onRequest(context) {
     const canSave = Number(user.is_admin) === 1 ||
       permissions.isFactionAdmin === true ||
       permissions.isAssistant === true;
-
+    const profile = await loadPayoutProfile(env.DB, factionId);
     const action = String(body.action || 'preview');
 
     if (action === 'list') {
-      const runs = await loadRuns(env.DB, factionId, warId);
       return json({
         success:true,
         factionId,
         warId,
         canSave,
-        defaults:defaultSettings(),
-        runs
+        profile,
+        runs:await loadRuns(env.DB, factionId, warId)
       });
     }
 
-    const settings = normalizeSettings(body);
     const rows = await loadPayoutRows(env.DB, factionId, warId);
     if (!rows.length) throw httpError(404, 'No member performance is stored for this war.');
 
@@ -55,17 +53,16 @@ export async function onRequest(context) {
     if (incomplete) {
       const error = httpError(
         409,
-        'Payout detail is not ready for this war. Re-import or rebuild attack detail first.'
+        'Payout detail is not ready for this war. Rebuild attack detail first.'
       );
       error.code = 'PAYOUT_DETAIL_REQUIRED';
       throw error;
     }
 
-    const calculation = calculatePayoutRows(rows, settings);
+    const calculation = calculatePayoutRows(rows, profile);
     const preview = {
       warId,
       factionId,
-      settings,
       ...calculation
     };
 
@@ -83,6 +80,7 @@ export async function onRequest(context) {
       }
 
       const now = unixNow();
+      const legacy = legacyProfileFields(profile);
       const result = await env.DB.prepare(`
         INSERT INTO payout_runs (
           faction_id, war_id, war_rate, outside_rate, milestone_value,
@@ -91,9 +89,9 @@ export async function onRequest(context) {
       `).bind(
         factionId,
         warId,
-        settings.warRate,
-        settings.outsideRate,
-        settings.milestoneValue,
+        legacy.warRate,
+        legacy.outsideRate,
+        legacy.milestoneValue,
         calculation.totalPayout,
         calculation.members.length,
         JSON.stringify(preview),
@@ -101,15 +99,14 @@ export async function onRequest(context) {
         now
       ).run();
 
-      const runId = Number(result.meta?.last_row_id || 0);
       return json({
         success:true,
         canSave:true,
         run:{
-          runId,
+          runId:Number(result.meta?.last_row_id || 0),
           createdAt:now,
           createdByPlayerId:Number(user.player_id || 0) || null,
-          ...preview
+          preview
         },
         message:'Payout run saved.'
       });
@@ -125,98 +122,14 @@ export async function onRequest(context) {
   }
 }
 
-export function calculatePayoutRows(rows, settings = {}) {
-  const normalized = {
-    warRate:finiteNonNegative(settings.warRate, DEFAULT_WAR_RATE),
-    outsideRate:finiteNonNegative(settings.outsideRate, DEFAULT_OUTSIDE_RATE),
-    milestoneValue:finiteNonNegative(settings.milestoneValue, DEFAULT_MILESTONE_VALUE)
-  };
-
-  const members = (Array.isArray(rows) ? rows : []).map(row => {
-    const warRespectRaw = Math.max(0, finiteNonNegative(row.respect_earned ?? row.warRespectRaw, 0));
-    const warBonusRespect = Math.max(0, finiteNonNegative(row.chain_bonus_score ?? row.warBonusRespect, 0));
-    const warBonusHits = Math.max(0, finiteNonNegative(row.chain_bonus_hits ?? row.warBonusHits, 0));
-
-    const outsideHits = Math.max(0, finiteNonNegative(row.outside_chain_hits ?? row.outsideChainHits, 0));
-    const outsideRespectRaw = Math.max(0, finiteNonNegative(row.outside_chain_respect ?? row.outsideRespectRaw, 0));
-    const outsideBonusHits = Math.max(0, finiteNonNegative(
-      row.outside_chain_bonus_hits ?? row.outsideBonusHits,
-      0
-    ));
-    const outsideBonusRespect = Math.max(0, finiteNonNegative(
-      row.outside_chain_bonus_respect ?? row.outsideBonusRespect,
-      0
-    ));
-
-    const warRespect = Math.max(
-      0,
-      warRespectRaw - warBonusRespect + warBonusHits * normalized.milestoneValue
-    );
-    const outsideRespect = Math.max(
-      0,
-      outsideRespectRaw - outsideBonusRespect + outsideBonusHits * normalized.milestoneValue
-    );
-
-    const warPayout = Math.round(warRespect * normalized.warRate);
-    const outsidePayout = Math.round(outsideRespect * normalized.outsideRate);
-    const totalPayout = warPayout + outsidePayout;
-
-    return {
-      playerId:Number((row.player_id ?? row.playerId) || 0),
-      playerName:String((row.player_name ?? row.playerName) || 'Unknown'),
-      warRespectRaw,
-      warBonusHits,
-      warBonusRespect,
-      warRespect,
-      outsideHits,
-      outsideRespectRaw,
-      outsideBonusHits,
-      outsideBonusRespect,
-      outsideRespect,
-      warPayout,
-      outsidePayout,
-      totalPayout
-    };
-  }).filter(member => member.playerId > 0);
-
-  members.sort((a, b) =>
-    b.totalPayout - a.totalPayout ||
-    a.playerName.localeCompare(b.playerName, undefined, { sensitivity:'base', numeric:true })
-  );
-
+function legacyProfileFields(profile) {
+  const modules = new Map((profile?.modules || []).map(item => [item.id, item]));
+  const war = modules.get('rankedRespect') || {};
+  const outside = modules.get('outsideChainRespect') || {};
   return {
-    members,
-    totalWarRespect:members.reduce((sum, member) => sum + member.warRespect, 0),
-    totalOutsideRespect:members.reduce((sum, member) => sum + member.outsideRespect, 0),
-    totalWarPayout:members.reduce((sum, member) => sum + member.warPayout, 0),
-    totalOutsidePayout:members.reduce((sum, member) => sum + member.outsidePayout, 0),
-    totalPayout:members.reduce((sum, member) => sum + member.totalPayout, 0)
-  };
-}
-
-function normalizeSettings(body) {
-  const warRate = finiteNumber(body.warRate ?? DEFAULT_WAR_RATE, 'War rate');
-  const outsideRate = finiteNumber(body.outsideRate ?? DEFAULT_OUTSIDE_RATE, 'Outside rate');
-  const milestoneValue = finiteNumber(body.milestoneValue ?? DEFAULT_MILESTONE_VALUE, 'Milestone value');
-
-  if (warRate < 0 || warRate > 10000000) {
-    throw httpError(400, 'War rate must be between 0 and 10,000,000.');
-  }
-  if (outsideRate < 0 || outsideRate > 10000000) {
-    throw httpError(400, 'Outside rate must be between 0 and 10,000,000.');
-  }
-  if (milestoneValue < 0 || milestoneValue > 1000) {
-    throw httpError(400, 'Milestone value must be between 0 and 1,000 respect.');
-  }
-
-  return { warRate, outsideRate, milestoneValue };
-}
-
-function defaultSettings() {
-  return {
-    warRate:DEFAULT_WAR_RATE,
-    outsideRate:DEFAULT_OUTSIDE_RATE,
-    milestoneValue:DEFAULT_MILESTONE_VALUE
+    warRate:Number(war.rate || 0),
+    outsideRate:Number(outside.rate || 0),
+    milestoneValue:Number(war.milestoneValue || outside.milestoneValue || 0)
   };
 }
 
@@ -227,6 +140,9 @@ async function loadPayoutRows(db, factionId, warId) {
       player_name,
       attack_detail_complete,
       payout_detail_version,
+      COALESCE(war_hits, 0) AS war_hits,
+      COALESCE(assists, 0) AS assists,
+      COALESCE(outside_hits, 0) AS outside_hits,
       COALESCE(respect_earned, 0) AS respect_earned,
       COALESCE(chain_bonus_hits, 0) AS chain_bonus_hits,
       COALESCE(chain_bonus_score, 0) AS chain_bonus_score,
@@ -246,9 +162,6 @@ async function loadRuns(db, factionId, warId) {
   const result = await db.prepare(`
     SELECT
       pr.run_id,
-      pr.war_rate,
-      pr.outside_rate,
-      pr.milestone_value,
       pr.total_payout,
       pr.member_count,
       pr.payload_json,
@@ -263,19 +176,16 @@ async function loadRuns(db, factionId, warId) {
   `).bind(factionId, warId).all();
 
   return (result.results || []).map(row => {
-    let payload = null;
-    try { payload = JSON.parse(String(row.payload_json || '')); } catch (_) {}
+    let preview = null;
+    try { preview = JSON.parse(String(row.payload_json || '')); } catch (_) {}
     return {
       runId:Number(row.run_id),
-      warRate:Number(row.war_rate || 0),
-      outsideRate:Number(row.outside_rate || 0),
-      milestoneValue:Number(row.milestone_value || 0),
       totalPayout:Number(row.total_payout || 0),
       memberCount:Number(row.member_count || 0),
       createdAt:Number(row.created_at || 0),
       createdByPlayerId:Number(row.created_by_player_id || 0) || null,
       createdByPlayerName:row.created_by_player_name || null,
-      preview:payload
+      preview
     };
   });
 }
@@ -286,9 +196,9 @@ async function ensurePayoutSchema(db) {
       run_id INTEGER PRIMARY KEY AUTOINCREMENT,
       faction_id INTEGER NOT NULL,
       war_id TEXT NOT NULL,
-      war_rate REAL NOT NULL,
-      outside_rate REAL NOT NULL,
-      milestone_value REAL NOT NULL,
+      war_rate REAL NOT NULL DEFAULT 0,
+      outside_rate REAL NOT NULL DEFAULT 0,
+      milestone_value REAL NOT NULL DEFAULT 0,
       total_payout INTEGER NOT NULL,
       member_count INTEGER NOT NULL,
       payload_json TEXT NOT NULL,
@@ -332,7 +242,6 @@ async function loadWar(db, factionId, warId) {
     SELECT
       war_id,
       faction_id,
-      opponent_faction_name,
       imported_by_user_id
     FROM wars
     WHERE faction_id = ? AND war_id = ?
@@ -405,17 +314,6 @@ async function getCurrentUser(env, request) {
   if (!row) throw httpError(401, 'Session expired or invalid.');
   if (Number(row.is_disabled) === 1) throw httpError(403, 'This account is disabled.');
   return row;
-}
-
-function finiteNonNegative(value, fallback = 0) {
-  const number = Number(value);
-  return Number.isFinite(number) && number >= 0 ? number : fallback;
-}
-
-function finiteNumber(value, label) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) throw httpError(400, label + ' must be a number.');
-  return number;
 }
 
 function getCookie(request, name) {
