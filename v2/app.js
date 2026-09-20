@@ -1127,6 +1127,7 @@ function renderPayoutSettingsVisibility() {
 
   const visible = canManagePayoutSettingsView();
   section.classList.toggle('hidden', !visible);
+  document.querySelector('#payoutsView')?.classList.toggle('payout-admin-profile-visible', visible);
 
   if (!visible) {
     const list = document.querySelector('#payoutSettingsList');
@@ -1236,8 +1237,6 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog) {
 
     });
   });
-
-  updatePayoutSettingsSummary(profile);
 }
 
 function handlePayoutSettingsDraft() {
