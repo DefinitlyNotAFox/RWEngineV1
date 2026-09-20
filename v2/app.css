@@ -13055,3 +13055,161 @@ body {
     justify-self: start;
   }
 }
+
+
+/* Ranked war picker: selected war and payout state as one component */
+#payoutsView .payout-war-menu {
+  position: relative;
+  width: 100%;
+}
+
+#payoutsView .payout-war-trigger {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  min-height: 48px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: #0c0e0f;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+#payoutsView .payout-war-trigger::-webkit-details-marker {
+  display: none;
+}
+
+#payoutsView .payout-war-trigger::after {
+  content: '▾';
+  color: var(--dim);
+  font-size: var(--font-caption);
+}
+
+#payoutsView .payout-war-menu[open] > .payout-war-trigger {
+  border-color: var(--accent);
+}
+
+#payoutsView .payout-war-trigger-copy,
+#payoutsView .payout-war-option-copy {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+#payoutsView .payout-war-trigger-copy strong,
+#payoutsView .payout-war-option-copy strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--font-small);
+  font-weight: 680;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#payoutsView .payout-war-trigger-copy small,
+#payoutsView .payout-war-option-copy small {
+  overflow: hidden;
+  color: var(--dim);
+  font-size: var(--font-caption);
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#payoutsView .payout-war-state {
+  display: inline-flex;
+  min-height: 23px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: var(--font-caption);
+  font-weight: 680;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+#payoutsView .payout-war-state.paid {
+  border-color: rgba(142,174,148,.45);
+  color: var(--success);
+}
+
+#payoutsView .payout-war-state.outstanding {
+  border-color: rgba(200,164,107,.45);
+  color: var(--warning);
+}
+
+#payoutsView .payout-war-options {
+  position: absolute;
+  z-index: 55;
+  top: calc(100% + 5px);
+  left: 0;
+  display: grid;
+  width: 100%;
+  min-width: 360px;
+  max-height: 320px;
+  padding: 4px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #0c0e0f;
+  box-shadow: 0 10px 28px rgba(0,0,0,.4);
+}
+
+#payoutsView .payout-war-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 48px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+#payoutsView .payout-war-option:hover:not(:disabled),
+#payoutsView .payout-war-option:focus-visible:not(:disabled) {
+  background: rgba(255,255,255,.055);
+}
+
+#payoutsView .payout-war-option.selected {
+  background: rgba(185,130,93,.09);
+}
+
+#payoutsView .payout-war-option.locked {
+  opacity: .45;
+}
+
+#payoutsView .payout-war-option.locked .payout-war-state {
+  opacity: .85;
+}
+
+#payoutsView .payout-war-empty {
+  padding: 10px 8px;
+  color: var(--dim);
+  font-size: var(--font-small);
+}
+
+@media (max-width: 620px) {
+  #payoutsView .payout-war-options {
+    min-width: 100%;
+  }
+
+  #payoutsView .payout-war-trigger {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  #payoutsView .payout-war-trigger::after {
+    display: none;
+  }
+}
