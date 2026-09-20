@@ -12417,3 +12417,40 @@ body {
   opacity: .32;
   pointer-events: none;
 }
+
+
+/* Secondary payout toggles: checkbox before label */
+#payoutsView .payout-percentage-field,
+#payoutsView .payout-milestones-field {
+  grid-template-columns: 1fr !important;
+}
+
+#payoutsView .payout-secondary-toggle {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 7px;
+  color: var(--dim);
+  font-size: var(--font-caption);
+  font-weight: 620;
+}
+
+#payoutsView .payout-secondary-toggle input {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+
+#payoutsView .payout-secondary-toggle.readonly {
+  color: var(--dim);
+}
+
+#payoutsView .payout-milestone-control {
+  gap: 10px;
+}
+
+/* Money fields are formatted text inputs, so browser number steppers are gone. */
+#payoutsView [data-payout-money] {
+  font-variant-numeric: tabular-nums;
+}
