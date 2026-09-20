@@ -471,20 +471,23 @@ export async function loadIntelV2(force = false) {
   const factionId = Number(state.selectedFactionId || state.user?.factionId || 0);
   if (!factionId) return;
 
-  await loadAppliedTagSettings(force);
-  ensureFilterState();
-  const key = analysisKey();
-
-  if (!force && overview && Number(loadedFactionId) === factionId && loadedAnalysisKey === key) {
-    renderIntelV2();
-    await loadFactionPerformance(false);
-    return;
-  }
-
   loading = true;
-  setIntelStatus('Loading faction data…');
+  updateFactionTitle();
 
   try {
+    await loadAppliedTagSettings(force);
+    ensureFilterState();
+    const key = analysisKey();
+
+    if (!force && overview && Number(loadedFactionId) === factionId && loadedAnalysisKey === key) {
+      renderIntelV2();
+      await loadFactionPerformance(false);
+      return;
+    }
+
+    setIntelStatus('Loading faction data…');
+    if (!overview) renderIntelV2();
+
     overview = await intelV2Api('overview', analysisPayload());
     loadedFactionId = factionId;
     loadedAnalysisKey = key;
@@ -495,7 +498,7 @@ export async function loadIntelV2(force = false) {
     await refreshSyncStatus();
     await loadFactionPerformance(force);
   } catch (error) {
-    overview = null;
+    if (!overview) overview = null;
     setIntelStatus(error.message || 'Failed to load faction data.', true);
     renderIntelV2();
   } finally {
@@ -506,23 +509,6 @@ export async function loadIntelV2(force = false) {
       queueMicrotask(() => loadIntelV2(Boolean(rerun)));
     }
   }
-}
-
-function updateFactionTitle() {
-  const title = document.querySelector('#factionTitle');
-  if (!title) return;
-
-  const factionId = Number(state.selectedFactionId || state.user?.factionId || 0);
-  const name = String(
-    overview?.faction?.factionName ||
-    state.adminFactions?.find(item => Number(item.factionId) === factionId)?.factionName ||
-    state.user?.factionName ||
-    ''
-  ).trim();
-
-  title.textContent = name && !/^Faction\s+\d+$/i.test(name)
-    ? name
-    : (factionId ? `Faction ${factionId}` : 'Faction');
 }
 
 async function loadFactionPerformance(force = false) {
