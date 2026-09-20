@@ -11136,3 +11136,140 @@ body {
     column-gap: 8px;
   }
 }
+
+
+/* Payment-first payout profile layout */
+#payoutsView .payout-settings-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  gap: 0;
+  width: 100%;
+  border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+  overflow: visible;
+}
+
+#payoutsView .payout-module-column {
+  min-width: 0;
+  padding: 0 14px 8px;
+  border-left: 1px solid var(--line-soft);
+}
+
+#payoutsView .payout-module-column:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+#payoutsView .payout-module-column:last-child {
+  padding-right: 0;
+}
+
+#payoutsView .payout-module-header {
+  min-height: 29px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+  border-bottom: 1px solid rgba(255,255,255,.055);
+}
+
+#payoutsView .payout-module-header strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--font-caption);
+  font-weight: 680;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#payoutsView .payout-module-fields {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 5px 9px;
+  align-items: center;
+}
+
+#payoutsView .payout-module-enabled,
+#payoutsView .payout-module-field {
+  display: contents;
+}
+
+#payoutsView .payout-module-enabled > span,
+#payoutsView .payout-module-field > span:first-child {
+  color: var(--dim);
+  font-size: 10px;
+  font-weight: 620;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+#payoutsView .payout-module-enabled > input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  justify-self: start;
+}
+
+#payoutsView .payout-module-field .payout-setting-input {
+  justify-self: start;
+}
+
+#payoutsView .payout-module-column .payout-setting-input input {
+  width: 72px;
+  height: 24px;
+  padding: 1px 5px;
+  font-size: var(--font-small);
+}
+
+#payoutsView .payout-module-column .payout-milestone-field .payout-setting-input input {
+  width: 40px;
+}
+
+#payoutsView .payout-module-column .payout-setting-input em {
+  margin-left: 4px;
+  font-size: 9px;
+}
+
+#payoutsView .payout-module-column.disabled .payout-module-field,
+#payoutsView .payout-module-column.disabled .payout-normalize-field {
+  opacity: .34;
+  pointer-events: none;
+}
+
+#payoutsView .payout-module-column.disabled .payout-module-header strong {
+  color: var(--dim);
+}
+
+@media (max-width: 1180px) {
+  #payoutsView .payout-settings-list {
+    grid-template-columns: repeat(3, minmax(170px, 1fr));
+  }
+
+  #payoutsView .payout-module-column:nth-child(4) {
+    border-left: 0;
+  }
+
+  #payoutsView .payout-module-column {
+    padding-top: 5px;
+    padding-bottom: 7px;
+  }
+}
+
+@media (max-width: 760px) {
+  #payoutsView .payout-settings-list {
+    grid-template-columns: 1fr;
+  }
+
+  #payoutsView .payout-module-column,
+  #payoutsView .payout-module-column:first-child,
+  #payoutsView .payout-module-column:last-child,
+  #payoutsView .payout-module-column:nth-child(4) {
+    padding: 4px 0 8px;
+    border-left: 0;
+  }
+
+  #payoutsView .payout-module-header {
+    min-height: 26px;
+  }
+}
