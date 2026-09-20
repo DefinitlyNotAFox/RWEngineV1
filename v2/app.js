@@ -1205,10 +1205,10 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog) {
           ${definition.supportsMilestones ? `
             <label class="check payout-normalize-field">
               <input type="checkbox" data-payout-normalize${module.normalizeMilestones !== false ? ' checked' : ''} />
-              Normalize milestones
+              Normalize
             </label>
             <label class="payout-milestone-field">
-              <span>Milestone value</span>
+              <span>Milestone</span>
               <span class="payout-setting-input">
                 <input type="number" min="0" max="1000" step="1" value="${escapeHtml(module.milestoneValue ?? definition.defaultMilestoneValue ?? 10)}" data-payout-milestone />
                 <em>R</em>
