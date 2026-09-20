@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=109" />
+  <link rel="stylesheet" href="/v2/app.css?v=110" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -218,23 +218,10 @@
 
           <section id="payoutPanel" class="payout-panel hidden">
             <div class="payout-toolbar">
-              <div class="payout-rates">
-                <label>
-                  <span>War / R</span>
-                  <input id="payoutWarRate" type="number" min="0" step="1000" value="120000" />
-                </label>
-                <label>
-                  <span>Outside / R</span>
-                  <input id="payoutOutsideRate" type="number" min="0" step="1000" value="80000" />
-                </label>
-                <label>
-                  <span>Milestone R</span>
-                  <input id="payoutMilestoneValue" type="number" min="0" step="1" value="10" />
-                </label>
-              </div>
+              <div id="payoutProfileSummary" class="payout-profile-summary"></div>
               <div class="payout-actions">
                 <select id="payoutHistory" class="small-select" aria-label="Saved payout runs">
-                  <option value="">Current</option>
+                  <option value="">Current profile</option>
                 </select>
                 <button id="payoutCalculate" class="action" type="button">Calculate</button>
                 <button id="payoutSave" class="action primary" type="button">Save run</button>
@@ -246,17 +233,9 @@
             <p id="payoutStatus" class="status-line hidden" role="status"></p>
             <div class="data-table-wrap payout-table-wrap">
               <table class="data-table payout-table">
-                <thead>
-                  <tr>
-                    <th>Member</th>
-                    <th>War R</th>
-                    <th>Outside R</th>
-                    <th>War payout</th>
-                    <th>Outside payout</th>
-                    <th>Total</th>
-                  </tr>
-                </thead>
+                <thead id="payoutHead"></thead>
                 <tbody id="payoutBody"></tbody>
+                <tfoot id="payoutFoot"></tfoot>
               </table>
             </div>
           </section>
@@ -367,6 +346,24 @@
               </div>
             </section>
 
+            <section id="payoutSettingsSection" class="settings-panel payout-settings-section hidden">
+              <header class="settings-panel-head settings-panel-head-simple">
+                <div>
+                  <h2>Payouts</h2>
+                </div>
+              </header>
+              <div class="settings-panel-body">
+                <form id="payoutSettingsForm" class="payout-settings-form">
+                  <div id="payoutSettingsList" class="payout-settings-list"></div>
+                  <div class="payout-settings-actions">
+                    <button id="payoutSettingsSave" class="action primary" type="submit">Save changes</button>
+                    <button id="payoutSettingsReset" class="text-action" type="button">Reset defaults</button>
+                  </div>
+                  <p id="payoutSettingsStatus" class="status-line hidden" role="status"></p>
+                </form>
+              </div>
+            </section>
+
             <section id="reportAccessSection" class="settings-panel access-section hidden">
               <header class="settings-panel-head settings-panel-head-simple">
                 <div>
@@ -436,6 +433,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=99"></script>
+  <script type="module" src="/v2/app.js?v=100"></script>
 </body>
 </html>
