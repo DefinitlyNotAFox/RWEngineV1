@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=115" />
+  <link rel="stylesheet" href="/v2/app.css?v=116" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -250,21 +250,17 @@
         </header>
 
         <section id="payoutSettingsSection" class="settings-panel payout-settings-section hidden">
-          <header class="settings-panel-head settings-panel-head-simple">
-            <div>
+          <form id="payoutSettingsForm" class="payout-settings-form">
+            <div class="payout-settings-topline">
               <h2>Payout profile</h2>
-            </div>
-          </header>
-          <div class="settings-panel-body">
-            <form id="payoutSettingsForm" class="payout-settings-form">
-              <div id="payoutSettingsList" class="payout-settings-list"></div>
-              <div class="payout-settings-actions">
-                <button id="payoutSettingsSave" class="action primary" type="submit">Save changes</button>
-                <button id="payoutSettingsReset" class="text-action" type="button">Reset defaults</button>
+              <div class="payout-settings-topline-actions">
+                <p id="payoutSettingsStatus" class="status-line hidden" role="status"></p>
+                <button id="payoutSettingsReset" class="text-action" type="button">Reset</button>
+                <button id="payoutSettingsSave" class="action primary" type="submit">Save</button>
               </div>
-              <p id="payoutSettingsStatus" class="status-line hidden" role="status"></p>
-            </form>
-          </div>
+            </div>
+            <div id="payoutSettingsList" class="payout-settings-list"></div>
+          </form>
         </section>
 
 
