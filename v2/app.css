@@ -10839,3 +10839,112 @@ body {
     justify-content: flex-start;
   }
 }
+
+
+/* Dense payout profile clusters */
+#payoutsView .payout-settings-list {
+  grid-template-columns: minmax(0, 1.6fr) minmax(360px, .8fr);
+  gap: 18px;
+}
+
+#payoutsView .payout-setting-group {
+  min-width: 0;
+}
+
+#payoutsView .payout-setting-group-label {
+  margin-bottom: 4px;
+}
+
+#payoutsView .payout-setting-group-items {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+#payoutsView .payout-setting-row,
+#payoutsView .payout-setting-row:first-of-type,
+#payoutsView .payout-setting-row:last-child {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-height: 26px;
+  width: auto;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 7px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+#payoutsView .payout-setting-row + .payout-setting-row {
+  padding-left: 14px;
+  border-left: 1px solid var(--line-soft);
+}
+
+#payoutsView .payout-setting-toggle {
+  flex: 0 0 auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+#payoutsView .payout-setting-controls {
+  flex: 0 0 auto;
+  justify-content: flex-start;
+  gap: 5px;
+}
+
+#payoutsView [data-payout-group="Hits"] .payout-setting-group-items {
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+#payoutsView [data-payout-group="Hits"] .payout-setting-row {
+  display: inline-flex;
+  grid-template-columns: none;
+}
+
+#payoutsView [data-payout-group="Hits"] .payout-setting-row + .payout-setting-row {
+  padding-left: 12px;
+}
+
+#payoutsView .payout-setting-row.disabled .payout-setting-controls {
+  display: none;
+}
+
+#payoutsView .payout-setting-input input {
+  width: 72px;
+}
+
+#payoutsView .payout-milestone-field .payout-setting-input input {
+  width: 38px;
+}
+
+#payoutsView .payout-normalize-field {
+  padding-left: 2px;
+}
+
+@media (max-width: 1180px) {
+  #payoutsView .payout-settings-list {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  #payoutsView .payout-setting-group + .payout-setting-group {
+    padding: 7px 0 0;
+    border-top: 1px solid var(--line-soft);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  #payoutsView .payout-setting-group-items {
+    flex-wrap: wrap;
+  }
+
+  #payoutsView .payout-setting-row,
+  #payoutsView .payout-setting-row:first-of-type,
+  #payoutsView .payout-setting-row:last-child {
+    display: flex;
+  }
+}
