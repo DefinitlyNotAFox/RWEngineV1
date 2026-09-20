@@ -255,7 +255,7 @@
                 <div id="payoutProfileGlobal" class="payout-profile-global"></div>
                 <div class="payout-settings-head-actions">
                   <p id="payoutSettingsStatus" class="status-line hidden" role="status"></p>
-                  <button id="payoutSettingsSave" class="action primary" type="submit">Save</button>
+                  <button id="payoutSettingsSave" class="action primary" type="submit">Apply changes</button>
                 </div>
               </div>
               <div id="payoutSettingsList" class="payout-settings-list"></div>
@@ -266,13 +266,17 @@
             <div class="payout-head-row payout-war-row">
               <label class="payout-war-picker payout-head-war">
                 <span>Ranked war</span>
-                <select id="payoutWarSelect" class="small-select" aria-label="Ranked war for payout"></select>
+                <span class="payout-war-select-row">
+                  <select id="payoutWarSelect" class="small-select" aria-label="Ranked war for payout"></select>
+                  <span id="payoutWarState" class="payout-war-state"></span>
+                </span>
               </label>
               <div class="payout-actions payout-war-actions">
                 <details id="payoutMoreMenu" class="payout-more-menu">
                   <summary class="action">More</summary>
                   <div class="payout-more-popover">
                     <button id="payoutCopy" class="payout-menu-action" type="button">Copy CSV</button>
+                    <button id="payoutPresetCreate" class="payout-menu-action hidden" type="button">Save as preset…</button>
                     <button id="payoutPresetDelete" class="payout-menu-action hidden" type="button">Delete preset</button>
                     <button id="payoutSettingsReset" class="payout-menu-action hidden" type="button">Reset settings</button>
                   </div>
@@ -284,8 +288,10 @@
               <select id="payoutPresetSelect" class="small-select hidden" aria-label="Payout settings preset">
                 <option value="">Current settings</option>
               </select>
-              <input id="payoutPresetName" class="payout-preset-name hidden" type="text" maxlength="60" placeholder="Preset name" aria-label="Payout preset name" />
-              <button id="payoutPresetSave" class="action primary hidden" type="button">Save preset</button>
+            </div>
+            <div id="payoutPresetCreateRow" class="payout-preset-create-row hidden">
+              <input id="payoutPresetName" class="payout-preset-name" type="text" maxlength="60" placeholder="Preset name" aria-label="Payout preset name" />
+              <button id="payoutPresetSave" class="action primary" type="button">Save preset</button>
             </div>
           </aside>
         </div>
