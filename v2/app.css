@@ -14553,3 +14553,41 @@ body {
 #payoutsView .payout-settings-inline-status + .payout-profile-global {
   margin-left: 12px;
 }
+
+
+/* Final payout overview polish */
+#payoutsView .payout-top-layout {
+  gap: 8px;
+}
+
+#payoutsView .payout-settings-list > .payout-module-column,
+#payoutsView .payout-settings-list > .payout-overview-module {
+  border-left-color: rgba(255,255,255,.05);
+}
+
+#payoutsView .payout-module-column.disabled {
+  opacity: .62;
+}
+
+#payoutsView .payout-module-column.disabled .payout-overview-options-row,
+#payoutsView .payout-module-column.disabled .payout-overview-money-row {
+  opacity: .9;
+}
+
+#payoutsView .payout-overview-module.readonly input[data-payout-readonly],
+#payoutsView .payout-profile-global input[data-payout-readonly] {
+  opacity: 1;
+  cursor: default;
+  color: var(--muted);
+  -webkit-text-fill-color: var(--muted);
+}
+
+#payoutsView .payout-overview-module.readonly input[type="checkbox"][data-payout-readonly] {
+  accent-color: var(--accent);
+}
+
+@media (max-width: 1260px) {
+  #payoutsView .payout-top-layout {
+    gap: 8px;
+  }
+}
