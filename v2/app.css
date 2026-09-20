@@ -12515,3 +12515,37 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Tighten grouped payout settings rhythm */
+#payoutsView .payout-settings-stack {
+  gap: 6px;
+}
+
+#payoutsView .payout-settings-stack > .payout-module-column {
+  padding: 0;
+  margin: 0;
+}
+
+#payoutsView .payout-module-header.payout-inline-rate {
+  min-height: 28px;
+}
+
+#payoutsView .payout-module-fields {
+  gap: 3px;
+  padding-left: 20px;
+}
+
+#payoutsView .payout-percentage-field,
+#payoutsView .payout-milestones-field {
+  min-height: 24px !important;
+}
+
+#payoutsView .payout-settings-stack .payout-module-column + .payout-module-column {
+  margin-top: 2px;
+}
+
+#payoutsView .payout-settings-solo,
+#payoutsView .payout-settings-stack {
+  align-content: start;
+}
