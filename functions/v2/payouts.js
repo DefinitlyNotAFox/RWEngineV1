@@ -20,6 +20,7 @@ export async function onRequest(context) {
 
     await ensurePayoutSchema(env.DB);
     await ensurePayoutColumns(env.DB);
+    await ensureAccessSchema(env.DB);
 
     const war = await loadWar(env.DB, factionId, warId);
     if (!war) throw httpError(404, 'Imported war not found for this faction.');
@@ -29,6 +30,9 @@ export async function onRequest(context) {
     const canSave = Number(user.is_admin) === 1 ||
       permissions.isFactionAdmin === true ||
       permissions.isAssistant === true;
+    if (!canSave) {
+      throw httpError(403, 'Faction management access is required to use payout tools.');
+    }
     const profile = await loadPayoutProfile(env.DB, factionId);
     const action = String(body.action || 'preview');
 
@@ -188,6 +192,12 @@ async function loadRuns(db, factionId, warId) {
       preview
     };
   });
+}
+
+async function ensureAccessSchema(db) {
+  await db.prepare(
+    "CREATE TABLE IF NOT EXISTS resource_permissions (permission_id INTEGER PRIMARY KEY AUTOINCREMENT, owner_user_id INTEGER NOT NULL, faction_id INTEGER NOT NULL, resource_type TEXT NOT NULL, resource_key TEXT NOT NULL, visibility TEXT NOT NULL DEFAULT 'faction' CHECK (visibility IN ('private', 'faction', 'public')), created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE(faction_id, resource_type, resource_key))"
+  ).run();
 }
 
 async function ensurePayoutSchema(db) {
