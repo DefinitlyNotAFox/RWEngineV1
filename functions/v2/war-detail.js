@@ -47,7 +47,12 @@ export async function onRequest(context) {
         COALESCE(wl.chain_bonus_score, 0) AS chain_bonus_score_out,
         COALESCE(wl.chain_bonus_hits_in, 0) AS chain_bonus_hits_in,
         COALESCE(wl.chain_bonus_score_in, 0) AS chain_bonus_score_in,
-        COALESCE(wl.chain_bonus_respect_lost_in, 0) AS chain_bonus_respect_lost_in
+        COALESCE(wl.chain_bonus_respect_lost_in, 0) AS chain_bonus_respect_lost_in,
+        COALESCE(wl.outside_chain_hits, 0) AS outside_chain_hits,
+        COALESCE(wl.outside_chain_respect, 0) AS outside_chain_respect,
+        COALESCE(wl.outside_chain_bonus_hits, 0) AS outside_chain_bonus_hits,
+        COALESCE(wl.outside_chain_bonus_respect, 0) AS outside_chain_bonus_respect,
+        COALESCE(wl.payout_detail_version, 0) AS payout_detail_version
       FROM war_log wl
       LEFT JOIN faction_members fm
         ON fm.faction_id = wl.faction_id
@@ -83,6 +88,11 @@ export async function onRequest(context) {
       const chainBonusHitsIn = Number(row.chain_bonus_hits_in || 0);
       const chainBonusScoreIn = Number(row.chain_bonus_score_in || 0);
       const chainBonusRespectLostIn = Number(row.chain_bonus_respect_lost_in || 0);
+      const outsideChainHits = Number(row.outside_chain_hits || 0);
+      const outsideChainRespect = Number(row.outside_chain_respect || 0);
+      const outsideChainBonusHits = Number(row.outside_chain_bonus_hits || 0);
+      const outsideChainBonusRespect = Number(row.outside_chain_bonus_respect || 0);
+      const payoutDetailReady = Number(row.payout_detail_version || 0) >= 1;
 
       const hits = excludeMilestones
         ? Math.max(0, baseHits - chainBonusHitsOut)
@@ -130,7 +140,12 @@ export async function onRequest(context) {
         chainBonusScoreOut,
         chainBonusHitsIn,
         chainBonusScoreIn,
-        chainBonusRespectLostIn
+        chainBonusRespectLostIn,
+        outsideChainHits,
+        outsideChainRespect,
+        outsideChainBonusHits,
+        outsideChainBonusRespect,
+        payoutDetailReady
       };
     });
 
@@ -153,6 +168,7 @@ export async function onRequest(context) {
         outgoingHits: members.reduce((sum, member) => sum + Number(member.chainBonusHitsOut || 0), 0),
         incomingHits: members.reduce((sum, member) => sum + Number(member.chainBonusHitsIn || 0), 0)
       },
+      payoutDetailReady: members.length > 0 && members.every(member => member.payoutDetailReady === true),
       summary: {
         members: members.length,
         officialHits,
@@ -188,7 +204,12 @@ async function ensureAggregateSchema(db) {
     ['attack_detail_rows', 'ALTER TABLE war_log ADD COLUMN attack_detail_rows INTEGER NOT NULL DEFAULT 0'],
     ['chain_bonus_hits_in', 'ALTER TABLE war_log ADD COLUMN chain_bonus_hits_in INTEGER NOT NULL DEFAULT 0'],
     ['chain_bonus_score_in', 'ALTER TABLE war_log ADD COLUMN chain_bonus_score_in REAL NOT NULL DEFAULT 0'],
-    ['chain_bonus_respect_lost_in', 'ALTER TABLE war_log ADD COLUMN chain_bonus_respect_lost_in REAL NOT NULL DEFAULT 0']
+    ['chain_bonus_respect_lost_in', 'ALTER TABLE war_log ADD COLUMN chain_bonus_respect_lost_in REAL NOT NULL DEFAULT 0'],
+    ['outside_chain_hits', 'ALTER TABLE war_log ADD COLUMN outside_chain_hits INTEGER NOT NULL DEFAULT 0'],
+    ['outside_chain_respect', 'ALTER TABLE war_log ADD COLUMN outside_chain_respect REAL NOT NULL DEFAULT 0'],
+    ['outside_chain_bonus_hits', 'ALTER TABLE war_log ADD COLUMN outside_chain_bonus_hits INTEGER NOT NULL DEFAULT 0'],
+    ['outside_chain_bonus_respect', 'ALTER TABLE war_log ADD COLUMN outside_chain_bonus_respect REAL NOT NULL DEFAULT 0'],
+    ['payout_detail_version', 'ALTER TABLE war_log ADD COLUMN payout_detail_version INTEGER NOT NULL DEFAULT 0']
   ];
 
   for (const [name, sql] of additions) {
