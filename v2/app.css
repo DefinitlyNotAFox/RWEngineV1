@@ -12571,3 +12571,90 @@ body {
 #payoutsView .payout-milestones-field > .payout-milestone-rate.hidden {
   display: none !important;
 }
+
+
+/* Payout top area: settings left, war/preset controls right */
+#payoutsView .payout-view-head {
+  display: block;
+  margin-bottom: 10px;
+}
+
+#payoutsView .payout-top-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(500px, 540px);
+  align-items: start;
+  gap: 34px;
+  width: 100%;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+#payoutsView #payoutSettingsSection {
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border-bottom: 0;
+}
+
+#payoutsView .payout-settings-form {
+  display: block;
+  width: 100%;
+  min-height: 0;
+}
+
+#payoutsView .payout-settings-headbar {
+  width: 100%;
+  margin: 0 0 7px;
+}
+
+#payoutsView .payout-settings-list {
+  width: 100%;
+  gap: 22px;
+}
+
+#payoutsView .payout-head-controls {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  align-items: start;
+  justify-items: stretch;
+  gap: 8px;
+}
+
+#payoutsView .payout-head-row {
+  justify-content: flex-end;
+}
+
+#payoutsView .payout-head-war {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+}
+
+#payoutsView .payout-war-actions {
+  flex: 0 0 auto;
+}
+
+#payoutsView .payout-preset-controls {
+  justify-content: flex-end;
+}
+
+@media (max-width: 1180px) {
+  #payoutsView .payout-top-layout {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  #payoutsView .payout-head-controls {
+    width: 100%;
+  }
+
+  #payoutsView .payout-head-row,
+  #payoutsView .payout-preset-controls {
+    justify-content: flex-start;
+  }
+}
