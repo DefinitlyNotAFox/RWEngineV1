@@ -104,7 +104,6 @@ export function initWarViews() {
   document.querySelector('#payoutWarSelect')?.addEventListener('change', event => {
     selectPayoutWar(String(event.target.value || ''));
   });
-  document.querySelector('#payoutCalculate')?.addEventListener('click', () => calculatePayout(true));
   document.querySelector('#payoutConfirm')?.addEventListener('click', confirmPayout);
   document.querySelector('#payoutCopy')?.addEventListener('click', copyPayoutCsv);
   document.querySelector('#payoutBody')?.addEventListener('change', handlePayoutPaidChange);
@@ -1062,13 +1061,11 @@ function renderPayoutPanel() {
   const body = document.querySelector('#payoutBody');
   const foot = document.querySelector('#payoutFoot');
   const payoutSummary = document.querySelector('#payoutSummary');
-  const calculate = document.querySelector('#payoutCalculate');
   const confirm = document.querySelector('#payoutConfirm');
   const copy = document.querySelector('#payoutCopy');
   const status = String(detail.payout.status || preview?.status || 'outstanding');
   const canManagePayouts = detail.payout.canManage === true && status !== 'paid';
 
-  calculate?.classList.toggle('hidden', !canManagePayouts);
   confirm?.classList.toggle('hidden', !canManagePayouts);
   if (copy) copy.disabled = !preview;
 
@@ -1306,7 +1303,7 @@ function formatPayoutDate(timestamp) {
 function setPayoutBusy(busy) {
   detail.payout.busy = Boolean(busy);
   document.querySelectorAll(
-    '#payoutPanel button, #payoutPanel select, #payoutPanel input, #payoutCalculate, #payoutConfirm'
+    '#payoutPanel button, #payoutPanel select, #payoutPanel input, #payoutConfirm'
   ).forEach(control => {
     control.disabled = Boolean(busy);
   });
