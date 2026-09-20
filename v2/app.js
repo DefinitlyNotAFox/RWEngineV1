@@ -1187,14 +1187,12 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog) {
       <section class="payout-module-column${enabled ? '' : ' disabled'}" data-payout-module="${escapeHtml(definition.id)}">
         <header class="payout-module-header">
           <strong>${escapeHtml(definition.label || definition.id)}</strong>
+          <label class="payout-module-toggle" title="Enable ${escapeHtml(definition.label || definition.id)}">
+            <input type="checkbox" data-payout-enabled${enabled ? ' checked' : ''} />
+          </label>
         </header>
 
         <div class="payout-module-fields">
-          <label class="payout-module-enabled">
-            <span>Enabled</span>
-            <input type="checkbox" data-payout-enabled${enabled ? ' checked' : ''} />
-          </label>
-
           <label class="payout-module-field payout-rate-field">
             <span>Rate</span>
             <span class="payout-setting-input">
@@ -1204,7 +1202,7 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog) {
           </label>
 
           ${definition.supportsMilestones ? `
-            <label class="payout-module-enabled payout-normalize-field">
+            <label class="payout-module-toggle-row payout-normalize-field">
               <span>Normalize</span>
               <input type="checkbox" data-payout-normalize${module.normalizeMilestones !== false ? ' checked' : ''} />
             </label>
