@@ -99,6 +99,22 @@ export async function autoTagsApi(action, payload = {}) {
   });
 }
 
+export async function payoutSettingsApi(action, payload = {}) {
+  return post('/v2/payout-settings', {
+    action,
+    ...(usesAdminFaction() ? { factionId: state.selectedFactionId } : {}),
+    ...payload
+  });
+}
+
+export async function payoutApi(action, payload = {}) {
+  return post('/v2/payouts', {
+    action,
+    ...(usesAdminFaction() ? { factionId: state.selectedFactionId } : {}),
+    ...payload
+  });
+}
+
 export async function intelV2Api(action, payload = {}) {
   return post('/v2/intel-v2', {
     action,
