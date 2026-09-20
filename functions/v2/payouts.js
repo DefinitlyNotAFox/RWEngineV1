@@ -1,7 +1,8 @@
 import { loadFactionPermissions } from './faction-leadership.js';
 import {
   calculatePayoutRows,
-  loadPayoutProfile
+  loadPayoutProfile,
+  normalizePayoutProfile
 } from './payout-profile.js';
 
 export async function onRequest(context) {
@@ -33,7 +34,7 @@ export async function onRequest(context) {
     if (!canSave) {
       throw httpError(403, 'Faction management access is required to use payout tools.');
     }
-    const profile = await loadPayoutProfile(env.DB, factionId);
+    const storedProfile = await loadPayoutProfile(env.DB, factionId);
     const action = String(body.action || 'preview');
 
     if (action === 'list') {
@@ -42,10 +43,14 @@ export async function onRequest(context) {
         factionId,
         warId,
         canSave,
-        profile,
+        profile:storedProfile,
         runs:await loadRuns(env.DB, factionId, warId)
       });
     }
+
+    const profile = action === 'preview' && body.profile
+      ? normalizePayoutProfile(body.profile)
+      : storedProfile;
 
     const rows = await loadPayoutRows(env.DB, factionId, warId);
     if (!rows.length) throw httpError(404, 'No member performance is stored for this war.');
