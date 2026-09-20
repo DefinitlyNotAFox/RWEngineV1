@@ -14660,3 +14660,54 @@ body {
 #payoutsView .payout-war-row {
   justify-content: flex-start;
 }
+
+
+/* Lock the payout selector column; only settings should flex */
+#payoutsView .payout-top-layout {
+  display: grid !important;
+  grid-template-columns: 340px minmax(0, 1fr) !important;
+  gap: 8px !important;
+  width: 100% !important;
+  max-width: none !important;
+}
+
+#payoutsView .payout-head-controls,
+#payoutsView .payout-war-row,
+#payoutsView .payout-head-war,
+#payoutsView .payout-war-picker {
+  width: 340px !important;
+  min-width: 340px !important;
+  max-width: 340px !important;
+  margin: 0 !important;
+  justify-self: start !important;
+}
+
+#payoutsView .payout-war-select-line {
+  width: 340px !important;
+  min-width: 340px !important;
+  max-width: 340px !important;
+}
+
+#payoutsView #payoutSettingsSection,
+#payoutsView .payout-settings-form,
+#payoutsView .payout-settings-list {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+@media (max-width: 980px) {
+  #payoutsView .payout-top-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  #payoutsView .payout-head-controls,
+  #payoutsView .payout-war-row,
+  #payoutsView .payout-head-war,
+  #payoutsView .payout-war-picker,
+  #payoutsView .payout-war-select-line {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+}
