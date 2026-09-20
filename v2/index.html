@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=131" />
+  <link rel="stylesheet" href="/v2/app.css?v=132" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -247,6 +247,20 @@
             <h1>Payouts</h1>
             <p class="view-description">Calculate and save ranked-war payouts using this faction's payout profile.</p>
           </div>
+          <div class="payout-head-controls">
+            <label class="payout-war-picker payout-head-war">
+              <span>Ranked war</span>
+              <select id="payoutWarSelect" class="small-select" aria-label="Ranked war for payout"></select>
+            </label>
+            <div class="payout-actions payout-head-actions">
+              <select id="payoutHistory" class="small-select" aria-label="Saved payout presets">
+                <option value="">Current preset</option>
+              </select>
+              <button id="payoutCalculate" class="action" type="button">Calculate</button>
+              <button id="payoutSave" class="action primary" type="button">Save preset</button>
+              <button id="payoutCopy" class="action" type="button">Copy CSV</button>
+            </div>
+          </div>
         </header>
 
         <section id="payoutSettingsSection" class="payout-settings-section hidden">
@@ -263,21 +277,6 @@
           </form>
         </section>
 
-
-        <div class="payout-page-toolbar">
-          <label class="payout-war-picker">
-            <span>Ranked war</span>
-            <select id="payoutWarSelect" class="small-select" aria-label="Ranked war for payout"></select>
-          </label>
-          <div class="payout-actions payout-page-actions">
-            <select id="payoutHistory" class="small-select" aria-label="Saved payout runs">
-              <option value="">Current profile</option>
-            </select>
-            <button id="payoutCalculate" class="action" type="button">Calculate</button>
-            <button id="payoutSave" class="action primary" type="button">Save run</button>
-            <button id="payoutCopy" class="action" type="button">Copy CSV</button>
-          </div>
-        </div>
 
         <section id="payoutPanel" class="payout-panel">
           <div class="payout-toolbar">
@@ -445,6 +444,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=123"></script>
+  <script type="module" src="/v2/app.js?v=124"></script>
 </body>
 </html>
