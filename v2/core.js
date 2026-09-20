@@ -353,7 +353,7 @@ export function routeTo(route, options = {}) {
     route = 'intel';
   }
 
-  const valid = new Set(['intel','archive','settings']);
+  const valid = new Set(['intel','archive','payouts','settings']);
   const next = valid.has(route) ? route : 'intel';
   state.route = next;
   try { localStorage.setItem('rwengine.route', next); } catch (_) {}
@@ -382,11 +382,11 @@ export function routeFromHash() {
     return 'intel';
   }
 
-  if (['intel','archive','settings'].includes(value)) return value;
+  if (['intel','archive','payouts','settings'].includes(value)) return value;
 
   try {
     const stored = localStorage.getItem('rwengine.route');
-    if (['intel','archive','settings'].includes(stored)) return stored;
+    if (['intel','archive','payouts','settings'].includes(stored)) return stored;
   } catch (_) {}
 
   return 'intel';
