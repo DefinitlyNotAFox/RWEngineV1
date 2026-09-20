@@ -337,8 +337,7 @@ export function initIntelV2() {
         const overviewMember = (overview?.members || []).find(row => Number(row.playerId) === playerId);
         const notes = normalizeMemberNotes(payload?.member?.notes || overviewMember?.notes);
         noteDrafts.set(key, {
-          noteText:notes.text,
-          tagsText:notes.tags.join(', ')
+          noteText:notes.text
         });
         noteErrors.delete(key);
         noteEditing.add(key);
@@ -380,8 +379,7 @@ export function initIntelV2() {
     const playerId = Number(form.dataset.playerId || 0);
     if (!playerId) return;
     noteDrafts.set(detailKey(playerId), {
-      noteText:String(form.elements.noteText?.value || ''),
-      tagsText:String(form.elements.tags?.value || '')
+      noteText:String(form.elements.noteText?.value || '')
     });
   });
 
@@ -1923,8 +1921,7 @@ async function saveMemberNotesForm(form) {
   if (noteSaving.has(key)) return;
 
   const draft = {
-    noteText:String(form.elements.noteText?.value || ''),
-    tagsText:String(form.elements.tags?.value || '')
+    noteText:String(form.elements.noteText?.value || '')
   };
   noteDrafts.set(key, draft);
   noteErrors.delete(key);
@@ -1932,10 +1929,13 @@ async function saveMemberNotesForm(form) {
   renderIntelV2();
 
   try {
+    const payload = detailCache.get(key);
+    const overviewMember = (overview?.members || []).find(row => Number(row.playerId) === playerId);
+    const existingNotes = normalizeMemberNotes(payload?.member?.notes || overviewMember?.notes);
     const result = await intelV2Api('saveMemberNotes', {
       playerId,
       noteText:draft.noteText,
-      tags:draft.tagsText.split(',')
+      tags:existingNotes.tags
     });
 
     const payload = detailCache.get(key);
@@ -2007,8 +2007,6 @@ function renderDetailRow(member) {
       <div class="faction-grid-detail-cell" role="cell">
         <section class="intel2-detail">
           <div class="intel2-detail-layout">
-            ${notesPanel}
-
             <section class="intel2-history">
               <header class="intel2-history-head">
                 <div class="intel2-history-titlebar">
@@ -2039,6 +2037,8 @@ function renderDetailRow(member) {
               </header>
               ${renderWarHistory(history.wars)}
             </section>
+
+            ${notesPanel}
           </div>
         </section>
       </div>
@@ -2059,8 +2059,7 @@ function renderMemberNotesPanel(member, payload, scopedMember = null) {
   const editing = noteEditing.has(key) && canEdit;
   const saving = noteSaving.has(key);
   const draft = noteDrafts.get(key) || {
-    noteText:notes.text,
-    tagsText:notes.tags.join(', ')
+    noteText:notes.text
   };
   const error = noteErrors.get(key) || '';
   const signalCount = positives.length + concerns.length;
@@ -2073,11 +2072,6 @@ function renderMemberNotesPanel(member, payload, scopedMember = null) {
             <span>Note</span>
             <textarea name="noteText" maxlength="2000" rows="5" placeholder="Add context for faction leadership…">${escapeHtml(draft.noteText)}</textarea>
           </label>
-          <label>
-            <span>Tags</span>
-            <input name="tags" type="text" value="${escapeHtml(draft.tagsText)}" placeholder="Recruit, watch, war lead" />
-          </label>
-          <small>Up to 8 tags, separated by commas.</small>
           ${error ? `<p class="intel2-note-error">${escapeHtml(error)}</p>` : ''}
           <footer>
             <button type="button" data-member-note-action="cancel" data-player-id="${member.playerId}"${saving ? ' disabled' : ''}>Cancel</button>
