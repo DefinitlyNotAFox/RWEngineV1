@@ -2,11 +2,11 @@ const DAY = 86400;
 
 export const DEFAULT_AUTO_TAG_SETTINGS = {
   lowWarHits:{ enabled:true, yellow:15, orange:10, red:6 },
-  highWarHits:{ enabled:true, teal:25, green:40, bright:60 },
+  highWarHits:{ enabled:true, green:25, bright:60 },
   outsideHits:{ enabled:true, yellow:10 },
   respectPerHit:{ enabled:true, yellow:4.5, orange:4, red:3.5, minimumHits:10 },
-  assists:{ enabled:true, teal:10, green:20, bright:35 },
-  trainingEnergy:{ enabled:true, red:400, orange:550, yellow:700, teal:1200, green:1350, bright:1500 },
+  assists:{ enabled:true, green:10, bright:35 },
+  trainingEnergy:{ enabled:true, red:400, orange:550, yellow:700, green:1200, bright:1500 },
   inactivity:{ enabled:true, yellowHours:24, orangeHours:48, redHours:72 }
 };
 
@@ -74,7 +74,7 @@ function addWarTags(tags, performance, config) {
         kind:'attention',
         tier,
         category:'war_hits',
-        title:tier === 'red' ? 'Minimal war hits' : tier === 'orange' ? 'Very low war hits' : 'Low war hits',
+        title:tier === 'red' ? 'Critical war hits' : tier === 'orange' ? 'Very low war hits' : 'Low war hits',
         text:`${formatRate(hitsPerWar, 1)} hits / war.`,
         value:hitsPerWar
       }));
@@ -85,7 +85,6 @@ function addWarTags(tags, performance, config) {
     let tier = null;
     if (hitsPerWar >= config.highWarHits.bright) tier = 'bright';
     else if (hitsPerWar >= config.highWarHits.green) tier = 'green';
-    else if (hitsPerWar >= config.highWarHits.teal) tier = 'teal';
 
     if (tier) {
       tags.push(makeTag({
@@ -93,7 +92,7 @@ function addWarTags(tags, performance, config) {
         kind:'positive',
         tier,
         category:'war_hits',
-        title:tier === 'bright' ? 'Exceptional war hits' : tier === 'green' ? 'High war hits' : 'Strong war hits',
+        title:tier === 'bright' ? 'Exceptional war hits' : 'High war hits',
         text:`${formatRate(hitsPerWar, 1)} hits / eligible war.`,
         value:hitsPerWar
       }));
@@ -125,7 +124,6 @@ function addWarTags(tags, performance, config) {
       let tier = null;
       if (assistsPerWar >= config.assists.bright) tier = 'bright';
       else if (assistsPerWar >= config.assists.green) tier = 'green';
-      else if (assistsPerWar >= config.assists.teal) tier = 'teal';
 
       if (tier) {
         tags.push(makeTag({
@@ -133,7 +131,7 @@ function addWarTags(tags, performance, config) {
           kind:'positive',
           tier,
           category:'assists',
-          title:tier === 'bright' ? 'Exceptional assists' : tier === 'green' ? 'High assists' : 'Helpful support',
+          title:tier === 'bright' ? 'Exceptional assists' : 'High assists',
           text:`${formatRate(assistsPerWar, 1)} assists / war.`,
           value:assistsPerWar
         }));
@@ -164,7 +162,7 @@ function addWarTags(tags, performance, config) {
             kind:'attention',
             tier,
             category:'respect',
-            title:tier === 'red' ? 'Minimal respect / hit' : tier === 'orange' ? 'Very low respect / hit' : 'Low respect / hit',
+            title:tier === 'red' ? 'Critical respect / hit' : tier === 'orange' ? 'Very low respect / hit' : 'Low respect / hit',
             text:`${formatRate(respectPerHit, 2)} respect / hit.`,
             value:respectPerHit
           }));
@@ -184,7 +182,7 @@ function addTraining(tags, member, config) {
   let title = '';
 
   if (rate < config.red) {
-    kind = 'attention'; tier = 'red'; title = 'Minimal training';
+    kind = 'attention'; tier = 'red'; title = 'Critical training';
   } else if (rate < config.orange) {
     kind = 'attention'; tier = 'orange'; title = 'Very low training';
   } else if (rate < config.yellow) {
@@ -193,8 +191,6 @@ function addTraining(tags, member, config) {
     kind = 'positive'; tier = 'bright'; title = 'Exceptional training';
   } else if (rate >= config.green) {
     kind = 'positive'; tier = 'green'; title = 'High training';
-  } else if (rate >= config.teal) {
-    kind = 'positive'; tier = 'teal'; title = 'Strong training';
   }
 
   if (!tier) return;
