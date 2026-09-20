@@ -40,8 +40,7 @@ export async function onRequest(context) {
         factionId,
         warId,
         canSave,
-        profile:storedProfile,
-        runs:canSave ? await loadRuns(env.DB, factionId, warId) : []
+        profile:storedProfile
       });
     }
 
