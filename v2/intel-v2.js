@@ -1998,12 +1998,15 @@ function renderDetailRow(member) {
 
   const detailMember = payload.member;
   const history = normalizeHistory(payload.history);
-  const notesPanel = renderMemberNotesPanel(detailMember, payload, member);
+  const tagsPanel = renderMemberTagsPanel(detailMember, member);
+  const notesPanel = renderMemberNotesPanel(detailMember, payload);
   return `
     <div class="intel2-detail-row faction-grid-detail" role="row">
       <div class="faction-grid-detail-cell" role="cell">
         <section class="intel2-detail">
           <div class="intel2-detail-layout">
+            ${tagsPanel}
+
             <section class="intel2-history">
               <header class="intel2-history-head">
                 <div class="intel2-history-titlebar">
@@ -2043,10 +2046,36 @@ function renderDetailRow(member) {
   `;
 }
 
-function renderMemberNotesPanel(member, payload, scopedMember = null) {
+function renderMemberTagsPanel(member, scopedMember = null) {
   const insights = automaticTags(scopedMember || member);
   const positives = insights.filter(item => item.kind === 'positive');
   const concerns = insights.filter(item => item.kind === 'attention');
+  const notes = normalizeMemberNotes(member.notes);
+  const hasAutomaticTags = positives.length + concerns.length > 0;
+  const hasManualTags = notes.tags.length > 0;
+
+  if (!hasAutomaticTags && !hasManualTags) {
+    return '<section class="intel2-member-tags"></section>';
+  }
+
+  return `
+    <section class="intel2-member-tags">
+      ${hasManualTags ? `
+        <div class="intel2-note-tags intel2-member-manual-tags">
+          ${notes.tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}
+        </div>
+      ` : ''}
+      ${hasAutomaticTags ? `
+        <div class="intel2-context-grid">
+          ${renderTraitGroup('positive', '+', 'Positive', positives, member, 'None')}
+          ${renderTraitGroup('attention', '−', 'Concerns', concerns, member, 'None')}
+        </div>
+      ` : ''}
+    </section>
+  `;
+}
+
+function renderMemberNotesPanel(member, payload) {
   const notes = normalizeMemberNotes(member.notes);
   const key = detailKey(member.playerId);
   const canEdit = Boolean(
@@ -2059,7 +2088,6 @@ function renderMemberNotesPanel(member, payload, scopedMember = null) {
     noteText:notes.text
   };
   const error = noteErrors.get(key) || '';
-  const signalCount = positives.length + concerns.length;
 
   return `
     <section class="intel2-context intel2-notes">
@@ -2077,20 +2105,10 @@ function renderMemberNotesPanel(member, payload, scopedMember = null) {
         </form>
       ` : `
         <div class="intel2-note-view">
-          ${notes.tags.length ? `<div class="intel2-note-tags">${notes.tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
           <p class="${notes.hasText ? '' : 'empty'}">${notes.hasText ? escapeHtml(notes.text) : 'No member note yet.'}</p>
           ${notes.updatedAt ? `<small>Updated ${escapeHtml(formatRelative(notes.updatedAt))}${notes.updatedBy?.playerName ? ` by ${escapeHtml(notes.updatedBy.playerName)}` : ''}</small>` : ''}
         </div>
       `}
-
-      ${signalCount ? `
-        <div class="intel2-note-signals">
-          <div class="intel2-context-grid">
-            ${renderTraitGroup('positive', '+', 'Positive', positives, member, 'None')}
-            ${renderTraitGroup('attention', '−', 'Concerns', concerns, member, 'None')}
-          </div>
-        </div>
-      ` : ''}
     </section>
   `;
 }
