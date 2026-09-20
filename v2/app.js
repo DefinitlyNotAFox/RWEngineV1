@@ -1261,7 +1261,7 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
                 </span>
               ` : percentageBased
                 ? `<span class="payout-secondary-toggle readonly"><span class="payout-milestone-check" aria-label="Percentage based payout">✓</span><span>% based</span></span>`
-                : `<span class="payout-secondary-toggle readonly"><span class="payout-setting-value">No</span><span>% based</span></span>`
+                : ''
               }
             </div>
           ` : ''}
@@ -1299,7 +1299,11 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
       .filter(Boolean);
 
     items.forEach(item => used.add(String(item.id || '')));
-    if (!items.length) return '';
+    if (!items.length) {
+      return canEdit
+        ? ''
+        : `<div class="${className} payout-settings-slot-empty" aria-hidden="true"></div>`;
+    }
 
     return `
       <div class="${className}">
