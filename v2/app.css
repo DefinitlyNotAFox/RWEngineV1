@@ -13361,3 +13361,144 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Payout ranked-war context: status first, war second */
+#payoutsView .payout-war-picker-head {
+  display: flex;
+  min-height: 24px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 7px;
+}
+
+#payoutsView .payout-war-picker-head > span {
+  color: var(--muted);
+  font-size: var(--font-small);
+  font-weight: 650;
+  line-height: 1;
+}
+
+#payoutsView .payout-war-status-filter {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: rgba(255,255,255,.018);
+}
+
+#payoutsView .payout-war-status-filter button {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--dim);
+  font: inherit;
+  font-size: var(--font-caption);
+  font-weight: 650;
+  line-height: 1;
+  cursor: pointer;
+}
+
+#payoutsView .payout-war-status-filter button:hover:not(:disabled),
+#payoutsView .payout-war-status-filter button:focus-visible:not(:disabled) {
+  color: var(--text);
+  background: rgba(255,255,255,.045);
+}
+
+#payoutsView .payout-war-status-filter button.active {
+  background: rgba(255,255,255,.075);
+  color: var(--text);
+}
+
+#payoutsView .payout-war-status-filter button[data-payout-war-status="outstanding"].active {
+  color: var(--warning);
+}
+
+#payoutsView .payout-war-status-filter button[data-payout-war-status="paid"].active {
+  color: var(--success);
+}
+
+#payoutsView .payout-war-status-filter button:disabled {
+  opacity: .38;
+  cursor: default;
+}
+
+#payoutsView .payout-war-status-filter small {
+  display: inline-flex;
+  min-width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.055);
+  color: currentColor;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+#payoutsView .payout-war-picker > span:first-child {
+  min-height: 0;
+}
+
+#payoutsView .payout-war-trigger {
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 46px;
+  padding: 7px 10px 7px 11px;
+}
+
+#payoutsView .payout-war-trigger::after {
+  display: inline-block;
+}
+
+#payoutsView .payout-war-option {
+  grid-template-columns: minmax(0, 1fr) 18px;
+  min-height: 44px;
+  gap: 10px;
+  padding: 6px 9px;
+}
+
+#payoutsView .payout-war-option-check {
+  display: inline-flex;
+  width: 18px;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  font-size: var(--font-caption);
+  font-weight: 800;
+}
+
+#payoutsView .payout-war-option.selected {
+  background: rgba(185,130,93,.075);
+}
+
+@media (max-width: 620px) {
+  #payoutsView .payout-war-picker-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  #payoutsView .payout-war-status-filter {
+    width: 100%;
+  }
+
+  #payoutsView .payout-war-status-filter button {
+    flex: 1 1 50%;
+  }
+
+  #payoutsView .payout-war-trigger::after {
+    display: inline-block;
+  }
+}
