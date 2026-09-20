@@ -911,6 +911,11 @@ function renderPayoutPage() {
     clearPayoutCalculation();
     select.innerHTML = '<option value="">No imported wars</option>';
     select.disabled = true;
+    const stateBadge = document.querySelector('#payoutWarState');
+    if (stateBadge) {
+      stateBadge.textContent = '';
+      stateBadge.className = 'payout-war-state';
+    }
     renderPayoutPanel();
     return;
   }
@@ -923,7 +928,7 @@ function renderPayoutPage() {
     const date = formatDate(war.endTimestamp || war.startTimestamp);
     const status = String(war.payoutStatus || 'outstanding') === 'paid' ? 'Paid' : 'Outstanding';
     const disabled = !canManage && status !== 'Paid';
-    return `<option value="${escapeHtml(warId)}"${disabled ? ' disabled' : ''}>${escapeHtml(opponent)} · #${escapeHtml(warId)} · ${escapeHtml(date)} · ${status}</option>`;
+    return `<option value="${escapeHtml(warId)}"${disabled ? ' disabled' : ''}>${escapeHtml(opponent)} · #${escapeHtml(warId)} · ${escapeHtml(date)}</option>`;
   }).join('');
 
   const accessible = wars.filter(war =>
@@ -945,6 +950,15 @@ function renderPayoutPage() {
   }
 
   select.value = selected;
+
+  const selectedWar = wars.find(war => String(war.warId || '') === selected);
+  const stateBadge = document.querySelector('#payoutWarState');
+  if (stateBadge) {
+    const paid = String(selectedWar?.payoutStatus || 'outstanding') === 'paid';
+    stateBadge.textContent = paid ? 'Paid' : 'Outstanding';
+    stateBadge.classList.toggle('paid', paid);
+    stateBadge.classList.toggle('outstanding', !paid);
+  }
 
   if (String(detail.warId || '') !== selected) {
     detail.warId = selected;
