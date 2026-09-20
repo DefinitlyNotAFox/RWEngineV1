@@ -11785,31 +11785,9 @@ body {
 }
 
 
-/* Payout profile permissions: readable for all, editable for faction admin+ */
+/* Payout profile permissions: one shared layout; editing is controlled by input interaction only. */
 #payoutsView #payoutSettingsSection {
   display: block;
-}
-
-#payoutsView #payoutSettingsSection.readonly .payout-settings-head-actions {
-  display: none;
-}
-
-#payoutsView #payoutSettingsSection.readonly .payout-settings-list {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-}
-
-#payoutsView .payout-module-column.readonly {
-  opacity: 1;
-}
-
-#payoutsView .payout-module-column.readonly .payout-module-header {
-  min-height: 24px;
-}
-
-#payoutsView .payout-module-column.readonly .payout-module-header > strong {
-  color: var(--text);
-  font-size: var(--font-small);
-  font-weight: 680;
 }
 
 #payoutsView .payout-setting-value {
@@ -14590,4 +14568,21 @@ body {
   #payoutsView .payout-top-layout {
     gap: 8px;
   }
+}
+
+
+/* Admin and member payout views deliberately share one visual system */
+#payoutsView [data-payout-readonly] {
+  pointer-events: none;
+}
+
+#payoutsView input[data-payout-readonly] {
+  opacity: 1;
+  cursor: default;
+  color: inherit;
+  -webkit-text-fill-color: currentColor;
+}
+
+#payoutsView input[type="checkbox"][data-payout-readonly] {
+  accent-color: var(--accent);
 }
