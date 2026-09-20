@@ -854,7 +854,7 @@ function renderPayoutPage() {
   const meta = document.querySelector('#payoutWarMeta');
   if (!panel || !select) return;
 
-  const allowed = canEditFactionView();
+  const allowed = Boolean(state.user && currentFactionId());
   document.querySelectorAll('[data-route="payouts"]').forEach(button => {
     button.classList.toggle('hidden', !allowed);
   });
@@ -863,7 +863,7 @@ function renderPayoutPage() {
     panel.classList.add('hidden');
     select.innerHTML = '';
     select.disabled = true;
-    if (meta) meta.textContent = 'Faction management access is required.';
+    if (meta) meta.textContent = 'A faction is required to view payouts.';
     return;
   }
 
@@ -1088,7 +1088,10 @@ function renderPayoutPanel() {
   const copy = document.querySelector('#payoutCopy');
   const unavailable = Array.isArray(preview?.unavailableModules) ? preview.unavailableModules : [];
 
-  if (save) save.disabled = !detail.payout.canSave || !preview || detail.payout.profileDirty || unavailable.length > 0;
+  if (save) {
+    save.classList.toggle('hidden', !detail.payout.canSave);
+    save.disabled = !detail.payout.canSave || !preview || detail.payout.profileDirty || unavailable.length > 0;
+  }
   if (copy) copy.disabled = !preview;
 
   if (summary) {
@@ -1207,7 +1210,10 @@ function setPayoutBusy(busy) {
     const unavailable = Array.isArray(detail.payout.preview?.unavailableModules)
       ? detail.payout.preview.unavailableModules
       : [];
-    if (save) save.disabled = !detail.payout.canSave || !detail.payout.preview || detail.payout.profileDirty || unavailable.length > 0;
+    if (save) {
+      save.classList.toggle('hidden', !detail.payout.canSave);
+      save.disabled = !detail.payout.canSave || !detail.payout.preview || detail.payout.profileDirty || unavailable.length > 0;
+    }
     if (copy) copy.disabled = !detail.payout.preview;
   }
 }
