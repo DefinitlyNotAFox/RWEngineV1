@@ -12454,3 +12454,29 @@ body {
 #payoutsView [data-payout-money] {
   font-variant-numeric: tabular-nums;
 }
+
+
+/* Keep Milestones checkbox, label and alternative amount on one row */
+#payoutsView .payout-milestones-field > .payout-milestone-control {
+  display: flex !important;
+  width: max-content !important;
+  max-width: 100%;
+  align-items: center;
+  flex-flow: row nowrap;
+  gap: 10px;
+}
+
+#payoutsView .payout-milestone-control > .payout-secondary-toggle {
+  flex: 0 0 auto;
+}
+
+#payoutsView .payout-milestone-control > .payout-milestone-rate {
+  display: inline-flex !important;
+  flex: 0 0 auto;
+  align-items: center;
+  white-space: nowrap;
+}
+
+#payoutsView .payout-milestone-control > .payout-milestone-rate.hidden {
+  display: none !important;
+}
