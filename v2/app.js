@@ -1145,6 +1145,7 @@ function renderPayoutSettingsVisibility() {
   document.querySelector('#payoutPresetName')?.classList.toggle('hidden', !editable);
   document.querySelector('#payoutPresetSave')?.classList.toggle('hidden', !editable);
   document.querySelector('#payoutPresetDelete')?.classList.toggle('hidden', !editable);
+  document.querySelector('#payoutPresetControls')?.classList.toggle('hidden', !editable);
 }
 
 async function loadPayoutSettings() {
@@ -1189,6 +1190,8 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
   const list = document.querySelector('#payoutSettingsList');
   if (!list) return;
 
+  renderPayoutGlobalSettings(profile, canEdit);
+
   const modules = new Map(
     (Array.isArray(profile?.modules) ? profile.modules : [])
       .map(module => [String(module?.id || ''), module])
@@ -1208,6 +1211,8 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
         ? '$ / assist'
         : '$ / hit';
     const rate = Number(module.rate ?? 0);
+    const percentageBased = definition.supportsPercentage === true && module.percentageBased === true;
+    const pool = Number(module.pool ?? definition.defaultPool ?? 0);
     const milestoneRate = Number(module.milestoneRate ?? definition.defaultMilestoneRate ?? 0);
     const milestonesIncluded = module.milestonesIncluded !== false;
 
@@ -1225,7 +1230,19 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
         </header>
 
         <div class="payout-module-fields">
-          <div class="payout-module-field payout-rate-field">
+          ${definition.supportsPercentage ? `
+            <div class="payout-module-toggle-row payout-percentage-field">
+              <span>% based</span>
+              ${canEdit
+                ? `<input type="checkbox" data-payout-percentage${percentageBased ? ' checked' : ''} />`
+                : percentageBased
+                  ? `<span class="payout-milestone-check" aria-label="Percentage based payout">✓</span>`
+                  : `<span class="payout-setting-value">No</span>`
+              }
+            </div>
+          ` : ''}
+
+          <div class="payout-module-field payout-rate-field${percentageBased ? ' hidden' : ''}">
             <span>Rate</span>
             ${canEdit ? `
               <span class="payout-setting-input">
@@ -1233,9 +1250,23 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
                 <em>${escapeHtml(unit)}</em>
               </span>
             ` : `
-              <span class="payout-setting-value"><strong>$${escapeHtml(formatNumber(rate))}</strong><em>${escapeHtml(unit.replace('$ / ', '/ '))}</em></span>
+              <span class="payout-setting-value"><strong>${escapeHtml(formatNumber(rate))}</strong><em>${escapeHtml(unit.replace('$ / ', '/ '))}</em></span>
             `}
           </div>
+
+          ${definition.supportsPercentage ? `
+            <div class="payout-module-field payout-pool-field${percentageBased ? '' : ' hidden'}">
+              <span>Pool</span>
+              ${canEdit ? `
+                <span class="payout-setting-input">
+                  <input type="number" min="0" max="100000000000" step="100000" value="${escapeHtml(pool)}" data-payout-pool />
+                  <em>$ total</em>
+                </span>
+              ` : `
+                <span class="payout-setting-value"><strong>${escapeHtml(formatNumber(pool))}</strong><em>total</em></span>
+              `}
+            </div>
+          ` : ''}
 
           ${definition.supportsMilestones ? `
             <div class="payout-module-toggle-row payout-milestones-field">
@@ -1274,6 +1305,47 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
         ?.classList.toggle('hidden', input.checked);
     });
   });
+
+  list.querySelectorAll('[data-payout-percentage]').forEach(input => {
+    input.addEventListener('change', () => {
+      const module = input.closest('.payout-module-column');
+      module?.querySelector('.payout-rate-field')?.classList.toggle('hidden', input.checked);
+      module?.querySelector('.payout-pool-field')?.classList.toggle('hidden', !input.checked);
+    });
+  });
+}
+
+function renderPayoutGlobalSettings(profile, canEdit) {
+  const target = document.querySelector('#payoutProfileGlobal');
+  if (!target) return;
+
+  const factionCutPercent = Number(profile?.factionCutPercent || 0);
+  const hasPercentage = (Array.isArray(profile?.modules) ? profile.modules : [])
+    .some(module => module?.enabled !== false && module?.percentageBased === true);
+
+  if (!canEdit && !hasPercentage) {
+    target.innerHTML = '';
+    target.classList.add('hidden');
+    return;
+  }
+
+  target.classList.remove('hidden');
+  target.innerHTML = canEdit
+    ? `
+      <label class="payout-global-control">
+        <span>Faction cut</span>
+        <span class="payout-setting-input">
+          <input type="number" min="0" max="100" step="0.1" value="${escapeHtml(factionCutPercent)}" data-payout-faction-cut />
+          <em>%</em>
+        </span>
+      </label>
+    `
+    : `
+      <div class="payout-global-readonly">
+        <span>Faction cut</span>
+        <strong>${escapeHtml(formatNumber(factionCutPercent))}%</strong>
+      </div>
+    `;
 }
 
 function renderPayoutPresetControls() {
@@ -1287,6 +1359,7 @@ function renderPayoutPresetControls() {
   select.classList.toggle('hidden', !editable);
   name.classList.toggle('hidden', !editable);
   remove.classList.toggle('hidden', !editable);
+  document.querySelector('#payoutPresetControls')?.classList.toggle('hidden', !editable);
 
   if (!editable) return;
 
@@ -1432,12 +1505,19 @@ function clearPayoutSettingsPreviewTimer() {
 
 function collectPayoutSettings() {
   const modules = [];
+  const factionCutPercent = Number(
+    document.querySelector('[data-payout-faction-cut]')?.value ?? payoutSettingsProfile?.factionCutPercent ?? 0
+  );
+
+  if (!Number.isFinite(factionCutPercent) || factionCutPercent < 0 || factionCutPercent > 100) {
+    throw new Error('Faction cut must be between 0 and 100%.');
+  }
 
   document.querySelectorAll('#payoutSettingsList [data-payout-module]').forEach(row => {
     const id = String(row.dataset.payoutModule || '');
     const rate = Number(row.querySelector('[data-payout-rate]')?.value);
     if (!id || !Number.isFinite(rate)) {
-      throw new Error('Every enabled payout module needs a numeric rate.');
+      throw new Error('Every payout module needs a numeric rate.');
     }
 
     const module = {
@@ -1445,6 +1525,17 @@ function collectPayoutSettings() {
       enabled:row.querySelector('[data-payout-enabled]')?.checked !== false,
       rate
     };
+
+    const percentageInput = row.querySelector('[data-payout-percentage]');
+    const poolInput = row.querySelector('[data-payout-pool]');
+    if (percentageInput && poolInput) {
+      const pool = Number(poolInput.value);
+      if (!Number.isFinite(pool) || pool < 0) {
+        throw new Error('Percentage payout pools must be numeric.');
+      }
+      module.percentageBased = percentageInput.checked === true;
+      module.pool = pool;
+    }
 
     const milestoneRateInput = row.querySelector('[data-payout-milestone-rate]');
     if (milestoneRateInput) {
@@ -1459,7 +1550,7 @@ function collectPayoutSettings() {
     modules.push(module);
   });
 
-  return { version:1, modules };
+  return { version:2, factionCutPercent, modules };
 }
 
 async function savePayoutSettings(event) {
