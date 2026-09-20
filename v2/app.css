@@ -11850,3 +11850,39 @@ body {
 #payoutsView .payout-toolbar {
   display: none !important;
 }
+
+
+/* Milestones: checkmark when normal, amount when alternative */
+#payoutsView .payout-milestone-control {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+#payoutsView .payout-milestone-control > input {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+
+#payoutsView .payout-milestone-rate {
+  display: inline-flex;
+  align-items: center;
+}
+
+#payoutsView .payout-milestone-rate.hidden {
+  display: none !important;
+}
+
+#payoutsView .payout-milestone-check {
+  color: var(--text);
+  font-size: var(--font-small);
+  font-weight: 700;
+  line-height: 1;
+}
+
+#payoutsView .payout-milestones-field {
+  grid-template-columns: 92px minmax(0, 1fr) !important;
+}
