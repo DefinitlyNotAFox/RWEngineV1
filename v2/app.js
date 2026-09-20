@@ -31,6 +31,9 @@ let payoutSettingsLoading = false;
 let payoutSettingsBusy = false;
 let payoutSettingsCanEdit = false;
 let payoutSettingsCatalog = [];
+let payoutSettingsProfile = null;
+let payoutSettingsPresets = [];
+let payoutSettingsPresetId = null;
 let payoutSettingsPreviewTimer = null;
 let accountCloseBusy = false;
 
@@ -199,6 +202,9 @@ function bindApplication() {
   document.querySelector('#payoutSettingsForm')?.addEventListener('submit', savePayoutSettings);
   document.querySelector('#payoutSettingsForm')?.addEventListener('input', handlePayoutSettingsDraft);
   document.querySelector('#payoutSettingsReset')?.addEventListener('click', resetPayoutSettings);
+  document.querySelector('#payoutPresetSelect')?.addEventListener('change', handlePayoutPresetSelect);
+  document.querySelector('#payoutPresetSave')?.addEventListener('click', savePayoutPreset);
+  document.querySelector('#payoutPresetDelete')?.addEventListener('click', deletePayoutPreset);
 
   on('request-refresh', () => refreshAll(false));
 
@@ -1135,6 +1141,10 @@ function renderPayoutSettingsVisibility() {
 
   document.querySelector('#payoutSettingsReset')?.classList.toggle('hidden', !editable);
   document.querySelector('#payoutSettingsSave')?.classList.toggle('hidden', !editable);
+  document.querySelector('#payoutPresetSelect')?.classList.toggle('hidden', !editable);
+  document.querySelector('#payoutPresetName')?.classList.toggle('hidden', !editable);
+  document.querySelector('#payoutPresetSave')?.classList.toggle('hidden', !editable);
+  document.querySelector('#payoutPresetDelete')?.classList.toggle('hidden', !editable);
 }
 
 async function loadPayoutSettings() {
@@ -1156,9 +1166,13 @@ async function loadPayoutSettings() {
     const result = await payoutSettingsApi('get');
     payoutSettingsCanEdit = result.canEdit === true;
     payoutSettingsCatalog = Array.isArray(result.catalog) ? result.catalog : [];
+    payoutSettingsProfile = result.profile || result.defaults || {};
+    payoutSettingsPresets = Array.isArray(result.presets) ? result.presets : [];
+    payoutSettingsPresetId = null;
     renderPayoutSettingsVisibility();
+    renderPayoutPresetControls();
     renderPayoutSettings(
-      result.profile || result.defaults || {},
+      payoutSettingsProfile,
       payoutSettingsCatalog,
       payoutSettingsCanEdit && canManagePayoutSettingsView()
     );
@@ -1262,6 +1276,135 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit 
   });
 }
 
+function renderPayoutPresetControls() {
+  const select = document.querySelector('#payoutPresetSelect');
+  const name = document.querySelector('#payoutPresetName');
+  const remove = document.querySelector('#payoutPresetDelete');
+  const editable = payoutSettingsCanEdit && canManagePayoutSettingsView();
+
+  if (!select || !name || !remove) return;
+
+  select.classList.toggle('hidden', !editable);
+  name.classList.toggle('hidden', !editable);
+  remove.classList.toggle('hidden', !editable);
+
+  if (!editable) return;
+
+  const selected = String(payoutSettingsPresetId || '');
+  select.innerHTML = [
+    '<option value="">Current settings</option>',
+    ...payoutSettingsPresets.map(preset =>
+      `<option value="${escapeHtml(preset.presetId)}">${escapeHtml(preset.name)}</option>`
+    )
+  ].join('');
+
+  select.value = [...select.options].some(option => option.value === selected) ? selected : '';
+  const preset = payoutSettingsPresets.find(item => String(item.presetId) === String(select.value || ''));
+  name.value = preset?.name || '';
+  remove.disabled = !preset;
+}
+
+function handlePayoutPresetSelect(event) {
+  if (!payoutSettingsCanEdit || !canManagePayoutSettingsView()) return;
+
+  const presetId = Number(event.target?.value || 0);
+  const name = document.querySelector('#payoutPresetName');
+
+  if (!presetId) {
+    payoutSettingsPresetId = null;
+    if (name) name.value = '';
+    renderPayoutSettings(payoutSettingsProfile || {}, payoutSettingsCatalog, true);
+    renderPayoutPresetControls();
+    emit('payout-settings', {
+      factionId:currentFactionId(),
+      profile:payoutSettingsProfile || {}
+    });
+    setPayoutSettingsStatus('');
+    return;
+  }
+
+  const preset = payoutSettingsPresets.find(item => Number(item.presetId) === presetId);
+  if (!preset?.profile) return;
+
+  payoutSettingsPresetId = presetId;
+  if (name) name.value = preset.name || '';
+  renderPayoutSettings(preset.profile, payoutSettingsCatalog, true);
+  renderPayoutPresetControls();
+  emit('payout-settings-preview', {
+    factionId:currentFactionId(),
+    profile:preset.profile
+  });
+  setPayoutSettingsStatus('Preset loaded. Save to apply.');
+}
+
+async function savePayoutPreset() {
+  if (payoutSettingsBusy || !payoutSettingsCanEdit || !canManagePayoutSettingsView()) return;
+
+  const name = String(document.querySelector('#payoutPresetName')?.value || '').trim();
+  if (!name) {
+    setPayoutSettingsStatus('Enter a preset name.', true);
+    document.querySelector('#payoutPresetName')?.focus();
+    return;
+  }
+
+  clearPayoutSettingsPreviewTimer();
+  payoutSettingsBusy = true;
+  setPayoutSettingsBusy(true);
+  setPayoutSettingsStatus('Saving preset…');
+
+  try {
+    const result = await payoutSettingsApi('savePreset', {
+      presetId:payoutSettingsPresetId,
+      name,
+      profile:collectPayoutSettings()
+    });
+
+    payoutSettingsPresets = Array.isArray(result.presets) ? result.presets : payoutSettingsPresets;
+    payoutSettingsPresetId = Number(result.preset?.presetId || payoutSettingsPresetId || 0) || null;
+    renderPayoutPresetControls();
+    setPayoutSettingsStatus(result.message || 'Payout preset saved.');
+  } catch (error) {
+    setPayoutSettingsStatus(error.message || 'Failed to save payout preset.', true);
+  } finally {
+    payoutSettingsBusy = false;
+    setPayoutSettingsBusy(false);
+  }
+}
+
+async function deletePayoutPreset() {
+  if (payoutSettingsBusy || !payoutSettingsCanEdit || !canManagePayoutSettingsView()) return;
+  if (!payoutSettingsPresetId) {
+    setPayoutSettingsStatus('Select a preset to delete.', true);
+    return;
+  }
+
+  clearPayoutSettingsPreviewTimer();
+  payoutSettingsBusy = true;
+  setPayoutSettingsBusy(true);
+  setPayoutSettingsStatus('Deleting preset…');
+
+  try {
+    const result = await payoutSettingsApi('deletePreset', {
+      presetId:payoutSettingsPresetId
+    });
+
+    payoutSettingsPresets = Array.isArray(result.presets) ? result.presets : [];
+    payoutSettingsPresetId = null;
+    renderPayoutPresetControls();
+    renderPayoutSettings(payoutSettingsProfile || {}, payoutSettingsCatalog, true);
+    emit('payout-settings', {
+      factionId:currentFactionId(),
+      profile:payoutSettingsProfile || {}
+    });
+    setPayoutSettingsStatus(result.message || 'Payout preset deleted.');
+  } catch (error) {
+    setPayoutSettingsStatus(error.message || 'Failed to delete payout preset.', true);
+  } finally {
+    payoutSettingsBusy = false;
+    setPayoutSettingsBusy(false);
+  }
+}
+
 function handlePayoutSettingsDraft() {
   if (payoutSettingsBusy || payoutSettingsLoading || !canManagePayoutSettingsView()) return;
 
@@ -1333,7 +1476,8 @@ async function savePayoutSettings(event) {
       profile:collectPayoutSettings()
     });
     payoutSettingsCatalog = Array.isArray(result.catalog) ? result.catalog : payoutSettingsCatalog;
-    renderPayoutSettings(result.profile || {}, payoutSettingsCatalog, true);
+    payoutSettingsProfile = result.profile || {};
+    renderPayoutSettings(payoutSettingsProfile, payoutSettingsCatalog, true);
     emit('payout-settings', {
       factionId:currentFactionId(),
       profile:result.profile || {}
@@ -1358,7 +1502,11 @@ async function resetPayoutSettings() {
   try {
     const result = await payoutSettingsApi('reset');
     payoutSettingsCatalog = Array.isArray(result.catalog) ? result.catalog : payoutSettingsCatalog;
-    renderPayoutSettings(result.profile || {}, payoutSettingsCatalog, true);
+    payoutSettingsProfile = result.profile || {};
+    payoutSettingsPresets = Array.isArray(result.presets) ? result.presets : payoutSettingsPresets;
+    payoutSettingsPresetId = null;
+    renderPayoutPresetControls();
+    renderPayoutSettings(payoutSettingsProfile, payoutSettingsCatalog, true);
     emit('payout-settings', {
       factionId:currentFactionId(),
       profile:result.profile || {}
@@ -1373,9 +1521,13 @@ async function resetPayoutSettings() {
 }
 
 function setPayoutSettingsBusy(busy) {
-  document.querySelectorAll('#payoutSettingsForm input, #payoutSettingsForm button').forEach(control => {
+  document.querySelectorAll(
+    '#payoutSettingsForm input, #payoutSettingsForm button, #payoutPresetSelect, #payoutPresetName, #payoutPresetSave, #payoutPresetDelete'
+  ).forEach(control => {
     control.disabled = Boolean(busy);
   });
+
+  if (!busy) renderPayoutPresetControls();
 }
 
 function setPayoutSettingsStatus(message, error = false) {
