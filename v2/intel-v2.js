@@ -65,6 +65,7 @@ let sortDirection = 'asc';
 let trendDays = 90;
 let trendMetric = 'activity';
 let loading = false;
+let pendingReload = false;
 let syncJob = null;
 let syncing = false;
 const AUTO_SYNC_INTERVAL_SECONDS = 24 * 60 * 60;
@@ -462,7 +463,10 @@ async function loadAppliedTagSettings(force = false) {
 }
 
 export async function loadIntelV2(force = false) {
-  if (loading) return;
+  if (loading) {
+    pendingReload = pendingReload || force;
+    return;
+  }
 
   const factionId = Number(state.selectedFactionId || state.user?.factionId || 0);
   if (!factionId) return;
@@ -484,6 +488,7 @@ export async function loadIntelV2(force = false) {
     overview = await intelV2Api('overview', analysisPayload());
     loadedFactionId = factionId;
     loadedAnalysisKey = key;
+    updateFactionTitle();
     setIntelStatus('');
     renderIntelV2();
     renderIntelFreshness();
@@ -495,7 +500,29 @@ export async function loadIntelV2(force = false) {
     renderIntelV2();
   } finally {
     loading = false;
+    if (pendingReload) {
+      const rerun = pendingReload;
+      pendingReload = false;
+      queueMicrotask(() => loadIntelV2(Boolean(rerun)));
+    }
   }
+}
+
+function updateFactionTitle() {
+  const title = document.querySelector('#factionTitle');
+  if (!title) return;
+
+  const factionId = Number(state.selectedFactionId || state.user?.factionId || 0);
+  const name = String(
+    overview?.faction?.factionName ||
+    state.adminFactions?.find(item => Number(item.factionId) === factionId)?.factionName ||
+    state.user?.factionName ||
+    ''
+  ).trim();
+
+  title.textContent = name && !/^Faction\s+\d+$/i.test(name)
+    ? name
+    : (factionId ? `Faction ${factionId}` : 'Faction');
 }
 
 async function loadFactionPerformance(force = false) {
@@ -2467,6 +2494,7 @@ function detailKey(playerId) {
 function resetIntelState() {
   overview = null;
   loadedFactionId = null;
+  pendingReload = false;
   autoTagSettings = null;
   loadedAutoTagFactionId = null;
   loadedAnalysisKey = '';
@@ -2508,6 +2536,7 @@ function resetIntelState() {
   tagBulkBusy = false;
   tagBulkStatus = '';
 
+  updateFactionTitle();
   renderFilters();
   renderFactionControls();
   renderTagToolbar();
