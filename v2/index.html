@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=123" />
+  <link rel="stylesheet" href="/v2/app.css?v=124" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -269,21 +269,20 @@
             <span>Ranked war</span>
             <select id="payoutWarSelect" class="small-select" aria-label="Ranked war for payout"></select>
           </label>
-          <div id="payoutWarMeta" class="payout-war-meta"></div>
+          <div class="payout-actions payout-page-actions">
+            <select id="payoutHistory" class="small-select" aria-label="Saved payout runs">
+              <option value="">Current profile</option>
+            </select>
+            <button id="payoutCalculate" class="action" type="button">Calculate</button>
+            <button id="payoutSave" class="action primary" type="button">Save run</button>
+            <button id="payoutCopy" class="action" type="button">Copy CSV</button>
+            <button id="payoutRebuild" class="text-action hidden" type="button">Rebuild payout data</button>
+          </div>
         </div>
 
         <section id="payoutPanel" class="payout-panel">
           <div class="payout-toolbar">
             <div id="payoutProfileSummary" class="payout-profile-summary"></div>
-            <div class="payout-actions">
-              <select id="payoutHistory" class="small-select" aria-label="Saved payout runs">
-                <option value="">Current profile</option>
-              </select>
-              <button id="payoutCalculate" class="action" type="button">Calculate</button>
-              <button id="payoutSave" class="action primary" type="button">Save run</button>
-              <button id="payoutCopy" class="action" type="button">Copy CSV</button>
-              <button id="payoutRebuild" class="text-action hidden" type="button">Rebuild payout data</button>
-            </div>
           </div>
           <div id="payoutSummary" class="payout-summary"></div>
           <p id="payoutStatus" class="status-line hidden" role="status"></p>
