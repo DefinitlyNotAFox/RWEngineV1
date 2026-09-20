@@ -201,8 +201,7 @@ function bindApplication() {
   document.querySelector('#autoTagSettingsReset')?.addEventListener('click', resetAutoTagSettings);
   document.querySelector('#payoutSettingsForm')?.addEventListener('submit', savePayoutSettings);
   document.querySelector('#payoutSettingsForm')?.addEventListener('input', handlePayoutSettingsDraft);
-  document.querySelector('#payoutSettingsReset')?.addEventListener('click', resetPayoutSettings);
-  document.querySelector('#payoutPresetSelect')?.addEventListener('change', handlePayoutPresetSelect);
+  document.querySelector('#payoutPresetOptions')?.addEventListener('click', handlePayoutPresetOption);
   document.querySelector('#payoutPresetCreate')?.addEventListener('click', () => togglePayoutPresetCreate(true));
   document.querySelector('#payoutPresetSave')?.addEventListener('click', savePayoutPreset);
   document.querySelector('#payoutPresetDelete')?.addEventListener('click', deletePayoutPreset);
@@ -1140,9 +1139,7 @@ function renderPayoutSettingsVisibility() {
   section.classList.toggle('readonly', !editable);
   document.querySelector('#payoutsView')?.classList.toggle('payout-admin-profile-visible', editable);
 
-  document.querySelector('#payoutSettingsReset')?.classList.toggle('hidden', !editable);
   document.querySelector('#payoutSettingsSave')?.classList.toggle('hidden', !editable);
-  document.querySelector('#payoutPresetSelect')?.classList.toggle('hidden', !editable);
   document.querySelector('#payoutPresetCreate')?.classList.toggle('hidden', !editable);
   document.querySelector('#payoutPresetDelete')?.classList.toggle('hidden', !editable);
   document.querySelector('#payoutPresetControls')?.classList.toggle('hidden', !editable);
@@ -1398,16 +1395,14 @@ function renderPayoutGlobalSettings(profile, canEdit) {
 }
 
 function renderPayoutPresetControls() {
-  const select = document.querySelector('#payoutPresetSelect');
-  const name = document.querySelector('#payoutPresetName');
+  const options = document.querySelector('#payoutPresetOptions');
   const create = document.querySelector('#payoutPresetCreate');
   const remove = document.querySelector('#payoutPresetDelete');
   const controls = document.querySelector('#payoutPresetControls');
   const editable = payoutSettingsCanEdit && canManagePayoutSettingsView();
 
-  if (!select || !name || !create || !remove || !controls) return;
+  if (!options || !create || !remove || !controls) return;
 
-  select.classList.toggle('hidden', !editable);
   create.classList.toggle('hidden', !editable);
   remove.classList.toggle('hidden', !editable);
   controls.classList.toggle('hidden', !editable);
@@ -1417,23 +1412,14 @@ function renderPayoutPresetControls() {
     return;
   }
 
-  const selected = String(payoutSettingsPresetId || '');
-  select.innerHTML = [
-    '<option value="">Current settings</option>',
+  options.innerHTML = [
+    `<button class="payout-preset-option${payoutSettingsPresetId ? '' : ' selected'}" type="button" data-payout-preset-id="">Current settings</button>`,
     ...payoutSettingsPresets.map(preset =>
-      `<option value="${escapeHtml(preset.presetId)}">${escapeHtml(preset.name)}</option>`
+      `<button class="payout-preset-option${Number(preset.presetId) === Number(payoutSettingsPresetId || 0) ? ' selected' : ''}" type="button" data-payout-preset-id="${escapeHtml(preset.presetId)}">${escapeHtml(preset.name)}</button>`
     )
   ].join('');
 
-  select.value = [...select.options].some(option => option.value === selected) ? selected : '';
-  const preset = payoutSettingsPresets.find(item => String(item.presetId) === String(select.value || ''));
-
-  remove.disabled = !preset;
-  create.textContent = preset ? 'Update preset…' : 'Save as preset…';
-
-  if (!document.querySelector('#payoutPresetCreateRow')?.classList.contains('hidden')) {
-    name.value = preset?.name || name.value || '';
-  }
+  remove.disabled = !payoutSettingsPresetId;
 }
 
 function togglePayoutPresetCreate(open) {
@@ -1442,6 +1428,7 @@ function togglePayoutPresetCreate(open) {
   if (!row || !name) return;
 
   row.classList.toggle('hidden', !open);
+  document.querySelector('#payoutPresetMenu')?.removeAttribute('open');
   document.querySelector('#payoutMoreMenu')?.removeAttribute('open');
 
   if (!open) {
@@ -1449,21 +1436,18 @@ function togglePayoutPresetCreate(open) {
     return;
   }
 
-  const preset = payoutSettingsPresets.find(
-    item => Number(item.presetId) === Number(payoutSettingsPresetId || 0)
-  );
-  name.value = preset?.name || '';
-  window.setTimeout(() => {
-    name.focus();
-    name.select();
-  }, 0);
+  name.value = '';
+  window.setTimeout(() => name.focus(), 0);
 }
 
-
-function handlePayoutPresetSelect(event) {
+function handlePayoutPresetOption(event) {
   if (!payoutSettingsCanEdit || !canManagePayoutSettingsView()) return;
 
-  const presetId = Number(event.target?.value || 0);
+  const option = event.target.closest('[data-payout-preset-id]');
+  if (!option) return;
+
+  const presetId = Number(option.dataset.payoutPresetId || 0);
+  document.querySelector('#payoutPresetMenu')?.removeAttribute('open');
   togglePayoutPresetCreate(false);
 
   if (!presetId) {
@@ -1491,6 +1475,7 @@ function handlePayoutPresetSelect(event) {
   setPayoutSettingsStatus('Preset loaded. Apply changes to make it active.');
 }
 
+
 async function savePayoutPreset() {
   if (payoutSettingsBusy || !payoutSettingsCanEdit || !canManagePayoutSettingsView()) return;
 
@@ -1508,7 +1493,7 @@ async function savePayoutPreset() {
 
   try {
     const result = await payoutSettingsApi('savePreset', {
-      presetId:payoutSettingsPresetId,
+      presetId:null,
       name,
       profile:collectPayoutSettings()
     });
@@ -1666,39 +1651,9 @@ async function savePayoutSettings(event) {
   }
 }
 
-async function resetPayoutSettings() {
-  if (payoutSettingsBusy || !canManagePayoutSettingsView()) return;
-
-  clearPayoutSettingsPreviewTimer();
-  payoutSettingsBusy = true;
-  setPayoutSettingsBusy(true);
-  setPayoutSettingsStatus('Restoring payout defaults…');
-
-  try {
-    const result = await payoutSettingsApi('reset');
-    payoutSettingsCatalog = Array.isArray(result.catalog) ? result.catalog : payoutSettingsCatalog;
-    payoutSettingsProfile = result.profile || {};
-    payoutSettingsPresets = Array.isArray(result.presets) ? result.presets : payoutSettingsPresets;
-    payoutSettingsPresetId = null;
-    renderPayoutPresetControls();
-    renderPayoutSettings(payoutSettingsProfile, payoutSettingsCatalog, true);
-    emit('payout-settings', {
-      factionId:currentFactionId(),
-      profile:result.profile || {}
-    });
-    document.querySelector('#payoutMoreMenu')?.removeAttribute('open');
-    setPayoutSettingsStatus(result.message || 'Payout profile reset.');
-  } catch (error) {
-    setPayoutSettingsStatus(error.message || 'Failed to reset payout profile.', true);
-  } finally {
-    payoutSettingsBusy = false;
-    setPayoutSettingsBusy(false);
-  }
-}
-
 function setPayoutSettingsBusy(busy) {
   document.querySelectorAll(
-    '#payoutSettingsForm input, #payoutSettingsForm button, #payoutPresetSelect, #payoutPresetName, #payoutPresetCreate, #payoutPresetSave, #payoutPresetDelete, #payoutSettingsReset'
+    '#payoutSettingsForm input, #payoutSettingsForm button, #payoutPresetName, #payoutPresetCreate, #payoutPresetSave, #payoutPresetDelete, #payoutPresetOptions button'
   ).forEach(control => {
     control.disabled = Boolean(busy);
   });
