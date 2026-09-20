@@ -1174,36 +1174,29 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog) {
 
   const definitions = Array.isArray(catalog) ? catalog : [];
 
-  list.innerHTML = `
-    <div class="payout-profile-grid payout-profile-grid-head" aria-hidden="true">
-      <span>Type</span>
-      <span>Module</span>
-      <span>Rate</span>
-      <span>Normalize</span>
-      <span>Milestone</span>
-    </div>
-    ${definitions.map((definition, index) => {
-      const module = modules.get(String(definition.id || '')) || {};
-      const enabled = module.enabled !== false;
-      const group = String(definition.group || 'Payout');
-      const previousGroup = index > 0 ? String(definitions[index - 1]?.group || 'Payout') : '';
-      const showGroup = index === 0 || previousGroup !== group;
-      const unit = definition.unit === 'R'
-        ? '$ / R'
-        : definition.unit === 'assist'
-          ? '$ / assist'
-          : '$ / hit';
+  list.innerHTML = definitions.map(definition => {
+    const module = modules.get(String(definition.id || '')) || {};
+    const enabled = module.enabled !== false;
+    const unit = definition.unit === 'R'
+      ? '$ / R'
+      : definition.unit === 'assist'
+        ? '$ / assist'
+        : '$ / hit';
 
-      return `
-        <div class="payout-profile-grid payout-setting-row${enabled ? '' : ' disabled'}${showGroup ? ' group-start' : ''}" data-payout-module="${escapeHtml(definition.id)}">
-          <span class="payout-setting-type">${showGroup ? escapeHtml(group) : ''}</span>
+    return `
+      <section class="payout-module-column${enabled ? '' : ' disabled'}" data-payout-module="${escapeHtml(definition.id)}">
+        <header class="payout-module-header">
+          <strong>${escapeHtml(definition.label || definition.id)}</strong>
+        </header>
 
-          <label class="payout-setting-toggle">
+        <div class="payout-module-fields">
+          <label class="payout-module-enabled">
+            <span>Enabled</span>
             <input type="checkbox" data-payout-enabled${enabled ? ' checked' : ''} />
-            <span>${escapeHtml(definition.label || definition.id)}</span>
           </label>
 
-          <label class="payout-rate-field" title="Payout rate">
+          <label class="payout-module-field payout-rate-field">
+            <span>Rate</span>
             <span class="payout-setting-input">
               <input type="number" min="0" max="100000000" step="1000" value="${escapeHtml(module.rate ?? 0)}" data-payout-rate />
               <em>${escapeHtml(unit)}</em>
@@ -1211,27 +1204,27 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog) {
           </label>
 
           ${definition.supportsMilestones ? `
-            <label class="check payout-normalize-field">
+            <label class="payout-module-enabled payout-normalize-field">
+              <span>Normalize</span>
               <input type="checkbox" data-payout-normalize${module.normalizeMilestones !== false ? ' checked' : ''} />
             </label>
-            <label class="payout-milestone-field" title="Milestone respect value">
+
+            <label class="payout-module-field payout-milestone-field">
+              <span>Milestone</span>
               <span class="payout-setting-input">
                 <input type="number" min="0" max="1000" step="1" value="${escapeHtml(module.milestoneValue ?? definition.defaultMilestoneValue ?? 10)}" data-payout-milestone />
                 <em>R</em>
               </span>
             </label>
-          ` : `
-            <span class="payout-setting-na">—</span>
-            <span class="payout-setting-na">—</span>
-          `}
+          ` : ''}
         </div>
-      `;
-    }).join('')}
-  `;
+      </section>
+    `;
+  }).join('');
 
   list.querySelectorAll('[data-payout-enabled]').forEach(input => {
     input.addEventListener('change', () => {
-      input.closest('.payout-setting-row')?.classList.toggle('disabled', !input.checked);
+      input.closest('.payout-module-column')?.classList.toggle('disabled', !input.checked);
     });
   });
 }
