@@ -252,11 +252,11 @@
               <select id="payoutWarSelect" class="small-select" aria-label="Ranked war for payout"></select>
             </label>
             <div class="payout-actions payout-head-actions">
-              <select id="payoutHistory" class="small-select" aria-label="Saved payout presets">
+              <select id="payoutHistory" class="small-select hidden" aria-label="Saved payout presets">
                 <option value="">Current preset</option>
               </select>
-              <button id="payoutCalculate" class="action" type="button">Calculate</button>
-              <button id="payoutSave" class="action primary" type="button">Save preset</button>
+              <button id="payoutCalculate" class="action hidden" type="button">Calculate</button>
+              <button id="payoutSave" class="action primary hidden" type="button">Save preset</button>
               <button id="payoutCopy" class="action" type="button">Copy CSV</button>
             </div>
           </div>
@@ -442,6 +442,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=130"></script>
+  <script type="module" src="/v2/app.js?v=131"></script>
 </body>
 </html>
