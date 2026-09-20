@@ -73,6 +73,39 @@ test('inactivity and training use their configured tier families', () => {
   assert.equal(tags.find(tag => tag.code === 'auto_training_energy')?.tier, 'green');
 });
 
+test('positive tags use two intensities while concerns keep three', () => {
+  const { buildAutoTags, DEFAULT_AUTO_TAG_SETTINGS } = loadEngine();
+
+  assert.deepEqual(
+    Object.keys(DEFAULT_AUTO_TAG_SETTINGS.highWarHits).filter(key => key !== 'enabled'),
+    ['green','bright']
+  );
+  assert.deepEqual(
+    Object.keys(DEFAULT_AUTO_TAG_SETTINGS.assists).filter(key => key !== 'enabled'),
+    ['green','bright']
+  );
+
+  const critical = buildAutoTags(
+    { current:true, presence:{}, trainingEnergyPerDay:350 },
+    { wars:1, warHits:2, avgHitsPerWar:2, assists:0, outsideHits:0, respectEarned:5, attackDetailWars:1 },
+    null,
+    10_000
+  );
+  assert.equal(critical.find(tag => tag.code === 'auto_low_war_hits')?.title, 'Critical war hits');
+  assert.equal(critical.find(tag => tag.code === 'auto_training_energy')?.title, 'Critical training');
+
+  const high = buildAutoTags(
+    { current:true, presence:{}, trainingEnergyPerDay:1300 },
+    { wars:1, warHits:30, avgHitsPerWar:30, assists:12, outsideHits:0, respectEarned:150, attackDetailWars:1 },
+    null,
+    10_000
+  );
+  assert.equal(high.find(tag => tag.code === 'auto_high_war_hits')?.title, 'High war hits');
+  assert.equal(high.find(tag => tag.code === 'auto_assists')?.title, 'High assists');
+  assert.equal(high.find(tag => tag.code === 'auto_training_energy')?.title, 'High training');
+  assert.equal(high.some(tag => tag.tier === 'teal'), false);
+});
+
 test('disabled tag families do not apply', () => {
   const { buildAutoTags, DEFAULT_AUTO_TAG_SETTINGS } = loadEngine();
   const settings = structuredClone(DEFAULT_AUTO_TAG_SETTINGS);
