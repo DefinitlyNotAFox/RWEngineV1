@@ -12480,3 +12480,38 @@ body {
 #payoutsView .payout-milestone-control > .payout-milestone-rate.hidden {
   display: none !important;
 }
+
+
+/* Group related payout settings into three visual columns */
+#payoutsView .payout-settings-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 30px;
+  align-items: start;
+}
+
+#payoutsView .payout-settings-solo,
+#payoutsView .payout-settings-stack {
+  display: grid;
+  min-width: 0;
+}
+
+#payoutsView .payout-settings-stack {
+  gap: 12px;
+}
+
+#payoutsView .payout-settings-stack > .payout-module-column,
+#payoutsView .payout-settings-solo > .payout-module-column {
+  min-width: 0;
+}
+
+@media (max-width: 980px) {
+  #payoutsView .payout-settings-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  #payoutsView .payout-settings-list {
+    grid-template-columns: 1fr;
+  }
+}
