@@ -12175,3 +12175,70 @@ body {
     justify-content: flex-end;
   }
 }
+
+
+/* Compact payout secondary-action menu */
+#payoutsView .payout-more-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+#payoutsView .payout-more-menu > summary {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+#payoutsView .payout-more-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+#payoutsView .payout-more-menu[open] > summary {
+  border-color: #4a5053;
+}
+
+#payoutsView .payout-more-popover {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 5px);
+  right: 0;
+  display: grid;
+  min-width: 150px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: #0c0e0f;
+  box-shadow: 0 8px 22px rgba(0,0,0,.35);
+}
+
+#payoutsView .payout-menu-action {
+  width: 100%;
+  min-height: 30px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--font-small);
+  text-align: left;
+  cursor: pointer;
+}
+
+#payoutsView .payout-menu-action:hover,
+#payoutsView .payout-menu-action:focus-visible {
+  background: rgba(255,255,255,.055);
+}
+
+#payoutsView .payout-menu-action:disabled {
+  opacity: .4;
+  cursor: default;
+}
+
+#payoutsView .payout-war-actions {
+  align-items: flex-end;
+}
