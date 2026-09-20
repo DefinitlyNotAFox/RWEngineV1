@@ -13213,3 +13213,151 @@ body {
     display: none;
   }
 }
+
+
+/* Final payout top-layout polish */
+#payoutsView .payout-top-layout {
+  grid-template-columns: minmax(430px, 460px) minmax(0, 756px);
+  justify-content: start;
+  gap: 32px;
+}
+
+#payoutsView .payout-head-controls {
+  width: 100%;
+  max-width: 460px;
+  justify-self: start;
+}
+
+#payoutsView #payoutSettingsSection {
+  width: 756px;
+  max-width: 100%;
+  justify-self: start;
+}
+
+#payoutsView .payout-settings-list {
+  grid-template-columns: repeat(3, 240px);
+  gap: 18px;
+  width: 756px;
+  max-width: 100%;
+}
+
+#payoutsView .payout-settings-solo,
+#payoutsView .payout-settings-stack {
+  width: 240px;
+  max-width: 100%;
+}
+
+#payoutsView .payout-settings-headbar {
+  display: flex;
+  width: 100%;
+  min-height: 24px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  margin: 0 0 8px;
+}
+
+#payoutsView .payout-settings-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#payoutsView #payoutSettingsSave {
+  min-height: 28px;
+  padding: 3px 10px;
+}
+
+#payoutsView .payout-settings-head-actions .status-line {
+  margin: 0;
+  white-space: nowrap;
+}
+
+#payoutsView .payout-war-picker > span:first-child {
+  display: block;
+  min-height: 24px;
+  line-height: 24px;
+}
+
+#payoutsView .payout-preset-controls {
+  width: calc(100% - 50px);
+  justify-content: flex-start;
+}
+
+#payoutsView .payout-preset-menu {
+  flex: 0 0 auto;
+}
+
+#payoutsView #payoutPresetCreate {
+  flex: 0 0 auto;
+}
+
+#payoutsView .payout-more-menu > summary {
+  min-width: 42px;
+  min-height: 30px;
+  padding: 3px 8px;
+  color: var(--muted);
+  font-size: var(--font-caption);
+}
+
+#payoutsView .payout-war-actions {
+  align-self: end;
+}
+
+#payoutsView .payout-war-actions .payout-more-menu {
+  margin-bottom: 0;
+}
+
+#payoutsView .payout-module-column.disabled {
+  opacity: .58;
+}
+
+#payoutsView .payout-module-column.disabled .payout-module-fields,
+#payoutsView .payout-module-column.disabled .payout-inline-rate-value,
+#payoutsView .payout-module-column.disabled .payout-inline-pool-value {
+  opacity: .72;
+}
+
+#payoutsView .payout-settings-stack {
+  gap: 4px;
+}
+
+#payoutsView .payout-settings-stack .payout-module-column + .payout-module-column {
+  margin-top: 0;
+}
+
+@media (max-width: 1320px) {
+  #payoutsView .payout-top-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  #payoutsView .payout-head-controls,
+  #payoutsView #payoutSettingsSection {
+    width: min(100%, 756px);
+    max-width: 756px;
+    justify-self: start;
+  }
+}
+
+@media (max-width: 820px) {
+  #payoutsView .payout-settings-list {
+    grid-template-columns: repeat(2, minmax(240px, 1fr));
+    width: 100%;
+  }
+
+  #payoutsView .payout-settings-solo,
+  #payoutsView .payout-settings-stack {
+    width: auto;
+  }
+
+  #payoutsView .payout-preset-controls {
+    width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  #payoutsView .payout-settings-list {
+    grid-template-columns: 1fr;
+  }
+}
