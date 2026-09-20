@@ -4,7 +4,7 @@ import {
   formatNumber, formatCompact, formatDecimal, formatPercent, formatSigned,
   formatDuration, formatRelative, escapeHtml, sleep
 } from './core.js?v=5';
-import { buildAutoTags } from './auto-tag-engine.js?v=3';
+import { buildAutoTags } from './auto-tag-engine.js?v=4';
 
 const MONTH_DAYS = 30.44;
 
