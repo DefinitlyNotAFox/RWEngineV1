@@ -1400,6 +1400,7 @@ async function copyPayoutCsv() {
 
   try {
     await navigator.clipboard.writeText(csv);
+    document.querySelector('#payoutMoreMenu')?.removeAttribute('open');
     setPayoutStatus('Payout CSV copied.');
   } catch (_) {
     setPayoutStatus('Could not copy the payout CSV.', true);
