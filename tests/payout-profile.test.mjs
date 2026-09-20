@@ -89,3 +89,40 @@ test('milestones can be paid normally at the respect rate', () => {
   assert.equal(result.members[0].components[0].quantity, 100);
   assert.equal(result.members[0].totalPayout, 100000);
 });
+
+
+test('percentage contribution payout honors faction cut', () => {
+  const profile = normalizePayoutProfile({
+    factionCutPercent:10,
+    modules:[
+      {
+        id:'rankedRespect',
+        enabled:true,
+        rate:120000,
+        percentageBased:true,
+        pool:1000000,
+        milestonesIncluded:true,
+        milestoneRate:0
+      },
+      { id:'outsideChainRespect', enabled:false, rate:0, milestonesIncluded:true, milestoneRate:0 },
+      { id:'warHits', enabled:false, rate:0, percentageBased:false, pool:0 },
+      { id:'assists', enabled:false, rate:0 },
+      { id:'outsideHits', enabled:false, rate:0 }
+    ]
+  });
+
+  const result = calculatePayoutRows([
+    { player_id:1, player_name:'A', score_up:75 },
+    { player_id:2, player_name:'B', score_up:25 }
+  ], profile);
+
+  const a = result.members.find(member => member.playerId === 1);
+  const b = result.members.find(member => member.playerId === 2);
+  const ranked = result.modules.find(module => module.id === 'rankedRespect');
+
+  assert.equal(ranked.distributablePool, 900000);
+  assert.equal(ranked.factionCutAmount, 100000);
+  assert.equal(a.components.find(component => component.id === 'rankedRespect').payout, 675000);
+  assert.equal(b.components.find(component => component.id === 'rankedRespect').payout, 225000);
+  assert.equal(result.totalPayout, 900000);
+});
