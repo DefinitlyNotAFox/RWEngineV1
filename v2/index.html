@@ -247,20 +247,25 @@
             <h1>Payouts</h1>
           </div>
           <div class="payout-head-controls">
-            <label class="payout-war-picker payout-head-war">
-              <span>Ranked war</span>
-              <select id="payoutWarSelect" class="small-select" aria-label="Ranked war for payout"></select>
-            </label>
-            <div class="payout-actions payout-head-actions">
+            <div class="payout-head-row payout-war-row">
+              <label class="payout-war-picker payout-head-war">
+                <span>Ranked war</span>
+                <select id="payoutWarSelect" class="small-select" aria-label="Ranked war for payout"></select>
+              </label>
+              <div class="payout-actions payout-war-actions">
+                <button id="payoutCalculate" class="action hidden" type="button">Calculate</button>
+                <button id="payoutConfirm" class="action primary hidden" type="button">Confirm payout</button>
+                <button id="payoutCopy" class="action" type="button">Copy CSV</button>
+              </div>
+            </div>
+            <div id="payoutPresetControls" class="payout-head-row payout-preset-controls hidden">
+              <span class="payout-control-label">Preset</span>
               <select id="payoutPresetSelect" class="small-select hidden" aria-label="Payout settings preset">
                 <option value="">Current settings</option>
               </select>
               <input id="payoutPresetName" class="payout-preset-name hidden" type="text" maxlength="60" placeholder="Preset name" aria-label="Payout preset name" />
               <button id="payoutPresetSave" class="action primary hidden" type="button">Save preset</button>
               <button id="payoutPresetDelete" class="text-action hidden" type="button">Delete</button>
-              <button id="payoutCalculate" class="action hidden" type="button">Calculate</button>
-              <button id="payoutConfirm" class="action primary hidden" type="button">Confirm payout</button>
-              <button id="payoutCopy" class="action" type="button">Copy CSV</button>
             </div>
           </div>
         </header>
@@ -268,6 +273,7 @@
         <section id="payoutSettingsSection" class="payout-settings-section hidden">
           <form id="payoutSettingsForm" class="payout-settings-form">
             <div class="payout-settings-headbar">
+              <div id="payoutProfileGlobal" class="payout-profile-global"></div>
               <div class="payout-settings-head-actions">
                 <p id="payoutSettingsStatus" class="status-line hidden" role="status"></p>
                 <button id="payoutSettingsReset" class="text-action" type="button">Reset</button>
