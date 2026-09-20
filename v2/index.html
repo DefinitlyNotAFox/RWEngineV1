@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
   <title>RWEngine</title>
-  <link rel="stylesheet" href="/v2/app.css?v=167" />
+  <link rel="stylesheet" href="/v2/app.css?v=168" />
 </head>
 <body>
   <section id="authView" class="auth-view hidden" aria-label="RWEngine account">
@@ -254,16 +254,7 @@
               <div class="payout-war-picker payout-head-war">
                 <div class="payout-war-picker-head">
                   <span>Ranked war</span>
-                  <div id="payoutWarStatusFilter" class="payout-war-status-filter" aria-label="Payout status">
-                    <button type="button" class="active" data-payout-war-status="outstanding" aria-pressed="true">
-                      <span>Outstanding</span>
-                      <small data-payout-war-count>0</small>
-                    </button>
-                    <button type="button" data-payout-war-status="paid" aria-pressed="false">
-                      <span>Paid</span>
-                      <small data-payout-war-count>0</small>
-                    </button>
-                  </div>
+                  <span id="payoutWarStatus" class="payout-war-status-display"></span>
                 </div>
                 <div class="payout-war-select-line">
                   <details id="payoutWarMenu" class="payout-war-menu">
@@ -484,6 +475,6 @@
     </main>
   </div>
 
-  <script type="module" src="/v2/app.js?v=148"></script>
+  <script type="module" src="/v2/app.js?v=149"></script>
 </body>
 </html>
