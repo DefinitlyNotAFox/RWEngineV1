@@ -251,13 +251,19 @@
         <div class="payout-top-layout">
           <aside class="payout-head-controls">
             <div class="payout-head-row payout-war-row">
-              <label class="payout-war-picker payout-head-war">
+              <div class="payout-war-picker payout-head-war">
                 <span>Ranked war</span>
-                <span class="payout-war-select-row">
-                  <select id="payoutWarSelect" class="small-select" aria-label="Ranked war for payout"></select>
-                  <span id="payoutWarState" class="payout-war-state"></span>
-                </span>
-              </label>
+                <details id="payoutWarMenu" class="payout-war-menu">
+                  <summary class="payout-war-trigger">
+                    <span class="payout-war-trigger-copy">
+                      <strong id="payoutWarTriggerTitle">Select ranked war</strong>
+                      <small id="payoutWarTriggerMeta"></small>
+                    </span>
+                    <span id="payoutWarTriggerState" class="payout-war-state"></span>
+                  </summary>
+                  <div id="payoutWarOptions" class="payout-war-options"></div>
+                </details>
+              </div>
               <div class="payout-actions payout-war-actions">
                 <details id="payoutMoreMenu" class="payout-more-menu">
                   <summary class="action">More</summary>
