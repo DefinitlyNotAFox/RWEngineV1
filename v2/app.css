@@ -13502,3 +13502,155 @@ body {
     display: inline-block;
   }
 }
+
+
+/* Payout spacing/alignment pass */
+#payoutsView .payout-top-layout {
+  grid-template-columns: minmax(430px, 460px) minmax(0, 684px);
+  gap: 28px;
+}
+
+#payoutsView .payout-head-controls {
+  max-width: 460px;
+}
+
+#payoutsView .payout-war-row {
+  display: block;
+}
+
+#payoutsView .payout-war-select-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  align-items: stretch;
+  gap: 7px;
+  width: 100%;
+}
+
+#payoutsView .payout-war-select-line .payout-war-menu {
+  min-width: 0;
+}
+
+#payoutsView .payout-war-more {
+  position: relative;
+  align-self: stretch;
+}
+
+#payoutsView .payout-war-more > summary {
+  display: flex;
+  width: 34px;
+  min-width: 34px;
+  height: 100%;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--muted);
+  font-size: 17px;
+  letter-spacing: .08em;
+}
+
+#payoutsView .payout-war-more > summary:hover,
+#payoutsView .payout-war-more[open] > summary {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+#payoutsView .payout-war-more .payout-more-popover {
+  right: 0;
+  left: auto;
+}
+
+#payoutsView .payout-preset-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 7px;
+  width: 100%;
+}
+
+#payoutsView .payout-preset-menu,
+#payoutsView #payoutPresetCreate {
+  width: 100%;
+}
+
+#payoutsView .payout-preset-menu > summary,
+#payoutsView #payoutPresetCreate {
+  width: 100%;
+  justify-content: center;
+}
+
+#payoutsView #payoutSettingsSection,
+#payoutsView .payout-settings-list {
+  width: 684px;
+  max-width: 100%;
+}
+
+#payoutsView .payout-settings-list {
+  grid-template-columns: repeat(3, 220px);
+  gap: 12px;
+}
+
+#payoutsView .payout-settings-solo,
+#payoutsView .payout-settings-stack {
+  width: 220px;
+}
+
+#payoutsView .payout-settings-headbar {
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+
+#payoutsView .payout-profile-global {
+  margin-left: auto;
+}
+
+#payoutsView .payout-settings-head-actions {
+  flex: 0 0 auto;
+}
+
+#payoutsView .payout-summary-row {
+  width: fit-content;
+  max-width: 100%;
+  justify-content: flex-start;
+  gap: 24px;
+}
+
+#payoutsView .payout-summary-row .payout-summary {
+  flex: 0 1 auto;
+}
+
+#payoutsView .payout-confirm-slot {
+  flex: 0 0 auto;
+  justify-content: flex-start;
+  padding-right: 0;
+}
+
+@media (max-width: 1320px) {
+  #payoutsView .payout-top-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  #payoutsView .payout-head-controls,
+  #payoutsView #payoutSettingsSection {
+    width: min(100%, 684px);
+    max-width: 684px;
+  }
+}
+
+@media (max-width: 760px) {
+  #payoutsView .payout-summary-row {
+    width: 100%;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 560px) {
+  #payoutsView .payout-war-select-line {
+    grid-template-columns: minmax(0, 1fr) 34px;
+  }
+
+  #payoutsView .payout-preset-controls {
+    grid-template-columns: 1fr;
+  }
+}
