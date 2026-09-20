@@ -11,8 +11,7 @@ export const DEFAULT_AUTO_TAG_SETTINGS = {
   },
   highWarHits: {
     enabled:true,
-    teal:25,
-    green:40,
+    green:25,
     bright:60
   },
   outsideHits: {
@@ -28,8 +27,7 @@ export const DEFAULT_AUTO_TAG_SETTINGS = {
   },
   assists: {
     enabled:true,
-    teal:10,
-    green:20,
+    green:10,
     bright:35
   },
   trainingEnergy: {
@@ -37,8 +35,7 @@ export const DEFAULT_AUTO_TAG_SETTINGS = {
     red:400,
     orange:550,
     yellow:700,
-    teal:1200,
-    green:1350,
+    green:1200,
     bright:1500
   },
   inactivity: {
@@ -112,7 +109,7 @@ export async function onRequest(context) {
 }
 
 export function normalizeSettings(value) {
-  const source = value && typeof value === 'object' ? value : {};
+  const source = migrateLegacyPositiveTiers(value);
   const settings = cloneDefaults();
 
   for (const key of Object.keys(settings)) {
@@ -130,17 +127,20 @@ export function normalizeSettings(value) {
 
   assertRange(settings.lowWarHits.red, settings.lowWarHits.orange, settings.lowWarHits.yellow,
     'Low war hits must increase from red to orange to yellow.');
-  assertRange(settings.highWarHits.teal, settings.highWarHits.green, settings.highWarHits.bright,
-    'High war hits must increase from teal to green to bright green.');
+  assertAscending(
+    [settings.highWarHits.green, settings.highWarHits.bright],
+    'High war hits must increase from green to bright green.'
+  );
   assertRange(settings.respectPerHit.red, settings.respectPerHit.orange, settings.respectPerHit.yellow,
     'Respect / hit must increase from red to orange to yellow.');
-  assertRange(settings.assists.teal, settings.assists.green, settings.assists.bright,
-    'Assists must increase from teal to green to bright green.');
+  assertAscending(
+    [settings.assists.green, settings.assists.bright],
+    'Assists must increase from green to bright green.'
+  );
   assertAscending([
     settings.trainingEnergy.red,
     settings.trainingEnergy.orange,
     settings.trainingEnergy.yellow,
-    settings.trainingEnergy.teal,
     settings.trainingEnergy.green,
     settings.trainingEnergy.bright
   ], 'Training E thresholds must increase from red through bright green.');
@@ -246,6 +246,26 @@ async function getCurrentUser(env, request) {
 
 function cloneDefaults() {
   return JSON.parse(JSON.stringify(DEFAULT_AUTO_TAG_SETTINGS));
+}
+
+function migrateLegacyPositiveTiers(value) {
+  const source = value && typeof value === 'object'
+    ? JSON.parse(JSON.stringify(value))
+    : {};
+
+  for (const key of ['highWarHits', 'assists', 'trainingEnergy']) {
+    const config = source[key];
+    if (!config || typeof config !== 'object') continue;
+    if (
+      Object.prototype.hasOwnProperty.call(config, 'teal') &&
+      Object.prototype.hasOwnProperty.call(config, 'bright')
+    ) {
+      config.green = config.teal;
+      delete config.teal;
+    }
+  }
+
+  return source;
 }
 
 function finiteNumber(value, label) {
