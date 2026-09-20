@@ -1096,7 +1096,11 @@ function renderPayoutPanel() {
     return;
   }
 
-  const active = Array.isArray(preview.activeModules) ? preview.activeModules : [];
+  const payoutModules = Array.isArray(preview.modules)
+    ? preview.modules
+    : Array.isArray(preview.activeModules)
+      ? preview.activeModules
+      : [];
   const members = Array.isArray(preview.members) ? preview.members : [];
   const unavailable = Array.isArray(preview.unavailableModules) ? preview.unavailableModules : [];
   const unpaid = members.filter(member => Number(member.totalPayout || 0) > 0 && member.paid !== true);
@@ -1110,7 +1114,7 @@ function renderPayoutPanel() {
 
   head.innerHTML = `<tr>
     <th>Member</th>
-    ${active.map(module => `<th>${escapeHtml(module.shortLabel || module.label || module.id)}</th>`).join('')}
+    ${payoutModules.map(module => `<th>${escapeHtml(module.shortLabel || module.label || module.id)}</th>`).join('')}
     <th class="net">Total</th>
     <th class="payout-paid-col">Paid</th>
   </tr>`;
@@ -1122,18 +1126,24 @@ function renderPayoutPanel() {
             <span class="member-name">${escapeHtml(member.playerName || `Player ${member.playerId}`)}<span class="entity-id">[${escapeHtml(member.playerId)}]</span></span>
           </a>
         </td>
-        ${active.map(module => {
+        ${payoutModules.map(module => {
           const component = (member.components || []).find(item => item.id === module.id) || {};
-          return `<td><strong>${escapeHtml(formatPayoutQuantity(component.quantity, module.unit))}</strong><span class="member-meta">${escapeHtml(formatMoney(component.payout))}</span></td>`;
+          const payoutText = module.enabled === false
+            ? 'Disabled'
+            : formatMoney(component.payout);
+          return `<td><strong>${escapeHtml(formatPayoutQuantity(component.quantity, module.unit))}</strong><span class="member-meta${module.enabled === false ? ' payout-disabled' : ''}">${escapeHtml(payoutText)}</span></td>`;
         }).join('')}
         <td class="net"><strong>${escapeHtml(formatMoney(member.totalPayout))}</strong></td>
         ${renderPayoutPaidCell(member, canManagePayouts, status)}
       </tr>`).join('')
-    : `<tr class="empty-row"><td colspan="${active.length + 3}">No payout rows.</td></tr>`;
+    : `<tr class="empty-row"><td colspan="${payoutModules.length + 3}">No payout rows.</td></tr>`;
 
   foot.innerHTML = `<tr class="war-total-row">
     <td><strong>Faction total</strong><span class="secondary">${formatNumber(members.length)} members</span></td>
-    ${active.map(module => `<td><strong>${escapeHtml(formatPayoutQuantity(module.quantity, module.unit))}</strong><span class="member-meta">${escapeHtml(formatMoney(module.payout))}</span></td>`).join('')}
+    ${payoutModules.map(module => {
+      const payoutText = module.enabled === false ? 'Disabled' : formatMoney(module.payout);
+      return `<td><strong>${escapeHtml(formatPayoutQuantity(module.quantity, module.unit))}</strong><span class="member-meta${module.enabled === false ? ' payout-disabled' : ''}">${escapeHtml(payoutText)}</span></td>`;
+    }).join('')}
     <td class="net"><strong>${escapeHtml(formatMoney(preview.totalPayout))}</strong></td>
     <td class="payout-paid-col">${status === 'paid' ? '<span class="payout-paid-mark">✓</span>' : ''}</td>
   </tr>`;
@@ -1354,11 +1364,15 @@ async function copyPayoutCsv() {
   const preview = detail.payout.preview;
   if (!preview) return;
 
-  const active = Array.isArray(preview.activeModules) ? preview.activeModules : [];
+  const payoutModules = Array.isArray(preview.modules)
+    ? preview.modules
+    : Array.isArray(preview.activeModules)
+      ? preview.activeModules
+      : [];
   const header = [
     'Player ID',
     'Member',
-    ...active.flatMap(module => [
+    ...payoutModules.flatMap(module => [
       `${module.shortLabel || module.label || module.id} quantity`,
       `${module.shortLabel || module.label || module.id} payout`
     ]),
@@ -1371,9 +1385,12 @@ async function copyPayoutCsv() {
     return [
       member.playerId,
       member.playerName,
-      ...active.flatMap(module => {
+      ...payoutModules.flatMap(module => {
         const component = components.get(module.id) || {};
-        return [Number(component.quantity || 0), Number(component.payout || 0)];
+        return [
+          Number(component.quantity || 0),
+          module.enabled === false ? 'Disabled' : Number(component.payout || 0)
+        ];
       }),
       Number(member.totalPayout || 0),
       member.paid === true ? 'Yes' : 'No'
