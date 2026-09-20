@@ -14523,3 +14523,33 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Auto-save payout settings: remove obsolete action-row spacing */
+#payoutsView .payout-top-layout {
+  margin-bottom: 0;
+  padding-bottom: 6px;
+}
+
+#payoutsView .payout-panel {
+  padding-top: 6px;
+}
+
+#payoutsView .payout-summary {
+  margin-top: 0;
+}
+
+#payoutsView .payout-settings-inline-status {
+  margin: 0 0 0 auto;
+  color: var(--dim);
+  font-size: var(--font-caption);
+  white-space: nowrap;
+}
+
+#payoutsView .payout-settings-inline-status.error {
+  color: var(--danger);
+}
+
+#payoutsView .payout-settings-inline-status + .payout-profile-global {
+  margin-left: 12px;
+}
