@@ -1469,6 +1469,7 @@ async function deletePayoutPreset() {
       factionId:currentFactionId(),
       profile:payoutSettingsProfile || {}
     });
+    document.querySelector('#payoutMoreMenu')?.removeAttribute('open');
     setPayoutSettingsStatus(result.message || 'Payout preset deleted.');
   } catch (error) {
     setPayoutSettingsStatus(error.message || 'Failed to delete payout preset.', true);
@@ -1602,6 +1603,7 @@ async function resetPayoutSettings() {
       factionId:currentFactionId(),
       profile:result.profile || {}
     });
+    document.querySelector('#payoutMoreMenu')?.removeAttribute('open');
     setPayoutSettingsStatus(result.message || 'Payout profile reset.');
   } catch (error) {
     setPayoutSettingsStatus(error.message || 'Failed to reset payout profile.', true);
@@ -1613,7 +1615,7 @@ async function resetPayoutSettings() {
 
 function setPayoutSettingsBusy(busy) {
   document.querySelectorAll(
-    '#payoutSettingsForm input, #payoutSettingsForm button, #payoutPresetSelect, #payoutPresetName, #payoutPresetSave, #payoutPresetDelete'
+    '#payoutSettingsForm input, #payoutSettingsForm button, #payoutPresetSelect, #payoutPresetName, #payoutPresetSave, #payoutPresetDelete, #payoutSettingsReset'
   ).forEach(control => {
     control.disabled = Boolean(busy);
   });
