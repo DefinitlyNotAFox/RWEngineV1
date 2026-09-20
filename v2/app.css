@@ -11986,3 +11986,192 @@ body {
   font-size: var(--font-caption);
   font-weight: 600;
 }
+
+
+/* Payout layout cleanup + percentage contribution controls */
+#payoutsView .payout-view-head {
+  align-items: flex-start;
+  gap: 24px;
+}
+
+#payoutsView .payout-head-controls {
+  display: grid;
+  flex: 1 1 auto;
+  width: min(100%, 1040px);
+  margin-left: auto;
+  align-items: end;
+  justify-items: end;
+  gap: 6px;
+}
+
+#payoutsView .payout-head-row {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+#payoutsView .payout-war-row {
+  min-height: 36px;
+}
+
+#payoutsView .payout-head-war {
+  flex: 1 1 420px;
+  min-width: 340px;
+  max-width: 520px;
+}
+
+#payoutsView .payout-war-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+}
+
+#payoutsView .payout-preset-controls {
+  min-height: 32px;
+  align-items: center;
+}
+
+#payoutsView .payout-control-label {
+  color: var(--muted);
+  font-size: var(--font-caption);
+  font-weight: 640;
+}
+
+#payoutsView #payoutPresetSelect {
+  width: 190px;
+  min-width: 190px;
+}
+
+#payoutsView .payout-preset-name {
+  width: 170px;
+}
+
+#payoutsView .payout-settings-headbar {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 5px;
+}
+
+#payoutsView .payout-profile-global {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+#payoutsView .payout-global-control,
+#payoutsView .payout-global-readonly {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dim);
+  font-size: var(--font-caption);
+  font-weight: 620;
+}
+
+#payoutsView .payout-global-control .payout-setting-input input {
+  width: 62px;
+  height: 28px;
+  padding: 2px 6px;
+  font-size: var(--font-small);
+}
+
+#payoutsView .payout-global-control .payout-setting-input em {
+  color: var(--dim);
+  font-size: var(--font-caption);
+}
+
+#payoutsView .payout-global-readonly strong {
+  color: var(--text);
+  font-size: var(--font-small);
+  font-weight: 650;
+}
+
+#payoutsView .payout-module-fields > .payout-percentage-field,
+#payoutsView .payout-module-fields > .payout-pool-field {
+  display: grid !important;
+  grid-template-columns: 92px minmax(0, 1fr) !important;
+  grid-column: 1 !important;
+  align-items: center;
+  min-height: 28px;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+
+#payoutsView .payout-percentage-field > span:first-child,
+#payoutsView .payout-pool-field > span:first-child {
+  display: block !important;
+  color: var(--dim);
+  font-size: var(--font-caption) !important;
+  font-weight: 620;
+  line-height: 1.2;
+}
+
+#payoutsView .payout-percentage-field > input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  justify-self: start;
+}
+
+#payoutsView .payout-pool-field .payout-setting-input input {
+  width: 104px;
+}
+
+#payoutsView .payout-rate-field.hidden,
+#payoutsView .payout-pool-field.hidden {
+  display: none !important;
+}
+
+@media (max-width: 1180px) {
+  #payoutsView .payout-view-head {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  #payoutsView .payout-head-controls {
+    width: 100%;
+    margin-left: 0;
+    justify-items: stretch;
+  }
+
+  #payoutsView .payout-head-row {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 760px) {
+  #payoutsView .payout-head-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  #payoutsView .payout-head-war,
+  #payoutsView #payoutPresetSelect,
+  #payoutsView .payout-preset-name {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  #payoutsView .payout-war-actions {
+    flex-wrap: wrap;
+  }
+
+  #payoutsView .payout-settings-headbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  #payoutsView .payout-settings-head-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
