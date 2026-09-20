@@ -11644,3 +11644,142 @@ body {
 #payoutsView .payout-module-fields .payout-setting-input {
   justify-self: start;
 }
+
+
+/* Payout header controls + readable milestone controls */
+#payoutsView .payout-view-head {
+  align-items: flex-end;
+  gap: 28px;
+  margin-bottom: 14px;
+}
+
+#payoutsView .payout-head-controls {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#payoutsView .payout-head-war {
+  display: grid;
+  min-width: 320px;
+  max-width: 420px;
+  gap: 4px;
+}
+
+#payoutsView .payout-head-war > span {
+  color: var(--muted);
+  font-size: var(--font-caption);
+  font-weight: 640;
+}
+
+#payoutsView .payout-head-war select {
+  width: 100%;
+  min-height: 32px;
+}
+
+#payoutsView .payout-head-actions {
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  flex-wrap: nowrap;
+}
+
+#payoutsView .payout-head-actions .small-select {
+  min-width: 180px;
+}
+
+#payoutsView .payout-head-actions .action {
+  min-height: 32px;
+}
+
+#payoutsView .payout-settings-headbar > strong,
+#payoutsView .payout-module-toggle strong {
+  font-size: var(--font-small);
+}
+
+#payoutsView .payout-module-field > span:first-child,
+#payoutsView .payout-module-toggle-row > span:first-child,
+#payoutsView .payout-rate-field > span:first-child,
+#payoutsView .payout-milestone-pay-field > span:first-child {
+  display: block !important;
+  color: var(--dim);
+  font-size: var(--font-caption) !important;
+  font-weight: 620;
+  line-height: 1.2;
+}
+
+#payoutsView .payout-module-fields > .payout-module-field,
+#payoutsView .payout-module-fields > .payout-module-toggle-row,
+#payoutsView .payout-module-fields > .payout-rate-field,
+#payoutsView .payout-module-fields > .payout-milestones-field,
+#payoutsView .payout-module-fields > .payout-milestone-pay-field {
+  display: grid !important;
+  grid-template-columns: 92px minmax(0, 1fr) !important;
+  align-items: center;
+  min-height: 28px;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+
+#payoutsView .payout-module-column .payout-setting-input input {
+  width: 88px;
+  height: 28px;
+  padding: 2px 6px;
+  font-size: var(--font-small);
+}
+
+#payoutsView .payout-module-column .payout-setting-input em {
+  margin-left: 5px;
+  color: var(--dim);
+  font-size: var(--font-caption) !important;
+}
+
+#payoutsView .payout-milestones-field input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  justify-self: start;
+}
+
+#payoutsView .payout-milestone-pay-field.hidden {
+  display: none !important;
+}
+
+#payoutsView .payout-module-column.disabled .payout-module-fields {
+  opacity: .32;
+  pointer-events: none;
+}
+
+@media (max-width: 1180px) {
+  #payoutsView .payout-view-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  #payoutsView .payout-head-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 760px) {
+  #payoutsView .payout-head-controls,
+  #payoutsView .payout-head-actions {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  #payoutsView .payout-head-war,
+  #payoutsView .payout-head-actions .small-select {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+}
