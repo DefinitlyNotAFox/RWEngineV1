@@ -9112,3 +9112,21 @@ body {
 #intelTable.faction-grid .intel2-note-signals .intel2-context-grid {
   margin-top: 0;
 }
+
+
+/* Expanded notes belong to the Notes column; tags are managed from the table toolbar. */
+#intelTable.faction-grid .intel2-notes {
+  grid-column: 13 / 14;
+  min-width: 0;
+  padding: 10px 0 10px 10px;
+  border-left: 1px solid var(--line-soft);
+}
+
+@media (max-width: 1050px) {
+  #intelTable.faction-grid .intel2-notes {
+    grid-column: 1;
+    padding: 9px 0;
+    border-left: 0;
+    border-top: 1px solid var(--line-soft);
+  }
+}
