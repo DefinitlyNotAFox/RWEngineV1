@@ -55,24 +55,24 @@ export async function onRequest(context) {
     const rows = await loadPayoutRows(env.DB, factionId, warId);
     if (!rows.length) throw httpError(404, 'No member performance is stored for this war.');
 
-    const incomplete = rows.some(row =>
-      Number(row.attack_detail_complete || 0) !== 1 ||
-      Number(row.payout_detail_version || 0) < 1
-    );
-    if (incomplete) {
-      const error = httpError(
-        409,
-        'Payout detail is not ready for this war. Rebuild attack detail first.'
-      );
-      error.code = 'PAYOUT_DETAIL_REQUIRED';
-      throw error;
-    }
+    const unavailableModules = payoutUnavailableModules(rows, profile);
+    const unavailableIds = new Set(unavailableModules.map(item => item.id));
+    const calculationProfile = {
+      ...profile,
+      modules:(profile.modules || []).map(module =>
+        unavailableIds.has(String(module.id || ''))
+          ? { ...module, enabled:false }
+          : module
+      )
+    };
 
-    const calculation = calculatePayoutRows(rows, profile);
+    const calculation = calculatePayoutRows(rows, calculationProfile);
     const preview = {
       warId,
       factionId,
-      ...calculation
+      ...calculation,
+      profile,
+      unavailableModules
     };
 
     if (action === 'preview') {
@@ -150,6 +150,7 @@ async function loadPayoutRows(db, factionId, warId) {
       attack_detail_complete,
       payout_detail_version,
       COALESCE(war_hits, 0) AS war_hits,
+      COALESCE(score_up, 0) AS score_up,
       COALESCE(assists, 0) AS assists,
       COALESCE(outside_hits, 0) AS outside_hits,
       COALESCE(respect_earned, 0) AS respect_earned,
@@ -165,6 +166,31 @@ async function loadPayoutRows(db, factionId, warId) {
   `).bind(factionId, warId).all();
 
   return result.results || [];
+}
+
+function payoutUnavailableModules(rows, profile) {
+  const enabled = new Set(
+    (profile?.modules || [])
+      .filter(module => module?.enabled !== false)
+      .map(module => String(module.id || ''))
+  );
+
+  const unavailable = [];
+
+  // These values were added after the original aggregate model. Older wars can
+  // still calculate every other payout module directly from war_log.
+  if (
+    enabled.has('outsideChainRespect') &&
+    rows.some(row => Number(row.payout_detail_version || 0) < 1)
+  ) {
+    unavailable.push({
+      id:'outsideChainRespect',
+      label:'Outside-chain respect',
+      reason:'Outside-chain respect was not stored for this older war.'
+    });
+  }
+
+  return unavailable;
 }
 
 async function loadRuns(db, factionId, warId) {
