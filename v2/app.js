@@ -29,6 +29,7 @@ let autoTagSettingsLoading = false;
 let autoTagSettingsBusy = false;
 let payoutSettingsLoading = false;
 let payoutSettingsBusy = false;
+let payoutSettingsCanEdit = false;
 let payoutSettingsCatalog = [];
 let payoutSettingsPreviewTimer = null;
 let accountCloseBusy = false;
@@ -1125,14 +1126,15 @@ function renderPayoutSettingsVisibility() {
   const section = document.querySelector('#payoutSettingsSection');
   if (!section) return;
 
-  const visible = canManagePayoutSettingsView();
-  section.classList.toggle('hidden', !visible);
-  document.querySelector('#payoutsView')?.classList.toggle('payout-admin-profile-visible', visible);
+  const visible = Boolean(state.user && currentFactionId());
+  const editable = payoutSettingsCanEdit && canManagePayoutSettingsView();
 
-  if (!visible) {
-    const list = document.querySelector('#payoutSettingsList');
-    if (list) list.innerHTML = '';
-  }
+  section.classList.toggle('hidden', !visible);
+  section.classList.toggle('readonly', !editable);
+  document.querySelector('#payoutsView')?.classList.toggle('payout-admin-profile-visible', editable);
+
+  document.querySelector('#payoutSettingsReset')?.classList.toggle('hidden', !editable);
+  document.querySelector('#payoutSettingsSave')?.classList.toggle('hidden', !editable);
 }
 
 async function loadPayoutSettings() {
@@ -1140,7 +1142,7 @@ async function loadPayoutSettings() {
   const list = document.querySelector('#payoutSettingsList');
   const status = document.querySelector('#payoutSettingsStatus');
   renderPayoutSettingsVisibility();
-  if (!list || !canManagePayoutSettingsView() || payoutSettingsLoading) return;
+  if (!list || !state.user || !currentFactionId() || payoutSettingsLoading) return;
 
   payoutSettingsLoading = true;
   setPayoutSettingsBusy(true);
@@ -1152,8 +1154,14 @@ async function loadPayoutSettings() {
 
   try {
     const result = await payoutSettingsApi('get');
+    payoutSettingsCanEdit = result.canEdit === true;
     payoutSettingsCatalog = Array.isArray(result.catalog) ? result.catalog : [];
-    renderPayoutSettings(result.profile || result.defaults || {}, payoutSettingsCatalog);
+    renderPayoutSettingsVisibility();
+    renderPayoutSettings(
+      result.profile || result.defaults || {},
+      payoutSettingsCatalog,
+      payoutSettingsCanEdit && canManagePayoutSettingsView()
+    );
   } catch (error) {
     list.innerHTML = '';
     setPayoutSettingsStatus(error.message || 'Failed to load payout settings.', true);
@@ -1163,7 +1171,7 @@ async function loadPayoutSettings() {
   }
 }
 
-function renderPayoutSettings(profile, catalog = payoutSettingsCatalog) {
+function renderPayoutSettings(profile, catalog = payoutSettingsCatalog, canEdit = payoutSettingsCanEdit && canManagePayoutSettingsView()) {
   const list = document.querySelector('#payoutSettingsList');
   if (!list) return;
 
@@ -1173,8 +1181,11 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog) {
   );
 
   const definitions = Array.isArray(catalog) ? catalog : [];
+  const visibleDefinitions = canEdit
+    ? definitions
+    : definitions.filter(definition => modules.get(String(definition.id || ''))?.enabled !== false);
 
-  list.innerHTML = definitions.map(definition => {
+  list.innerHTML = visibleDefinitions.map(definition => {
     const module = modules.get(String(definition.id || '')) || {};
     const enabled = module.enabled !== false;
     const unit = definition.unit === 'R'
@@ -1182,43 +1193,63 @@ function renderPayoutSettings(profile, catalog = payoutSettingsCatalog) {
       : definition.unit === 'assist'
         ? '$ / assist'
         : '$ / hit';
+    const rate = Number(module.rate ?? 0);
+    const milestoneRate = Number(module.milestoneRate ?? definition.defaultMilestoneRate ?? 0);
+    const milestonesIncluded = module.milestonesIncluded !== false;
 
     return `
-      <section class="payout-module-column${enabled ? '' : ' disabled'}" data-payout-module="${escapeHtml(definition.id)}">
+      <section class="payout-module-column${enabled ? '' : ' disabled'}${canEdit ? ' editable' : ' readonly'}" data-payout-module="${escapeHtml(definition.id)}">
         <header class="payout-module-header">
-          <label class="payout-module-toggle" title="Enable ${escapeHtml(definition.label || definition.id)}">
-            <input type="checkbox" data-payout-enabled${enabled ? ' checked' : ''} />
+          ${canEdit ? `
+            <label class="payout-module-toggle" title="Enable ${escapeHtml(definition.label || definition.id)}">
+              <input type="checkbox" data-payout-enabled${enabled ? ' checked' : ''} />
+              <strong>${escapeHtml(definition.label || definition.id)}</strong>
+            </label>
+          ` : `
             <strong>${escapeHtml(definition.label || definition.id)}</strong>
-          </label>
+          `}
         </header>
 
         <div class="payout-module-fields">
-          <label class="payout-module-field payout-rate-field">
+          <div class="payout-module-field payout-rate-field">
             <span>Rate</span>
-            <span class="payout-setting-input">
-              <input type="number" min="0" max="100000000" step="1000" value="${escapeHtml(module.rate ?? 0)}" data-payout-rate />
-              <em>${escapeHtml(unit)}</em>
-            </span>
-          </label>
+            ${canEdit ? `
+              <span class="payout-setting-input">
+                <input type="number" min="0" max="100000000" step="1000" value="${escapeHtml(rate)}" data-payout-rate />
+                <em>${escapeHtml(unit)}</em>
+              </span>
+            ` : `
+              <span class="payout-setting-value"><strong>$${escapeHtml(formatNumber(rate))}</strong><em>${escapeHtml(unit.replace('$ / ', '/ '))}</em></span>
+            `}
+          </div>
 
           ${definition.supportsMilestones ? `
-            <label class="payout-module-toggle-row payout-milestones-field">
+            <div class="payout-module-toggle-row payout-milestones-field">
               <span>Milestones</span>
-              <input type="checkbox" data-payout-milestones${module.milestonesIncluded !== false ? ' checked' : ''} />
-            </label>
+              ${canEdit
+                ? `<input type="checkbox" data-payout-milestones${milestonesIncluded ? ' checked' : ''} />`
+                : `<span class="payout-setting-value">${milestonesIncluded ? 'Included' : 'Alternative pay'}</span>`
+              }
+            </div>
 
-            <label class="payout-module-field payout-milestone-pay-field${module.milestonesIncluded !== false ? ' hidden' : ''}">
+            <div class="payout-module-field payout-milestone-pay-field${milestonesIncluded ? ' hidden' : ''}">
               <span>Milestone pay</span>
-              <span class="payout-setting-input">
-                <input type="number" min="0" max="100000000" step="1000" value="${escapeHtml(module.milestoneRate ?? definition.defaultMilestoneRate ?? 0)}" data-payout-milestone-rate />
-                <em>$ / hit</em>
-              </span>
-            </label>
+              ${canEdit ? `
+                <span class="payout-setting-input">
+                  <input type="number" min="0" max="100000000" step="1000" value="${escapeHtml(milestoneRate)}" data-payout-milestone-rate />
+                  <em>$ / hit</em>
+                </span>
+              ` : `
+                <span class="payout-setting-value"><strong>$${escapeHtml(formatNumber(milestoneRate))}</strong><em>/ hit</em></span>
+              `}
+            </div>
           ` : ''}
         </div>
       </section>
     `;
   }).join('');
+
+  if (!canEdit) return;
 
   list.querySelectorAll('[data-payout-enabled]').forEach(input => {
     input.addEventListener('change', () => {
@@ -1306,7 +1337,7 @@ async function savePayoutSettings(event) {
       profile:collectPayoutSettings()
     });
     payoutSettingsCatalog = Array.isArray(result.catalog) ? result.catalog : payoutSettingsCatalog;
-    renderPayoutSettings(result.profile || {}, payoutSettingsCatalog);
+    renderPayoutSettings(result.profile || {}, payoutSettingsCatalog, true);
     emit('payout-settings', {
       factionId:currentFactionId(),
       profile:result.profile || {}
@@ -1331,7 +1362,7 @@ async function resetPayoutSettings() {
   try {
     const result = await payoutSettingsApi('reset');
     payoutSettingsCatalog = Array.isArray(result.catalog) ? result.catalog : payoutSettingsCatalog;
-    renderPayoutSettings(result.profile || {}, payoutSettingsCatalog);
+    renderPayoutSettings(result.profile || {}, payoutSettingsCatalog, true);
     emit('payout-settings', {
       factionId:currentFactionId(),
       profile:result.profile || {}
