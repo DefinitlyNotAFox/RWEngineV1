@@ -14479,3 +14479,47 @@ body {
   justify-self: start;
   min-width: 0;
 }
+
+
+/* Give respect payouts more room and let value tracks size to content */
+#payoutsView .payout-settings-list {
+  grid-template-columns:
+    minmax(250px, 1.5fr)
+    minmax(250px, 1.5fr)
+    minmax(150px, .8fr)
+    minmax(150px, .8fr)
+    minmax(150px, .8fr);
+}
+
+#payoutsView .payout-overview-options-row,
+#payoutsView .payout-overview-money-row {
+  grid-template-columns: minmax(118px, max-content) minmax(132px, max-content);
+  column-gap: 10px;
+  justify-content: start;
+}
+
+#payoutsView .payout-overview-money {
+  width: max-content;
+  max-width: 100%;
+}
+
+#payoutsView .payout-overview-money em {
+  overflow: visible;
+}
+
+@media (max-width: 1260px) {
+  #payoutsView .payout-settings-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  #payoutsView .payout-overview-options-row,
+  #payoutsView .payout-overview-money-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  #payoutsView .payout-settings-list {
+    grid-template-columns: 1fr;
+  }
+}
