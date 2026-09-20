@@ -195,11 +195,13 @@ export async function resetPayoutProfile(db, factionId) {
 export function calculatePayoutRows(rows, profileValue) {
   const profile = normalizePayoutProfile(profileValue);
   const definitions = new Map(PAYOUT_MODULE_CATALOG.map(item => [item.id, item]));
-  const activeModules = profile.modules.filter(module => module.enabled !== false);
+  const modules = profile.modules;
+  const activeModules = modules.filter(module => module.enabled !== false);
 
   const members = (Array.isArray(rows) ? rows : []).map(row => {
-    const components = activeModules.map(module => {
+    const components = modules.map(module => {
       const definition = definitions.get(module.id);
+      const enabled = module.enabled !== false;
       const rawQuantity = rawModuleQuantity(module.id, row);
       let quantity = rawQuantity;
       let adjustment = 0;
@@ -215,12 +217,16 @@ export function calculatePayoutRows(rows, profileValue) {
       if (definition?.supportsMilestones && !milestonesIncluded) {
         quantity = Math.max(0, rawQuantity - milestone.rawRespect);
         adjustment = quantity - rawQuantity;
-        milestonePayout = Math.round(
-          milestone.hits * Number(module.milestoneRate || 0)
-        );
+        if (enabled) {
+          milestonePayout = Math.round(
+            milestone.hits * Number(module.milestoneRate || 0)
+          );
+        }
       }
 
-      const basePayout = Math.round(quantity * Number(module.rate || 0));
+      const basePayout = enabled
+        ? Math.round(quantity * Number(module.rate || 0))
+        : 0;
       const payout = basePayout + milestonePayout;
 
       return {
@@ -228,6 +234,7 @@ export function calculatePayoutRows(rows, profileValue) {
         label:definition?.label || module.id,
         shortLabel:definition?.shortLabel || module.id,
         unit:definition?.unit || '',
+        enabled,
         rate:Number(module.rate || 0),
         rawQuantity,
         quantity,
@@ -256,7 +263,7 @@ export function calculatePayoutRows(rows, profileValue) {
     a.playerName.localeCompare(b.playerName, undefined, { sensitivity:'base', numeric:true })
   );
 
-  const componentTotals = activeModules.map(module => {
+  const moduleTotals = modules.map(module => {
     const definition = definitions.get(module.id);
     const memberComponents = members
       .map(member => member.components.find(component => component.id === module.id))
@@ -267,6 +274,7 @@ export function calculatePayoutRows(rows, profileValue) {
       label:definition?.label || module.id,
       shortLabel:definition?.shortLabel || module.id,
       unit:definition?.unit || '',
+      enabled:module.enabled !== false,
       rate:Number(module.rate || 0),
       quantity:memberComponents.reduce((sum, component) => sum + Number(component.quantity || 0), 0),
       payout:memberComponents.reduce((sum, component) => sum + Number(component.payout || 0), 0)
@@ -275,7 +283,8 @@ export function calculatePayoutRows(rows, profileValue) {
 
   return {
     profile,
-    activeModules:componentTotals,
+    modules:moduleTotals,
+    activeModules:moduleTotals.filter(module => module.enabled !== false),
     members,
     totalPayout:members.reduce((sum, member) => sum + member.totalPayout, 0)
   };
