@@ -213,6 +213,9 @@ function bindApplication() {
       loadAccessList();
       loadFactionRoles();
       loadAutoTagSettings();
+    }
+    if (route === 'payouts') {
+      renderPayoutSettingsVisibility();
       loadPayoutSettings();
     }
   });
@@ -227,6 +230,9 @@ function bindApplication() {
       loadAccessList();
       loadFactionRoles();
       loadAutoTagSettings();
+    }
+    if (state.route === 'payouts') {
+      renderPayoutSettingsVisibility();
       loadPayoutSettings();
     }
   });
@@ -329,6 +335,10 @@ async function refreshAll(userInitiated = false) {
       loadAccessList();
       loadFactionRoles();
       loadAutoTagSettings();
+    }
+    if (state.route === 'payouts') {
+      renderPayoutSettingsVisibility();
+      loadPayoutSettings();
     }
 
     if (userInitiated) setRefreshStatus('');
@@ -672,18 +682,15 @@ function renderSettingsPermissions() {
   const reportSection = document.querySelector('#reportAccessSection');
   const rolesSection = document.querySelector('#factionRolesSection');
   const autoTagsSection = document.querySelector('#autoTagSettingsSection');
-  const payoutSection = document.querySelector('#payoutSettingsSection');
   const factionHeading = document.querySelector('#factionSettingsHeading');
   const canManageReports = canEditFactionView();
   const canManageRoles = canManageFactionRolesView();
   const canManageAutoTags = canManageAutoTagSettingsView();
-  const canManagePayouts = canManagePayoutSettingsView();
-  const showFactionSettings = canManageReports || canManageRoles || canManageAutoTags || canManagePayouts;
+  const showFactionSettings = canManageReports || canManageRoles || canManageAutoTags;
 
   reportSection?.classList.toggle('hidden', !canManageReports);
   rolesSection?.classList.toggle('hidden', !canManageRoles);
   autoTagsSection?.classList.toggle('hidden', !canManageAutoTags);
-  payoutSection?.classList.toggle('hidden', !canManagePayouts);
   factionHeading?.classList.toggle('hidden', !showFactionSettings);
 
   if (!canManageReports) {
@@ -696,10 +703,6 @@ function renderSettingsPermissions() {
   }
   if (!canManageAutoTags) {
     const list = document.querySelector('#autoTagSettingsList');
-    if (list) list.innerHTML = '';
-  }
-  if (!canManagePayouts) {
-    const list = document.querySelector('#payoutSettingsList');
     if (list) list.innerHTML = '';
   }
 }
@@ -1116,10 +1119,23 @@ function setAutoTagSettingsStatus(message, error = false) {
 }
 
 
+function renderPayoutSettingsVisibility() {
+  const section = document.querySelector('#payoutSettingsSection');
+  if (!section) return;
+
+  const visible = canManagePayoutSettingsView();
+  section.classList.toggle('hidden', !visible);
+
+  if (!visible) {
+    const list = document.querySelector('#payoutSettingsList');
+    if (list) list.innerHTML = '';
+  }
+}
+
 async function loadPayoutSettings() {
   const list = document.querySelector('#payoutSettingsList');
   const status = document.querySelector('#payoutSettingsStatus');
-  renderSettingsPermissions();
+  renderPayoutSettingsVisibility();
   if (!list || !canManagePayoutSettingsView() || payoutSettingsLoading) return;
 
   payoutSettingsLoading = true;
