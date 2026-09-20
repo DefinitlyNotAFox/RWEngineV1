@@ -14206,3 +14206,253 @@ body {
     height: auto;
   }
 }
+
+
+/* Flat payout overview: one row of modules, three aligned information rows */
+#payoutsView .payout-top-layout {
+  width: 100%;
+  max-width: none;
+  grid-template-columns: 340px minmax(0, 1fr);
+  justify-content: start;
+  gap: 22px;
+  margin-right: 0;
+  margin-left: 0;
+}
+
+#payoutsView .payout-head-controls {
+  width: 340px;
+  max-width: 340px;
+}
+
+#payoutsView #payoutSettingsSection,
+#payoutsView .payout-settings-list {
+  width: 100%;
+  max-width: none;
+}
+
+#payoutsView .payout-settings-headbar {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 7px;
+}
+
+#payoutsView .payout-settings-title {
+  color: var(--muted);
+  font-size: var(--font-small);
+  font-weight: 650;
+}
+
+#payoutsView .payout-profile-global {
+  margin-left: auto;
+}
+
+#payoutsView .payout-settings-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  align-items: stretch;
+  padding: 8px 0 9px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+#payoutsView .payout-settings-list > .payout-module-column,
+#payoutsView .payout-settings-list > .payout-overview-module {
+  display: grid;
+  grid-template-rows: 26px 30px 32px;
+  min-width: 0;
+  min-height: 88px;
+  height: 88px;
+  margin: 0;
+  padding: 0 13px;
+  border: 0;
+  border-left: 1px solid var(--line-soft);
+  border-radius: 0;
+  background: transparent;
+}
+
+#payoutsView .payout-settings-list > .payout-module-column:first-child,
+#payoutsView .payout-settings-list > .payout-overview-module:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+#payoutsView .payout-overview-name-row,
+#payoutsView .payout-overview-options-row,
+#payoutsView .payout-overview-money-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+#payoutsView .payout-overview-name-row {
+  padding-bottom: 4px;
+}
+
+#payoutsView .payout-overview-name-row > strong,
+#payoutsView .payout-overview-name-row .payout-module-toggle strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--font-small);
+  font-weight: 670;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#payoutsView .payout-overview-options-row {
+  gap: 12px;
+  min-height: 30px;
+  color: var(--muted);
+}
+
+#payoutsView .payout-overview-options-row .payout-secondary-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+#payoutsView .payout-overview-money-row {
+  gap: 8px;
+  min-height: 32px;
+  padding-top: 3px;
+}
+
+#payoutsView .payout-overview-money {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+}
+
+#payoutsView .payout-overview-money input {
+  width: 82px;
+  height: 28px;
+  padding: 2px 6px;
+  font-size: var(--font-small);
+}
+
+#payoutsView .payout-overview-money em {
+  color: var(--dim);
+  font-size: var(--font-caption);
+  font-style: normal;
+  white-space: nowrap;
+}
+
+#payoutsView .payout-overview-money.payout-milestone-rate input {
+  width: 86px;
+}
+
+#payoutsView .payout-module-column.disabled {
+  background: transparent;
+  opacity: .42;
+}
+
+#payoutsView .payout-module-column.disabled .payout-overview-options-row,
+#payoutsView .payout-module-column.disabled .payout-overview-money-row {
+  opacity: .72;
+}
+
+#payoutsView .payout-settings-footer {
+  margin-top: 9px;
+}
+
+/* War payout state is information, not a filter */
+#payoutsView .payout-war-status-display,
+#payoutsView .payout-war-option-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--dim);
+  font-size: var(--font-caption);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+#payoutsView .payout-war-status-display::before,
+#payoutsView .payout-war-option-status::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  content: '';
+}
+
+#payoutsView .payout-war-status-display.paid,
+#payoutsView .payout-war-option-status.paid {
+  color: var(--success);
+}
+
+#payoutsView .payout-war-status-display.outstanding,
+#payoutsView .payout-war-option-status.outstanding {
+  color: var(--warning);
+}
+
+#payoutsView .payout-war-option {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+@media (max-width: 1260px) {
+  #payoutsView .payout-top-layout {
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  #payoutsView .payout-head-controls {
+    width: 320px;
+    max-width: 320px;
+  }
+
+  #payoutsView .payout-settings-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    row-gap: 10px;
+  }
+
+  #payoutsView .payout-settings-list > .payout-module-column,
+  #payoutsView .payout-settings-list > .payout-overview-module {
+    border-left: 1px solid var(--line-soft);
+  }
+
+  #payoutsView .payout-settings-list > .payout-module-column:nth-child(3n+1),
+  #payoutsView .payout-settings-list > .payout-overview-module:nth-child(3n+1) {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+@media (max-width: 980px) {
+  #payoutsView .payout-top-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  #payoutsView .payout-head-controls,
+  #payoutsView #payoutSettingsSection {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+@media (max-width: 760px) {
+  #payoutsView .payout-settings-list {
+    grid-template-columns: 1fr;
+  }
+
+  #payoutsView .payout-settings-list > .payout-module-column,
+  #payoutsView .payout-settings-list > .payout-overview-module {
+    height: auto;
+    min-height: 88px;
+    padding: 8px 0;
+    border-left: 0;
+    border-top: 1px solid var(--line-soft);
+  }
+
+  #payoutsView .payout-settings-list > .payout-module-column:first-child,
+  #payoutsView .payout-settings-list > .payout-overview-module:first-child {
+    border-top: 0;
+  }
+}
