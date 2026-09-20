@@ -59,12 +59,7 @@ async function buildOverview(db, factionId, body = {}, permissions = {}) {
   const span = Math.max(DAY, range.to - range.from);
   const members = await loadMembers(db, factionId);
   const snapshotBounds = await loadSnapshotBounds(db, factionId);
-  const snapshots = await loadSnapshots(
-    db,
-    factionId,
-    Math.max(0, range.from - span - 7 * DAY),
-    Math.min(now, range.to + DAY)
-  );
+  const snapshots = await loadOverviewSnapshots(db, factionId, range, now);
   const wars = await loadRecentWars(db, factionId, 8);
   const warMetrics = await loadWarMetrics(db, factionId, wars.map(war => war.warId));
   const notes = await loadFactionMemberNotes(db, factionId);
@@ -444,6 +439,38 @@ async function loadSnapshotBounds(db, factionId) {
     firstAt:nullableNumber(row?.first_at),
     lastAt:nullableNumber(row?.last_at)
   };
+}
+
+async function loadOverviewSnapshots(db, factionId, range, now) {
+  const span = Math.max(DAY, Number(range.to || now) - Number(range.from || (now - 30 * DAY)));
+  const previousFrom = Math.max(0, Number(range.from) - span);
+
+  // Short ranges are cheap enough to read contiguously. Long ranges only need
+  // snapshots around the start/end boundaries plus recent observations.
+  if (span <= SNAPSHOT_LOOKBACK_DAYS * DAY) {
+    return loadSnapshots(
+      db,
+      factionId,
+      Math.max(0, previousFrom - 7 * DAY),
+      Math.min(now, Number(range.to) + DAY)
+    );
+  }
+
+  const pad = 7 * DAY;
+  const windows = [
+    [Math.max(0, previousFrom - pad), Math.min(now, previousFrom + pad)],
+    [Math.max(0, Number(range.from) - pad), Math.min(now, Number(range.from) + pad)],
+    [Math.max(0, Number(range.to) - SNAPSHOT_LOOKBACK_DAYS * DAY), Math.min(now, Number(range.to) + DAY)]
+  ].filter(([from, to]) => to >= from);
+
+  const clauses = windows.map(() => '(snapshot_at >= ? AND snapshot_at <= ?)').join(' OR ');
+  const params = [factionId, ...windows.flat()];
+
+  const result = await db.prepare(
+    'SELECT * FROM member_snapshots WHERE faction_id = ? AND (' + clauses + ') ORDER BY player_id, snapshot_at'
+  ).bind(...params).all();
+
+  return result.results || [];
 }
 
 async function loadSnapshots(db, factionId, cutoff, upper = null) {
