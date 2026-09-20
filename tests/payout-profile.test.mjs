@@ -15,7 +15,7 @@ test('default payout profile enables the two respect modules', () => {
   assert.deepEqual(enabled, ['rankedRespect', 'outsideChainRespect']);
 });
 
-test('respect modules normalize milestone respect before paying it', () => {
+test('respect modules can pay milestone hits at an alternative flat amount', () => {
   const result = calculatePayoutRows([
     {
       player_id:1,
@@ -36,9 +36,9 @@ test('respect modules normalize milestone respect before paying it', () => {
   const ranked = member.components.find(component => component.id === 'rankedRespect');
   const outside = member.components.find(component => component.id === 'outsideChainRespect');
 
-  assert.equal(ranked.quantity, 60);
+  assert.equal(ranked.quantity, 50);
   assert.equal(ranked.payout, 7_200_000);
-  assert.equal(outside.quantity, 15);
+  assert.equal(outside.quantity, 5);
   assert.equal(outside.payout, 1_200_000);
   assert.equal(member.totalPayout, 8_400_000);
 });
@@ -46,8 +46,8 @@ test('respect modules normalize milestone respect before paying it', () => {
 test('count modules can be enabled independently per faction', () => {
   const profile = normalizePayoutProfile({
     modules:[
-      { id:'rankedRespect', enabled:false, rate:120000, normalizeMilestones:true, milestoneValue:10 },
-      { id:'outsideChainRespect', enabled:false, rate:80000, normalizeMilestones:true, milestoneValue:10 },
+      { id:'rankedRespect', enabled:false, rate:120000, milestonesIncluded:false, milestoneRate:1200000 },
+      { id:'outsideChainRespect', enabled:false, rate:80000, milestonesIncluded:false, milestoneRate:800000 },
       { id:'warHits', enabled:true, rate:250000 },
       { id:'assists', enabled:true, rate:100000 },
       { id:'outsideHits', enabled:false, rate:0 }
@@ -68,11 +68,11 @@ test('count modules can be enabled independently per faction', () => {
   assert.equal(result.members[0].totalPayout, 3_400_000);
 });
 
-test('milestone normalization can be disabled for a respect module', () => {
+test('milestones can be paid normally at the respect rate', () => {
   const profile = normalizePayoutProfile({
     modules:[
-      { id:'rankedRespect', enabled:true, rate:1000, normalizeMilestones:false, milestoneValue:10 },
-      { id:'outsideChainRespect', enabled:false, rate:0, normalizeMilestones:true, milestoneValue:10 }
+      { id:'rankedRespect', enabled:true, rate:1000, milestonesIncluded:true, milestoneRate:10000 },
+      { id:'outsideChainRespect', enabled:false, rate:0, milestonesIncluded:true, milestoneRate:0 }
     ]
   });
 
