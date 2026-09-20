@@ -10111,3 +10111,230 @@ body {
 #payoutsView .payout-setting-input em {
   margin-left: 4px;
 }
+
+
+/* Organized payout profile hierarchy */
+:root {
+  --war-first-row-height: 68px;
+  --war-first-divider-offset: 147px;
+}
+
+#archiveView .archive-toolbar,
+#payoutsView #payoutSettingsSection {
+  min-height: var(--war-first-row-height);
+}
+
+#payoutsView #payoutSettingsSection {
+  display: block;
+  margin-bottom: 9px;
+  padding: 0 0 9px;
+}
+
+#payoutsView .payout-settings-form {
+  min-height: 58px;
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 5px;
+  align-content: center;
+  width: 100%;
+}
+
+#payoutsView .payout-settings-head {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+#payoutsView .payout-settings-label {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--font-small);
+  font-weight: 680;
+}
+
+#payoutsView .payout-settings-list {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+#payoutsView .payout-setting-group {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+#payoutsView .payout-setting-group + .payout-setting-group {
+  padding-left: 20px;
+  border-left: 1px solid var(--line-soft);
+}
+
+#payoutsView .payout-setting-group-label {
+  flex: 0 0 auto;
+  color: var(--dim);
+  font-size: var(--font-caption);
+  font-weight: 720;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+
+#payoutsView .payout-setting-group-items {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-width: 0;
+}
+
+#payoutsView .payout-setting-row,
+#payoutsView .payout-setting-row:first-of-type,
+#payoutsView .payout-setting-row:last-child {
+  min-height: 28px;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#payoutsView .payout-setting-row:first-child {
+  padding-left: 0;
+}
+
+#payoutsView .payout-setting-row:last-child {
+  padding-right: 0;
+}
+
+#payoutsView .payout-setting-row + .payout-setting-row {
+  border-left: 1px solid var(--line-soft);
+}
+
+#payoutsView .payout-setting-toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  margin: 0;
+  font-size: var(--font-small);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+#payoutsView .payout-setting-controls {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: nowrap;
+}
+
+#payoutsView .payout-setting-row.disabled {
+  opacity: .5;
+}
+
+#payoutsView .payout-setting-row.disabled .payout-setting-controls {
+  display: none;
+}
+
+#payoutsView .payout-setting-input input {
+  width: 82px;
+  height: 27px;
+}
+
+#payoutsView .payout-milestone-field .payout-setting-input input {
+  width: 46px;
+}
+
+#payoutsView .payout-normalize-field {
+  min-height: 27px;
+}
+
+#payoutsView .payout-settings-topline-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#payoutsView #payoutSettingsStatus {
+  max-width: 220px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--font-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#payoutsView .payout-settings-topline-actions .action {
+  min-width: 58px;
+  min-height: 28px;
+  height: 28px;
+  padding: 3px 10px;
+}
+
+#archiveView.war-open #warDetailView .detail-head {
+  min-height: var(--war-first-divider-offset);
+}
+
+@media (max-width: 1320px) {
+  #payoutsView .payout-settings-list {
+    gap: 14px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  #payoutsView .payout-setting-group + .payout-setting-group {
+    padding-left: 14px;
+  }
+
+  #payoutsView .payout-setting-row,
+  #payoutsView .payout-setting-row:first-of-type,
+  #payoutsView .payout-setting-row:last-child {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+
+@media (max-width: 900px) {
+  #archiveView .archive-toolbar,
+  #payoutsView #payoutSettingsSection {
+    min-height: auto;
+  }
+
+  #payoutsView .payout-settings-form {
+    display: block;
+  }
+
+  #payoutsView .payout-settings-head {
+    margin-bottom: 8px;
+  }
+
+  #payoutsView .payout-settings-list {
+    display: grid;
+    gap: 8px;
+    overflow: visible;
+  }
+
+  #payoutsView .payout-setting-group,
+  #payoutsView .payout-setting-group + .payout-setting-group {
+    align-items: flex-start;
+    padding: 6px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--line-soft);
+  }
+
+  #archiveView.war-open #warDetailView .detail-head {
+    min-height: 104px;
+  }
+}
