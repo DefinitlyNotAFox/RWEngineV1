@@ -10077,3 +10077,37 @@ body {
     border-bottom: 1px solid var(--line-soft);
   }
 }
+
+
+/* Payout row readability pass */
+#payoutsView .payout-setting-row,
+#payoutsView .payout-setting-row:first-of-type,
+#payoutsView .payout-setting-row:last-child {
+  gap: 9px;
+  padding-left: 13px;
+  padding-right: 13px;
+}
+
+#payoutsView .payout-setting-row:first-of-type {
+  padding-left: 0;
+}
+
+#payoutsView .payout-setting-row:last-child {
+  padding-right: 0;
+}
+
+#payoutsView .payout-setting-controls {
+  gap: 7px;
+}
+
+#payoutsView .payout-setting-input input {
+  width: 84px;
+}
+
+#payoutsView .payout-milestone-field .payout-setting-input input {
+  width: 48px;
+}
+
+#payoutsView .payout-setting-input em {
+  margin-left: 4px;
+}
