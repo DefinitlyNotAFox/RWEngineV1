@@ -251,7 +251,8 @@ export function calculatePayoutRows(rows, profileValue) {
 
 function rawModuleQuantity(id, row) {
   if (id === 'rankedRespect') {
-    return nonNegative(row.respect_earned ?? row.rankedRespect ?? 0);
+    // Ranked-war payouts use the same stored war score shown in the member table.
+    return nonNegative(row.score_up ?? row.scoreUp ?? row.respect_earned ?? row.rankedRespect ?? 0);
   }
   if (id === 'outsideChainRespect') {
     return nonNegative(row.outside_chain_respect ?? row.outsideChainRespect ?? 0);
