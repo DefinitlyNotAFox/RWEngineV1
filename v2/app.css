@@ -11886,3 +11886,9 @@ body {
 #payoutsView .payout-milestones-field {
   grid-template-columns: 92px minmax(0, 1fr) !important;
 }
+
+
+/* Payout settings header now contains actions only */
+#payoutsView .payout-settings-headbar {
+  justify-content: flex-end;
+}
