@@ -869,9 +869,9 @@ function renderComparePanel() {
               ${escapeHtml(member.playerName)}<span aria-hidden="true">×</span>
             </button>
           `).join('')}
-          \${compareMemberIds.size >= 5 ? \`
+          ${compareMemberIds.size >= 5 ? `
             <span class="faction-compare-add-limit">5 members selected</span>
-          \` : \`
+          ` : `
             <details class="faction-compare-member-menu">
               <summary>+ Add member</summary>
               <div class="faction-compare-member-popover">
@@ -882,23 +882,23 @@ function renderComparePanel() {
                   data-compare-member-search
                 />
                 <div class="faction-compare-member-options">
-                  \${members
+                  ${members
                     .filter(member => !compareMemberIds.has(Number(member.playerId)))
-                    .map(member => \`
+                    .map(member => `
                       <button
                         type="button"
-                        data-compare-add-member="\${escapeHtml(member.playerId)}"
+                        data-compare-add-member="${escapeHtml(member.playerId)}"
                         data-compare-member-option
-                        data-compare-member-search="\${escapeHtml(member.playerName + ' ' + member.playerId)}"
+                        data-compare-member-search="${escapeHtml(member.playerName + ' ' + member.playerId)}"
                       >
-                        <strong>\${escapeHtml(member.playerName)}</strong>
-                        <span>[\${escapeHtml(member.playerId)}]</span>
+                        <strong>${escapeHtml(member.playerName)}</strong>
+                        <span>[${escapeHtml(member.playerId)}]</span>
                       </button>
-                    \`).join('')}
+                    `).join('')}
                 </div>
               </div>
             </details>
-          \`}
+          `}
         </div>
       </div>
 
