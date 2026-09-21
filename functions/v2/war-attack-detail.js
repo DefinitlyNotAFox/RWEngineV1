@@ -243,7 +243,7 @@ async function assertWarAccess(db, user, factionId, war) {
   if (Number(user.is_admin) === 1) return;
 
   const factionPermissions = await loadFactionPermissions(db, user, factionId);
-  if (factionPermissions.isFactionAdmin || factionPermissions.isAssistant) return;
+  if (factionPermissions.isFactionAdmin) return;
 
   const permission = await db.prepare(
     'SELECT owner_user_id, visibility FROM resource_permissions WHERE faction_id = ? AND resource_type = ? AND resource_key = ? LIMIT 1'
