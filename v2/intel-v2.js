@@ -123,6 +123,12 @@ export function initIntelV2() {
   document.querySelector('#factionCompareToggle')?.addEventListener('click', async () => {
     compareOpen = !compareOpen;
     compareError = '';
+
+    if (compareOpen) {
+      filterPanelOpen = false;
+      intelFilterMenuOpen = false;
+    }
+
     renderIntelV2();
     if (compareOpen) await loadMemberComparison(false);
   });
@@ -845,6 +851,7 @@ function renderComparePanel() {
   toggle.title = compareOpen ? 'Return to faction table' : 'Compare faction members';
   panel.classList.toggle('hidden', !compareOpen);
   grid.classList.toggle('hidden', compareOpen);
+  updateCompareControlAvailability();
   if (!compareOpen) return;
 
   const members = (overview?.members || [])
@@ -923,6 +930,29 @@ function renderComparePanel() {
           : renderComparisonChart()}
     </div>
   `;
+}
+
+function updateCompareControlAvailability() {
+  const disabled = compareOpen;
+
+  const filterBlock = document.querySelector('.intel-filter-block');
+  const optionBlock = document.querySelector('#intelViewOptions');
+  const search = document.querySelector('#intelSearch');
+
+  filterBlock?.classList.toggle('compare-disabled', disabled);
+  optionBlock?.classList.toggle('compare-disabled', disabled);
+
+  filterBlock?.querySelectorAll('button, input, select').forEach(control => {
+    control.disabled = disabled;
+  });
+  optionBlock?.querySelectorAll('button, input, select').forEach(control => {
+    control.disabled = disabled;
+  });
+
+  if (search) {
+    search.disabled = disabled;
+    search.classList.toggle('compare-disabled', disabled);
+  }
 }
 
 function renderComparisonChart() {
