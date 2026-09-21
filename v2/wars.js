@@ -1723,8 +1723,8 @@ function applyShareState(result) {
   if (!canManage) {
     setShareStatus(
       visibility === 'private'
-        ? 'Private report. Only Assistants or faction admins can change access.'
-        : 'You can view this report, but only Assistants or faction admins can change access.'
+        ? 'Private report. Only faction admins can change access.'
+        : 'You can view this report, but only faction admins can change access.'
     );
     return;
   }
