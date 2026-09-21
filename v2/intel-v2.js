@@ -567,16 +567,17 @@ function updateFactionTitle() {
   if (!title) return;
 
   const factionId = Number(state.selectedFactionId || state.user?.factionId || 0);
-  const name = String(
-    overview?.faction?.factionName ||
-    state.adminFactions?.find(item => Number(item.factionId) === factionId)?.factionName ||
-    state.user?.factionName ||
-    ''
-  ).trim();
+  const candidates = [
+    overview?.faction?.factionName,
+    state.adminFactions?.find(item => Number(item.factionId) === factionId)?.factionName,
+    Number(state.user?.factionId || 0) === factionId ? state.user?.factionName : null
+  ]
+    .map(value => String(value || '').trim())
+    .filter(Boolean);
 
-  title.textContent = name && !/^Faction\s+\d+$/i.test(name)
-    ? name
-    : (factionId ? `Faction ${factionId}` : 'Faction');
+  const name = candidates.find(value => !/^Faction\s+\d+(?:\s*\[\d+\])?$/i.test(value)) || '';
+
+  title.textContent = name || (factionId ? `Faction ${factionId}` : 'Faction');
 }
 
 async function loadFactionPerformance(force = false) {
@@ -827,7 +828,8 @@ function renderComparePanel() {
   if (!panel || !toggle || !grid) return;
 
   toggle.classList.toggle('active', compareOpen);
-  toggle.textContent = compareOpen ? 'Table' : 'Compare';
+  toggle.textContent = 'Compare';
+  toggle.title = compareOpen ? 'Return to faction table' : 'Compare faction members';
   panel.classList.toggle('hidden', !compareOpen);
   grid.classList.toggle('hidden', compareOpen);
   if (!compareOpen) return;
