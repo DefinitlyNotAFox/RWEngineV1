@@ -57,6 +57,7 @@ async function buildFinanceSummary(db, factionId, canManage) {
       payout_total_override
     FROM wars
     WHERE faction_id = ?
+      AND COALESCE(payout_status, 'outstanding') = 'paid'
     ORDER BY COALESCE(end_timestamp, start_timestamp, imported_at, 0) DESC
     LIMIT 80
   `).bind(factionId).all();
@@ -110,9 +111,7 @@ async function buildFinanceSummary(db, factionId, canManage) {
     };
   });
 
-  const tracked = rows.filter(row =>
-    row.income !== 0 || row.memberPayout !== 0 || row.armoryExpense !== 0
-  );
+  const tracked = rows;
 
   const totals = tracked.reduce((sum,row) => ({
     income:sum.income + row.income,
