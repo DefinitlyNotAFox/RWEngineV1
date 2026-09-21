@@ -15248,3 +15248,64 @@ circle.finance-line {
   color: var(--dim);
   font-size: var(--font-caption);
 }
+
+
+/* Compare sits beside Filters; table-only controls remain visible but inactive */
+.faction-control-row > .faction-compare-toggle {
+  align-self: flex-end;
+  height: 32px;
+  padding: 0 0 4px;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--font-small);
+  font-weight: 560;
+  line-height: 1.2;
+}
+
+.faction-control-row > .faction-compare-toggle:hover,
+.faction-control-row > .faction-compare-toggle.active {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+}
+
+.intel-filter-block.compare-disabled,
+#intelViewOptions.compare-disabled,
+#intelSearch.compare-disabled {
+  opacity: .38;
+}
+
+.intel-filter-block.compare-disabled,
+#intelViewOptions.compare-disabled {
+  pointer-events: none;
+}
+
+#intelSearch.compare-disabled {
+  cursor: default;
+}
+
+@media (min-width: 1051px) {
+  .faction-modebar {
+    grid-template-columns: max-content minmax(36px, 1fr) max-content max-content max-content 225px;
+  }
+
+  .faction-modebar .faction-control-row > .faction-compare-toggle {
+    grid-column: 3;
+    grid-row: 2;
+    align-self: stretch;
+  }
+
+  .faction-modebar .faction-control-row > .intel-filter-block {
+    grid-column: 4;
+  }
+
+  .faction-modebar .faction-control-row > .intel-filter-options {
+    grid-column: 5;
+  }
+
+  .faction-modebar .faction-control-row > .search {
+    grid-column: 6;
+  }
+}
