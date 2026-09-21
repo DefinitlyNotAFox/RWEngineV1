@@ -194,16 +194,13 @@ export function currentFactionId() {
 export function actualUserRole(user = state.user) {
   if (user?.isAdmin) return 'platform_admin';
   if (user?.isFactionAdmin) return 'faction_admin';
-  if (user?.isAssistant) return 'assistant';
   return 'member';
 }
 
 export function availableViewRoles(user = state.user) {
   const actual = actualUserRole(user);
-  if (actual === 'platform_admin') return ['platform_admin','faction_admin','assistant','member'];
-  if (actual === 'faction_admin') return ['faction_admin','assistant','member'];
-  if (actual === 'assistant') return ['assistant','member'];
-  return ['member'];
+  if (actual === 'platform_admin') return ['platform_admin','faction_admin','member'];
+  return [actual];
 }
 
 export function normalizeViewRole(role, user = state.user) {
@@ -249,13 +246,12 @@ export function isPlatformAdminView() {
 }
 
 export function canEditFactionView() {
-  return ['platform_admin','faction_admin','assistant'].includes(currentViewRole());
+  return ['platform_admin','faction_admin'].includes(currentViewRole());
 }
 
 export function roleLabel(role) {
   if (role === 'platform_admin') return 'Platform admin';
   if (role === 'faction_admin') return 'Faction admin';
-  if (role === 'assistant') return 'Assistant';
   return 'Member';
 }
 
