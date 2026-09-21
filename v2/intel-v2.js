@@ -641,9 +641,6 @@ function renderFilters() {
   if (container) {
     const activeCount = activeFilters.size;
     const tagOptions = activeTagFilterOptions();
-    const chips = [...activeFilters]
-      .map(key => ({ key, label:combinedFilterLabel(key) }))
-      .filter(item => item.label);
 
     container.innerHTML = `
       <span class="intel-filter-controls">
@@ -660,13 +657,6 @@ function renderFilters() {
             </span>
           </span>
         </span>
-      </span>
-      <span class="intel-filter-chips">
-        ${chips.map(item => `
-          <button class="intel-filter-chip" type="button" data-filter-remove="${escapeHtml(item.key)}">
-            ${escapeHtml(item.label)}<span aria-hidden="true">×</span>
-          </button>
-        `).join('')}
       </span>
     `;
   }
