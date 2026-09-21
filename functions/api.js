@@ -6,6 +6,8 @@ import {
 
 const SESSION_DAYS = 14;
 const SESSION_SECONDS = SESSION_DAYS * 24 * 60 * 60;
+const PAGE_ACCESS_KEY = "admin_only_pages_v1";
+const PAGE_ACCESS_ROUTES = new Set(["intel", "archive", "payouts", "finance"]);
 
 const ATTACK_PAGE_SOFT_LIMIT = 100;
 const ATTACK_FETCH_MAX_WINDOWS = 800;
@@ -53,6 +55,10 @@ export async function onRequest(context) {
 
     if (action === "me") {
       return await handleMe(env, request);
+    }
+
+    if (action === "getPageAccess") {
+      return await handleGetPageAccess(env, request);
     }
 
     if (action === "updateApiKey") {
@@ -3886,6 +3892,43 @@ function requireSecret(env) {
   if (!env.APP_SECRET) {
     throw new Error("Missing APP_SECRET secret.");
   }
+}
+
+async function readAdminOnlyPages(db) {
+  if (!db) return [];
+  try {
+    const row = await db.prepare(
+      'SELECT value FROM app_meta WHERE key = ? LIMIT 1'
+    ).bind(PAGE_ACCESS_KEY).first();
+
+    if (!row) return [];
+
+    let value = row.value;
+    try { value = JSON.parse(String(row.value || '')); } catch (_) {}
+
+    const pages = Array.isArray(value)
+      ? value
+      : Array.isArray(value?.pages)
+        ? value.pages
+        : [];
+
+    return [...new Set(
+      pages
+        .map(page => String(page || '').trim())
+        .filter(page => PAGE_ACCESS_ROUTES.has(page))
+    )];
+  } catch (_) {
+    return [];
+  }
+}
+
+async function handleGetPageAccess(env, request) {
+  requireDb(env);
+  await getCurrentUserPrivate(env, request);
+  return json({
+    success: true,
+    adminOnlyPages: await readAdminOnlyPages(env.DB)
+  });
 }
 
 async function isMaintenanceMode(db) {
