@@ -13,7 +13,7 @@ import {
 import { sortFactionAccounts, sortTrackedFactions } from './sort.js?v=1';
 
 import { initIntel, renderIntel, refreshSyncStatus } from './intel.js?v=8';
-import { initIntelV2 } from './intel-v2.js?v=59';
+import { initIntelV2 } from './intel-v2.js?v=60';
 import { initWarViews, renderWarOverview, renderArchive } from './wars.js?v=41';
 import { initFinance } from './finance.js?v=1';
 
