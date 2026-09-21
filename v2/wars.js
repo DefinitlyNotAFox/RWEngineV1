@@ -1129,7 +1129,7 @@ function renderPayoutPanel() {
   const confirm = document.querySelector('#payoutConfirm');
   const copy = document.querySelector('#payoutCopy');
   const status = String(detail.payout.status || preview?.status || 'outstanding');
-  const canManagePayouts = detail.payout.canManage === true && status !== 'paid';
+  const canManagePayouts = detail.payout.canManage === true && canEditFactionView() && status !== 'paid';
 
   confirm?.classList.toggle('hidden', !canManagePayouts);
   if (copy) copy.disabled = !preview;
@@ -1261,7 +1261,7 @@ function renderPayoutPaidCell(member, canManage, status) {
 
 function handlePayoutTotalInput(event) {
   const input = event.target.closest('[data-payout-total-input]');
-  if (!input || detail.payout.canManage !== true || detail.payout.status === 'paid') return;
+  if (!input || detail.payout.canManage !== true || !canEditFactionView() || detail.payout.status === 'paid') return;
 
   const formatted = formatPayoutMoneyInput(input.value);
   input.value = formatted;
@@ -1289,6 +1289,7 @@ async function handlePayoutTotalChange(event) {
     !input ||
     !detail.warId ||
     detail.payout.canManage !== true ||
+    !canEditFactionView() ||
     detail.payout.status === 'paid'
   ) return;
 
