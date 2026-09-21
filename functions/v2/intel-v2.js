@@ -292,7 +292,7 @@ async function buildMemberComparison(db, factionId, body = {}) {
   const snapshots = await loadSnapshots(
     db,
     factionId,
-    Math.max(0, range.from - DAY),
+    Math.max(0, range.from - 7 * DAY),
     Math.min(now, range.to + DAY)
   );
   const snapshotsByPlayer = groupBy(snapshots, row => Number(row.player_id));
@@ -300,33 +300,59 @@ async function buildMemberComparison(db, factionId, body = {}) {
     members.filter(row => Number(row.is_current) === 1).map(row => Number(row.player_id))
   );
 
-  const dailyPoint = row => ({
-    at:Number(row.snapshot_at || 0),
-    activity:Number.isFinite(Number(row.activity_per_day_seconds))
-      ? Number(row.activity_per_day_seconds)
-      : null,
-    xanax:Number.isFinite(Number(row.xanax_per_day))
-      ? Number(row.xanax_per_day)
-      : null,
-    stats:numberOrNull(row.battle_stats_estimate)
-  });
+  const buildTimelinePoints = rows => {
+    const ordered = (rows || [])
+      .slice()
+      .sort((a,b) => Number(a.snapshot_at || 0) - Number(b.snapshot_at || 0));
+    const points = [];
+
+    for (let index = 1; index < ordered.length; index += 1) {
+      const previous = ordered[index - 1];
+      const current = ordered[index];
+      const at = Number(current.snapshot_at || 0);
+      if (at < range.from || at > range.to) continue;
+
+      const elapsedDays = (at - Number(previous.snapshot_at || 0)) / DAY;
+      if (!(elapsedDays > 0) || elapsedDays > 8) continue;
+
+      const activityDelta = monotonicDelta(
+        current.activity_total_seconds,
+        previous.activity_total_seconds
+      );
+      const xanaxDelta = monotonicDelta(
+        current.xanax_taken_total,
+        previous.xanax_taken_total
+      );
+
+      points.push({
+        at,
+        activity:activityDelta === null ? null : activityDelta / elapsedDays,
+        xanax:xanaxDelta === null ? null : xanaxDelta / elapsedDays,
+        stats:numberOrNull(current.battle_stats_estimate)
+      });
+    }
+
+    return points;
+  };
+
+  const timelineByPlayer = new Map();
+  for (const [playerId, rows] of snapshotsByPlayer.entries()) {
+    timelineByPlayer.set(Number(playerId), buildTimelinePoints(rows));
+  }
 
   const series = selected.map(member => ({
     playerId:Number(member.player_id),
     playerName:member.player_name || 'Player ' + member.player_id,
-    points:(snapshotsByPlayer.get(Number(member.player_id)) || [])
-      .map(dailyPoint)
-      .filter(point => point.at >= range.from && point.at <= range.to)
+    points:timelineByPlayer.get(Number(member.player_id)) || []
   }));
 
   const byDay = new Map();
-  for (const row of snapshots) {
-    if (!currentIds.has(Number(row.player_id))) continue;
-    const at = Number(row.snapshot_at || 0);
-    if (at < range.from || at > range.to) continue;
-    const day = Math.floor(at / DAY) * DAY;
-    if (!byDay.has(day)) byDay.set(day, []);
-    byDay.get(day).push(dailyPoint(row));
+  for (const playerId of currentIds) {
+    for (const point of timelineByPlayer.get(Number(playerId)) || []) {
+      const day = Math.floor(Number(point.at || 0) / DAY) * DAY;
+      if (!byDay.has(day)) byDay.set(day, []);
+      byDay.get(day).push(point);
+    }
   }
 
   const factionAverage = {
