@@ -37,7 +37,7 @@ export async function onRequest(context) {
 
     if (action === 'saveMemberNotes') {
       if (!canEditMemberNotes) {
-        throw httpError(403, 'Assistant or faction-admin access is required to edit member notes.');
+        throw httpError(403, 'Faction-admin access is required to edit member notes.');
       }
 
       const playerId = positiveInt(body.playerId, 'playerId');
@@ -627,7 +627,7 @@ async function ensureMemberNotesSchema(db) {
 async function canEditFactionNotes(db, user, factionId) {
   if (Number(user?.is_admin) === 1) return true;
   const permissions = await loadFactionPermissions(db, user, factionId);
-  return permissions.isFactionAdmin || permissions.isAssistant;
+  return permissions.isFactionAdmin;
 }
 
 async function loadFactionMemberNotes(db, factionId) {
