@@ -242,6 +242,27 @@ async function syncArmoryExpenses(env, factionId) {
     stored += 1;
   }
 
+  // Re-associate stored events when wars were imported after an earlier armory sync.
+  for (const war of wars) {
+    const start = Number(war.start_timestamp || 0);
+    const end = Number(war.end_timestamp || start || 0);
+    if (!start || !end) continue;
+    await env.DB.prepare(`
+      UPDATE finance_armory_events
+      SET war_id = ?
+      WHERE faction_id = ?
+        AND event_at >= ?
+        AND event_at <= ?
+        AND (war_id IS NULL OR war_id = ?)
+    `).bind(
+      String(war.war_id),
+      factionId,
+      start - SYNC_OVERLAP,
+      end + SYNC_OVERLAP,
+      String(war.war_id)
+    ).run();
+  }
+
   await setMeta(env.DB, factionId, 'armory_last_sync', String(now));
 
   return {
@@ -264,7 +285,7 @@ function normalizeArmoryEvent(newsId, raw, items) {
 
   const lower = text.toLowerCase();
   const item = items.find(candidate => lower.includes(candidate.nameLower));
-  if (!item) return null;
+  if (!item || item.consumable === false) return null;
 
   const escaped = escapeRegExp(item.name);
   const before = text.match(new RegExp('(\\d[\\d,]*)\\s*x?\\s*' + escaped, 'i'));
@@ -306,10 +327,14 @@ function normalizeItems(data) {
     const marketValue = Number(
       item?.market_value ?? item?.marketValue ?? item?.value ?? item?.market_price ?? 0
     );
+    const type = String(item?.type || item?.category || item?.item_type || '').trim();
+    const consumable = !/weapon|armor|armour/i.test(type);
     return {
       id:Number(item?.id || id) || 0,
       name,
       nameLower:name.toLowerCase(),
+      type,
+      consumable,
       marketValue:Number.isFinite(marketValue) && marketValue > 0 ? marketValue : 0
     };
   }).filter(item => item.id > 0 && item.name)
