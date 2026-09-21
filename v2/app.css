@@ -15271,6 +15271,24 @@ circle.finance-line {
   color: var(--text);
 }
 
+.faction-control-row > .faction-compare-toggle {
+  position: relative;
+  margin-right: 10px;
+  padding-right: 14px;
+}
+
+.faction-control-row > .faction-compare-toggle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 1px;
+  height: 20px;
+  background: var(--line-soft);
+  transform: translateY(-50%);
+}
+
+
 .intel-filter-block.compare-disabled,
 #intelViewOptions.compare-disabled,
 #intelSearch.compare-disabled {
