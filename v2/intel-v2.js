@@ -80,6 +80,15 @@ let calendarAnchor = null;
 let filterPanelOpen = false;
 let loadedAnalysisKey = '';
 
+let compareOpen = false;
+const compareMemberIds = new Set();
+let compareMetric = 'activity';
+let compareIncludeAverage = true;
+let compareData = null;
+let compareLoading = false;
+let compareError = '';
+let compareLoadedKey = '';
+
 const factionPerformance = {
   members:new Map(),
   totalWars:0,
@@ -110,6 +119,45 @@ export function initIntelV2() {
   renderTagToolbar();
 
   document.querySelector('#intelSearch')?.addEventListener('input', renderIntelV2);
+
+  document.querySelector('#factionCompareToggle')?.addEventListener('click', async () => {
+    compareOpen = !compareOpen;
+    compareError = '';
+    renderIntelV2();
+    if (compareOpen) await loadMemberComparison(false);
+  });
+
+  document.querySelector('#factionComparePanel')?.addEventListener('change', async event => {
+    if (event.target.matches('[data-compare-add-member]')) {
+      const playerId = Number(event.target.value || 0);
+      if (playerId && compareMemberIds.size < 5) compareMemberIds.add(playerId);
+      event.target.value = '';
+      compareLoadedKey = '';
+      renderComparePanel();
+      await loadMemberComparison(true);
+      return;
+    }
+
+    if (event.target.matches('[data-compare-metric]')) {
+      compareMetric = String(event.target.value || defaultCompareMetric());
+      renderComparePanel();
+      return;
+    }
+
+    if (event.target.matches('[data-compare-average]')) {
+      compareIncludeAverage = event.target.checked === true;
+      renderComparePanel();
+    }
+  });
+
+  document.querySelector('#factionComparePanel')?.addEventListener('click', async event => {
+    const remove = event.target.closest('[data-compare-remove-member]');
+    if (!remove) return;
+    compareMemberIds.delete(Number(remove.dataset.compareRemoveMember || 0));
+    compareLoadedKey = '';
+    renderComparePanel();
+    await loadMemberComparison(true);
+  });
 
   document.querySelector('#intelHead')?.addEventListener('click', event => {
     const header = event.target.closest('[data-intel2-sort]');
@@ -482,6 +530,7 @@ export async function loadIntelV2(force = false) {
     if (!force && overview && Number(loadedFactionId) === factionId && loadedAnalysisKey === key) {
       renderIntelV2();
       await loadFactionPerformance(false);
+      if (compareOpen) await loadMemberComparison(false);
       return;
     }
 
@@ -497,6 +546,7 @@ export async function loadIntelV2(force = false) {
     renderIntelFreshness();
     await refreshSyncStatus();
     await loadFactionPerformance(force);
+    if (compareOpen) await loadMemberComparison(force);
   } catch (error) {
     if (!overview) overview = null;
     setIntelStatus(error.message || 'Failed to load faction data.', true);
@@ -707,12 +757,287 @@ function renderFactionStatus() {
   element.classList.add('hidden');
 }
 
+function defaultCompareMetric() {
+  return filterMode === 'wars' ? 'hits' : 'activity';
+}
+
+function compareMetricOptions() {
+  return filterMode === 'wars'
+    ? [
+        ['hits','War hits'],
+        ['assists','Assists'],
+        ['outsideHits','Outside hits'],
+        ['respectPerHit','Respect / hit'],
+        ['netScore','Net score']
+      ]
+    : [
+        ['activity','Activity / day'],
+        ['xanax','Xanax / day'],
+        ['stats','Battle stats']
+      ];
+}
+
+function comparePayload() {
+  return {
+    mode:filterMode,
+    playerIds:[...compareMemberIds],
+    ...(filterMode === 'wars'
+      ? { warIds:[...selectedWarIds].sort() }
+      : analysisPayload())
+  };
+}
+
+function compareKey() {
+  const factionId = Number(state.selectedFactionId || state.user?.factionId || 0);
+  const scope = filterMode === 'wars'
+    ? [...selectedWarIds].sort().join(',')
+    : `${timelineRange?.from || ''}:${timelineRange?.to || ''}`;
+  return `${factionId}:${filterMode}:${scope}:${[...compareMemberIds].sort((a,b) => a-b).join(',')}`;
+}
+
+async function loadMemberComparison(force = false) {
+  if (!compareOpen || compareLoading) return;
+  const key = compareKey();
+  if (!force && compareData && compareLoadedKey === key) {
+    renderComparePanel();
+    return;
+  }
+
+  compareLoading = true;
+  compareError = '';
+  renderComparePanel();
+
+  try {
+    compareData = await intelV2Api('compare', comparePayload());
+    compareLoadedKey = key;
+  } catch (error) {
+    compareData = null;
+    compareLoadedKey = '';
+    compareError = error.message || 'Failed to load comparison data.';
+  } finally {
+    compareLoading = false;
+    renderComparePanel();
+  }
+}
+
+function renderComparePanel() {
+  const panel = document.querySelector('#factionComparePanel');
+  const toggle = document.querySelector('#factionCompareToggle');
+  const grid = document.querySelector('.faction-grid-wrap');
+  if (!panel || !toggle || !grid) return;
+
+  toggle.classList.toggle('active', compareOpen);
+  toggle.textContent = compareOpen ? 'Table' : 'Compare';
+  panel.classList.toggle('hidden', !compareOpen);
+  grid.classList.toggle('hidden', compareOpen);
+  if (!compareOpen) return;
+
+  const members = (overview?.members || [])
+    .filter(member => member.current !== false)
+    .slice()
+    .sort((a,b) => String(a.playerName || '').localeCompare(String(b.playerName || ''), undefined, { sensitivity:'base', numeric:true }));
+
+  const selected = [...compareMemberIds]
+    .map(id => members.find(member => Number(member.playerId) === Number(id)))
+    .filter(Boolean);
+
+  const options = compareMetricOptions();
+  if (!options.some(([key]) => key === compareMetric)) compareMetric = defaultCompareMetric();
+
+  panel.innerHTML = `
+    <div class="faction-compare-toolbar">
+      <div class="faction-compare-members">
+        <span class="faction-compare-label">Members</span>
+        <div class="faction-compare-chips">
+          ${selected.map(member => `
+            <button type="button" class="faction-compare-chip" data-compare-remove-member="${escapeHtml(member.playerId)}">
+              ${escapeHtml(member.playerName)}<span aria-hidden="true">×</span>
+            </button>
+          `).join('')}
+          <select data-compare-add-member aria-label="Add member to comparison" ${compareMemberIds.size >= 5 ? 'disabled' : ''}>
+            <option value="">+ Add member</option>
+            ${members
+              .filter(member => !compareMemberIds.has(Number(member.playerId)))
+              .map(member => `<option value="${escapeHtml(member.playerId)}">${escapeHtml(member.playerName)} [${escapeHtml(member.playerId)}]</option>`)
+              .join('')}
+          </select>
+        </div>
+      </div>
+
+      <label class="faction-compare-control">
+        <span>Metric</span>
+        <select data-compare-metric>
+          ${options.map(([key,label]) => `<option value="${key}"${compareMetric === key ? ' selected' : ''}>${escapeHtml(label)}</option>`).join('')}
+        </select>
+      </label>
+
+      <label class="faction-compare-average">
+        <input type="checkbox" data-compare-average ${compareIncludeAverage ? 'checked' : ''} />
+        <span>Faction average</span>
+      </label>
+    </div>
+
+    <div class="faction-compare-stage">
+      ${compareLoading
+        ? '<div class="faction-compare-empty">Loading comparison…</div>'
+        : compareError
+          ? `<div class="faction-compare-empty error">${escapeHtml(compareError)}</div>`
+          : renderComparisonChart()}
+    </div>
+  `;
+}
+
+function renderComparisonChart() {
+  const data = compareData;
+  const lines = Array.isArray(data?.series) ? data.series : [];
+  const plotted = [
+    ...lines,
+    ...(compareIncludeAverage && data?.factionAverage ? [{ ...data.factionAverage, factionAverage:true }] : [])
+  ];
+
+  if (!plotted.length) {
+    return '<div class="faction-compare-empty">Add members or enable the faction average.</div>';
+  }
+
+  const metric = compareMetric;
+  const width = 1120;
+  const height = 360;
+  const left = 66;
+  const right = 24;
+  const top = 26;
+  const bottom = 54;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+
+  const allPoints = plotted.flatMap(series =>
+    (series.points || [])
+      .map((point,index) => ({ point, index, value:Number(point?.[metric]) }))
+      .filter(item => Number.isFinite(item.value))
+  );
+
+  if (!allPoints.length) {
+    return '<div class="faction-compare-empty">No data for this metric in the selected range.</div>';
+  }
+
+  const rawMin = Math.min(...allPoints.map(item => item.value));
+  const rawMax = Math.max(...allPoints.map(item => item.value));
+  const positiveOnly = metric !== 'netScore';
+  let min = positiveOnly ? 0 : Math.min(0, rawMin);
+  let max = Math.max(rawMax, positiveOnly ? 1 : 0);
+  if (max === min) max = min + 1;
+  const padding = (max - min) * 0.08;
+  if (!positiveOnly) min -= padding;
+  max += padding;
+
+  const warMode = data?.mode === 'wars';
+  const axis = Array.isArray(data?.axis) ? data.axis : [];
+  const timelinePoints = plotted.flatMap(series => series.points || []);
+  const times = timelinePoints.map(point => Number(point.at || 0)).filter(value => value > 0);
+  const minTime = times.length ? Math.min(...times) : 0;
+  const maxTime = times.length ? Math.max(...times) : minTime + 1;
+
+  const xFor = (point,index) => {
+    if (warMode) {
+      const count = Math.max(1, axis.length - 1);
+      const axisIndex = Math.max(0, axis.findIndex(item => String(item.key) === String(point.key)));
+      return left + (axisIndex / count) * plotWidth;
+    }
+    const at = Number(point.at || minTime);
+    return left + ((at - minTime) / Math.max(1, maxTime - minTime)) * plotWidth;
+  };
+  const yFor = value => top + (1 - (value - min) / (max - min)) * plotHeight;
+
+  const ticks = Array.from({length:5}, (_,index) => {
+    const ratio = index / 4;
+    const value = max - ratio * (max - min);
+    const y = top + ratio * plotHeight;
+    return { value, y };
+  });
+
+  const paths = plotted.map((series,seriesIndex) => {
+    const valid = (series.points || [])
+      .map((point,index) => ({ point,index,value:Number(point?.[metric]) }))
+      .filter(item => Number.isFinite(item.value));
+    const d = valid.map((item,index) => {
+      const x = xFor(item.point,item.index);
+      const y = yFor(item.value);
+      return `${index ? 'L' : 'M'} ${x.toFixed(2)} ${y.toFixed(2)}`;
+    }).join(' ');
+    const cls = series.factionAverage
+      ? 'compare-line faction-average'
+      : `compare-line compare-series-${seriesIndex % 5}`;
+    const dots = valid.map(item => {
+      const x = xFor(item.point,item.index);
+      const y = yFor(item.value);
+      return `<circle class="${cls}" cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="3"><title>${escapeHtml(series.playerName)} · ${escapeHtml(formatCompareValue(item.value, metric))}</title></circle>`;
+    }).join('');
+    return `<path class="${cls}" d="${d}"></path>${dots}`;
+  }).join('');
+
+  let xLabels = '';
+  if (warMode) {
+    xLabels = axis.map((item,index) => {
+      const x = left + (index / Math.max(1, axis.length - 1)) * plotWidth;
+      const label = String(item.label || 'War');
+      const short = label.length > 16 ? label.slice(0, 14) + '…' : label;
+      return `<text x="${x.toFixed(2)}" y="${height - 20}" text-anchor="middle">${escapeHtml(short)}</text>`;
+    }).join('');
+  } else {
+    const timelineTicks = Array.from({length:5}, (_,index) => {
+      const ratio = index / 4;
+      const at = minTime + ratio * (maxTime - minTime);
+      return {
+        x:left + ratio * plotWidth,
+        label:new Date(at * 1000).toLocaleDateString(undefined, { month:'short', day:'numeric' })
+      };
+    });
+    xLabels = timelineTicks.map(item =>
+      `<text x="${item.x.toFixed(2)}" y="${height - 20}" text-anchor="middle">${escapeHtml(item.label)}</text>`
+    ).join('');
+  }
+
+  const legend = plotted.map((series,index) => `
+    <span class="faction-compare-legend-item${series.factionAverage ? ' faction-average' : ` compare-series-${index % 5}`}">
+      <i></i><span>${escapeHtml(series.playerName)}</span>
+    </span>
+  `).join('');
+
+  return `
+    <div class="faction-compare-chart-head">
+      <div>
+        <strong>${escapeHtml(compareMetricOptions().find(([key]) => key === metric)?.[1] || metric)}</strong>
+        <span>${escapeHtml(filterMode === 'wars' ? 'Selected ranked wars' : formatRangeLabel(timelineRange))}</span>
+      </div>
+      <div class="faction-compare-legend">${legend}</div>
+    </div>
+    <svg class="faction-compare-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Member comparison chart">
+      ${ticks.map(tick => `
+        <line class="compare-gridline" x1="${left}" y1="${tick.y.toFixed(2)}" x2="${width-right}" y2="${tick.y.toFixed(2)}"></line>
+        <text class="compare-y-label" x="${left-12}" y="${(tick.y+4).toFixed(2)}" text-anchor="end">${escapeHtml(formatCompareValue(tick.value, metric))}</text>
+      `).join('')}
+      ${paths}
+      <g class="compare-x-labels">${xLabels}</g>
+    </svg>
+  `;
+}
+
+function formatCompareValue(value, metric = compareMetric) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '—';
+  if (metric === 'activity') return formatDuration(number);
+  if (metric === 'xanax' || metric === 'respectPerHit') return formatDecimal(number, 2);
+  if (metric === 'stats') return formatCompact(number);
+  if (metric === 'netScore') return formatSigned(number, 1);
+  return formatNumber(number);
+}
+
 function renderIntelV2() {
   ensureSortKey();
   renderFilters();
   renderFactionControls();
   renderHeaders();
   renderTagToolbar();
+  renderComparePanel();
 
   const aggregate = document.querySelector('#intelAggregate');
   const body = document.querySelector('#intelBody');
@@ -2523,6 +2848,15 @@ function resetIntelState() {
   calendarCursor = null;
   calendarAnchor = null;
   filterPanelOpen = false;
+
+  compareOpen = false;
+  compareMemberIds.clear();
+  compareMetric = 'activity';
+  compareIncludeAverage = true;
+  compareData = null;
+  compareLoading = false;
+  compareError = '';
+  compareLoadedKey = '';
 
   factionPerformance.members.clear();
   factionPerformance.totalWars = 0;
