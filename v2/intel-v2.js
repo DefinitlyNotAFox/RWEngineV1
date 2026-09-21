@@ -3,7 +3,7 @@ import {
   canEditFactionView, renderLeadershipMarker,
   formatNumber, formatCompact, formatDecimal, formatPercent, formatSigned,
   formatDuration, formatRelative, escapeHtml, sleep
-} from './core.js?v=8';
+} from './core.js?v=9';
 import { buildAutoTags } from './auto-tag-engine.js?v=4';
 
 const MONTH_DAYS = 30.44;
