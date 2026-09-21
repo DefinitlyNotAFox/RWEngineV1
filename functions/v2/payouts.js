@@ -134,7 +134,27 @@ export async function onRequest(context) {
       )
     };
 
-    const calculation = calculatePayoutRows(rows, calculationProfile);
+    const marketCalculation = calculatePayoutRows(rows, calculationProfile);
+    const marketValuePayout = Math.max(0, Math.round(Number(marketCalculation.totalPayout || 0)));
+    let payoutTotalOverride = storedPayoutTotalOverride(war.payout_total_override);
+
+    if (action === 'setTotalPayout') {
+      const requestedTotal = requestedPayoutTotal(body.amount);
+      payoutTotalOverride = requestedTotal === null || requestedTotal === marketValuePayout
+        ? null
+        : requestedTotal;
+
+      await env.DB.prepare(
+        'UPDATE wars SET payout_total_override = ?, updated_at = ? WHERE faction_id = ? AND war_id = ?'
+      ).bind(
+        payoutTotalOverride,
+        unixNow(),
+        factionId,
+        warId
+      ).run();
+    }
+
+    const calculation = applyPayoutTotalOverride(marketCalculation, payoutTotalOverride);
     const payments = await loadMemberPayments(env.DB, factionId, warId);
     const preview = attachPaymentState({
       warId,
@@ -144,6 +164,16 @@ export async function onRequest(context) {
       unavailableModules,
       status:'outstanding'
     }, payments);
+
+    if (action === 'setTotalPayout') {
+      return json({
+        success:true,
+        canSave:true,
+        canManage:true,
+        status:'outstanding',
+        preview
+      });
+    }
 
     if (action === 'preview') {
       return json({
@@ -262,6 +292,121 @@ export async function onRequest(context) {
     }, error?.status || 500);
   }
 }
+function requestedPayoutTotal(value) {
+  if (value === null || value === undefined || String(value).trim() === '') return null;
+  const number = Number(value);
+  if (!Number.isSafeInteger(number) || number < 0) {
+    throw httpError(400, 'Payout total must be a whole money amount of 0 or more.');
+  }
+  return number;
+}
+
+function storedPayoutTotalOverride(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isSafeInteger(number) && number >= 0 ? number : null;
+}
+
+function applyPayoutTotalOverride(calculation, overrideValue) {
+  const marketValuePayout = Math.max(0, Math.round(Number(calculation?.totalPayout || 0)));
+  const override = storedPayoutTotalOverride(overrideValue);
+
+  if (override === null) {
+    return {
+      ...calculation,
+      marketValuePayout,
+      payoutTotalOverride:null
+    };
+  }
+
+  const members = Array.isArray(calculation?.members) ? calculation.members : [];
+  const entries = [];
+
+  for (const member of members) {
+    for (const component of Array.isArray(member.components) ? member.components : []) {
+      const source = Math.max(0, Math.round(Number(component.payout || 0)));
+      if (source <= 0) continue;
+      entries.push({ member, component, source });
+    }
+  }
+
+  const sourceTotal = entries.reduce((sum, item) => sum + item.source, 0);
+  if (override > 0 && sourceTotal <= 0) {
+    throw httpError(422, 'A custom payout total cannot be distributed because the calculated payout is 0.');
+  }
+
+  for (const member of members) {
+    for (const component of Array.isArray(member.components) ? member.components : []) {
+      component.marketPayout = Math.max(0, Math.round(Number(component.payout || 0)));
+      component.payout = 0;
+    }
+  }
+
+  if (sourceTotal > 0 && override > 0) {
+    const allocations = entries.map((item, index) => {
+      const exact = override * item.source / sourceTotal;
+      const floor = Math.floor(exact);
+      return {
+        ...item,
+        index,
+        floor,
+        fraction:exact - floor
+      };
+    });
+
+    let remainder = override - allocations.reduce((sum, item) => sum + item.floor, 0);
+    allocations.sort((a, b) =>
+      b.fraction - a.fraction ||
+      b.source - a.source ||
+      String(a.member.playerName || '').localeCompare(String(b.member.playerName || ''), undefined, {
+        sensitivity:'base',
+        numeric:true
+      }) ||
+      String(a.component.id || '').localeCompare(String(b.component.id || ''))
+    );
+
+    for (const allocation of allocations) {
+      const extra = remainder > 0 ? 1 : 0;
+      if (extra) remainder -= 1;
+      allocation.component.payout = allocation.floor + extra;
+    }
+  }
+
+  for (const member of members) {
+    member.totalPayout = (member.components || []).reduce(
+      (sum, component) => sum + Math.max(0, Math.round(Number(component.payout || 0))),
+      0
+    );
+  }
+
+  members.sort((a, b) =>
+    Number(b.totalPayout || 0) - Number(a.totalPayout || 0) ||
+    String(a.playerName || '').localeCompare(String(b.playerName || ''), undefined, {
+      sensitivity:'base',
+      numeric:true
+    })
+  );
+
+  const modules = Array.isArray(calculation?.modules) ? calculation.modules : [];
+  for (const module of modules) {
+    module.marketPayout = Math.max(0, Math.round(Number(module.payout || 0)));
+    module.payout = members.reduce((sum, member) => {
+      const component = (member.components || []).find(item => item.id === module.id);
+      return sum + Math.max(0, Math.round(Number(component?.payout || 0)));
+    }, 0);
+  }
+
+  return {
+    ...calculation,
+    members,
+    modules,
+    activeModules:modules.filter(module => module.enabled !== false),
+    marketValuePayout,
+    payoutTotalOverride:override,
+    totalPayout:override
+  };
+}
+
 function parseSnapshot(value) {
   if (!value) return null;
   try {
@@ -333,7 +478,8 @@ async function ensureWarPayoutColumns(db) {
     ['payout_status', "ALTER TABLE wars ADD COLUMN payout_status TEXT NOT NULL DEFAULT 'outstanding'"],
     ['payout_confirmed_at', 'ALTER TABLE wars ADD COLUMN payout_confirmed_at INTEGER'],
     ['payout_confirmed_by_user_id', 'ALTER TABLE wars ADD COLUMN payout_confirmed_by_user_id INTEGER'],
-    ['payout_snapshot_json', 'ALTER TABLE wars ADD COLUMN payout_snapshot_json TEXT']
+    ['payout_snapshot_json', 'ALTER TABLE wars ADD COLUMN payout_snapshot_json TEXT'],
+    ['payout_total_override', 'ALTER TABLE wars ADD COLUMN payout_total_override INTEGER']
   ];
 
   for (const [name, sql] of additions) {
@@ -501,7 +647,8 @@ async function loadWar(db, factionId, warId) {
       imported_by_user_id,
       COALESCE(payout_status, 'outstanding') AS payout_status,
       payout_confirmed_at,
-      payout_snapshot_json
+      payout_snapshot_json,
+      payout_total_override
     FROM wars
     WHERE faction_id = ? AND war_id = ?
     LIMIT 1
