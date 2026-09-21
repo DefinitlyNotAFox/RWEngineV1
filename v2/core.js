@@ -115,6 +115,14 @@ export async function payoutApi(action, payload = {}) {
   });
 }
 
+export async function financeApi(action, payload = {}) {
+  return post('/v2/finance', {
+    action,
+    ...(usesAdminFaction() ? { factionId: state.selectedFactionId } : {}),
+    ...payload
+  });
+}
+
 export async function intelV2Api(action, payload = {}) {
   return post('/v2/intel-v2', {
     action,
@@ -349,7 +357,7 @@ export function routeTo(route, options = {}) {
     route = 'intel';
   }
 
-  const valid = new Set(['intel','archive','payouts','settings']);
+  const valid = new Set(['intel','archive','payouts','finance','settings']);
   const next = valid.has(route) ? route : 'intel';
   state.route = next;
   try { localStorage.setItem('rwengine.route', next); } catch (_) {}
@@ -378,11 +386,11 @@ export function routeFromHash() {
     return 'intel';
   }
 
-  if (['intel','archive','payouts','settings'].includes(value)) return value;
+  if (['intel','archive','payouts','finance','settings'].includes(value)) return value;
 
   try {
     const stored = localStorage.getItem('rwengine.route');
-    if (['intel','archive','payouts','settings'].includes(stored)) return stored;
+    if (['intel','archive','payouts','finance','settings'].includes(stored)) return stored;
   } catch (_) {}
 
   return 'intel';
