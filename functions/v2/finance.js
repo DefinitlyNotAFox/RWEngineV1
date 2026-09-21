@@ -17,6 +17,7 @@ export async function onRequest(context) {
     const user = await getCurrentUser(env, request);
     const factionId = await resolveFactionId(env.DB, user, body.factionId);
     await ensureFinanceSchema(env.DB);
+    await ensureWarFinanceColumns(env.DB);
 
     const permissions = await loadFactionPermissions(env.DB, user, factionId);
     const canManage = Number(user.is_admin) === 1 || permissions.isFactionAdmin === true;
@@ -350,6 +351,24 @@ function timestampOf(value) {
     return Math.floor(number);
   }
   return 0;
+}
+
+async function ensureWarFinanceColumns(db) {
+  const columns = await db.prepare('PRAGMA table_info(wars)').all();
+  const found = new Set((columns.results || []).map(row => String(row.name)));
+  const additions = [
+    ['payout_status', "ALTER TABLE wars ADD COLUMN payout_status TEXT NOT NULL DEFAULT 'outstanding'"],
+    ['payout_snapshot_json', 'ALTER TABLE wars ADD COLUMN payout_snapshot_json TEXT'],
+    ['payout_total_override', 'ALTER TABLE wars ADD COLUMN payout_total_override INTEGER']
+  ];
+
+  for (const [name, sql] of additions) {
+    if (found.has(name)) continue;
+    try { await db.prepare(sql).run(); }
+    catch (error) {
+      if (!/duplicate column|already exists/i.test(String(error?.message || error || ''))) throw error;
+    }
+  }
 }
 
 async function ensureFinanceSchema(db) {
