@@ -356,18 +356,15 @@ export function canManageReportVisibility(user, factionId) {
   const factionAdmin = Number(user?.is_faction_admin) === 1 ||
     user?.is_faction_admin === true ||
     user?.isFactionAdmin === true;
-  const assistant = Number(user?.is_faction_assistant) === 1 ||
-    user?.is_faction_assistant === true ||
-    user?.isAssistant === true;
 
-  return (factionAdmin || assistant) &&
+  return factionAdmin &&
     accountFactionId > 0 &&
     accountFactionId === requestedFactionId;
 }
 
 function assertCanManage(user, factionId) {
   if (!canManageReportVisibility(user, factionId)) {
-    throw httpError(403, 'Assistant or faction-admin access is required to change report visibility.');
+    throw httpError(403, 'Faction-admin access is required to change report visibility.');
   }
 }
 
@@ -437,7 +434,7 @@ async function getCurrentUser(env, request) {
   return {
     ...user,
     is_faction_admin:permissions.isFactionAdmin ? 1 : 0,
-    is_faction_assistant:permissions.isAssistant ? 1 : 0,
+    is_faction_assistant:0,
     faction_leadership_role:permissions.leadershipRole
   };
 }
