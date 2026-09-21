@@ -387,7 +387,7 @@ async function attachStoredFactionRole(db, userRow) {
   return {
     ...userRow,
     is_faction_admin:permissions.isFactionAdmin ? 1 : 0,
-    is_faction_assistant:permissions.isAssistant ? 1 : 0,
+    is_faction_assistant:0,
     faction_leadership_role:permissions.leadershipRole
   };
 }
@@ -1226,8 +1226,7 @@ async function handleGetImportedWars(env, request) {
 
   const canManageReports = Boolean(
     currentUser.isAdmin ||
-    currentUser.isFactionAdmin ||
-    currentUser.isAssistant
+    currentUser.isFactionAdmin
   );
 
   const result = await env.DB.prepare(
@@ -3684,7 +3683,7 @@ function rowToPublicUser(row) {
     factionName: row.faction_name,
     isAdmin: Number(row.is_admin) === 1,
     isFactionAdmin: Number(row.is_faction_admin) === 1 || row.is_faction_admin === true,
-    isAssistant: Number(row.is_faction_assistant) === 1 || row.is_faction_assistant === true,
+    isAssistant:false,
     factionLeadershipRole:row.faction_leadership_role || null,
     hasApiKey:Boolean(row.api_key_encrypted && row.api_key_iv)
   };
