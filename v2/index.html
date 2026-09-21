@@ -71,6 +71,7 @@
           <button type="button" data-route="intel">Faction</button>
           <button type="button" data-route="archive">Archive</button>
           <button type="button" data-route="payouts">Payouts</button>
+          <button type="button" data-route="finance">Finance</button>
         </nav>
 
         <div class="app-context">
@@ -323,6 +324,36 @@
             </table>
           </div>
         </section>
+      </section>
+
+      <section id="financeView" class="view" data-view="finance">
+        <header class="view-head finance-view-head">
+          <div>
+            <h1>Finance</h1>
+            <p class="view-description">Track ranked-war income, member payouts and armory consumption.</p>
+          </div>
+          <button id="financeSync" class="action hidden" type="button">Sync armory</button>
+        </header>
+
+        <p id="financeStatus" class="status-line hidden" role="status"></p>
+
+        <div id="financeMetrics" class="finance-metrics" aria-label="Faction finance summary"></div>
+
+        <section id="financeChart" class="finance-chart-panel"></section>
+
+        <div class="finance-ledger">
+          <div class="finance-row finance-head" role="row">
+            <div role="columnheader">War</div>
+            <div role="columnheader">Income</div>
+            <div role="columnheader">Member payouts</div>
+            <div role="columnheader">Armory</div>
+            <div role="columnheader">Net</div>
+          </div>
+          <div id="financeBody" class="finance-body" role="rowgroup"></div>
+          <div id="financeEmpty" class="finance-empty hidden">No tracked finance activity yet.</div>
+        </div>
+
+        <p class="finance-footnote">Armory costs are estimated from item market values when the armory log is synced. Income uses the recorded payout pool or confirmed payout value when no pool is available.</p>
       </section>
 
       <section id="settingsView" class="view" data-view="settings">
