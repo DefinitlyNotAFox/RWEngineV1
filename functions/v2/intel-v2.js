@@ -35,6 +35,10 @@ export async function onRequest(context) {
       return json(await buildMemberDetail(env.DB, factionId, playerId, { canEditMemberNotes }));
     }
 
+    if (action === 'compare') {
+      return json(await buildMemberComparison(env.DB, factionId, body));
+    }
+
     if (action === 'saveMemberNotes') {
       if (!canEditMemberNotes) {
         throw httpError(403, 'Faction-admin access is required to edit member notes.');
@@ -180,6 +184,176 @@ async function buildMemberDetail(db, factionId, playerId, permissions = {}) {
       wars:buildMemberWarHistory(wars, warMetrics)
     },
     coverage:member.coverage
+  };
+}
+
+async function buildMemberComparison(db, factionId, body = {}) {
+  const now = unixNow();
+  const playerIds = [...new Set(
+    (Array.isArray(body.playerIds) ? body.playerIds : [])
+      .map(value => Number(value))
+      .filter(value => Number.isSafeInteger(value) && value > 0)
+  )].slice(0, 5);
+
+  const members = await loadMembers(db, factionId);
+  const memberById = new Map(members.map(row => [Number(row.player_id), row]));
+  const selected = playerIds
+    .map(playerId => memberById.get(playerId))
+    .filter(Boolean);
+
+  const mode = String(body.mode || 'timeline') === 'wars' ? 'wars' : 'timeline';
+
+  if (mode === 'wars') {
+    const requestedWarIds = [...new Set(
+      (Array.isArray(body.warIds) ? body.warIds : [])
+        .map(value => String(value || '').trim())
+        .filter(Boolean)
+    )].slice(0, 20);
+
+    let wars;
+    if (requestedWarIds.length) {
+      const placeholders = requestedWarIds.map(() => '?').join(',');
+      const result = await db.prepare(
+        'SELECT war_id, opponent_faction_name, start_timestamp, end_timestamp, imported_at FROM wars WHERE faction_id = ? AND war_id IN (' + placeholders + ') ORDER BY COALESCE(end_timestamp, start_timestamp, imported_at, 0) ASC'
+      ).bind(factionId, ...requestedWarIds).all();
+      wars = (result.results || []).map(row => ({
+        warId:String(row.war_id),
+        opponentFactionName:row.opponent_faction_name || 'Unknown opponent',
+        startTimestamp:nullableNumber(row.start_timestamp),
+        endTimestamp:nullableNumber(row.end_timestamp),
+        importedAt:nullableNumber(row.imported_at)
+      }));
+    } else {
+      wars = (await loadRecentWars(db, factionId, 8)).reverse();
+    }
+
+    const metrics = await loadWarMetrics(db, factionId, wars.map(war => war.warId));
+    const byPlayer = groupBy(metrics, row => Number(row.playerId));
+    const byWar = groupBy(metrics, row => String(row.warId));
+
+    const pointFor = (row, war) => {
+      const hits = Number(row?.warHits || 0);
+      const respect = numberOrNull(row?.respectEarned);
+      return {
+        key:String(war.warId),
+        at:Number(war.endTimestamp || war.startTimestamp || war.importedAt || 0),
+        hits,
+        assists:Number(row?.assists || 0),
+        outsideHits:Number(row?.outsideHits || 0),
+        respectPerHit:hits > 0 && Number.isFinite(respect) ? respect / hits : null,
+        netScore:Number(row?.scoreUp || 0) - Number(row?.scoreDown || 0)
+      };
+    };
+
+    const series = selected.map(member => {
+      const rows = new Map(
+        (byPlayer.get(Number(member.player_id)) || []).map(row => [String(row.warId), row])
+      );
+      return {
+        playerId:Number(member.player_id),
+        playerName:member.player_name || 'Player ' + member.player_id,
+        points:wars.map(war => pointFor(rows.get(String(war.warId)), war))
+      };
+    });
+
+    const factionAverage = {
+      playerId:null,
+      playerName:'Faction average',
+      points:wars.map(war => {
+        const rows = byWar.get(String(war.warId)) || [];
+        const built = rows.map(row => pointFor(row, war));
+        return {
+          key:String(war.warId),
+          at:Number(war.endTimestamp || war.startTimestamp || war.importedAt || 0),
+          hits:average(built.map(point => point.hits).filter(Number.isFinite)),
+          assists:average(built.map(point => point.assists).filter(Number.isFinite)),
+          outsideHits:average(built.map(point => point.outsideHits).filter(Number.isFinite)),
+          respectPerHit:average(built.map(point => point.respectPerHit).filter(Number.isFinite)),
+          netScore:average(built.map(point => point.netScore).filter(Number.isFinite))
+        };
+      })
+    };
+
+    return {
+      success:true,
+      mode:'wars',
+      generatedAt:now,
+      axis:wars.map(war => ({
+        key:String(war.warId),
+        label:war.opponentFactionName || 'Unknown opponent',
+        at:Number(war.endTimestamp || war.startTimestamp || war.importedAt || 0)
+      })),
+      series,
+      factionAverage
+    };
+  }
+
+  const range = resolveAnalysisRange(body, now);
+  const snapshots = await loadSnapshots(
+    db,
+    factionId,
+    Math.max(0, range.from - DAY),
+    Math.min(now, range.to + DAY)
+  );
+  const snapshotsByPlayer = groupBy(snapshots, row => Number(row.player_id));
+  const currentIds = new Set(
+    members.filter(row => Number(row.is_current) === 1).map(row => Number(row.player_id))
+  );
+
+  const dailyPoint = row => ({
+    at:Number(row.snapshot_at || 0),
+    activity:Number.isFinite(Number(row.activity_per_day_seconds))
+      ? Number(row.activity_per_day_seconds)
+      : null,
+    xanax:Number.isFinite(Number(row.xanax_per_day))
+      ? Number(row.xanax_per_day)
+      : null,
+    stats:numberOrNull(row.battle_stats_estimate)
+  });
+
+  const series = selected.map(member => ({
+    playerId:Number(member.player_id),
+    playerName:member.player_name || 'Player ' + member.player_id,
+    points:(snapshotsByPlayer.get(Number(member.player_id)) || [])
+      .map(dailyPoint)
+      .filter(point => point.at >= range.from && point.at <= range.to)
+  }));
+
+  const byDay = new Map();
+  for (const row of snapshots) {
+    if (!currentIds.has(Number(row.player_id))) continue;
+    const at = Number(row.snapshot_at || 0);
+    if (at < range.from || at > range.to) continue;
+    const day = Math.floor(at / DAY) * DAY;
+    if (!byDay.has(day)) byDay.set(day, []);
+    byDay.get(day).push(dailyPoint(row));
+  }
+
+  const factionAverage = {
+    playerId:null,
+    playerName:'Faction average',
+    points:[...byDay.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([at, points]) => ({
+        at,
+        activity:average(points.map(point => point.activity).filter(Number.isFinite)),
+        xanax:average(points.map(point => point.xanax).filter(Number.isFinite)),
+        stats:average(points.map(point => point.stats).filter(Number.isFinite))
+      }))
+  };
+
+  return {
+    success:true,
+    mode:'timeline',
+    generatedAt:now,
+    range:{
+      from:range.from,
+      to:range.to,
+      fromDate:utcDate(range.from),
+      toDate:utcDate(range.to)
+    },
+    series,
+    factionAverage
   };
 }
 
