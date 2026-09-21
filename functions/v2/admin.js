@@ -4,6 +4,8 @@ const TORN_REQUEST_INTERVAL_MS = 1250;
 const SYNC_LEASE_SECONDS = 180;
 const MANAGED_KEY_CONFIG = 'admin_managed_api_key_v1';
 const MAINTENANCE_KEY = 'maintenance_mode';
+const PAGE_ACCESS_KEY = 'admin_only_pages_v1';
+const PAGE_ACCESS_ROUTES = new Set(['intel','archive','payouts','finance']);
 
 export async function onRequest(context) {
   try {
@@ -30,6 +32,8 @@ export async function onRequest(context) {
     if (action === 'applyDatabaseMaintenance') return handleApplyDatabaseMaintenance(env, body);
     if (action === 'getMaintenance') return handleGetMaintenance(env, user);
     if (action === 'setMaintenance') return handleSetMaintenance(env, user, body);
+    if (action === 'getPageAccess') return handleGetPageAccess(env, user);
+    if (action === 'setPageAccess') return handleSetPageAccess(env, user, body);
 
     return json({ success: false, message: `Unknown admin action: ${action}` }, 400);
   } catch (error) {
@@ -38,6 +42,77 @@ export async function onRequest(context) {
       message: error?.message || 'Unexpected admin workspace error.'
     }, error?.status || 500);
   }
+}
+
+function normalizeAdminOnlyPages(value) {
+  const pages = Array.isArray(value)
+    ? value
+    : Array.isArray(value?.pages)
+      ? value.pages
+      : [];
+
+  return [...new Set(
+    pages
+      .map(page => String(page || '').trim())
+      .filter(page => PAGE_ACCESS_ROUTES.has(page))
+  )];
+}
+
+async function readPageAccessState(db) {
+  const row = await db.prepare(
+    'SELECT value, updated_at FROM app_meta WHERE key = ? LIMIT 1'
+  ).bind(PAGE_ACCESS_KEY).first();
+
+  if (!row) {
+    return {
+      adminOnlyPages:[],
+      updatedAt:null,
+      updatedByUserId:null
+    };
+  }
+
+  let value = row.value;
+  try { value = JSON.parse(String(row.value || '')); } catch (_) {}
+
+  return {
+    adminOnlyPages:normalizeAdminOnlyPages(value),
+    updatedAt:Number(row.updated_at || 0) || null,
+    updatedByUserId:Number(value?.updatedByUserId || 0) || null
+  };
+}
+
+async function handleGetPageAccess(env, user) {
+  const state = await readPageAccessState(env.DB);
+  return json({
+    success:true,
+    ...state,
+    currentUserId:Number(user.user_id)
+  });
+}
+
+async function handleSetPageAccess(env, user, body) {
+  const adminOnlyPages = normalizeAdminOnlyPages(body.adminOnlyPages);
+  const now = unixNow();
+  const value = JSON.stringify({
+    pages:adminOnlyPages,
+    updatedByUserId:Number(user.user_id)
+  });
+
+  await env.DB.prepare(`
+    INSERT INTO app_meta (key, value, updated_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(key) DO UPDATE SET
+      value = excluded.value,
+      updated_at = excluded.updated_at
+  `).bind(PAGE_ACCESS_KEY, value, now).run();
+
+  return json({
+    success:true,
+    adminOnlyPages,
+    updatedAt:now,
+    updatedByUserId:Number(user.user_id),
+    message:'Page access updated.'
+  });
 }
 
 async function handleGetMaintenance(env, user) {
