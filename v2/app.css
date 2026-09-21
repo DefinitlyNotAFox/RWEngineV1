@@ -15143,3 +15143,26 @@ circle.finance-line {
     min-width: 760px;
   }
 }
+
+
+/* Compare belongs to the faction mode strip, not the control row */
+.faction-modes .faction-compare-toggle {
+  height: auto;
+  min-height: 18px;
+  padding: 0 0 4px;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--font-small);
+  font-weight: 560;
+  line-height: 1.2;
+}
+
+.faction-modes .faction-compare-toggle:hover,
+.faction-modes .faction-compare-toggle.active {
+  border-color: transparent;
+  border-bottom-color: var(--accent);
+  color: var(--text);
+}
