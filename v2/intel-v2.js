@@ -128,16 +128,6 @@ export function initIntelV2() {
   });
 
   document.querySelector('#factionComparePanel')?.addEventListener('change', async event => {
-    if (event.target.matches('[data-compare-add-member]')) {
-      const playerId = Number(event.target.value || 0);
-      if (playerId && compareMemberIds.size < 5) compareMemberIds.add(playerId);
-      event.target.value = '';
-      compareLoadedKey = '';
-      renderComparePanel();
-      await loadMemberComparison(true);
-      return;
-    }
-
     if (event.target.matches('[data-compare-metric]')) {
       compareMetric = String(event.target.value || defaultCompareMetric());
       renderComparePanel();
@@ -150,7 +140,30 @@ export function initIntelV2() {
     }
   });
 
+  document.querySelector('#factionComparePanel')?.addEventListener('input', event => {
+    const input = event.target.closest('[data-compare-member-search]');
+    if (!input) return;
+
+    const query = String(input.value || '').trim().toLowerCase();
+    document.querySelectorAll('#factionComparePanel [data-compare-member-option]').forEach(option => {
+      const haystack = String(option.dataset.compareMemberSearch || '').toLowerCase();
+      option.classList.toggle('hidden', Boolean(query) && !haystack.includes(query));
+    });
+  });
+
   document.querySelector('#factionComparePanel')?.addEventListener('click', async event => {
+    const add = event.target.closest('[data-compare-add-member]');
+    if (add) {
+      const playerId = Number(add.dataset.compareAddMember || 0);
+      if (playerId && compareMemberIds.size < 5) {
+        compareMemberIds.add(playerId);
+        compareLoadedKey = '';
+        renderComparePanel();
+        await loadMemberComparison(true);
+      }
+      return;
+    }
+
     const remove = event.target.closest('[data-compare-remove-member]');
     if (!remove) return;
     compareMemberIds.delete(Number(remove.dataset.compareRemoveMember || 0));
@@ -856,13 +869,36 @@ function renderComparePanel() {
               ${escapeHtml(member.playerName)}<span aria-hidden="true">×</span>
             </button>
           `).join('')}
-          <select data-compare-add-member aria-label="Add member to comparison" ${compareMemberIds.size >= 5 ? 'disabled' : ''}>
-            <option value="">+ Add member</option>
-            ${members
-              .filter(member => !compareMemberIds.has(Number(member.playerId)))
-              .map(member => `<option value="${escapeHtml(member.playerId)}">${escapeHtml(member.playerName)} [${escapeHtml(member.playerId)}]</option>`)
-              .join('')}
-          </select>
+          \${compareMemberIds.size >= 5 ? \`
+            <span class="faction-compare-add-limit">5 members selected</span>
+          \` : \`
+            <details class="faction-compare-member-menu">
+              <summary>+ Add member</summary>
+              <div class="faction-compare-member-popover">
+                <input
+                  type="search"
+                  placeholder="Search member or ID"
+                  aria-label="Search members to compare"
+                  data-compare-member-search
+                />
+                <div class="faction-compare-member-options">
+                  \${members
+                    .filter(member => !compareMemberIds.has(Number(member.playerId)))
+                    .map(member => \`
+                      <button
+                        type="button"
+                        data-compare-add-member="\${escapeHtml(member.playerId)}"
+                        data-compare-member-option
+                        data-compare-member-search="\${escapeHtml(member.playerName + ' ' + member.playerId)}"
+                      >
+                        <strong>\${escapeHtml(member.playerName)}</strong>
+                        <span>[\${escapeHtml(member.playerId)}]</span>
+                      </button>
+                    \`).join('')}
+                </div>
+              </div>
+            </details>
+          \`}
         </div>
       </div>
 
