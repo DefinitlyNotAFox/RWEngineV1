@@ -8,7 +8,7 @@ import {
   roleLabel, setRolePreview,
   routeTo, routeFromHash, setNotice,
   formatNumber, formatDate, formatDateTime, formatAge, escapeHtml
-} from './core.js?v=7';
+} from './core.js?v=8';
 
 import { sortFactionAccounts, sortTrackedFactions } from './sort.js?v=1';
 
@@ -738,11 +738,7 @@ function canManageFactionRolesView() {
 
   const sameFaction = Number(state.user.factionId || 0) === Number(currentFactionId() || 0);
   const leadership = String(state.user.factionLeadershipRole || '');
-  const leadershipCanManage = ['leader','co_leader'].includes(leadership);
-  const loweredPreview = isRolePreviewActive() &&
-    !['platform_admin','faction_admin'].includes(currentViewRole());
-
-  return sameFaction && leadershipCanManage && !loweredPreview;
+  return sameFaction && leadership === 'leader';
 }
 
 function renderRolePreview() {
@@ -1738,10 +1734,8 @@ function renderFactionRoles(result) {
         const choices = account.platformAdmin
           ? ['platform_admin']
           : permissions.canGrantAdmin
-            ? ['member','assistant','faction_admin']
-          : account.role === 'faction_admin'
-            ? ['faction_admin']
-            : ['member','assistant'];
+            ? ['member','faction_admin']
+            : [account.role];
         const leadership = account.leadershipRole === 'leader'
           ? 'Leader · protected'
           : account.leadershipRole === 'co_leader'
@@ -1782,16 +1776,18 @@ function renderFactionRoleAdd(accounts, permissions) {
     `<option value="${escapeHtml(factionRoleCandidateLabel(account))}"></option>`
   ).join('');
 
-  const roles = permissions.canGrantAdmin
-    ? ['assistant','faction_admin']
-    : ['assistant'];
+  const roles = permissions.canGrantAdmin ? ['faction_admin'] : [];
   roleSelect.innerHTML = roles.map(role =>
     `<option value="${role}">${escapeHtml(roleLabel(role))}</option>`
   ).join('');
 
   [...form.elements].forEach(control => { control.disabled = false; });
-  toggle.disabled = factionRoleCandidates.length === 0;
-  toggle.textContent = factionRoleCandidates.length ? '+ Add member' : 'No members available';
+  toggle.disabled = factionRoleCandidates.length === 0 || roles.length === 0;
+  toggle.textContent = roles.length === 0
+    ? 'Faction admin roles require leader access'
+    : factionRoleCandidates.length
+      ? '+ Add member'
+      : 'No members available';
   input.value = '';
   toggleFactionRoleAdd(false);
 }
@@ -1858,7 +1854,7 @@ async function handleFactionRoleAdd(event) {
   try {
     const result = await rolesApi('setRole', {
       userId:Number(account.userId || 0),
-      role:roleSelect?.value || 'assistant'
+      role:roleSelect?.value || 'faction_admin'
     });
     await loadFactionRoles();
     if (status) {
