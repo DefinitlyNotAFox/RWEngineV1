@@ -149,12 +149,7 @@ function renderFinance() {
     ].join('');
   }
 
-  const wars = Array.isArray(data.wars) ? data.wars : [];
-  const tracked = wars.filter(row =>
-    Number(row.income || 0) !== 0 ||
-    Number(row.memberPayout || 0) !== 0 ||
-    Number(row.armoryExpense || 0) !== 0
-  );
+  const tracked = Array.isArray(data.wars) ? data.wars : [];
 
   if (chart) chart.innerHTML = renderFinanceTrend(tracked.slice(0, 12).reverse());
 
@@ -171,10 +166,10 @@ function financeMetric(label, value, signed = false) {
   const number = Math.round(Number(value || 0));
   const cls = signed ? (number > 0 ? ' positive' : number < 0 ? ' negative' : '') : '';
   return `
-    <div class="finance-metric">
+    <span class="finance-summary-item">
       <span>${escapeHtml(label)}</span>
       <strong class="${cls.trim()}">${escapeHtml(formatMoney(number))}</strong>
-    </div>
+    </span>
   `;
 }
 
@@ -201,7 +196,7 @@ function renderFinanceRow(row) {
 
 function renderFinanceTrend(rows) {
   if (!rows.length) {
-    return '<div class="finance-empty">Finance history appears as wars and armory expenses are recorded.</div>';
+    return '<div class="finance-empty">Confirmed payouts will appear here.</div>';
   }
 
   const width = 1120;
