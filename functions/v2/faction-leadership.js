@@ -72,6 +72,12 @@ export async function ensureFactionUserRoleSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_faction_user_roles_user
     ON faction_user_roles(user_id, faction_id, role)
   `).run();
+
+  // Assistant was retired as an application role. Remove legacy assignments
+  // so old rows cannot reappear through older account data.
+  await db.prepare(
+    "DELETE FROM faction_user_roles WHERE role = 'assistant'"
+  ).run();
 }
 
 export function resolveFactionPermissions(leadership, playerId, stored = {}) {
