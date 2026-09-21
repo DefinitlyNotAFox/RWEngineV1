@@ -14711,3 +14711,47 @@ body {
     max-width: none !important;
   }
 }
+
+
+/* Editable payout total: same summary field, admin interaction only */
+#payoutsView .payout-total-editor {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 1px;
+}
+
+#payoutsView .payout-total-currency,
+#payoutsView .payout-total-editor input {
+  font-size: var(--font-subtitle);
+  font-weight: 670;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+#payoutsView .payout-total-currency {
+  color: var(--text);
+}
+
+#payoutsView .payout-total-editor input {
+  width: 132px;
+  height: 30px;
+  padding: 2px 5px;
+  border: 1px solid var(--line-soft);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--text);
+}
+
+#payoutsView .payout-total-editor.editable input:hover {
+  border-color: var(--line);
+}
+
+#payoutsView .payout-total-editor.editable input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+#payoutsView .payout-total-editor.readonly input {
+  cursor: default;
+}
