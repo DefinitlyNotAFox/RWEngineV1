@@ -120,6 +120,37 @@ CREATE TABLE IF NOT EXISTS wars (
   FOREIGN KEY (imported_by_user_id) REFERENCES users(user_id)
 );
 
+CREATE TABLE IF NOT EXISTS finance_armory_events (
+  faction_id INTEGER NOT NULL,
+  news_id TEXT NOT NULL,
+  event_at INTEGER NOT NULL,
+  player_id INTEGER,
+  player_name TEXT,
+  item_id INTEGER NOT NULL,
+  item_name TEXT NOT NULL,
+  quantity INTEGER NOT NULL DEFAULT 1,
+  unit_value INTEGER NOT NULL DEFAULT 0,
+  total_value INTEGER NOT NULL DEFAULT 0,
+  war_id TEXT,
+  raw_text TEXT,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (faction_id, news_id, item_id),
+  FOREIGN KEY (faction_id) REFERENCES factions(faction_id),
+  FOREIGN KEY (war_id) REFERENCES wars(war_id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_finance_armory_war
+  ON finance_armory_events(faction_id, war_id, event_at);
+
+CREATE TABLE IF NOT EXISTS finance_meta (
+  faction_id INTEGER NOT NULL,
+  meta_key TEXT NOT NULL,
+  meta_value TEXT,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (faction_id, meta_key),
+  FOREIGN KEY (faction_id) REFERENCES factions(faction_id)
+);
+
 CREATE TABLE IF NOT EXISTS war_log (
   war_log_id INTEGER PRIMARY KEY AUTOINCREMENT,
 
