@@ -979,9 +979,22 @@ async function loadFaction(db, factionId) {
     'SELECT faction_id, faction_name FROM factions WHERE faction_id = ? LIMIT 1'
   ).bind(factionId).first();
 
+  let factionName = String(row?.faction_name || '').trim();
+  const generic = !factionName || /^Faction\s+\d+(?:\s*\[\d+\])?$/i.test(factionName);
+
+  if (generic) {
+    const war = await db.prepare(
+      'SELECT faction_name FROM wars WHERE faction_id = ? AND faction_name IS NOT NULL AND TRIM(faction_name) <> ? ORDER BY COALESCE(updated_at, imported_at, 0) DESC LIMIT 1'
+    ).bind(factionId, '').first();
+    const warName = String(war?.faction_name || '').trim();
+    if (warName && !/^Faction\s+\d+(?:\s*\[\d+\])?$/i.test(warName)) {
+      factionName = warName;
+    }
+  }
+
   return {
     factionId,
-    factionName:row?.faction_name || 'Faction ' + factionId
+    factionName:factionName || 'Faction ' + factionId
   };
 }
 
