@@ -109,6 +109,9 @@ export function initWarViews() {
   document.querySelector('#payoutConfirm')?.addEventListener('click', confirmPayout);
   document.querySelector('#payoutCopy')?.addEventListener('click', copyPayoutCsv);
   document.querySelector('#payoutBody')?.addEventListener('change', handlePayoutPaidChange);
+  document.querySelector('#payoutSummary')?.addEventListener('input', handlePayoutTotalInput);
+  document.querySelector('#payoutSummary')?.addEventListener('change', handlePayoutTotalChange);
+  document.querySelector('#payoutSummary')?.addEventListener('keydown', handlePayoutTotalKeydown);
 
   document.querySelector('#shareToggle')?.addEventListener('click', toggleShare);
   document.querySelector('#shareVisibility')?.addEventListener('change', updateShareVisibility);
@@ -1207,8 +1210,28 @@ function renderPayoutPanel() {
     <td class="payout-paid-col">${status === 'paid' ? '<span class="payout-paid-mark">✓</span>' : ''}</td>
   </tr>`;
 
+  const marketValuePayout = Math.max(
+    0,
+    Math.round(Number(preview.marketValuePayout ?? preview.totalPayout ?? 0))
+  );
+  const hasCustomTotal = preview.payoutTotalOverride !== null &&
+    preview.payoutTotalOverride !== undefined;
+  const totalTitle = hasCustomTotal
+    ? `Market value default: ${formatMoney(marketValuePayout)}`
+    : 'Market value is used as the default payout total.';
+
   payoutSummary.innerHTML = `
-    <strong>${escapeHtml(formatMoney(preview.totalPayout))}</strong>
+    <label class="payout-total-editor${canManagePayouts ? ' editable' : ' readonly'}" title="${escapeHtml(totalTitle)}">
+      <span class="payout-total-currency">$</span>
+      <input
+        type="text"
+        inputmode="numeric"
+        autocomplete="off"
+        value="${escapeHtml(formatPayoutMoneyInput(preview.totalPayout))}"
+        data-payout-total-input
+        ${canManagePayouts ? '' : 'readonly aria-readonly="true"'}
+      />
+    </label>
     <span>Total payout · ${formatNumber(members.length)} members</span>
   `;
 }
@@ -1234,6 +1257,66 @@ function renderPayoutPaidCell(member, canManage, status) {
       </label>
     </td>
   `;
+}
+
+function handlePayoutTotalInput(event) {
+  const input = event.target.closest('[data-payout-total-input]');
+  if (!input || detail.payout.canManage !== true || detail.payout.status === 'paid') return;
+
+  const formatted = formatPayoutMoneyInput(input.value);
+  input.value = formatted;
+}
+
+function handlePayoutTotalKeydown(event) {
+  const input = event.target.closest('[data-payout-total-input]');
+  if (!input) return;
+
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    input.blur();
+    return;
+  }
+
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    renderPayoutPanel();
+  }
+}
+
+async function handlePayoutTotalChange(event) {
+  const input = event.target.closest('[data-payout-total-input]');
+  if (
+    !input ||
+    !detail.warId ||
+    detail.payout.canManage !== true ||
+    detail.payout.status === 'paid'
+  ) return;
+
+  const raw = String(input.value || '').trim();
+  const amount = raw ? parsePayoutMoneyInput(raw) : null;
+  if (amount !== null && (!Number.isSafeInteger(amount) || amount < 0)) {
+    renderPayoutPanel();
+    setPayoutStatus('Enter a valid payout amount.', true);
+    return;
+  }
+
+  input.disabled = true;
+
+  try {
+    const result = await payoutApi('setTotalPayout', {
+      warId:detail.warId,
+      amount,
+      profile:detail.payout.preview?.profile || detail.payout.profile || null
+    });
+
+    detail.payout.preview = result.preview || detail.payout.preview;
+    detail.payout.status = String(result.status || detail.payout.status || 'outstanding');
+    renderPayoutPanel();
+    setPayoutStatus('');
+  } catch (error) {
+    renderPayoutPanel();
+    setPayoutStatus(error.message || 'Failed to update payout total.', true);
+  }
 }
 
 async function handlePayoutPaidChange(event) {
@@ -1341,6 +1424,19 @@ function formatPayoutQuantity(value, unit) {
   const number = Number(value || 0);
   if (unit === 'R') return formatDecimal(number, 2);
   return formatNumber(number);
+}
+
+function formatPayoutMoneyInput(value) {
+  const digits = String(value ?? '').replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  if (!digits) return '';
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function parsePayoutMoneyInput(value) {
+  const digits = String(value ?? '').replace(/\D/g, '');
+  if (!digits) return 0;
+  const number = Number(digits);
+  return Number.isFinite(number) ? number : NaN;
 }
 
 function formatMoney(value) {
