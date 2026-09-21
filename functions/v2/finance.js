@@ -328,7 +328,7 @@ function normalizeItems(data) {
       item?.market_value ?? item?.marketValue ?? item?.value ?? item?.market_price ?? 0
     );
     const type = String(item?.type || item?.category || item?.item_type || '').trim();
-    const consumable = !/weapon|armor|armour/i.test(type);
+    const consumable = /drug|medical|temporary|booster|energy|alcohol|candy|enhancer/i.test(type);
     return {
       id:Number(item?.id || id) || 0,
       name,
