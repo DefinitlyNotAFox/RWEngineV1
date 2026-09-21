@@ -110,6 +110,12 @@ CREATE TABLE IF NOT EXISTS wars (
   chain_adjustment_status TEXT,
   chain_adjustment_message TEXT,
 
+  payout_status TEXT NOT NULL DEFAULT 'outstanding',
+  payout_confirmed_at INTEGER,
+  payout_confirmed_by_user_id INTEGER,
+  payout_snapshot_json TEXT,
+  payout_total_override INTEGER,
+
   FOREIGN KEY (faction_id) REFERENCES factions(faction_id),
   FOREIGN KEY (imported_by_user_id) REFERENCES users(user_id)
 );
