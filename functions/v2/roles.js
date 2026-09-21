@@ -4,7 +4,7 @@ import {
   resolveFactionPermissions
 } from './faction-leadership.js';
 
-const ASSIGNABLE_ROLES = new Set(['member', 'assistant', 'faction_admin']);
+const ASSIGNABLE_ROLES = new Set(['member', 'faction_admin']);
 
 export async function onRequest(context) {
   try {
@@ -21,8 +21,8 @@ export async function onRequest(context) {
     const leadership = await loadFactionLeadership(env.DB, factionId);
     const permissions = roleGrantCapabilities(user, leadership, factionId);
 
-    if (!permissions.canGrantAssistant && !permissions.canGrantAdmin) {
-      throw httpError(403, 'Only the faction leader or co-leader can manage faction roles.');
+    if (!permissions.canGrantAdmin) {
+      throw httpError(403, 'Only the faction leader can manage faction-admin roles.');
     }
 
     const action = String(body.action || 'list');
@@ -58,10 +58,7 @@ export function roleGrantCapabilities(user, leadership, factionId) {
 
   return {
     leadershipRole,
-    canGrantAdmin:platformAdmin || leadershipRole === 'leader',
-    canGrantAssistant:platformAdmin ||
-      leadershipRole === 'leader' ||
-      leadershipRole === 'co_leader'
+    canGrantAdmin:platformAdmin || leadershipRole === 'leader'
   };
 }
 
@@ -69,16 +66,7 @@ export function canSetFactionRole(permissions, target, requestedRole) {
   const role = String(requestedRole || '');
   if (!ASSIGNABLE_ROLES.has(role)) return false;
   if (target?.protected) return false;
-
-  if (role === 'faction_admin') {
-    return permissions?.canGrantAdmin === true;
-  }
-
-  if (target?.role === 'faction_admin') {
-    return permissions?.canGrantAdmin === true;
-  }
-
-  return permissions?.canGrantAssistant === true;
+  return permissions?.canGrantAdmin === true;
 }
 
 async function buildRoleList(db, factionId, leadership, permissions) {
@@ -97,7 +85,7 @@ async function setFactionRole(db, factionId, leadership, permissions, body) {
     throw httpError(400, 'A valid account is required.');
   }
   if (!ASSIGNABLE_ROLES.has(requestedRole)) {
-    throw httpError(400, 'Role must be member, assistant, or faction admin.');
+    throw httpError(400, 'Role must be member or faction admin.');
   }
 
   const accounts = await loadFactionAccounts(db, factionId, leadership);
@@ -110,12 +98,7 @@ async function setFactionRole(db, factionId, leadership, permissions, body) {
     throw httpError(403, 'Platform-administrator accounts cannot be changed here.');
   }
   if (!canSetFactionRole(permissions, target, requestedRole)) {
-    throw httpError(
-      403,
-      target.role === 'faction_admin' || requestedRole === 'faction_admin'
-        ? 'Only the faction leader can grant or revoke faction-admin status.'
-        : 'Only the faction leader or co-leader can manage Assistants.'
-    );
+    throw httpError(403, 'Only the faction leader can grant or revoke faction-admin status.');
   }
 
   const now = unixNow();
@@ -128,13 +111,8 @@ async function setFactionRole(db, factionId, leadership, permissions, body) {
 
   if (requestedRole === 'faction_admin') {
     await insertRole(db, factionId, targetUserId, 'faction_admin', now);
-  } else {
-    if (target.leadershipRole === 'co_leader') {
-      await insertRole(db, factionId, targetUserId, 'faction_admin_revoked', now);
-    }
-    if (requestedRole === 'assistant') {
-      await insertRole(db, factionId, targetUserId, 'assistant', now);
-    }
+  } else if (target.leadershipRole === 'co_leader') {
+    await insertRole(db, factionId, targetUserId, 'faction_admin_revoked', now);
   }
 
   const updated = (await loadFactionAccounts(db, factionId, leadership))
@@ -167,7 +145,6 @@ async function loadFactionAccounts(db, factionId, leadership) {
       u.player_name,
       u.is_admin,
       MAX(CASE WHEN r.role = 'faction_admin' THEN 1 ELSE 0 END) AS faction_admin,
-      MAX(CASE WHEN r.role = 'assistant' THEN 1 ELSE 0 END) AS assistant,
       MAX(CASE WHEN r.role = 'faction_admin_revoked' THEN 1 ELSE 0 END) AS admin_revoked
     FROM users u
     LEFT JOIN faction_user_roles r
@@ -183,7 +160,6 @@ async function loadFactionAccounts(db, factionId, leadership) {
     const platformAdmin = Number(row.is_admin) === 1;
     const permissions = resolveFactionPermissions(leadership, row.player_id, {
       isFactionAdmin:row.faction_admin,
-      isAssistant:row.assistant,
       adminRevoked:row.admin_revoked
     });
     const role = platformAdmin
@@ -261,7 +237,6 @@ async function getCurrentUser(env, request) {
 
 function roleLabel(role) {
   if (role === 'faction_admin') return 'a faction admin';
-  if (role === 'assistant') return 'an Assistant';
   return 'a Member';
 }
 
