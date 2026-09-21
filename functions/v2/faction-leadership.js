@@ -78,7 +78,6 @@ export function resolveFactionPermissions(leadership, playerId, stored = {}) {
   const leadershipRole = factionLeadershipRole(leadership, playerId);
   const adminRevoked = Number(stored.adminRevoked || 0) === 1 || stored.adminRevoked === true;
   const storedAdmin = Number(stored.isFactionAdmin || 0) === 1 || stored.isFactionAdmin === true;
-  const isAssistant = Number(stored.isAssistant || 0) === 1 || stored.isAssistant === true;
   const isFactionAdmin = leadershipRole === 'leader' ||
     (leadershipRole === 'co_leader' && !adminRevoked) ||
     storedAdmin;
@@ -86,8 +85,8 @@ export function resolveFactionPermissions(leadership, playerId, stored = {}) {
   return {
     leadershipRole,
     isFactionAdmin,
-    isAssistant,
-    role:isFactionAdmin ? 'faction_admin' : isAssistant ? 'assistant' : 'member'
+    isAssistant:false,
+    role:isFactionAdmin ? 'faction_admin' : 'member'
   };
 }
 
@@ -116,7 +115,6 @@ export async function loadFactionPermissions(db, user, factionId) {
     db.prepare(`
       SELECT
         MAX(CASE WHEN role = 'faction_admin' THEN 1 ELSE 0 END) AS is_faction_admin,
-        MAX(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END) AS is_assistant,
         MAX(CASE WHEN role = 'faction_admin_revoked' THEN 1 ELSE 0 END) AS admin_revoked
       FROM faction_user_roles
       WHERE faction_id = ? AND user_id = ?
@@ -126,7 +124,6 @@ export async function loadFactionPermissions(db, user, factionId) {
 
   return resolveFactionPermissions(leadership, playerId, {
     isFactionAdmin:stored?.is_faction_admin,
-    isAssistant:stored?.is_assistant,
     adminRevoked:stored?.admin_revoked
   });
 }
