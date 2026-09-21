@@ -647,7 +647,6 @@ function renderFilters() {
 
     container.innerHTML = `
       <span class="intel-filter-controls">
-        <button class="intel2-filter intel-filter-none${activeCount === 0 ? ' active' : ''}" type="button" data-filter-clear>None</button>
         <span class="intel-filter-menu-wrap">
           <button class="intel2-filter intel-filter-menu-toggle${intelFilterMenuOpen || activeCount ? ' active' : ''}" type="button" data-filter-menu-toggle aria-expanded="${intelFilterMenuOpen ? 'true' : 'false'}">
             Filters${activeCount ? ` (${activeCount})` : ''}<span aria-hidden="true">▾</span>
