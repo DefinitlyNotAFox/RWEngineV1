@@ -57,10 +57,6 @@ export async function onRequest(context) {
       return await handleMe(env, request);
     }
 
-    if (action === "getPageAccess") {
-      return await handleGetPageAccess(env, request);
-    }
-
     if (action === "updateApiKey") {
       return await handleUpdateApiKey(env, request, body);
     }
@@ -324,7 +320,8 @@ async function handleRegister(env, body) {
     {
       success: true,
       message: "Account created.",
-      user: rowToPublicUser(roleAwareUser)
+      user: rowToPublicUser(roleAwareUser),
+      adminOnlyPages: await readAdminOnlyPages(env.DB)
     },
     200,
     {
@@ -726,7 +723,8 @@ async function handleLogin(env, body) {
     {
       success: true,
       message: "Logged in.",
-      user: rowToPublicUser(syncedUserRow)
+      user: rowToPublicUser(syncedUserRow),
+      adminOnlyPages: await readAdminOnlyPages(env.DB)
     },
     200,
     {
@@ -800,7 +798,8 @@ async function handleMe(env, request) {
   return json({
     success: true,
     message: "Session restored.",
-    user: rowToPublicUser(syncedRow)
+    user: rowToPublicUser(syncedRow),
+    adminOnlyPages: await readAdminOnlyPages(env.DB)
   });
 }
 
@@ -3900,12 +3899,10 @@ async function readAdminOnlyPages(db) {
     const row = await db.prepare(
       'SELECT value FROM app_meta WHERE key = ? LIMIT 1'
     ).bind(PAGE_ACCESS_KEY).first();
-
     if (!row) return [];
 
     let value = row.value;
     try { value = JSON.parse(String(row.value || '')); } catch (_) {}
-
     const pages = Array.isArray(value)
       ? value
       : Array.isArray(value?.pages)
@@ -3913,22 +3910,11 @@ async function readAdminOnlyPages(db) {
         : [];
 
     return [...new Set(
-      pages
-        .map(page => String(page || '').trim())
-        .filter(page => PAGE_ACCESS_ROUTES.has(page))
+      pages.map(page => String(page || '').trim()).filter(page => PAGE_ACCESS_ROUTES.has(page))
     )];
   } catch (_) {
     return [];
   }
-}
-
-async function handleGetPageAccess(env, request) {
-  requireDb(env);
-  await getCurrentUserPrivate(env, request);
-  return json({
-    success: true,
-    adminOnlyPages: await readAdminOnlyPages(env.DB)
-  });
 }
 
 async function isMaintenanceMode(db) {
