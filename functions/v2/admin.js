@@ -50,11 +50,8 @@ function normalizeAdminOnlyPages(value) {
     : Array.isArray(value?.pages)
       ? value.pages
       : [];
-
   return [...new Set(
-    pages
-      .map(page => String(page || '').trim())
-      .filter(page => PAGE_ACCESS_ROUTES.has(page))
+    pages.map(page => String(page || '').trim()).filter(page => PAGE_ACCESS_ROUTES.has(page))
   )];
 }
 
@@ -62,18 +59,10 @@ async function readPageAccessState(db) {
   const row = await db.prepare(
     'SELECT value, updated_at FROM app_meta WHERE key = ? LIMIT 1'
   ).bind(PAGE_ACCESS_KEY).first();
-
-  if (!row) {
-    return {
-      adminOnlyPages:[],
-      updatedAt:null,
-      updatedByUserId:null
-    };
-  }
+  if (!row) return { adminOnlyPages:[], updatedAt:null, updatedByUserId:null };
 
   let value = row.value;
   try { value = JSON.parse(String(row.value || '')); } catch (_) {}
-
   return {
     adminOnlyPages:normalizeAdminOnlyPages(value),
     updatedAt:Number(row.updated_at || 0) || null,
@@ -82,28 +71,18 @@ async function readPageAccessState(db) {
 }
 
 async function handleGetPageAccess(env, user) {
-  const state = await readPageAccessState(env.DB);
-  return json({
-    success:true,
-    ...state,
-    currentUserId:Number(user.user_id)
-  });
+  return json({ success:true, ...(await readPageAccessState(env.DB)), currentUserId:Number(user.user_id) });
 }
 
 async function handleSetPageAccess(env, user, body) {
   const adminOnlyPages = normalizeAdminOnlyPages(body.adminOnlyPages);
   const now = unixNow();
-  const value = JSON.stringify({
-    pages:adminOnlyPages,
-    updatedByUserId:Number(user.user_id)
-  });
+  const value = JSON.stringify({ pages:adminOnlyPages, updatedByUserId:Number(user.user_id) });
 
   await env.DB.prepare(`
     INSERT INTO app_meta (key, value, updated_at)
     VALUES (?, ?, ?)
-    ON CONFLICT(key) DO UPDATE SET
-      value = excluded.value,
-      updated_at = excluded.updated_at
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
   `).bind(PAGE_ACCESS_KEY, value, now).run();
 
   return json({
