@@ -6,7 +6,6 @@ export const state = {
   wars: [],
   range: null,
   freshness: null,
-  adminOnlyPages: [],
   period: { preset: 'last4', from: null, to: null },
   route: 'intel'
 };
@@ -352,19 +351,6 @@ export function setNotice(message = '', kind = '') {
   notice.className = `notice${kind ? ` ${kind}` : ''}${message ? '' : ' hidden'}`;
 }
 
-export function canAccessRoute(route) {
-  const valid = new Set(['intel','archive','payouts','finance','settings']);
-  const normalized = valid.has(route) ? route : 'intel';
-  if (normalized === 'settings') return true;
-  if (isPlatformAdminView()) return true;
-  return !state.adminOnlyPages.includes(normalized);
-}
-
-export function firstAccessibleRoute() {
-  return ['intel','archive','payouts','finance','settings']
-    .find(route => canAccessRoute(route)) || 'settings';
-}
-
 export function routeTo(route, options = {}) {
   if (route === 'war' || route === 'performance') {
     try { localStorage.setItem('rwengine.factionMode', 'wars'); } catch (_) {}
@@ -372,8 +358,7 @@ export function routeTo(route, options = {}) {
   }
 
   const valid = new Set(['intel','archive','payouts','finance','settings']);
-  const requested = valid.has(route) ? route : 'intel';
-  const next = canAccessRoute(requested) ? requested : firstAccessibleRoute();
+  const next = valid.has(route) ? route : 'intel';
   state.route = next;
   try { localStorage.setItem('rwengine.route', next); } catch (_) {}
 
