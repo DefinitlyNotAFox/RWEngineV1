@@ -5,10 +5,10 @@ import {
   currentFactionName, currentFactionId,
   actualUserRole, availableViewRoles, currentViewRole,
   canEditFactionView, isPlatformAdminView, isRolePreviewActive, restoreRolePreview,
-  canAccessRoute, roleLabel, setRolePreview,
+  roleLabel, setRolePreview,
   routeTo, routeFromHash, setNotice,
   formatNumber, formatDate, formatDateTime, formatAge, escapeHtml
-} from './core.js?v=10';
+} from './core.js?v=9';
 
 import { sortFactionAccounts, sortTrackedFactions } from './sort.js?v=1';
 
@@ -102,6 +102,7 @@ function bindAuth() {
       });
       document.querySelector('#loginPassword').value = '';
       state.user = result.user;
+      state.adminOnlyPages = normalizeAdminOnlyPages(result.adminOnlyPages);
       await enterApp();
     } catch (error) {
       if (Number(error?.status) === 503) {
@@ -122,6 +123,7 @@ function bindAuth() {
         confirmPassword: document.querySelector('#registerConfirm').value
       });
       state.user = result.user;
+      state.adminOnlyPages = normalizeAdminOnlyPages(result.adminOnlyPages);
       document.querySelector('#registerApiKey').value = '';
       document.querySelector('#registerPassword').value = '';
       document.querySelector('#registerConfirm').value = '';
@@ -136,7 +138,7 @@ function bindApplication() {
   document.addEventListener('click', event => {
     const routeButton = event.target.closest('[data-route]');
     if (routeButton) {
-      routeTo(routeButton.dataset.route);
+      routeToAllowed(routeButton.dataset.route);
       return;
     }
 
@@ -152,7 +154,7 @@ function bindApplication() {
 
   });
 
-  window.addEventListener('hashchange', () => routeTo(routeFromHash(), { updateHash:false }));
+  window.addEventListener('hashchange', () => routeToAllowed(routeFromHash(), { updateHash:false }));
 
   document.querySelector('#logoutButton')?.addEventListener('click', async () => {
     const maintenanceActive = Boolean(state.maintenanceMode);
@@ -247,8 +249,8 @@ function bindApplication() {
     renderIdentity();
     renderSettingsPermissions();
     renderAdminContext();
-    renderPageAccess();
-    routeTo(state.route, { updateHash:false });
+    renderPageAccessNavigation();
+    routeToAllowed(state.route, { updateHash:false });
     renderArchive();
     if (state.route === 'settings') {
       loadAccessList();
@@ -266,6 +268,7 @@ async function boot() {
   try {
     const result = await api('me');
     state.user = result.user;
+    state.adminOnlyPages = normalizeAdminOnlyPages(result.adminOnlyPages);
     await enterApp();
   } catch (error) {
     if (Number(error?.status) === 503) showMaintenance();
@@ -277,9 +280,6 @@ async function enterApp() {
   document.querySelector('#authView')?.classList.add('hidden');
   document.querySelector('#appView')?.classList.remove('hidden');
 
-  // Page access is supplemental. Never block the main workspace/data boot on it.
-  loadPageAccess().catch(() => {});
-
   if (state.user?.isAdmin) {
     await loadAdminFactions();
   } else {
@@ -290,10 +290,10 @@ async function enterApp() {
   renderRolePreview();
   renderIdentity();
   renderAdminContext();
-  renderPageAccess();
+  renderPageAccessNavigation();
 
   // Restore the previous view while faction data refreshes.
-  routeTo(routeFromHash(), { updateHash:false });
+  routeToAllowed(routeFromHash(), { updateHash:false });
   await refreshAll(false);
 }
 
@@ -1944,7 +1944,7 @@ function renderAdminContext() {
 
   const isAdmin = Boolean(state.user?.isAdmin && isPlatformAdminView());
   wrap?.classList.toggle('hidden', !isAdmin);
-  document.querySelector('#factionButton')?.classList.toggle('hidden', isAdmin);
+  document.querySelector('#factionButton')?.classList.toggle('hidden', isAdmin || !canAccessPage('intel'));
   section?.classList.toggle('hidden', !isAdmin);
   if (!isAdmin || !select) return;
 
@@ -1977,38 +1977,37 @@ function renderAdminSettings() {
   renderPageAccessAdminControl();
 }
 
-async function loadPageAccess() {
-  try {
-    const result = await Promise.race([
-      api('getPageAccess'),
-      new Promise((_, reject) => window.setTimeout(
-        () => reject(new Error('Page access request timed out.')),
-        4000
-      ))
-    ]);
-    state.adminOnlyPages = Array.isArray(result.adminOnlyPages)
-      ? result.adminOnlyPages.map(page => String(page || '')).filter(Boolean)
-      : [];
-  } catch (error) {
-    // Fail closed for non-platform-admin views if access policy cannot be loaded.
-    state.adminOnlyPages = PAGE_ACCESS_ROWS.map(([route]) => route);
-    if (!state.user?.isAdmin) {
-      setNotice(error.message || 'Page access settings could not be loaded.', 'error');
-    }
-  }
-  renderPageAccess();
+function normalizeAdminOnlyPages(value) {
+  const pages = Array.isArray(value) ? value : [];
+  const valid = new Set(PAGE_ACCESS_ROWS.map(([route]) => route));
+  return [...new Set(pages.map(page => String(page || '').trim()).filter(page => valid.has(page)))];
 }
 
-function renderPageAccess() {
+function canAccessPage(route) {
+  if (route === 'settings') return true;
+  if (currentViewRole() === 'platform_admin') return true;
+  return !normalizeAdminOnlyPages(state.adminOnlyPages).includes(String(route || ''));
+}
+
+function firstAccessiblePage() {
+  return ['intel','archive','payouts','finance','settings'].find(canAccessPage) || 'settings';
+}
+
+function routeToAllowed(route, options = {}) {
+  const requested = String(route || 'intel');
+  const next = canAccessPage(requested) ? requested : firstAccessiblePage();
+  routeTo(next, options);
+}
+
+function renderPageAccessNavigation() {
   document.querySelectorAll('.primary-nav [data-route]').forEach(button => {
-    const route = String(button.dataset.route || '');
-    button.classList.toggle('hidden', !canAccessRoute(route));
+    button.classList.toggle('hidden', !canAccessPage(button.dataset.route));
   });
 
   const factionButton = document.querySelector('#factionButton');
   if (factionButton) {
     const platformContext = Boolean(state.user?.isAdmin && isPlatformAdminView());
-    factionButton.classList.toggle('hidden', platformContext || !canAccessRoute('intel'));
+    factionButton.classList.toggle('hidden', platformContext || !canAccessPage('intel'));
   }
 }
 
@@ -2019,16 +2018,16 @@ function renderPageAccessAdminControl() {
 
   if (!state.user?.isAdmin || !isPlatformAdminView()) {
     list.innerHTML = '';
-    if (status) status.classList.add('hidden');
+    status?.classList.add('hidden');
     return;
   }
 
-  const restricted = new Set(state.adminOnlyPages);
+  const restricted = new Set(normalizeAdminOnlyPages(state.adminOnlyPages));
   list.innerHTML = PAGE_ACCESS_ROWS.map(([route, label]) => `
     <div class="access-row">
       <div>
         <strong>${escapeHtml(label)}</strong>
-        <small>${restricted.has(route) ? 'Visible to platform admins only' : 'Available to all signed-in users'}</small>
+        <small>${restricted.has(route) ? 'Platform admin only' : 'Everyone'}</small>
       </div>
       <select class="access-select" data-page-access-route="${escapeHtml(route)}" aria-label="Access for ${escapeHtml(label)}"${pageAccessBusy ? ' disabled' : ''}>
         <option value="all"${restricted.has(route) ? '' : ' selected'}>Everyone</option>
@@ -2040,31 +2039,25 @@ function renderPageAccessAdminControl() {
 
 async function handlePageAccessChange(event) {
   const select = event.target.closest('[data-page-access-route]');
-  if (!select || pageAccessBusy || !state.user?.isAdmin) return;
+  if (!select || pageAccessBusy || !state.user?.isAdmin || !isPlatformAdminView()) return;
 
-  const route = String(select.dataset.pageAccessRoute || '');
-  if (!PAGE_ACCESS_ROWS.some(([candidate]) => candidate === route)) return;
-
-  const next = new Set(state.adminOnlyPages);
-  if (select.value === 'admin') next.add(route);
-  else next.delete(route);
+  const next = new Set(normalizeAdminOnlyPages(state.adminOnlyPages));
+  if (select.value === 'admin') next.add(select.dataset.pageAccessRoute);
+  else next.delete(select.dataset.pageAccessRoute);
 
   pageAccessBusy = true;
   renderPageAccessAdminControl();
-
   const status = document.querySelector('#pageAccessStatus');
   if (status) {
-    status.textContent = 'Saving page access…';
+    status.textContent = 'Saving…';
     status.classList.remove('hidden', 'error');
   }
 
   try {
-    const result = await adminApi('setPageAccess', {
-      adminOnlyPages:[...next]
-    });
-    state.adminOnlyPages = Array.isArray(result.adminOnlyPages) ? result.adminOnlyPages : [...next];
-    renderPageAccess();
-    routeTo(state.route, { updateHash:false });
+    const result = await adminApi('setPageAccess', { adminOnlyPages:[...next] });
+    state.adminOnlyPages = normalizeAdminOnlyPages(result.adminOnlyPages);
+    renderPageAccessNavigation();
+    renderPageAccessAdminControl();
     if (status) {
       status.textContent = result.message || 'Page access updated.';
       status.classList.remove('hidden', 'error');
