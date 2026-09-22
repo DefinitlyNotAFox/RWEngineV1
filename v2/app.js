@@ -277,7 +277,8 @@ async function enterApp() {
   document.querySelector('#authView')?.classList.add('hidden');
   document.querySelector('#appView')?.classList.remove('hidden');
 
-  await loadPageAccess();
+  // Page access is supplemental. Never block the main workspace/data boot on it.
+  loadPageAccess().catch(() => {});
 
   if (state.user?.isAdmin) {
     await loadAdminFactions();
@@ -1978,7 +1979,13 @@ function renderAdminSettings() {
 
 async function loadPageAccess() {
   try {
-    const result = await api('getPageAccess');
+    const result = await Promise.race([
+      api('getPageAccess'),
+      new Promise((_, reject) => window.setTimeout(
+        () => reject(new Error('Page access request timed out.')),
+        4000
+      ))
+    ]);
     state.adminOnlyPages = Array.isArray(result.adminOnlyPages)
       ? result.adminOnlyPages.map(page => String(page || '')).filter(Boolean)
       : [];
